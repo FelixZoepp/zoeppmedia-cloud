@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { KanbanColumn } from './column';
 import { AddCandidateModal } from './add-candidate-modal';
+import { FilterBar, applyFilters, type Filters } from './filters';
 import type { Candidate, PipelineStage } from '@/lib/types/database';
 import { createClient } from '@/lib/supabase/client';
 
@@ -12,6 +13,7 @@ export function KanbanBoard() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [filters, setFilters] = useState<Filters>({ search: '', source: '', stage: '', dateFrom: '', dateTo: '' });
   const supabase = createClient();
 
   const sensors = useSensors(
@@ -70,6 +72,8 @@ export function KanbanBoard() {
 
   if (loading) return <p className="text-gray-500 p-8">Laden...</p>;
 
+  const filteredCandidates = applyFilters(candidates, filters);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -82,13 +86,15 @@ export function KanbanBoard() {
         </button>
       </div>
 
+      <FilterBar stages={stages} filters={filters} onChange={setFilters} />
+
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {stages.map((stage) => (
             <KanbanColumn
               key={stage.id}
               stage={stage}
-              candidates={candidates.filter((c) => c.current_stage_id === stage.id)}
+              candidates={filteredCandidates.filter((c) => c.current_stage_id === stage.id)}
               onCardClick={handleCardClick}
             />
           ))}
