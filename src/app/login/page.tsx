@@ -25,6 +25,15 @@ export default function LoginPage() {
       return;
     }
 
+    // Update last_login
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      await supabase
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', authUser.id);
+    }
+
     router.push('/dashboard');
     router.refresh();
   }
