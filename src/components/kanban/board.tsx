@@ -1,0 +1,105 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { KanbanColumn } from './column';
+import { AddCandidateModal } from './add-candidate-modal';
+import type { Candidate, PipelineStage } from '@/lib/types/database';
+import { createClient } from '@/lib/supabase/client';
+
+export function KanbanBoard() {
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const supabase = createClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const loadData = useCallback(async () => {
+    const [stagesRes, candidatesRes] = await Promise.all([
+      supabase.from('pipeline_stages').select('*').order('sort_order'),
+      fetch('/api/candidates').then((r) => r.json()),
+    ]);
+
+    setStages(stagesRes.data ?? []);
+    setCandidates(candidatesRes ?? []);
+    setLoading(false);
+  }, [supabase]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const candidateId = active.id as string;
+    const newStageId = over.id as string;
+
+    const candidate = candidates.find((c) => c.id === candidateId);
+    if (!candidate || candidate.current_stage_id === newStageId) return;
+
+    // Optimistic update
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === candidateId ? { ...c, current_stage_id: newStageId } : c))
+    );
+
+    const res = await fetch(`/api/candidates/${candidateId}/stage`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage_id: newStageId }),
+    });
+
+    if (!res.ok) {
+      // Revert on failure
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === candidateId ? { ...c, current_stage_id: candidate.current_stage_id } : c
+        )
+      );
+    }
+  }
+
+  function handleCardClick(candidate: Candidate) {
+    window.location.href = `/candidates/${candidate.id}`;
+  }
+
+  if (loading) return <p className="text-gray-500 p-8">Laden...</p>;
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+        >
+          + Bewerber
+        </button>
+      </div>
+
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {stages.map((stage) => (
+            <KanbanColumn
+              key={stage.id}
+              stage={stage}
+              candidates={candidates.filter((c) => c.current_stage_id === stage.id)}
+              onCardClick={handleCardClick}
+            />
+          ))}
+        </div>
+      </DndContext>
+
+      <AddCandidateModal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
+}
