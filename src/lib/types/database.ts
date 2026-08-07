@@ -293,3 +293,73 @@ export interface ReportSnapshot {
   data: Record<string, unknown>;
   created_at: string;
 }
+
+// Phase 6: SOP System, Content Library, and Approval Workflow
+
+export interface SopPhase {
+  id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  estimated_days: number;
+}
+
+export interface SopTask {
+  id: string;
+  phase_id: string;
+  title: string;
+  description: string | null;
+  task_type: 'manual' | 'ai_generate' | 'approval' | 'external';
+  sort_order: number;
+  requires_approval: boolean;
+  ai_content_type: 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | null;
+}
+
+export interface CustomerSop {
+  id: string;
+  agency_id: string;
+  current_phase: number;
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface CustomerTask {
+  id: string;
+  customer_sop_id: string;
+  sop_task_id: string;
+  agency_id: string;
+  assigned_to: string | null;
+  status: 'pending' | 'in_progress' | 'waiting_approval' | 'approved' | 'changes_requested' | 'done' | 'skipped';
+  notes: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentLibraryItem {
+  id: string;
+  agency_id: string;
+  content_type: 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting';
+  title: string;
+  content: string;
+  variant: string | null;
+  version: number;
+  status: 'draft' | 'pending_review' | 'approved' | 'changes_requested' | 'archived';
+  feedback: string | null;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovalLogEntry {
+  id: string;
+  agency_id: string;
+  item_type: 'task' | 'content';
+  item_id: string;
+  action: 'submitted' | 'approved' | 'changes_requested' | 'resubmitted';
+  comment: string | null;
+  acted_by: string;
+  created_at: string;
+}

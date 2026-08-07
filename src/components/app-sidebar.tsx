@@ -14,6 +14,7 @@ import {
   BarChart3,
   Building2,
   ListTodo,
+  ListChecks,
 } from 'lucide-react';
 
 const adminItems: SidebarItem[] = [
@@ -38,6 +39,7 @@ const employeeItems: SidebarItem[] = [
 const agencyItems: SidebarItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/dashboard' },
   { id: 'candidates', label: 'Bewerber', icon: <ClipboardList className="w-5 h-5" />, href: '/candidates' },
+  { id: 'status', label: 'Projektstatus', icon: <ListChecks className="w-5 h-5" />, href: '/status' },
   { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/masterclass' },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/reports' },
 ];
