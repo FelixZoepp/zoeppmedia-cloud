@@ -37,8 +37,7 @@ export default function LoginPage() {
         .eq('id', authUser.id);
     }
 
-    router.push('/dashboard');
-    router.refresh();
+    window.location.href = '/dashboard';
   }
 
   return (

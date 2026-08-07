@@ -33,7 +33,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
-    pathname.startsWith('/api/webhooks')
+    pathname.startsWith('/api/')
   ) {
     return supabaseResponse;
   }
@@ -45,15 +45,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Admin routes → check role
-  if (pathname.startsWith('/admin')) {
+  // Logged-in user on login page → redirect to dashboard
+  if (pathname === '/login') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  // Admin/internal routes → check role
+  if (pathname.startsWith('/admin') || pathname.startsWith('/clients') || pathname.startsWith('/tasks') || pathname.startsWith('/ai-tools') || pathname.startsWith('/invites') || pathname.startsWith('/funnels') || pathname.startsWith('/team')) {
     const { data: profile } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profile?.role !== 'admin') {
+    const role = profile?.role as string;
+    if (role !== 'admin' && role !== 'employee') {
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
