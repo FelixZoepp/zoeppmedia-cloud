@@ -1,0 +1,54 @@
+:root {
+  /* Red Accent Ramp */
+  --red-050: #FDF0F2;
+  --red-100: #FADEE2;
+  --red-200: #F5BFC7;
+  --red-300: #F09AA6;
+  --red-400: #EA6A7C;
+  --red-500: #E0354B;
+  --red-600: #C92B40;
+  --red-700: #A62134;
+  --red-800: #701622;
+  --red-900: #3A0D14;
+
+  /* Neutrals */
+  --gray-000: #FFFFFF;
+  --gray-025: #FAFBFC;
+  --gray-050: #F5F6F8;
+  --gray-100: #EFF1F4;
+  --gray-200: #E7E9ED;
+  --gray-300: #D6DAE0;
+  --gray-400: #AEB4BD;
+  --gray-500: #8B919B;
+  --gray-600: #5F646D;
+  --gray-700: #41454C;
+  --gray-800: #26282D;
+  --gray-900: #17181A;
+
+  /* Status */
+  --green-100: #E4F7EC;
+  --green-500: #2FBF71;
+  --green-700: #1E8A50;
+  --amber-100: #FCF2E0;
+  --amber-500: #E8A13C;
+  --danger-600: #B3261E;
+
+  /* Surfaces */
+  --surface-app: var(--gray-050);
+  --surface-card: var(--gray-000);
+  --surface-subtle: var(--gray-025);
+  --surface-inset: var(--gray-100);
+
+  /* Borders */
+  --border-default: var(--gray-200);
+  --border-strong: var(--gray-300);
+
+  /* Text */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-600);
+  --text-tertiary: var(--gray-400);
+
+  /* Gradients */
+  --accent-grad: linear-gradient(180deg, #EF5B6F 0%, #E0354B 100%);
+  --accent-grad-hover: linear-gradient(180deg, #E94A60 0%, #C92B40 100%);
+}

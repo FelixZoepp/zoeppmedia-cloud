@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { User, Mail, Phone } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export function AddCandidateModal({
   open,
@@ -16,8 +20,6 @@ export function AddCandidateModal({
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  if (!open) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,60 +48,34 @@ export function AddCandidateModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Bewerber hinzufügen</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="cand-name" className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-            <input
-              id="cand-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label htmlFor="cand-email" className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
-            <input
-              id="cand-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label htmlFor="cand-phone" className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-            <input
-              id="cand-phone"
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-            >
-              Abbrechen
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Speichern...' : 'Hinzufügen'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal open={open} onClose={onClose} title="Bewerber hinzufugen">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="cand-name" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Name *</label>
+          <Input id="cand-name" type="text" value={name} onChange={(e) => setName(e.target.value)} required icon={<User className="w-4 h-4" />} placeholder="Vollständiger Name" />
+        </div>
+        <div>
+          <label htmlFor="cand-email" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">E-Mail</label>
+          <Input id="cand-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail className="w-4 h-4" />} placeholder="Optional" />
+        </div>
+        <div>
+          <label htmlFor="cand-phone" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Telefon</label>
+          <Input id="cand-phone" type="text" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone className="w-4 h-4" />} placeholder="Optional" />
+        </div>
+
+        {error && (
+          <p className="text-[var(--danger-600)] text-[13px] bg-red-50 px-3 py-2 rounded-[var(--radius-sm)]">{error}</p>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+            Abbrechen
+          </Button>
+          <Button type="submit" disabled={loading} className="flex-1">
+            {loading ? 'Speichern...' : 'Hinzufügen'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -1,0 +1,27 @@
+:root {
+  /* Font Stack */
+  --font-ui: "Inter Tight", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-heavy: 800;
+
+  /* Sizes */
+  --text-display: clamp(40px, 5vw, 64px);
+  --text-h2: 32px;
+  --text-lead: 18px;
+  --text-body: 15px;
+  --text-sm: 13px;
+
+  /* Line Height */
+  --leading-heading: 1.05;
+  --leading-body: 1.5;
+
+  /* Letter Spacing */
+  --tracking-heading: -0.03em;
+  --tracking-body: -0.011em;
+}

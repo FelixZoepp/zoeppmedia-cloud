@@ -1,3 +1,5 @@
+export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member';
+
 export type Agency = {
   id: string;
   name: string;
@@ -22,7 +24,7 @@ export type User = {
   agency_id: string;
   email: string;
   name: string;
-  role: 'owner' | 'admin';
+  role: UserRole;
   last_login: string | null;
   created_at: string;
 };
@@ -63,3 +65,231 @@ export type Note = {
   text: string;
   created_at: string;
 };
+
+export type TeamMember = {
+  id: string;
+  user_id: string;
+  name: string;
+  position: string | null;
+  created_at: string;
+};
+
+export type EmployeeAssignment = {
+  id: string;
+  employee_id: string;
+  agency_id: string;
+  created_at: string;
+};
+
+// Phase 2: Onboarding + Fulfillment
+
+export type FulfillmentStatus = 'pending' | 'in_progress' | 'review' | 'done' | 'skipped';
+
+export type OnboardingSubmission = {
+  id: string;
+  agency_id: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  company_name: string | null;
+  industry: string | null;
+  region: string | null;
+  employee_count: string | null;
+  website_url: string | null;
+  hiring_target: number | null;
+  hiring_timeframe: string | null;
+  experience_required: string | null;
+  compensation_model: string | null;
+  logo_url: string | null;
+  primary_color: string | null;
+  team_photos: string[];
+  usps: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  preferred_contact_time: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FulfillmentTask = {
+  id: string;
+  agency_id: string;
+  assigned_to: string | null;
+  title: string;
+  description: string | null;
+  task_type: 'perspective_funnel' | 'ad_copy' | 'script' | 'meta_campaign' | 'other';
+  status: FulfillmentStatus;
+  sort_order: number;
+  result_data: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GeneratedContent = {
+  id: string;
+  agency_id: string;
+  fulfillment_task_id: string | null;
+  content_type: 'ad_copy' | 'script' | 'funnel_text' | 'other';
+  content: string;
+  version: number;
+  approved: boolean;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type PerspectiveFunnel = {
+  id: string;
+  agency_id: string;
+  perspective_funnel_id: string | null;
+  name: string;
+  status: 'draft' | 'published' | 'archived';
+  url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Phase 3: Masterclass + Client Tasks
+
+export interface MasterclassModule {
+  id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  published: boolean;
+  created_at: string;
+}
+
+export interface MasterclassLesson {
+  id: string;
+  module_id: string;
+  title: string;
+  description: string | null;
+  video_url: string | null;
+  video_provider: 'youtube' | 'vimeo';
+  duration_minutes: number | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface LessonTask {
+  id: string;
+  lesson_id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+}
+
+export interface AgencyLessonProgress {
+  id: string;
+  agency_id: string;
+  lesson_id: string;
+  watched: boolean;
+  completed_at: string | null;
+}
+
+export interface AgencyTaskProgress {
+  id: string;
+  agency_id: string;
+  task_id: string;
+  completed: boolean;
+  completed_at: string | null;
+}
+
+export interface ClientTask {
+  id: string;
+  agency_id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  completed: boolean;
+  completed_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+// Phase 4: Internal Pipeline + AI Tools
+
+export type InternalTaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface InternalTask {
+  id: string;
+  title: string;
+  description: string | null;
+  agency_id: string | null;
+  assigned_to: string | null;
+  status: InternalTaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  user_id: string;
+  text: string;
+  created_at: string;
+}
+
+export interface AIConversation {
+  id: string;
+  agency_id: string;
+  user_id: string;
+  title: string | null;
+  conversation_type: 'ad_copy' | 'script' | 'funnel_text' | 'general';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIMessage {
+  id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
+// Phase 5: Reporting + Satisfaction
+
+export interface SurveyTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  questions: { id: string; type: string; label: string }[];
+  active: boolean;
+  created_at: string;
+}
+
+export interface SurveyResponse {
+  id: string;
+  template_id: string;
+  agency_id: string;
+  user_id: string;
+  rating: number | null;
+  answers: Record<string, unknown>;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface MetaAdReport {
+  id: string;
+  agency_id: string;
+  report_date: string;
+  spend: number | null;
+  impressions: number | null;
+  clicks: number | null;
+  leads: number | null;
+  cpl: number | null;
+  ctr: number | null;
+  fetched_at: string;
+}
+
+export interface ReportSnapshot {
+  id: string;
+  agency_id: string;
+  period_start: string;
+  period_end: string;
+  data: Record<string, unknown>;
+  created_at: string;
+}

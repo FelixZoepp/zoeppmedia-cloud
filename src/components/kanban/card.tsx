@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Candidate } from '@/lib/types/database';
+import { Badge } from '@/components/ui/badge';
 
 const sourceLabels: Record<string, string> = {
   meta: 'Meta',
@@ -10,10 +11,10 @@ const sourceLabels: Record<string, string> = {
   manual: 'Manuell',
 };
 
-const sourceColors: Record<string, string> = {
-  meta: 'bg-blue-100 text-blue-700',
-  indeed: 'bg-purple-100 text-purple-700',
-  manual: 'bg-gray-100 text-gray-700',
+const sourceTones: Record<string, 'accent' | 'softAccent' | 'neutral'> = {
+  meta: 'softAccent',
+  indeed: 'accent',
+  manual: 'neutral',
 };
 
 export function KanbanCard({ candidate, onClick }: { candidate: Candidate; onClick: () => void }) {
@@ -35,14 +36,14 @@ export function KanbanCard({ candidate, onClick }: { candidate: Candidate; onCli
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:shadow-sm"
+      className="bg-white border border-[var(--border-default)] rounded-[var(--radius-md)] p-3.5 cursor-grab active:cursor-grabbing hover:shadow-[var(--shadow-sm)] transition-shadow"
     >
-      <p className="font-medium text-gray-900 text-sm">{candidate.name}</p>
-      {candidate.phone && <p className="text-xs text-gray-500 mt-1">{candidate.phone}</p>}
-      <div className="mt-2">
-        <span className={`text-xs px-2 py-0.5 rounded-full ${sourceColors[candidate.source] ?? 'bg-gray-100 text-gray-700'}`}>
+      <p className="font-semibold text-[var(--text-primary)] text-[15px]">{candidate.name}</p>
+      {candidate.phone && <p className="text-[13px] text-[var(--text-secondary)] mt-1">{candidate.phone}</p>}
+      <div className="mt-2.5">
+        <Badge tone={sourceTones[candidate.source] ?? 'neutral'}>
           {sourceLabels[candidate.source] ?? candidate.source}
-        </span>
+        </Badge>
       </div>
     </div>
   );

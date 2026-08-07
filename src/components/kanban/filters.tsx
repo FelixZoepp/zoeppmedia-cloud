@@ -1,5 +1,9 @@
 'use client';
 
+import { Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { IconButton } from '@/components/ui/icon-button';
 import type { PipelineStage } from '@/lib/types/database';
 
 export type Filters = {
@@ -19,54 +23,62 @@ export function FilterBar({
   filters: Filters;
   onChange: (filters: Filters) => void;
 }) {
+  const hasFilters = filters.search || filters.source || filters.stage || filters.dateFrom || filters.dateTo;
+
   return (
-    <div className="flex flex-wrap gap-3 mb-6">
-      <input
-        type="text"
-        placeholder="Name suchen..."
-        value={filters.search}
-        onChange={(e) => onChange({ ...filters, search: e.target.value })}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
-      />
-      <select
+    <div className="flex flex-wrap items-center gap-3 mb-6">
+      <div className="w-52">
+        <Input
+          type="text"
+          placeholder="Name suchen..."
+          value={filters.search}
+          onChange={(e) => onChange({ ...filters, search: e.target.value })}
+          icon={<Search className="w-4 h-4" />}
+        />
+      </div>
+      <Select
         value={filters.source}
         onChange={(e) => onChange({ ...filters, source: e.target.value })}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option value="">Alle Quellen</option>
-        <option value="meta">Meta</option>
-        <option value="indeed">Indeed</option>
-        <option value="manual">Manuell</option>
-      </select>
-      <select
+        options={[
+          { value: '', label: 'Alle Quellen' },
+          { value: 'meta', label: 'Meta' },
+          { value: 'indeed', label: 'Indeed' },
+          { value: 'manual', label: 'Manuell' },
+        ]}
+        className="w-40"
+      />
+      <Select
         value={filters.stage}
         onChange={(e) => onChange({ ...filters, stage: e.target.value })}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option value="">Alle Phasen</option>
-        {stages.map((s) => (
-          <option key={s.id} value={s.id}>{s.name}</option>
-        ))}
-      </select>
-      <input
-        type="date"
-        value={filters.dateFrom}
-        onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        options={[
+          { value: '', label: 'Alle Phasen' },
+          ...stages.map((s) => ({ value: s.id, label: s.name })),
+        ]}
+        className="w-44"
       />
-      <input
-        type="date"
-        value={filters.dateTo}
-        onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-      {(filters.search || filters.source || filters.stage || filters.dateFrom || filters.dateTo) && (
-        <button
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
+          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+        />
+        <span className="text-[var(--text-tertiary)] text-[13px]">bis</span>
+        <input
+          type="date"
+          value={filters.dateTo}
+          onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
+          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+        />
+      </div>
+      {hasFilters && (
+        <IconButton
+          size="md"
           onClick={() => onChange({ search: '', source: '', stage: '', dateFrom: '', dateTo: '' })}
-          className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+          title="Filter zurücksetzen"
         >
-          Filter zurücksetzen
-        </button>
+          <X className="w-4 h-4" />
+        </IconButton>
       )}
     </div>
   );

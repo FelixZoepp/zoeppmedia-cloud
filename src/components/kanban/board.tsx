@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { Plus } from 'lucide-react';
 import { KanbanColumn } from './column';
 import { AddCandidateModal } from './add-candidate-modal';
 import { FilterBar, applyFilters, type Filters } from './filters';
+import { Button } from '@/components/ui/button';
 import type { Candidate, PipelineStage } from '@/lib/types/database';
 import { createClient } from '@/lib/supabase/client';
 
@@ -45,7 +47,6 @@ export function KanbanBoard() {
     const candidate = candidates.find((c) => c.id === candidateId);
     if (!candidate || candidate.current_stage_id === newStageId) return;
 
-    // Optimistic update
     setCandidates((prev) =>
       prev.map((c) => (c.id === candidateId ? { ...c, current_stage_id: newStageId } : c))
     );
@@ -57,7 +58,6 @@ export function KanbanBoard() {
     });
 
     if (!res.ok) {
-      // Revert on failure
       setCandidates((prev) =>
         prev.map((c) =>
           c.id === candidateId ? { ...c, current_stage_id: candidate.current_stage_id } : c
@@ -70,20 +70,26 @@ export function KanbanBoard() {
     window.location.href = `/candidates/${candidate.id}`;
   }
 
-  if (loading) return <p className="text-gray-500 p-8">Laden...</p>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const filteredCandidates = applyFilters(candidates, filters);
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
-        >
-          + Bewerber
-        </button>
+        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
+          Pipeline
+        </h1>
+        <Button onClick={() => setShowAddModal(true)} size="md">
+          <Plus className="w-4 h-4" />
+          Bewerber
+        </Button>
       </div>
 
       <FilterBar stages={stages} filters={filters} onChange={setFilters} />
