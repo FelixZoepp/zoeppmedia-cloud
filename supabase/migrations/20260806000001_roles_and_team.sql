@@ -1,16 +1,23 @@
 -- Phase 1: Update role system from text to enum, add team_members table
 
--- 1. Create role enum
-CREATE TYPE user_role AS ENUM ('admin', 'employee', 'agency_owner', 'agency_member');
+-- 1. Create role enum (skip if already exists from partial run)
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('admin', 'employee', 'agency_owner', 'agency_member');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
--- 2. Migrate existing role column
-ALTER TABLE users ALTER COLUMN role TYPE user_role USING
-  CASE
-    WHEN role = 'admin' THEN 'admin'::user_role
-    WHEN role = 'owner' THEN 'agency_owner'::user_role
-    ELSE 'agency_owner'::user_role
-  END;
+-- 2. Migrate existing role column (drop default first to allow type cast)
+ALTER TABLE users ALTER COLUMN role DROP DEFAULT;
 
+ALTER TABLE users ADD COLUMN role_new user_role;
+UPDATE users SET role_new = CASE
+  WHEN role = 'admin' THEN 'admin'::user_role
+  WHEN role = 'owner' THEN 'agency_owner'::user_role
+  ELSE 'agency_owner'::user_role
+END;
+ALTER TABLE users DROP COLUMN role;
+ALTER TABLE users RENAME COLUMN role_new TO role;
+ALTER TABLE users ALTER COLUMN role SET NOT NULL;
 ALTER TABLE users ALTER COLUMN role SET DEFAULT 'agency_owner'::user_role;
 
 -- 3. Team members table (for Zoepp Media internal employees)
