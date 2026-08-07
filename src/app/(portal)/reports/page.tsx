@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Modal } from '@/components/ui/modal';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   BarChart3, Users, UserCheck, TrendingUp, Percent,
   Calendar, Star, MessageSquare, Send
@@ -93,17 +94,16 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-            Reports
-          </h1>
-          <p className="text-[var(--text-secondary)] mt-1">Deine Recruiting-Performance auf einen Blick</p>
-        </div>
-        <Button variant="soft" onClick={() => setShowSurvey(true)}>
-          <Star className="w-4 h-4" /> Feedback geben
-        </Button>
-      </div>
+      <PageHeader
+        label="ANALYTICS"
+        title="Reports"
+        description="Deine Recruiting-Performance auf einen Blick"
+        action={
+          <Button variant="soft" onClick={() => setShowSurvey(true)}>
+            <Star className="w-4 h-4" /> Feedback geben
+          </Button>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

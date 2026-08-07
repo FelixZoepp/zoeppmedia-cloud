@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import type { SopPhase, SopTask, CustomerSop, CustomerTask, ContentLibraryItem } from '@/lib/types/database';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   Check, Clock, Eye, AlertTriangle, ChevronDown, ChevronRight,
   MessageSquare, ThumbsUp, ThumbsDown, FileText,
@@ -160,9 +161,7 @@ export default function ProjectStatusPage() {
   if (!sopData?.customerSop) {
     return (
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-4">
-          Projektstatus
-        </h1>
+        <PageHeader label="PROJEKT" title="Projektstatus" />
         <Card padding="lg" className="text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <Clock className="w-8 h-8 text-red-400" />
@@ -218,15 +217,11 @@ export default function ProjectStatusPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-          Projektstatus
-        </h1>
-        <p className="text-[var(--text-secondary)] mt-1">
-          Phase {currentPhaseDisplay} von {phases.length} &mdash; {overallPercent}% erledigt
-        </p>
-      </div>
+      <PageHeader
+        label="PROJEKT"
+        title="Projektstatus"
+        description={`Phase ${currentPhaseDisplay} von ${phases.length} \u2014 ${overallPercent}% erledigt`}
+      />
 
       {/* Overall progress */}
       <Card padding="lg" className="mb-8">

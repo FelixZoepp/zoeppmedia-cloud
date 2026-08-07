@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import { Building2 } from 'lucide-react';
 import type { Agency } from '@/lib/types/database';
 
@@ -35,14 +36,11 @@ export default function ClientsIndexPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)]">
-          Kunden
-        </h1>
-        <p className="text-[var(--text-body)] text-[var(--text-secondary)] mt-1">
-          {agencies.length} {agencies.length === 1 ? 'Kunde' : 'Kunden'} aktiv
-        </p>
-      </div>
+      <PageHeader
+        label="COCKPIT"
+        title="Kunden"
+        counter={`${agencies.length} gesamt`}
+      />
 
       {agencies.length === 0 ? (
         <Card padding="lg" className="text-center">

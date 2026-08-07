@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   FolderKanban, FileText, PhoneCall, Target, MoreHorizontal,
   Check, Clock, Eye, Play, ArrowLeft, Sparkles
@@ -99,20 +100,19 @@ export default function FulfillmentPage() {
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-            Fulfillment
-          </h1>
-          <p className="text-[var(--text-secondary)] mt-1">{completed} von {total} Aufgaben erledigt</p>
-        </div>
-        <div className="w-24 h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all"
-            style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
-          />
-        </div>
-      </div>
+      <PageHeader
+        label="FULFILLMENT"
+        title="Fulfillment"
+        description={`${completed} von ${total} Aufgaben erledigt`}
+        action={
+          <div className="w-24 h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all"
+              style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
+            />
+          </div>
+        }
+      />
 
       <div className="space-y-4">
         {tasks.map((task) => {

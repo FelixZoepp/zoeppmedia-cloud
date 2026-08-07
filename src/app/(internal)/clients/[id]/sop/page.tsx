@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import type { SopPhase, SopTask, CustomerSop, CustomerTask } from '@/lib/types/database';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   ArrowLeft, ChevronDown, ChevronRight, Check, Clock, Eye,
   Play, Sparkles, Send, SkipForward, AlertTriangle, Loader2,
@@ -232,45 +233,39 @@ export default function SopPage() {
         <ArrowLeft className="w-4 h-4" /> Zuruck zum Kunden
       </Link>
 
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-            SOP Fortschritt
-          </h1>
-          {customerSop ? (
-            <p className="text-[var(--text-secondary)] mt-1">
-              {doneTasks} von {totalTasks} Aufgaben erledigt &middot; {overallPercent}%
-            </p>
-          ) : (
-            <p className="text-[var(--text-secondary)] mt-1">
-              SOP wurde noch nicht gestartet
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          {customerSop && (
-            <div className="w-32 h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all duration-500"
-                style={{ width: `${overallPercent}%` }}
-              />
-            </div>
-          )}
-          {!customerSop && (
-            <Button onClick={initializeSop} disabled={initializing}>
-              {initializing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Wird erstellt...
-                </>
-              ) : (
-                'SOP starten'
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        label="FULFILLMENT"
+        title="SOP"
+        description={
+          customerSop
+            ? `${doneTasks} von ${totalTasks} Aufgaben erledigt \u00B7 ${overallPercent}%`
+            : 'SOP wurde noch nicht gestartet'
+        }
+        action={
+          <div className="flex items-center gap-4">
+            {customerSop && (
+              <div className="w-32 h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all duration-500"
+                  style={{ width: `${overallPercent}%` }}
+                />
+              </div>
+            )}
+            {!customerSop && (
+              <Button onClick={initializeSop} disabled={initializing}>
+                {initializing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Wird erstellt...
+                  </>
+                ) : (
+                  'SOP starten'
+                )}
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {customerSop && (
         <Link

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   Building2, MapPin, Users, Globe, Target, Clock, Briefcase, DollarSign,
   Palette, Type, Image, Star, Phone, User, ChevronRight, ChevronLeft, Check
@@ -72,12 +73,11 @@ export default function OnboardingPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-3">
-        Onboarding
-      </h1>
-      <p className="text-[var(--text-secondary)] text-[var(--text-lead)] mb-8">
-        Erzähle uns von deinem Unternehmen, damit wir alles für dich aufsetzen können.
-      </p>
+      <PageHeader
+        label="ONBOARDING"
+        title="Onboarding"
+        description="Erzähle uns von deinem Unternehmen, damit wir alles für dich aufsetzen können."
+      />
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8">

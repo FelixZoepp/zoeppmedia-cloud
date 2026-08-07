@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import type { Agency } from '@/lib/types/database';
 
 type AgencyWithMeta = Agency & {
@@ -34,19 +35,16 @@ export default function AdminPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)]">
-            Agenturen
-          </h1>
-          <p className="text-[var(--text-body)] text-[var(--text-secondary)] mt-1">
-            {agencies.length} {agencies.length === 1 ? 'Agentur' : 'Agenturen'} registriert
-          </p>
-        </div>
-        <Link href="/invites">
-          <Badge tone="accent">+ Neue Agentur einladen</Badge>
-        </Link>
-      </div>
+      <PageHeader
+        label="COCKPIT"
+        title="Agenturen"
+        counter={`${agencies.length} gesamt`}
+        action={
+          <Link href="/invites">
+            <Badge tone="accent">+ Neue Agentur einladen</Badge>
+          </Link>
+        }
+      />
 
       {agencies.length === 0 ? (
         <Card padding="lg" className="text-center">

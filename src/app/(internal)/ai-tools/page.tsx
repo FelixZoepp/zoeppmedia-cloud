@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { PageHeader } from '@/components/ui/page-header';
 import type { AIConversation, AIMessage } from '@/lib/types/database';
 import {
   Send, Plus, MessageSquare, Sparkles, Building2,
@@ -305,6 +306,8 @@ export default function AIToolsPage() {
   /* ---- Render ---- */
 
   return (
+    <div>
+      <PageHeader label="FULFILLMENT" title="AI Tools" />
     <div className="flex gap-6 h-[calc(100vh-128px)]">
       {/* Left Sidebar: Conversations */}
       <div className="w-[280px] flex-shrink-0 flex flex-col">
@@ -481,6 +484,7 @@ export default function AIToolsPage() {
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import type { ContentLibraryItem } from '@/lib/types/database';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   ArrowLeft, FileText, Phone, Video, Globe, Briefcase,
   MessageSquare, Eye, Pencil, Check, X,
@@ -121,17 +122,11 @@ export default function LibraryPage() {
         <ArrowLeft className="w-4 h-4" /> Zuruck zum Kunden
       </Link>
 
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-            Content-Bibliothek
-          </h1>
-          <p className="text-[var(--text-secondary)] mt-1">
-            {items.length} Inhalte &middot;{' '}
-            {items.filter((i) => i.status === 'pending_review').length} warten auf Review
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        label="CONTENT"
+        title="Library"
+        description={`${items.length} Inhalte \u00B7 ${items.filter((i) => i.status === 'pending_review').length} warten auf Review`}
+      />
 
       {/* Filter */}
       <div className="mb-8 overflow-x-auto">

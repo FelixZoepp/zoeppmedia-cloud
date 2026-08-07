@@ -7,6 +7,7 @@ import { KanbanColumn } from './column';
 import { AddCandidateModal } from './add-candidate-modal';
 import { FilterBar, applyFilters, type Filters } from './filters';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import type { Candidate, PipelineStage } from '@/lib/types/database';
 import { createClient } from '@/lib/supabase/client';
 
@@ -82,15 +83,16 @@ export function KanbanBoard() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-          Pipeline
-        </h1>
-        <Button onClick={() => setShowAddModal(true)} size="md">
-          <Plus className="w-4 h-4" />
-          Bewerber
-        </Button>
-      </div>
+      <PageHeader
+        label="PIPELINE"
+        title="Pipeline"
+        action={
+          <Button onClick={() => setShowAddModal(true)} size="md">
+            <Plus className="w-4 h-4" />
+            Bewerber
+          </Button>
+        }
+      />
 
       <FilterBar stages={stages} filters={filters} onChange={setFilters} />
 

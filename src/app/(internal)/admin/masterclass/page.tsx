@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   GraduationCap, Plus, Pencil, Trash2, Video, BookOpen,
   ChevronDown, ChevronRight, Save
@@ -187,22 +188,16 @@ export default function AdminMasterclassPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-red-500" />
-          </div>
-          <div>
-            <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
-              Masterclass verwalten
-            </h1>
-            <p className="text-[var(--text-secondary)]">{modules.length} Module, {lessons.length} Lektionen</p>
-          </div>
-        </div>
-        <Button onClick={() => { setEditingModule(null); setModuleTitle(''); setModuleDesc(''); setShowModuleModal(true); }}>
-          <Plus className="w-4 h-4" /> Modul
-        </Button>
-      </div>
+      <PageHeader
+        label="VERWALTUNG"
+        title="Masterclass verwalten"
+        description={`${modules.length} Module, ${lessons.length} Lektionen`}
+        action={
+          <Button onClick={() => { setEditingModule(null); setModuleTitle(''); setModuleDesc(''); setShowModuleModal(true); }}>
+            <Plus className="w-4 h-4" /> Modul
+          </Button>
+        }
+      />
 
       <div className="space-y-5">
         {modules.map((mod) => {

@@ -7,4 +7,5 @@ export { SegmentedControl } from './segmented-control';
 export { Card } from './card';
 export { Modal } from './modal';
 export { FeatureRow } from './feature-row';
-export { Sidebar, type SidebarItem } from './sidebar';
+export { Sidebar, type SidebarItem, type SidebarGroup } from './sidebar';
+export { PageHeader } from './page-header';

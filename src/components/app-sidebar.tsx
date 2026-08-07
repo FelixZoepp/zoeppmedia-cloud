@@ -1,6 +1,6 @@
 'use client';
 
-import { Sidebar, type SidebarItem } from '@/components/ui/sidebar';
+import { Sidebar, type SidebarGroup, type SidebarItem } from '@/components/ui/sidebar';
 import type { UserRole } from '@/lib/auth';
 import {
   LayoutDashboard,
@@ -17,31 +17,66 @@ import {
   ListChecks,
 } from 'lucide-react';
 
-const adminItems: SidebarItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
-  { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
-  { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
-  { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
-  { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
-  { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
-  { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
-  { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
+const adminGroups: SidebarGroup[] = [
+  {
+    label: 'Cockpit',
+    items: [
+      { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
+      { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
+      { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
+    ],
+  },
+  {
+    label: 'Fulfillment',
+    items: [
+      { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
+      { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
+      { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
+    ],
+  },
+  {
+    label: 'Verwaltung',
+    items: [
+      { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
+      { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
+    ],
+  },
 ];
 
-const employeeItems: SidebarItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
-  { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
-  { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
-  { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
-  { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
+const employeeGroups: SidebarGroup[] = [
+  {
+    label: 'Cockpit',
+    items: [
+      { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
+      { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
+    ],
+  },
+  {
+    label: 'Fulfillment',
+    items: [
+      { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
+      { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
+      { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
+    ],
+  },
 ];
 
-const agencyItems: SidebarItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/dashboard' },
-  { id: 'candidates', label: 'Bewerber', icon: <ClipboardList className="w-5 h-5" />, href: '/candidates' },
-  { id: 'status', label: 'Projektstatus', icon: <ListChecks className="w-5 h-5" />, href: '/status' },
-  { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/masterclass' },
-  { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/reports' },
+const agencyGroups: SidebarGroup[] = [
+  {
+    label: 'Recruiting',
+    items: [
+      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/dashboard' },
+      { id: 'candidates', label: 'Bewerber', icon: <ClipboardList className="w-5 h-5" />, href: '/candidates' },
+      { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/reports' },
+    ],
+  },
+  {
+    label: 'Zusammenarbeit',
+    items: [
+      { id: 'status', label: 'Projektstatus', icon: <ListChecks className="w-5 h-5" />, href: '/status' },
+      { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/masterclass' },
+    ],
+  },
 ];
 
 const settingsItem: SidebarItem = {
@@ -51,13 +86,13 @@ const settingsItem: SidebarItem = {
   href: '/settings',
 };
 
-function getItemsForRole(role: UserRole): SidebarItem[] {
+function getGroupsForRole(role: UserRole): SidebarGroup[] {
   switch (role) {
-    case 'admin': return adminItems;
-    case 'employee': return employeeItems;
+    case 'admin': return adminGroups;
+    case 'employee': return employeeGroups;
     case 'agency_owner':
     case 'agency_member':
-      return agencyItems;
+      return agencyGroups;
   }
 }
 
@@ -67,14 +102,16 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ role, userName }: AppSidebarProps) {
-  const items = getItemsForRole(role);
+  const groups = getGroupsForRole(role);
   const initial = userName.charAt(0).toUpperCase();
+  const isInternal = role === 'admin' || role === 'employee';
 
   return (
     <Sidebar
       brand={initial}
-      brandLabel={userName}
-      items={items}
+      brandLabel={isInternal ? 'Zoepp Media' : userName}
+      brandSub={isInternal ? 'Admin' : undefined}
+      groups={groups}
       bottomItems={[settingsItem]}
     />
   );

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import type { InternalTask, InternalTaskStatus, TaskPriority } from '@/lib/types/database';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   Plus, ChevronRight, ChevronLeft, Calendar, User,
   Building2, Flag, MessageSquare, Trash2,
@@ -288,20 +289,15 @@ export default function TasksPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)]">
-            Aufgaben
-          </h1>
-          <p className="text-[var(--text-body)] text-[var(--text-secondary)] mt-1">
-            {tasks.length} {tasks.length === 1 ? 'Aufgabe' : 'Aufgaben'} insgesamt
-          </p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4" /> Neue Aufgabe
-        </Button>
-      </div>
+      <PageHeader
+        label="FULFILLMENT"
+        title="Aufgaben"
+        action={
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4" /> Neue Aufgabe
+          </Button>
+        }
+      />
 
       {/* Kanban Board */}
       <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2">

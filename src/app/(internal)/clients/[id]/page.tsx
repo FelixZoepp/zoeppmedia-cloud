@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import { ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle } from 'lucide-react';
 import type { Agency } from '@/lib/types/database';
 
@@ -100,14 +101,11 @@ export default function ClientDetailPage() {
         Zuruck zur Ubersicht
       </Link>
 
-      <div className="mb-8">
-        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)]">
-          {agency.name}
-        </h1>
-        <p className="text-[var(--text-body)] text-[var(--text-secondary)] mt-1">
-          {agency.contact_name} &middot; {agency.email}
-        </p>
-      </div>
+      <PageHeader
+        label="KUNDEN"
+        title={agency.name}
+        description={`${agency.contact_name} \u00B7 ${agency.email}`}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

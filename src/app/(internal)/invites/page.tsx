@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { Building2, Mail, Phone, User, UserPlus, CheckCircle, Copy, AlertCircle } from 'lucide-react';
 
 export default function InvitesPage() {
@@ -52,14 +53,11 @@ export default function InvitesPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[var(--leading-heading)]">
-          Agentur einladen
-        </h1>
-        <p className="text-[var(--text-body)] text-[var(--text-secondary)] mt-1">
-          Erstelle einen Einladungslink für eine neue Agentur
-        </p>
-      </div>
+      <PageHeader
+        label="VERWALTUNG"
+        title="Neue Agentur einladen"
+        description="Erstelle einen Einladungslink für eine neue Agentur"
+      />
 
       <div className="max-w-lg">
         <Card padding="lg">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { Copy, Check, User, Building2, Webhook } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -58,9 +59,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-8">
-        Einstellungen
-      </h1>
+      <PageHeader label="EINSTELLUNGEN" title="Einstellungen" />
 
       <Card padding="md" className="mb-8">
         <div className="flex items-center gap-3 mb-4">
