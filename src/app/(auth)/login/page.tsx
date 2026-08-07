@@ -21,20 +21,41 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
+    if (signInError) {
       setError('E-Mail oder Passwort falsch.');
       setLoading(false);
       return;
     }
 
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser) {
-      await supabase
+    // Update last_login (ignore errors — non-critical)
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        await supabase
+          .from('users')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', authUser.id);
+      }
+    } catch {
+      // non-critical
+    }
+
+    // Check user role to redirect correctly
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) {
+      const { data: profile } = await supabase
         .from('users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', authUser.id);
+        .select('role')
+        .eq('id', currentUser.id)
+        .single();
+
+      const role = profile?.role as string;
+      if (role === 'admin' || role === 'employee') {
+        window.location.href = '/admin';
+        return;
+      }
     }
 
     window.location.href = '/dashboard';
