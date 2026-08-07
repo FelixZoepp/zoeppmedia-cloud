@@ -10,7 +10,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
   return (
     <div className="flex h-screen bg-[var(--surface-app)]">
       <AppSidebar role={user.role} userName={user.name} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-8 py-8">
           {children}
         </div>

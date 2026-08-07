@@ -28,7 +28,7 @@ export function Sidebar({ brand, brandLabel, items, bottomItems, promo }: Sideba
 
   return (
     <aside
-      className={`flex flex-col h-screen bg-white border-r border-gray-100 transition-all ${
+      className={`flex flex-col flex-shrink-0 h-screen bg-white border-r border-gray-100 transition-all ${
         collapsed ? 'w-[68px]' : 'w-[250px]'
       }`}
       style={{ transitionDuration: 'var(--dur-med)', transitionTimingFunction: 'var(--ease-out)' }}

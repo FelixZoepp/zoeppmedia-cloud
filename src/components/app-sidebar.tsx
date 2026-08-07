@@ -28,7 +28,7 @@ const adminItems: SidebarItem[] = [
 ];
 
 const employeeItems: SidebarItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/dashboard' },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
   { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
   { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
   { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
