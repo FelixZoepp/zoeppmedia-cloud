@@ -72,7 +72,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-2">
+      <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-3">
         Onboarding
       </h1>
       <p className="text-[var(--text-secondary)] text-[var(--text-lead)] mb-8">

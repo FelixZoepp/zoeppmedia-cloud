@@ -308,7 +308,7 @@ export default function AIToolsPage() {
     <div className="flex gap-6 h-[calc(100vh-128px)]">
       {/* Left Sidebar: Conversations */}
       <div className="w-[280px] flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-[15px] font-bold text-[var(--text-primary)]">Unterhaltungen</h2>
           <Button variant="soft" size="sm" onClick={startNewConversation}>
             <Plus className="w-3.5 h-3.5" /> Neu
@@ -354,7 +354,7 @@ export default function AIToolsPage() {
       {/* Right Main: Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-6">
           <Select
             options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
             value={selectedAgency}
@@ -377,7 +377,7 @@ export default function AIToolsPage() {
         </div>
 
         {/* Messages area */}
-        <Card padding="md" className="flex-1 overflow-y-auto mb-4 !p-6">
+        <Card padding="md" className="flex-1 overflow-y-auto mb-5 !p-6">
           {!activeConvId && messages.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center h-full text-center">

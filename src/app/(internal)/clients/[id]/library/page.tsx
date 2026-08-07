@@ -116,12 +116,12 @@ export default function LibraryPage() {
     <div className="max-w-4xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-4 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zuruck zum Kunden
       </Link>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
             Content-Bibliothek

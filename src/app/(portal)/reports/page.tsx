@@ -106,7 +106,7 @@ export default function ReportsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {[
           { label: 'Gesamt Bewerber', value: data.total, icon: Users, color: 'bg-red-50 text-red-500' },
           { label: 'Letzte 30 Tage', value: data.last30, icon: Calendar, color: 'bg-red-50 text-red-500' },
@@ -156,7 +156,7 @@ export default function ReportsPage() {
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-red-500" /> Quellen
           </h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-6">
             {[
               { label: 'Meta', value: data.sources.meta, color: 'bg-red-50 text-red-600' },
               { label: 'Indeed', value: data.sources.indeed, color: 'bg-green-100 text-green-700' },
@@ -189,7 +189,7 @@ export default function ReportsPage() {
             <p className="text-[var(--text-secondary)]">Wir nutzen es, um noch besser zu werden.</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {templates[0]?.questions.map((q) => (
               <div key={q.id}>
                 <label className="block text-[15px] font-medium text-[var(--text-primary)] mb-2">{q.label}</label>

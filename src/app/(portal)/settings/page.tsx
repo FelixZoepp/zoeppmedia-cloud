@@ -62,7 +62,7 @@ export default function SettingsPage() {
         Einstellungen
       </h1>
 
-      <Card padding="md" className="mb-6">
+      <Card padding="md" className="mb-8">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <User className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -81,7 +81,7 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card padding="md" className="mb-6">
+      <Card padding="md" className="mb-8">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />

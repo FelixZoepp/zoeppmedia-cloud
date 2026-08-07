@@ -227,7 +227,7 @@ export default function SopPage() {
     <div className="max-w-4xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-4 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zuruck zum Kunden
       </Link>
@@ -275,13 +275,13 @@ export default function SopPage() {
       {customerSop && (
         <Link
           href={`/clients/${id}/library`}
-          className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-600 text-[13px] font-medium mb-6 transition-colors"
+          className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-600 text-[13px] font-medium mb-8 transition-colors"
         >
           Content-Bibliothek ansehen &rarr;
         </Link>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCustomerTasks = phaseTasks
@@ -541,7 +541,7 @@ export default function SopPage() {
         onClose={() => { setNoteModal(null); setNoteText(''); }}
         title="Notizen"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}

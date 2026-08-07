@@ -204,7 +204,7 @@ export default function AdminMasterclassPage() {
         </Button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {modules.map((mod) => {
           const modLessons = lessons.filter((l) => l.module_id === mod.id);
           const isExpanded = expandedModule === mod.id;
@@ -256,7 +256,7 @@ export default function AdminMasterclassPage() {
 
       {/* Module Modal */}
       <Modal open={showModuleModal} onClose={() => setShowModuleModal(false)} title={editingModule ? 'Modul bearbeiten' : 'Neues Modul'}>
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={moduleTitle} onChange={(e) => setModuleTitle(e.target.value)} placeholder="z.B. Bewerber-Management" />
@@ -282,7 +282,7 @@ export default function AdminMasterclassPage() {
 
       {/* Lesson Modal */}
       <Modal open={showLessonModal} onClose={() => setShowLessonModal(false)} title={editingLesson ? 'Lektion bearbeiten' : 'Neue Lektion'}>
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="z.B. Pipeline richtig nutzen" />
@@ -296,7 +296,7 @@ export default function AdminMasterclassPage() {
               className="w-full px-4 py-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Video URL</label>
               <Input value={lessonVideoUrl} onChange={(e) => setLessonVideoUrl(e.target.value)} icon={<Video className="w-4 h-4" />} placeholder="YouTube/Vimeo URL" />

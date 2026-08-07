@@ -95,11 +95,11 @@ export default function FulfillmentPage() {
 
   return (
     <div className="max-w-3xl">
-      <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-4 transition-colors">
+      <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
             Fulfillment
@@ -114,7 +114,7 @@ export default function FulfillmentPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {tasks.map((task) => {
           const config = statusConfig[task.status] || statusConfig.pending;
           const canGenerate = ['ad_copy', 'script', 'perspective_funnel'].includes(task.task_type) && task.status === 'pending';

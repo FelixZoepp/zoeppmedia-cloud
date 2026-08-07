@@ -110,7 +110,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {kpis.map((kpi) => (
           <Card key={kpi.label} padding="md">
             <div className="flex items-center gap-3 mb-3">
@@ -133,8 +133,8 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Funnel */}
-      <Card padding="lg" className="mb-6">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-5">
+      <Card padding="lg" className="mb-8">
+        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-6">
           Conversion Funnel
         </h2>
         <div className="space-y-3">
@@ -164,8 +164,8 @@ export default function ClientDetailPage() {
       </Card>
 
       {/* Source Breakdown */}
-      <Card padding="lg" className="mb-6">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-5">
+      <Card padding="lg" className="mb-8">
+        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-6">
           Quellen
         </h2>
         <div className="grid grid-cols-3 gap-6">
@@ -191,7 +191,7 @@ export default function ClientDetailPage() {
       </Card>
 
       {/* Activity */}
-      <Card padding="lg" className="mb-6">
+      <Card padding="lg" className="mb-8">
         <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-4">
           Aktivitat
         </h2>

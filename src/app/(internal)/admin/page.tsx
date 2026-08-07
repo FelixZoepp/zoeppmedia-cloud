@@ -81,7 +81,7 @@ export default function AdminPage() {
                     index < agencies.length - 1 ? 'border-b border-[var(--border-default)]' : ''
                   }`}
                 >
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-5">
                     <Link
                       href={`/clients/${a.id}`}
                       className="text-red-500 hover:text-red-600 font-semibold transition-colors"
@@ -89,15 +89,15 @@ export default function AdminPage() {
                       {a.name}
                     </Link>
                   </td>
-                  <td className="px-6 py-4 text-[var(--text-secondary)]">
+                  <td className="px-6 py-5 text-[var(--text-secondary)]">
                     {a.contact_name}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-5">
                     <Badge tone={a.candidate_count > 0 ? 'softAccent' : 'neutral'}>
                       {a.candidate_count}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-[var(--text-sm)] text-[var(--text-tertiary)]">
+                  <td className="px-6 py-5 text-[var(--text-sm)] text-[var(--text-tertiary)]">
                     {a.last_login
                       ? new Date(a.last_login).toLocaleDateString('de-DE', {
                           day: '2-digit',

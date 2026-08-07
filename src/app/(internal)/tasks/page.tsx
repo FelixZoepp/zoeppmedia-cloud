@@ -304,13 +304,13 @@ export default function TasksPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2">
         {COLUMNS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.key);
           const colIdx = getColumnIndex(col.key);
 
           return (
-            <div key={col.key} className="flex-shrink-0 w-[280px]">
+            <div key={col.key} className="flex-shrink-0 w-80">
               {/* Column header */}
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div
@@ -333,7 +333,7 @@ export default function TasksPage() {
               </div>
 
               {/* Column body */}
-              <div className="space-y-3 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-2 border border-[var(--border-default)] border-dashed">
+              <div className="space-y-3 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-3 border border-[var(--border-default)] border-dashed">
                 {colTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -359,7 +359,7 @@ export default function TasksPage() {
 
       {/* ---- Create Task Modal ---- */}
       <Modal open={showCreate} onClose={resetCreateForm} title="Neue Aufgabe" width="max-w-md">
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel *</label>
             <Input
@@ -380,7 +380,7 @@ export default function TasksPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Priorität</label>
               <Select

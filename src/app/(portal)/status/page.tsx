@@ -253,7 +253,7 @@ export default function ProjectStatusPage() {
       {/* Attention needed section */}
       {needsAttention > 0 && (
         <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-6">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </div>
@@ -262,7 +262,7 @@ export default function ProjectStatusPage() {
             </h2>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {/* Tasks waiting for approval */}
             {approvalTasks.map((ct) => {
               const sopTask = tasks.find((t) => t.id === ct.sop_task_id);
@@ -346,7 +346,7 @@ export default function ProjectStatusPage() {
       )}
 
       {/* Phase cards */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCTs = phaseTasks.map((t) => customerTaskMap.get(t.id)).filter(Boolean) as CustomerTask[];
@@ -474,7 +474,7 @@ export default function ProjectStatusPage() {
         title="Anderung anfordern"
       >
         {feedbackModal && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <p className="text-[14px] text-[var(--text-secondary)]">
               Was sollen wir bei <strong>{feedbackModal.title}</strong> andern?
             </p>

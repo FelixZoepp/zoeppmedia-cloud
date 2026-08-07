@@ -41,15 +41,15 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-sm">
       <Card padding="lg" className="shadow-[var(--shadow-md)]">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#EF5B6F] to-[var(--red-500)] flex items-center justify-center text-white font-bold text-lg">
             Z
           </div>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Registrierung</h1>
         </div>
-        <p className="text-[var(--text-secondary)] text-[15px] mb-6">Erstelle deinen Zugang zur Zoepp Media Cloud.</p>
+        <p className="text-[var(--text-secondary)] text-[15px] mb-8">Erstelle deinen Zugang zur Zoepp Media Cloud.</p>
 
-        <form onSubmit={handleRegister} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-5">
           <div>
             <label htmlFor="name" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Name</label>
             <Input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required icon={<User className="w-4 h-4" />} placeholder="Dein Name" />

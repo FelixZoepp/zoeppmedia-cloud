@@ -82,7 +82,7 @@ export function KanbanBoard() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-8">
         <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)]">
           Pipeline
         </h1>
@@ -95,7 +95,7 @@ export function KanbanBoard() {
       <FilterBar stages={stages} filters={filters} onChange={setFilters} />
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-5 overflow-x-auto pb-4">
           {stages.map((stage) => (
             <KanbanColumn
               key={stage.id}

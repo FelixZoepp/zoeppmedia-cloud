@@ -136,7 +136,7 @@ export default function MasterclassPage() {
           />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {modules.map((mod) => {
             const modLessons = lessons.filter((l) => l.module_id === mod.id);
             const modCompleted = modLessons.filter((l) => lessonProgress[l.id]).length;
@@ -200,7 +200,7 @@ export default function MasterclassPage() {
           <div>
             {getVideoEmbed(activeLesson)}
 
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-6">
               <div>
                 <h2 className="text-[22px] font-bold text-[var(--text-primary)]">{activeLesson.title}</h2>
                 {activeLesson.description && (

@@ -49,7 +49,7 @@ export function AddCandidateModal({
 
   return (
     <Modal open={open} onClose={onClose} title="Bewerber hinzufugen">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="cand-name" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Name *</label>
           <Input id="cand-name" type="text" value={name} onChange={(e) => setName(e.target.value)} required icon={<User className="w-4 h-4" />} placeholder="Vollständiger Name" />
