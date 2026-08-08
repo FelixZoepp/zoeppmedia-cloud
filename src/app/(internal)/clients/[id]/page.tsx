@@ -142,7 +142,7 @@ export default function ClientDetailPage() {
             const barColor = funnelColors[index] || funnelColors[funnelColors.length - 1];
             return (
               <div key={f.stage} className="flex items-center gap-4">
-                <span className="text-[var(--text-sm)] text-[var(--text-secondary)] w-44 flex-shrink-0 font-medium">
+                <span className="text-[var(--text-sm)] text-[var(--text-secondary)] w-28 sm:w-44 flex-shrink-0 font-medium truncate">
                   {f.stage}
                 </span>
                 <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">

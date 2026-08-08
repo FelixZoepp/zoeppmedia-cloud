@@ -26,8 +26,8 @@ export function FilterBar({
   const hasFilters = filters.search || filters.source || filters.stage || filters.dateFrom || filters.dateTo;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-8">
-      <div className="w-52">
+    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-6 sm:mb-8">
+      <div className="w-full sm:w-52">
         <Input
           type="text"
           placeholder="Name suchen..."
@@ -36,39 +36,41 @@ export function FilterBar({
           icon={<Search className="w-4 h-4" />}
         />
       </div>
-      <Select
-        value={filters.source}
-        onChange={(e) => onChange({ ...filters, source: e.target.value })}
-        options={[
-          { value: '', label: 'Alle Quellen' },
-          { value: 'meta', label: 'Meta' },
-          { value: 'indeed', label: 'Indeed' },
-          { value: 'manual', label: 'Manuell' },
-        ]}
-        className="w-40"
-      />
-      <Select
-        value={filters.stage}
-        onChange={(e) => onChange({ ...filters, stage: e.target.value })}
-        options={[
-          { value: '', label: 'Alle Phasen' },
-          ...stages.map((s) => ({ value: s.id, label: s.name })),
-        ]}
-        className="w-44"
-      />
+      <div className="grid grid-cols-2 gap-3 sm:contents">
+        <Select
+          value={filters.source}
+          onChange={(e) => onChange({ ...filters, source: e.target.value })}
+          options={[
+            { value: '', label: 'Alle Quellen' },
+            { value: 'meta', label: 'Meta' },
+            { value: 'indeed', label: 'Indeed' },
+            { value: 'manual', label: 'Manuell' },
+          ]}
+          className="w-full sm:w-40"
+        />
+        <Select
+          value={filters.stage}
+          onChange={(e) => onChange({ ...filters, stage: e.target.value })}
+          options={[
+            { value: '', label: 'Alle Phasen' },
+            ...stages.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+          className="w-full sm:w-44"
+        />
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="date"
           value={filters.dateFrom}
           onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none flex-1 min-w-0 sm:flex-none"
         />
-        <span className="text-[var(--text-tertiary)] text-[13px]">bis</span>
+        <span className="text-[var(--text-tertiary)] text-[13px] flex-shrink-0">bis</span>
         <input
           type="date"
           value={filters.dateTo}
           onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none flex-1 min-w-0 sm:flex-none"
         />
       </div>
       {hasFilters && (

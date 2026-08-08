@@ -111,7 +111,7 @@ function TaskCard({
 
       {/* Move buttons */}
       <div
-        className="flex items-center gap-1 pt-2 border-t border-[var(--border-default)] opacity-0 group-hover:opacity-100 transition-opacity"
+        className="flex items-center gap-1 pt-2 border-t border-[var(--border-default)] opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -300,13 +300,13 @@ export default function TasksPage() {
       />
 
       {/* Kanban Board */}
-      <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-4 -mx-2 px-2">
         {COLUMNS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.key);
           const colIdx = getColumnIndex(col.key);
 
           return (
-            <div key={col.key} className="flex-shrink-0 w-80">
+            <div key={col.key} className="flex-shrink-0 w-[280px] sm:w-80">
               {/* Column header */}
               <div className="flex items-center gap-2 mb-3 px-1">
                 <div
@@ -376,7 +376,7 @@ export default function TasksPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Priorität</label>
               <Select

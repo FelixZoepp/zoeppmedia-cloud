@@ -54,7 +54,8 @@ export default function AdminPage() {
         </Card>
       ) : (
         <Card padding="sm" className="overflow-hidden !p-0">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-[var(--border-default)]">
                 <th className="text-left px-6 py-4 text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
@@ -112,6 +113,7 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>

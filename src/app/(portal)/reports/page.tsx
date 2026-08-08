@@ -134,7 +134,7 @@ export default function ReportsPage() {
           <div className="space-y-3">
             {data.funnel.map((stage) => (
               <div key={stage.id} className="flex items-center gap-3">
-                <span className="text-[13px] font-medium text-[var(--text-secondary)] w-36 truncate">{stage.name}</span>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)] w-24 sm:w-36 flex-shrink-0 truncate">{stage.name}</span>
                 <div className="flex-1 h-8 bg-[var(--surface-inset)] rounded-[var(--radius-sm)] overflow-hidden">
                   <div
                     className="h-full rounded-[var(--radius-sm)] transition-all flex items-center px-3"

@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import type { AIConversation, AIMessage } from '@/lib/types/database';
 import {
   Send, Plus, MessageSquare, Sparkles, Building2,
-  FileText, PhoneCall, Globe, Bot, User,
+  FileText, PhoneCall, Globe, Bot, User, ChevronDown,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -140,6 +140,7 @@ export default function AIToolsPage() {
 
   // Message input
   const [inputText, setInputText] = useState('');
+  const [showConvsMobile, setShowConvsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -308,17 +309,24 @@ export default function AIToolsPage() {
   return (
     <div>
       <PageHeader label="FULFILLMENT" title="AI Tools" />
-    <div className="flex gap-6 h-[calc(100vh-128px)]">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100dvh-220px)] min-h-[420px] lg:h-[calc(100vh-128px)]">
       {/* Left Sidebar: Conversations */}
-      <div className="w-[280px] flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[15px] font-bold text-[var(--text-primary)]">Unterhaltungen</h2>
+      <div className="w-full lg:w-[280px] flex-shrink-0 flex flex-col">
+        <div className="flex items-center justify-between mb-3 lg:mb-6">
+          <button
+            onClick={() => setShowConvsMobile(!showConvsMobile)}
+            className="flex lg:hidden items-center gap-1.5 text-[15px] font-bold text-[var(--text-primary)] cursor-pointer"
+          >
+            Unterhaltungen
+            <ChevronDown className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform ${showConvsMobile ? 'rotate-180' : ''}`} />
+          </button>
+          <h2 className="hidden lg:block text-[15px] font-bold text-[var(--text-primary)]">Unterhaltungen</h2>
           <Button variant="soft" size="sm" onClick={startNewConversation}>
             <Plus className="w-3.5 h-3.5" /> Neu
           </Button>
         </div>
 
-        <Card padding="sm" className="flex-1 overflow-y-auto !p-2">
+        <Card padding="sm" className={`overflow-y-auto !p-2 ${showConvsMobile ? 'block max-h-48' : 'hidden'} lg:block lg:flex-1 lg:max-h-none`}>
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
@@ -343,7 +351,10 @@ export default function AIToolsPage() {
                         key={conv.id}
                         conversation={conv}
                         active={activeConvId === conv.id}
-                        onClick={() => setActiveConvId(conv.id)}
+                        onClick={() => {
+                          setActiveConvId(conv.id);
+                          setShowConvsMobile(false);
+                        }}
                       />
                     ))}
                   </div>
@@ -355,24 +366,24 @@ export default function AIToolsPage() {
       </div>
 
       {/* Right Main: Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 lg:mb-6">
           <Select
             options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
             value={selectedAgency}
             onChange={(e) => setSelectedAgency(e.target.value)}
-            className="w-[220px]"
+            className="flex-1 min-w-0 sm:flex-none sm:w-[220px]"
           />
           <Select
             options={CONTENT_TYPES}
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="w-[180px]"
+            className="flex-1 min-w-0 sm:flex-none sm:w-[180px]"
           />
-          <div className="flex-1" />
+          <div className="hidden sm:block flex-1" />
           {activeConvId && (
-            <Badge tone="softAccent" className="flex-shrink-0">
+            <Badge tone="softAccent" className="flex-shrink-0 hidden sm:inline-flex">
               <Sparkles className="w-3 h-3 mr-1" />
               AI Chat aktiv
             </Badge>
@@ -380,7 +391,7 @@ export default function AIToolsPage() {
         </div>
 
         {/* Messages area */}
-        <Card padding="md" className="flex-1 overflow-y-auto mb-5 !p-6">
+        <Card padding="md" className="flex-1 overflow-y-auto mb-4 sm:mb-5 !p-4 sm:!p-6">
           {!activeConvId && messages.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -393,7 +404,7 @@ export default function AIToolsPage() {
               <p className="text-[var(--text-secondary)] text-[15px] max-w-sm leading-relaxed mb-6">
                 Generiere und verfeinere Ad Copys, Skripte und Funnel-Texte mit AI-Unterstützung.
               </p>
-              <div className="grid grid-cols-2 gap-3 max-w-md w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md w-full">
                 {CONTENT_TYPES.filter((t) => t.value !== 'general').map((t) => (
                   <button
                     key={t.value}

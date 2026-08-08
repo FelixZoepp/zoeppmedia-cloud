@@ -115,9 +115,9 @@ export default function MasterclassPage() {
   const progressPercent = totalLessons > 0 ? Math.round((watchedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="flex gap-8">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
       {/* Left sidebar: module list */}
-      <div className="w-72 flex-shrink-0">
+      <div className="w-full lg:w-72 flex-shrink-0">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-red-500" />
