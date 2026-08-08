@@ -111,6 +111,7 @@ export function AppSidebar({ role, userName }: AppSidebarProps) {
       brand={initial}
       brandLabel={isInternal ? 'Zoepp Media' : userName}
       brandSub={isInternal ? 'Admin' : undefined}
+      userName={userName}
       groups={groups}
       bottomItems={[settingsItem]}
     />

@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreHorizontal, X } from 'lucide-react';
 
 export interface SidebarItem {
   id: string;
@@ -22,12 +22,20 @@ interface SidebarProps {
   brand: string;
   brandLabel: string;
   brandSub?: string;
+  userName?: string;
   groups: SidebarGroup[];
   bottomItems?: SidebarItem[];
   promo?: ReactNode;
 }
 
-export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, promo }: SidebarProps) {
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Guten Morgen,';
+  if (hour < 18) return 'Guten Nachmittag,';
+  return 'Guten Abend,';
+}
+
+export function Sidebar({ brand, brandLabel, brandSub, userName, groups, bottomItems, promo }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -37,8 +45,12 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
+  function isItemActive(item: SidebarItem) {
+    return pathname === item.href || pathname.startsWith(item.href + '/');
+  }
+
   function renderItem(item: SidebarItem, isCollapsed: boolean, onNavigate?: () => void) {
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+    const isActive = isItemActive(item);
     return (
       <Link
         key={item.id}
@@ -121,19 +133,58 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
     );
   }
 
+  // First four nav items across all groups form the mobile tab bar; the
+  // rest stays reachable through the "Mehr" drawer.
+  const tabItems = groups.flatMap((g) => g.items).slice(0, 4);
+
   return (
     <>
-      {/* Mobile Top Bar */}
-      <header className="flex lg:hidden items-center gap-3 h-14 px-4 bg-white border-b border-gray-100 flex-shrink-0 sticky top-0 z-40">
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="flex items-center justify-center w-10 h-10 -ml-2 rounded-[var(--radius-md)] text-gray-600 hover:bg-gray-050 transition-colors cursor-pointer"
-          aria-label="Menü öffnen"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        {renderBrand(false)}
+      {/* Mobile Greeting Header */}
+      <header className="flex lg:hidden items-center gap-3 px-5 pt-4 pb-2 bg-[var(--surface-app)] flex-shrink-0">
+        <div className="w-[42px] h-[42px] rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center text-white font-bold text-[16px] flex-shrink-0">
+          {brand}
+        </div>
+        <div className="min-w-0">
+          <span suppressHydrationWarning className="text-[13px] text-gray-500 block leading-tight">
+            {getGreeting()}
+          </span>
+          <span className="text-[17px] font-bold text-gray-900 block truncate leading-tight">
+            {userName || brandLabel}
+          </span>
+        </div>
       </header>
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="lg:hidden fixed z-40 left-1/2 -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] w-[calc(100%-2rem)] max-w-[400px]">
+        <nav className="flex items-center justify-between h-[64px] px-3 bg-white/95 backdrop-blur-md rounded-full border border-gray-100 shadow-[var(--shadow-lg)]">
+          {tabItems.map((item) => {
+            const isActive = isItemActive(item);
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-label={item.label}
+                className={`flex items-center justify-center h-[46px] rounded-full transition-all ${
+                  isActive
+                    ? 'bg-red-50 text-red-600 px-6'
+                    : 'text-gray-400 px-4'
+                }`}
+              >
+                {item.icon}
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Mehr"
+            className={`flex items-center justify-center h-[46px] rounded-full transition-all cursor-pointer ${
+              mobileOpen ? 'bg-red-50 text-red-600 px-6' : 'text-gray-400 px-4'
+            }`}
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+        </nav>
+      </div>
 
       {/* Mobile Drawer */}
       {mobileOpen && (
