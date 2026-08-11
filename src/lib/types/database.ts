@@ -359,7 +359,7 @@ export interface CustomerTask {
 export interface ContentLibraryItem {
   id: string;
   agency_id: string;
-  content_type: 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting';
+  content_type: 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief';
   title: string;
   content: string;
   variant: string | null;

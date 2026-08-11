@@ -19,11 +19,12 @@ type ContentType = ContentLibraryItem['content_type'];
 type ContentStatus = ContentLibraryItem['status'];
 
 const contentTypeConfig: Record<ContentType, { label: string; icon: React.ReactNode }> = {
-  ad_copy:      { label: 'Ad Copys',         icon: <FileText className="w-4 h-4" /> },
-  phone_script: { label: 'Telefon-Skripte',  icon: <Phone className="w-4 h-4" /> },
-  video_script: { label: 'Video-Skripte',    icon: <Video className="w-4 h-4" /> },
-  funnel_text:  { label: 'Funnel-Texte',     icon: <Globe className="w-4 h-4" /> },
-  job_posting:  { label: 'Stellenanzeigen',  icon: <Briefcase className="w-4 h-4" /> },
+  ad_copy:        { label: 'Ad Copys',         icon: <FileText className="w-4 h-4" /> },
+  phone_script:   { label: 'Telefon-Skripte',  icon: <Phone className="w-4 h-4" /> },
+  video_script:   { label: 'Video-Skripte',    icon: <Video className="w-4 h-4" /> },
+  funnel_text:    { label: 'Funnel-Texte',     icon: <Globe className="w-4 h-4" /> },
+  job_posting:    { label: 'Stellenanzeigen',  icon: <Briefcase className="w-4 h-4" /> },
+  creative_brief: { label: 'Creative Briefs',  icon: <MessageSquare className="w-4 h-4" /> },
 };
 
 const statusConfig: Record<ContentStatus, { label: string; tone: 'neutral' | 'softAccent' | 'accent' | 'success' | 'outline' }> = {
