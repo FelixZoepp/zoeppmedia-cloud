@@ -27,11 +27,14 @@ const contentTypeConfig: Record<ContentType, { label: string; icon: React.ReactN
 };
 
 const statusConfig: Record<ContentStatus, { label: string; tone: 'neutral' | 'softAccent' | 'accent' | 'success' | 'outline' }> = {
-  draft:             { label: 'Entwurf',          tone: 'neutral' },
-  pending_review:    { label: 'Review ausstehend', tone: 'accent' },
-  approved:          { label: 'Freigegeben',       tone: 'success' },
-  changes_requested: { label: 'Anderung nötig',    tone: 'outline' },
-  archived:          { label: 'Archiviert',        tone: 'neutral' },
+  draft:             { label: 'Entwurf',            tone: 'neutral' },
+  internal_review:   { label: 'Interne Prüfung',   tone: 'outline' },
+  approved_internal: { label: 'Intern freigegeben', tone: 'softAccent' },
+  client_review:     { label: 'Beim Kunden',        tone: 'accent' },
+  approved:          { label: 'Freigegeben',         tone: 'success' },
+  changes_requested: { label: 'Änderungen',         tone: 'neutral' },
+  deployed:          { label: 'Live',               tone: 'success' },
+  archived:          { label: 'Archiviert',         tone: 'neutral' },
 };
 
 const contentTypeSegments = [
@@ -83,6 +86,10 @@ export default function LibraryPage() {
     setEditMode(false);
   }
 
+  function updateStatus(itemId: string, status: ContentStatus) {
+    return updateItem(itemId, { status });
+  }
+
   function openView(item: ContentLibraryItem) {
     setViewItem(item);
     setEditContent(item.content);
@@ -119,13 +126,13 @@ export default function LibraryPage() {
         href={`/clients/${id}`}
         className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Zuruck zum Kunden
+        <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
       <PageHeader
         label="CONTENT"
         title="Library"
-        description={`${items.length} Inhalte \u00B7 ${items.filter((i) => i.status === 'pending_review').length} warten auf Review`}
+        description={`${items.length} Inhalte \u00B7 ${items.filter((i) => i.status === 'internal_review').length} in interner Prüfung \u00B7 ${items.filter((i) => i.status === 'changes_requested').length} Änderungen`}
       />
 
       {/* Filter */}
@@ -160,7 +167,7 @@ export default function LibraryPage() {
 
                 <div className="space-y-3">
                   {typeItems.map((item) => (
-                    <ContentCard key={item.id} item={item} onView={() => openView(item)} />
+                    <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
                   ))}
                 </div>
               </div>
@@ -181,7 +188,7 @@ export default function LibraryPage() {
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <ContentCard key={item.id} item={item} onView={() => openView(item)} />
+            <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
           ))}
           {items.length === 0 && (
             <Card padding="lg" className="text-center">
@@ -223,12 +230,22 @@ export default function LibraryPage() {
               </span>
             </div>
 
-            {/* Feedback banner */}
-            {viewItem.feedback && (
+            {/* Client feedback banner */}
+            {viewItem.client_feedback && (
               <div className="flex items-start gap-3 p-4 bg-amber-100/50 border border-amber-500/20 rounded-[var(--radius-md)]">
                 <MessageSquare className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[13px] font-semibold text-amber-500 mb-1">Kundenfeedback</p>
+                  <p className="text-[13px] font-semibold text-amber-500 mb-1">Kunden-Feedback</p>
+                  <p className="text-[13px] text-[var(--text-primary)]">{viewItem.client_feedback}</p>
+                </div>
+              </div>
+            )}
+            {/* Internal feedback banner */}
+            {viewItem.feedback && (
+              <div className="flex items-start gap-3 p-4 bg-gray-50 border border-[var(--border-default)] rounded-[var(--radius-md)]">
+                <MessageSquare className="w-4 h-4 text-[var(--text-tertiary)] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[13px] font-semibold text-[var(--text-secondary)] mb-1">Interne Notiz</p>
                   <p className="text-[13px] text-[var(--text-primary)]">{viewItem.feedback}</p>
                 </div>
               </div>
@@ -293,23 +310,51 @@ export default function LibraryPage() {
                   <Button
                     variant="soft"
                     size="sm"
-                    onClick={() => updateItem(viewItem.id, { status: 'pending_review' })}
+                    onClick={() => updateStatus(viewItem.id, 'internal_review')}
                     disabled={saving}
                   >
-                    <Eye className="w-3.5 h-3.5" /> Zum Review senden
+                    <Eye className="w-3.5 h-3.5" /> Zur Prüfung
+                  </Button>
+                )}
+                {viewItem.status === 'internal_review' && (
+                  <Button
+                    size="sm"
+                    onClick={() => updateStatus(viewItem.id, 'approved_internal')}
+                    disabled={saving}
+                  >
+                    <Check className="w-3.5 h-3.5" /> Für Kunden freigeben
                   </Button>
                 )}
                 {viewItem.status === 'changes_requested' && (
                   <Button
                     variant="soft"
                     size="sm"
-                    onClick={() => updateItem(viewItem.id, { status: 'pending_review' })}
+                    onClick={() => updateStatus(viewItem.id, 'approved_internal')}
                     disabled={saving}
                   >
-                    Erneut einreichen
+                    <Check className="w-3.5 h-3.5" /> Erneut freigeben
                   </Button>
                 )}
-                {viewItem.status !== 'archived' && viewItem.status !== 'approved' && (
+                {viewItem.status === 'approved_internal' && (
+                  <Button
+                    size="sm"
+                    onClick={() => updateStatus(viewItem.id, 'client_review')}
+                    disabled={saving}
+                  >
+                    Zum Kunden senden
+                  </Button>
+                )}
+                {viewItem.status === 'approved' && (
+                  <Button
+                    variant="soft"
+                    size="sm"
+                    onClick={() => updateStatus(viewItem.id, 'deployed')}
+                    disabled={saving}
+                  >
+                    Als Live markieren
+                  </Button>
+                )}
+                {viewItem.status !== 'archived' && viewItem.status !== 'deployed' && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -330,17 +375,32 @@ export default function LibraryPage() {
 
 /* ---- Content Card sub-component ---- */
 
-function ContentCard({ item, onView }: { item: ContentLibraryItem; onView: () => void }) {
+function ContentCard({
+  item,
+  onView,
+  onStatusChange,
+}: {
+  item: ContentLibraryItem;
+  onView: () => void;
+  onStatusChange: (id: string, status: ContentStatus) => void;
+}) {
   const config = statusConfig[item.status];
   const typeConfig = contentTypeConfig[item.content_type];
 
   return (
-    <Card padding="md" className="flex items-start gap-4 group cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow" onClick={onView}>
-      <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0">
+    <Card
+      padding="md"
+      className="flex items-start gap-4 group hover:shadow-[var(--shadow-md)] transition-shadow"
+    >
+      {/* Clickable area */}
+      <div
+        className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0 cursor-pointer"
+        onClick={onView}
+      >
         {typeConfig.icon}
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={onView}>
         <div className="flex items-center gap-2 mb-1">
           <h3 className="font-semibold text-[15px] text-[var(--text-primary)] truncate">
             {item.title}
@@ -359,11 +419,12 @@ function ContentCard({ item, onView }: { item: ContentLibraryItem; onView: () =>
           {item.content.slice(0, 150)}{item.content.length > 150 ? '...' : ''}
         </p>
 
-        {item.feedback && (
+        {(item.feedback || item.client_feedback) && (
           <div className="flex items-center gap-1.5 mt-2 text-amber-500">
             <MessageSquare className="w-3 h-3" />
             <span className="text-[12px] font-medium truncate">
-              {item.feedback.slice(0, 80)}{item.feedback.length > 80 ? '...' : ''}
+              {(item.client_feedback || item.feedback || '').slice(0, 80)}
+              {((item.client_feedback || item.feedback) || '').length > 80 ? '...' : ''}
             </span>
           </div>
         )}
@@ -374,6 +435,35 @@ function ContentCard({ item, onView }: { item: ContentLibraryItem; onView: () =>
         <span className="text-[12px] text-[var(--text-tertiary)]">
           {new Date(item.updated_at).toLocaleDateString('de-DE')}
         </span>
+        {/* Quick action buttons */}
+        <div className="flex gap-1.5 mt-1">
+          {item.status === 'draft' && (
+            <Button
+              size="sm"
+              variant="soft"
+              onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'internal_review'); }}
+            >
+              Zur Prüfung
+            </Button>
+          )}
+          {item.status === 'internal_review' && (
+            <Button
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'approved_internal'); }}
+            >
+              Für Kunden freigeben
+            </Button>
+          )}
+          {item.status === 'changes_requested' && (
+            <Button
+              size="sm"
+              variant="soft"
+              onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'approved_internal'); }}
+            >
+              Erneut freigeben
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );

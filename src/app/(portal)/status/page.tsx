@@ -19,7 +19,7 @@ const clientStatusConfig: Record<TaskStatus, { label: string; icon: React.ReactN
   in_progress:        { label: 'In Bearbeitung',    icon: <Clock className="w-3.5 h-3.5 text-red-400" />,   show: true },
   waiting_approval:   { label: 'Ihre Freigabe nötig', icon: <AlertTriangle className="w-3.5 h-3.5 text-red-500" />, show: true },
   approved:           { label: 'Freigegeben',       icon: <Check className="w-3.5 h-3.5 text-green-600" />, show: true },
-  changes_requested:  { label: 'Anderung angefragt', icon: <Clock className="w-3.5 h-3.5 text-amber-500" />, show: true },
+  changes_requested:  { label: 'Änderung angefragt', icon: <Clock className="w-3.5 h-3.5 text-amber-500" />, show: true },
   done:               { label: 'Erledigt',           icon: <Check className="w-3.5 h-3.5 text-green-600" />, show: true },
   skipped:            { label: 'Übersprungen',       icon: <Check className="w-3.5 h-3.5 text-gray-400" />,  show: false },
 };
@@ -44,7 +44,7 @@ export default function ProjectStatusPage() {
   const fetchData = useCallback(async () => {
     const [sopRes, contentRes] = await Promise.all([
       fetch('/api/sop?agency_id=me'),
-      fetch('/api/library?agency_id=me&status=pending_review'),
+      fetch('/api/library?agency_id=me&status=approved_internal,client_review'),
     ]);
 
     const sop: SopData = await sopRes.json();
@@ -132,7 +132,7 @@ export default function ProjectStatusPage() {
     await fetch(`/api/library/${contentId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'changes_requested', feedback }),
+      body: JSON.stringify({ status: 'changes_requested', client_feedback: feedback }),
     });
     setContentItems((prev) => prev.filter((c) => c.id !== contentId));
     if (contentPreview?.id === contentId) setContentPreview(null);
@@ -213,7 +213,9 @@ export default function ProjectStatusPage() {
 
   // Items needing attention
   const approvalTasks = customerTasks.filter((ct) => ct.status === 'waiting_approval');
-  const needsAttention = approvalTasks.length + contentItems.length;
+  const needsAttention = approvalTasks.length;
+  // Content items for client review (approved_internal or client_review)
+  const contentForReview = contentItems;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -237,15 +239,15 @@ export default function ProjectStatusPage() {
         </div>
         <div className="flex justify-between mt-3">
           <span className="text-[13px] text-[var(--text-tertiary)]">{doneTasks} von {totalTasks} Aufgaben</span>
-          {needsAttention > 0 && (
+          {(needsAttention + contentForReview.length) > 0 && (
             <span className="text-[13px] font-medium text-red-500">
-              {needsAttention} {needsAttention === 1 ? 'Punkt braucht' : 'Punkte brauchen'} Ihre Aufmerksamkeit
+              {needsAttention + contentForReview.length} {(needsAttention + contentForReview.length) === 1 ? 'Punkt braucht' : 'Punkte brauchen'} Ihre Aufmerksamkeit
             </span>
           )}
         </div>
       </Card>
 
-      {/* Attention needed section */}
+      {/* Attention needed section — SOP tasks only */}
       {needsAttention > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-6">
@@ -258,7 +260,6 @@ export default function ProjectStatusPage() {
           </div>
 
           <div className="space-y-4">
-            {/* Tasks waiting for approval */}
             {approvalTasks.map((ct) => {
               const sopTask = tasks.find((t) => t.id === ct.sop_task_id);
               if (!sopTask) return null;
@@ -282,7 +283,7 @@ export default function ProjectStatusPage() {
                         onClick={() => setFeedbackModal({ type: 'task', id: ct.id, title: sopTask.title })}
                         disabled={submitting}
                       >
-                        <ThumbsDown className="w-3.5 h-3.5" /> Anderung
+                        <ThumbsDown className="w-3.5 h-3.5" /> Änderung
                       </Button>
                       <Button
                         size="sm"
@@ -296,46 +297,6 @@ export default function ProjectStatusPage() {
                 </Card>
               );
             })}
-
-            {/* Content items pending review */}
-            {contentItems.map((item) => (
-              <Card key={item.id} padding="md" className="border-l-4 border-l-red-500">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <FileText className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[15px] text-[var(--text-primary)]">{item.title}</p>
-                      <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">
-                        {item.content.slice(0, 120)}{item.content.length > 120 ? '...' : ''}
-                      </p>
-                      <button
-                        onClick={() => setContentPreview(item)}
-                        className="text-[13px] text-red-500 hover:text-red-600 font-medium mt-1 cursor-pointer"
-                      >
-                        Vorschau ansehen
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFeedbackModal({ type: 'content', id: item.id, title: item.title })}
-                      disabled={submitting}
-                    >
-                      <ThumbsDown className="w-3.5 h-3.5" /> Anderung
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => approveContent(item.id)}
-                      disabled={submitting}
-                    >
-                      <ThumbsUp className="w-3.5 h-3.5" /> Freigeben
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
           </div>
         </div>
       )}
@@ -462,11 +423,69 @@ export default function ProjectStatusPage() {
         })}
       </div>
 
+      {/* Content review section */}
+      {contentForReview.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
+              <FileText className="w-4 h-4 text-red-500" />
+            </div>
+            <h2 className="text-[15px] font-bold text-[var(--text-primary)]">
+              Inhalte zur Freigabe
+            </h2>
+            <span className="text-[13px] text-[var(--text-tertiary)] font-medium ml-1">
+              ({contentForReview.length})
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {contentForReview.map((item) => (
+              <Card key={item.id} padding="md" className="border-l-4 border-l-red-500">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <FileText className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[15px] text-[var(--text-primary)]">{item.title}</p>
+                      <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">
+                        {item.content.slice(0, 120)}{item.content.length > 120 ? '...' : ''}
+                      </p>
+                      <button
+                        onClick={() => setContentPreview(item)}
+                        className="text-[13px] text-red-500 hover:text-red-600 font-medium mt-1 cursor-pointer"
+                      >
+                        Vorschau ansehen
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFeedbackModal({ type: 'content', id: item.id, title: item.title })}
+                      disabled={submitting}
+                    >
+                      <ThumbsDown className="w-3.5 h-3.5" /> Änderungen anfordern
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => approveContent(item.id)}
+                      disabled={submitting}
+                    >
+                      <ThumbsUp className="w-3.5 h-3.5" /> Freigeben
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Feedback Modal */}
       <Modal
         open={feedbackModal !== null}
         onClose={() => { setFeedbackModal(null); setFeedbackText(''); }}
-        title="Anderung anfordern"
+        title="Änderung anfordern"
       >
         {feedbackModal && (
           <div className="space-y-5">
@@ -527,7 +546,7 @@ export default function ProjectStatusPage() {
                   setContentPreview(null);
                 }}
               >
-                <ThumbsDown className="w-3.5 h-3.5" /> Anderung anfordern
+                <ThumbsDown className="w-3.5 h-3.5" /> Änderung anfordern
               </Button>
               <Button
                 size="sm"
