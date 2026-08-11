@@ -156,6 +156,45 @@ export default function CandidateDetailPage() {
         </div>
       </Card>
 
+      {/* Indeed Details + Resume */}
+      {(candidate.resume_url || candidate.location || candidate.experience_summary || candidate.last_employer || candidate.indeed_job_title) && (
+        <Card padding="md" className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
+              <Layers className="w-5 h-5 text-[var(--text-secondary)]" />
+            </div>
+            <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Bewerber-Details</h2>
+          </div>
+          <div className="space-y-2 pl-12">
+            {candidate.indeed_job_title && (
+              <div className="flex items-center gap-2">
+                <Badge tone="softAccent">Indeed</Badge>
+                <span className="text-sm text-gray-700">{candidate.indeed_job_title}</span>
+              </div>
+            )}
+            {candidate.location && (
+              <p className="text-sm text-gray-600"><span className="font-medium">Wohnort:</span> {candidate.location}</p>
+            )}
+            {candidate.last_employer && (
+              <p className="text-sm text-gray-600"><span className="font-medium">Letzter AG:</span> {candidate.last_employer}</p>
+            )}
+            {candidate.experience_summary && (
+              <p className="text-sm text-gray-600"><span className="font-medium">Erfahrung:</span> {candidate.experience_summary}</p>
+            )}
+            {candidate.resume_url && (
+              <a
+                href={candidate.resume_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition"
+              >
+                Lebenslauf anzeigen (PDF)
+              </a>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Stage Timeline */}
       <Card padding="md" className="mb-6">
         <div className="flex items-center gap-3 mb-4">
