@@ -6,11 +6,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
+import { FileUpload } from '@/components/file-upload';
 import {
-  Building2, MapPin, Users, Globe, Target, Clock, Briefcase, DollarSign,
-  Palette, Type, Image, Star, Phone, User, ChevronRight, ChevronLeft, Check
+  Building2, MapPin, Users, Globe, Target,
+  DollarSign, Palette, Phone, User, ChevronRight, ChevronLeft, Check,
+  ShieldCheck,
 } from 'lucide-react';
 
 const steps = [
@@ -18,6 +19,7 @@ const steps = [
   { id: 2, title: 'Recruiting-Ziele', icon: Target },
   { id: 3, title: 'Branding', icon: Palette },
   { id: 4, title: 'Kontakt', icon: Phone },
+  { id: 5, title: 'Meta-Zugang', icon: ShieldCheck },
 ];
 
 const industries = [
@@ -39,8 +41,17 @@ export default function OnboardingPage() {
   const [form, setForm] = useState({
     company_name: '', industry: '', region: '', employee_count: '', website_url: '',
     hiring_target: '', hiring_timeframe: '', experience_required: '', compensation_model: '',
+    logo_url: '',
+    team_photos: [] as string[],
     primary_color: '#E0354B', usps: '',
     contact_name: '', contact_phone: '', preferred_contact_time: '',
+    meta_access_steps: {
+      business_manager: false,
+      partner_added: false,
+      ad_account_shared: false,
+      pixel_shared: false,
+      page_shared: false,
+    },
   });
 
   function update(field: string, value: string) {
@@ -57,6 +68,9 @@ export default function OnboardingPage() {
       body: JSON.stringify({
         ...form,
         hiring_target: form.hiring_target ? parseInt(form.hiring_target) : null,
+        logo_url: form.logo_url || null,
+        team_photos: form.team_photos,
+        meta_access_steps: form.meta_access_steps,
       }),
     });
 
@@ -164,6 +178,26 @@ export default function OnboardingPage() {
         {/* Step 3: Branding */}
         {step === 3 && (
           <div className="space-y-5">
+            <FileUpload
+              bucket="onboarding-assets"
+              path="logos"
+              accept="image/png,image/jpeg,image/svg+xml"
+              maxSizeMB={5}
+              maxFiles={1}
+              value={form.logo_url ? [form.logo_url] : []}
+              onChange={(urls) => setForm((f) => ({ ...f, logo_url: urls[0] || '' }))}
+              label="Logo hochladen"
+            />
+            <FileUpload
+              bucket="onboarding-assets"
+              path="team-photos"
+              accept="image/png,image/jpeg"
+              maxSizeMB={5}
+              maxFiles={10}
+              value={form.team_photos}
+              onChange={(urls) => setForm((f) => ({ ...f, team_photos: urls }))}
+              label="Team-Fotos (optional)"
+            />
             <div>
               <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Primärfarbe</label>
               <div className="flex items-center gap-3">
@@ -217,6 +251,71 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {/* Step 5: Meta-Zugang */}
+        {step === 5 && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-[var(--radius-md)] bg-blue-50 border border-blue-100">
+              <p className="text-sm text-blue-800 font-medium">
+                Damit wir Anzeigen in deinem Namen schalten können, brauchen wir Zugang zu deinem Meta Business Manager.
+                Folge den Schritten unten — dauert ca. 5 Minuten.
+              </p>
+            </div>
+
+            {[
+              {
+                key: 'business_manager',
+                title: '1. Business Manager öffnen',
+                desc: 'Gehe zu business.facebook.com und logge dich ein.',
+              },
+              {
+                key: 'partner_added',
+                title: '2. Partner hinzufügen',
+                desc: 'Unter Einstellungen → Geschäftspartner → "Hinzufügen" klicken. Unsere Business-ID: XXXXXXXXXX',
+              },
+              {
+                key: 'ad_account_shared',
+                title: '3. Werbekonto freigeben',
+                desc: 'Wähle dein Werbekonto aus und gib uns die Berechtigung "Anzeigen verwalten".',
+              },
+              {
+                key: 'pixel_shared',
+                title: '4. Pixel teilen (falls vorhanden)',
+                desc: 'Falls du einen Meta Pixel hast, teile ihn ebenfalls mit uns.',
+              },
+              {
+                key: 'page_shared',
+                title: '5. Facebook-Seite freigeben',
+                desc: 'Damit wir Anzeigen im Namen deiner Seite schalten können.',
+              },
+            ].map((item) => (
+              <label
+                key={item.key}
+                className="flex items-start gap-3 p-4 rounded-[var(--radius-md)] border border-[var(--border-default)] hover:border-red-200 transition cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={form.meta_access_steps[item.key as keyof typeof form.meta_access_steps]}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      meta_access_steps: { ...f.meta_access_steps, [item.key]: e.target.checked },
+                    }))
+                  }
+                  className="mt-0.5 w-5 h-5 rounded accent-red-500 shrink-0"
+                />
+                <div>
+                  <p className="font-semibold text-[var(--text-primary)] text-[15px]">{item.title}</p>
+                  <p className="text-sm text-[var(--text-secondary)] mt-0.5">{item.desc}</p>
+                </div>
+              </label>
+            ))}
+
+            {error && (
+              <p className="text-[var(--danger-600)] text-[13px] bg-red-50 px-3 py-2 rounded-[var(--radius-sm)]">{error}</p>
+            )}
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex justify-between mt-8 pt-6 border-t border-[var(--border-default)]">
           {step > 1 ? (
@@ -225,7 +324,7 @@ export default function OnboardingPage() {
             </Button>
           ) : <div />}
 
-          {step < 4 ? (
+          {step < 5 ? (
             <Button onClick={() => setStep(step + 1)}>
               Weiter <ChevronRight className="w-4 h-4" />
             </Button>
