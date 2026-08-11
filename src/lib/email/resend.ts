@@ -6,7 +6,13 @@ import {
   surveyNotificationTemplate,
 } from './templates';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY || '');
+  }
+  return _resend;
+}
 const FROM = 'Zoepp Media Cloud <noreply@zoeppmedia.de>';
 
 export async function sendInviteEmail(
@@ -15,7 +21,7 @@ export async function sendInviteEmail(
   registerUrl: string,
   expiresAt: string,
 ) {
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: `Einladung: ${agencyName} — Zoepp Media Cloud`,
@@ -24,7 +30,7 @@ export async function sendInviteEmail(
 }
 
 export async function sendWelcomeEmail(to: string, name: string, loginUrl: string) {
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Willkommen bei Zoepp Media Cloud!',
@@ -33,7 +39,7 @@ export async function sendWelcomeEmail(to: string, name: string, loginUrl: strin
 }
 
 export async function sendOnboardingReminder(to: string, name: string, onboardingUrl: string) {
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: 'Erinnerung: Onboarding abschließen',
@@ -47,7 +53,7 @@ export async function sendSurveyNotification(
   surveyTitle: string,
   portalUrl: string,
 ) {
-  return resend.emails.send({
+  return getResend().emails.send({
     from: FROM,
     to,
     subject: `Feedback-Check: ${surveyTitle}`,
