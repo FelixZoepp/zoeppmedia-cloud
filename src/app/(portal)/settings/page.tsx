@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Copy, Check, User, Building2, Webhook } from 'lucide-react';
 
 export default function SettingsPage() {
-  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string } | null>(null);
+  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null } | null>(null);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -29,7 +29,7 @@ export default function SettingsPage() {
         setUser({ name: profile.name, email: profile.email });
         const { data: ag } = await supabase
           .from('agencies')
-          .select('id, name, email, phone')
+          .select('id, name, email, phone, meta_ad_account_id, meta_page_id')
           .eq('id', profile.agency_id)
           .single();
         if (ag) setAgency(ag);
@@ -102,6 +102,18 @@ export default function SettingsPage() {
               <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency.phone}</span>
             </div>
           )}
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Ad</span>
+            <span className="text-[15px] font-medium text-[var(--text-primary)] font-mono">
+              {agency?.meta_ad_account_id || <span className="text-[var(--text-tertiary)] font-sans font-normal">Nicht konfiguriert</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Page</span>
+            <span className="text-[15px] font-medium text-[var(--text-primary)] font-mono">
+              {agency?.meta_page_id || <span className="text-[var(--text-tertiary)] font-sans font-normal">Nicht konfiguriert</span>}
+            </span>
+          </div>
         </div>
       </Card>
 

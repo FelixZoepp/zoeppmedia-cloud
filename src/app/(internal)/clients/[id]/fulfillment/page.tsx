@@ -8,15 +8,23 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import {
   FolderKanban, FileText, PhoneCall, Target, MoreHorizontal,
-  Check, Clock, Eye, Play, ArrowLeft, Sparkles
+  Check, Clock, Eye, Play, ArrowLeft, Sparkles, Upload, Rocket,
+  Video, Briefcase, Megaphone,
 } from 'lucide-react';
 import Link from 'next/link';
 
 const taskIcons: Record<string, React.ReactNode> = {
   perspective_funnel: <FolderKanban className="w-5 h-5" />,
   ad_copy: <FileText className="w-5 h-5" />,
+  phone_script: <PhoneCall className="w-5 h-5" />,
+  video_script: <Video className="w-5 h-5" />,
+  job_posting: <Briefcase className="w-5 h-5" />,
+  creative_brief: <Megaphone className="w-5 h-5" />,
+  meta_upload: <Upload className="w-5 h-5" />,
+  funnel_publish: <Rocket className="w-5 h-5" />,
   script: <PhoneCall className="w-5 h-5" />,
   meta_campaign: <Target className="w-5 h-5" />,
+  manual: <Clock className="w-5 h-5" />,
   other: <MoreHorizontal className="w-5 h-5" />,
 };
 
@@ -27,6 +35,8 @@ const statusConfig: Record<string, { label: string; tone: 'neutral' | 'softAccen
   done: { label: 'Erledigt', tone: 'success' },
   skipped: { label: 'Übersprungen', tone: 'outline' },
 };
+
+const AI_TYPES = ['ad_copy', 'phone_script', 'video_script', 'job_posting', 'creative_brief'];
 
 interface FulfillmentTask {
   id: string;
@@ -41,7 +51,7 @@ export default function FulfillmentPage() {
   const { id } = useParams<{ id: string }>();
   const [tasks, setTasks] = useState<FulfillmentTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/fulfillment?agency_id=${id}`)
@@ -62,25 +72,175 @@ export default function FulfillmentPage() {
   }
 
   async function generateContent(task: FulfillmentTask) {
-    setGenerating(task.id);
-    const typeMap: Record<string, string> = {
-      ad_copy: 'ad_copy',
-      script: 'script',
-      perspective_funnel: 'funnel_text',
-    };
+    setActionLoading(task.id);
+    await updateStatus(task.id, 'in_progress');
 
-    await fetch('/api/ai/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: typeMap[task.task_type] || 'ad_copy',
-        agency_id: id,
-        fulfillment_task_id: task.id,
-      }),
-    });
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: task.task_type,
+          agency_id: id,
+          fulfillment_task_id: task.id,
+        }),
+      });
 
-    await updateStatus(task.id, 'review');
-    setGenerating(null);
+      if (res.ok) {
+        const data = await res.json();
+        // Save generated content to library as draft
+        await fetch('/api/library', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agency_id: id,
+            content_type: task.task_type,
+            title: task.title,
+            content: data.content ?? '',
+            status: 'draft',
+          }),
+        });
+        await updateStatus(task.id, 'review');
+      } else {
+        await updateStatus(task.id, 'pending');
+      }
+    } catch {
+      await updateStatus(task.id, 'pending');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function uploadToMeta(task: FulfillmentTask) {
+    setActionLoading(task.id);
+    await updateStatus(task.id, 'in_progress');
+
+    try {
+      // Fetch approved ad copy from content library
+      const contentRes = await fetch(`/api/library?agency_id=${id}&content_type=ad_copy&status=approved`);
+      const contents = await contentRes.json();
+      const approved = Array.isArray(contents) ? contents[0] : null;
+
+      if (!approved) {
+        alert('Bitte zuerst Ad Copys generieren und freigeben lassen.');
+        await updateStatus(task.id, 'pending');
+        return;
+      }
+
+      const res = await fetch('/api/meta/upload-ad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agency_id: id,
+          headline: approved.title,
+          body: approved.content,
+          link_url: '',
+        }),
+      });
+
+      if (res.ok) {
+        await updateStatus(task.id, 'done');
+      } else {
+        const err = await res.json();
+        alert(`Fehler beim Meta-Upload: ${err.error ?? 'Unbekannter Fehler'}`);
+        await updateStatus(task.id, 'pending');
+      }
+    } catch {
+      await updateStatus(task.id, 'pending');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function publishFunnel(task: FulfillmentTask) {
+    setActionLoading(task.id);
+    await updateStatus(task.id, 'in_progress');
+
+    try {
+      const res = await fetch('/api/perspective/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agency_id: id }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.published) {
+          alert(data.message);
+        }
+        await updateStatus(task.id, 'done');
+      } else {
+        const err = await res.json();
+        alert(`Fehler beim Veröffentlichen: ${err.error ?? 'Unbekannter Fehler'}`);
+        await updateStatus(task.id, 'pending');
+      }
+    } catch {
+      await updateStatus(task.id, 'pending');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  function getActionButton(task: FulfillmentTask) {
+    const isLoading = actionLoading === task.id;
+
+    if (AI_TYPES.includes(task.task_type) && task.status === 'pending') {
+      return (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => generateContent(task)}
+          disabled={isLoading}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {isLoading ? 'Generiert...' : 'AI Generieren'}
+        </Button>
+      );
+    }
+
+    if (task.task_type === 'meta_upload' && task.status === 'pending') {
+      return (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => uploadToMeta(task)}
+          disabled={isLoading}
+        >
+          <Upload className="w-3.5 h-3.5" />
+          {isLoading ? 'Lädt hoch...' : 'In Meta hochladen'}
+        </Button>
+      );
+    }
+
+    if (task.task_type === 'funnel_publish' && task.status === 'pending') {
+      return (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => publishFunnel(task)}
+          disabled={isLoading}
+        >
+          <Rocket className="w-3.5 h-3.5" />
+          {isLoading ? 'Veröffentlicht...' : 'Funnel veröffentlichen'}
+        </Button>
+      );
+    }
+
+    if (task.task_type === 'manual' && task.status === 'pending') {
+      return (
+        <Button
+          variant="soft"
+          size="sm"
+          onClick={() => updateStatus(task.id, 'done')}
+          disabled={isLoading}
+        >
+          <Check className="w-3.5 h-3.5" />
+          Erledigt
+        </Button>
+      );
+    }
+
+    return null;
   }
 
   if (loading) {
@@ -117,14 +277,14 @@ export default function FulfillmentPage() {
       <div className="space-y-4">
         {tasks.map((task) => {
           const config = statusConfig[task.status] || statusConfig.pending;
-          const canGenerate = ['ad_copy', 'script', 'perspective_funnel'].includes(task.task_type) && task.status === 'pending';
+          const actionBtn = getActionButton(task);
 
           return (
             <Card key={task.id} padding="md" className="flex items-center gap-4">
               <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 ${
                 task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'
               }`}>
-                {task.status === 'done' ? <Check className="w-5 h-5" /> : taskIcons[task.task_type]}
+                {task.status === 'done' ? <Check className="w-5 h-5" /> : (taskIcons[task.task_type] ?? <MoreHorizontal className="w-5 h-5" />)}
               </div>
 
               <div className="flex-1 min-w-0">
@@ -137,18 +297,9 @@ export default function FulfillmentPage() {
               <Badge tone={config.tone}>{config.label}</Badge>
 
               <div className="flex items-center gap-2">
-                {canGenerate && (
-                  <Button
-                    variant="soft"
-                    size="sm"
-                    onClick={() => generateContent(task)}
-                    disabled={generating === task.id}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {generating === task.id ? 'Generiert...' : 'Generieren'}
-                  </Button>
-                )}
-                {task.status === 'pending' && (
+                {actionBtn}
+                {/* Status progression buttons when no 1-click action applies */}
+                {!actionBtn && task.status === 'pending' && (
                   <Button variant="ghost" size="sm" onClick={() => updateStatus(task.id, 'in_progress')}>
                     <Play className="w-3.5 h-3.5" /> Start
                   </Button>

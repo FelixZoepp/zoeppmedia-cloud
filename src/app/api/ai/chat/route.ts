@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { chatWithClaude, OnboardingContext } from '@/lib/ai/claude';
 
 export async function POST(req: Request) {
   const supabase = await createServerClient();
@@ -47,12 +48,41 @@ export async function POST(req: Request) {
     .limit(1)
     .single();
 
-  // Placeholder AI response (ready for Claude API)
-  const aiResponse = `Basierend auf dem Kontext für ${onboarding?.company_name || 'den Kunden'} (${onboarding?.industry || 'D2D'}):
+  const aiContext: OnboardingContext = {
+    company_name: onboarding?.company_name ?? null,
+    industry: onboarding?.industry ?? null,
+    region: onboarding?.region ?? null,
+    employee_count: onboarding?.employee_count ?? null,
+    hiring_target: onboarding?.hiring_target ?? null,
+    hiring_timeframe: onboarding?.hiring_timeframe ?? null,
+    experience_required: onboarding?.experience_required ?? null,
+    compensation_model: onboarding?.compensation_model ?? null,
+    usps: onboarding?.usps ?? null,
+    primary_color: onboarding?.primary_color ?? null,
+  };
 
-Hier würde die AI-Antwort stehen. Verbinde die Claude API mit ANTHROPIC_API_KEY für echte Generierung.
+  // Load conversation history (excluding the message just saved, will be included via history)
+  const { data: history } = await supabase
+    .from('ai_messages')
+    .select('role, content')
+    .eq('conversation_id', convId)
+    .order('created_at', { ascending: true });
 
-Deine Nachricht: "${message}"`;
+  const systemPrompt = `Du bist ein hilfreicher Assistent für D2D-Recruiting-Marketing. Du hilfst bei der Erstellung und Verfeinerung von Recruiting-Content.
+
+Kundenkontext:
+- Firma: ${aiContext.company_name || 'Unbekannt'}
+- Branche: ${aiContext.industry || 'D2D-Vertrieb'}
+- Region: ${aiContext.region || 'Deutschland'}
+- USPs: ${aiContext.usps || 'k.A.'}
+- Einstellungsziel: ${aiContext.hiring_target || 'k.A.'} in ${aiContext.hiring_timeframe || 'k.A.'}
+
+Antworte immer auf Deutsch. Sei direkt und praxisorientiert.`;
+
+  const aiResponse = await chatWithClaude(
+    (history || []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    systemPrompt
+  );
 
   // Save assistant message
   const { data: assistantMsg } = await supabase

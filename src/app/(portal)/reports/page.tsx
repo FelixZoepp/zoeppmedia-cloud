@@ -9,7 +9,8 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import {
   BarChart3, Users, UserCheck, TrendingUp, Percent,
-  Calendar, Star, MessageSquare, Send
+  Calendar, Star, MessageSquare, Send, Phone, Target, Clock, Euro,
+  MousePointer, Eye, Megaphone,
 } from 'lucide-react';
 
 interface FunnelStage {
@@ -20,6 +21,21 @@ interface FunnelStage {
   count: number;
 }
 
+interface CallKpis {
+  totalCalls: number;
+  reachRate: number;
+  terminRate: number;
+  avgResponseHours: number | null;
+}
+
+interface MetaKpis {
+  totalSpend: number;
+  totalLeads: number;
+  avgCpl: number;
+  totalImpressions: number;
+  totalClicks: number;
+}
+
 interface ReportData {
   total: number;
   last30: number;
@@ -28,6 +44,8 @@ interface ReportData {
   hireRate: number;
   funnel: FunnelStage[];
   sources: { meta: number; indeed: number; manual: number };
+  callKpis: CallKpis;
+  metaKpis: MetaKpis | null;
 }
 
 interface SurveyTemplate {
@@ -36,6 +54,13 @@ interface SurveyTemplate {
   description: string | null;
   questions: { id: string; type: string; label: string }[];
 }
+
+const PERIOD_OPTIONS = [
+  { value: 'this_week', label: 'Diese Woche' },
+  { value: 'this_month', label: 'Dieser Monat' },
+  { value: 'last_month', label: 'Letzter Monat' },
+  { value: 'all', label: 'Gesamt' },
+];
 
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null);
@@ -48,16 +73,18 @@ export default function ReportsPage() {
   const [surveySubmitted, setSurveySubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Fetch report data whenever period changes
   useEffect(() => {
+    setLoading(true);
     Promise.all([
-      fetch('/api/reports').then((r) => r.json()),
+      fetch(`/api/reports?period=${period}`).then((r) => r.json()),
       fetch('/api/surveys').then((r) => r.json()),
     ]).then(([reportData, surveyData]) => {
       setData(reportData);
       setTemplates(surveyData.templates);
       setLoading(false);
     });
-  }, []);
+  }, [period]);
 
   async function submitSurvey() {
     if (!templates[0]) return;
@@ -105,10 +132,19 @@ export default function ReportsPage() {
         }
       />
 
-      {/* KPI Cards */}
+      {/* Period filter */}
+      <div className="mb-8">
+        <SegmentedControl
+          items={PERIOD_OPTIONS}
+          value={period}
+          onChange={setPeriod}
+        />
+      </div>
+
+      {/* Pipeline KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {[
-          { label: 'Gesamt Bewerber', value: data.total, icon: Users, color: 'bg-red-50 text-red-500' },
+          { label: 'Bewerber gesamt', value: data.total, icon: Users, color: 'bg-red-50 text-red-500' },
           { label: 'Letzte 30 Tage', value: data.last30, icon: Calendar, color: 'bg-red-50 text-red-500' },
           { label: 'Eingestellt', value: data.hired, icon: UserCheck, color: 'bg-green-100 text-green-700' },
           { label: 'Einstellungsrate', value: `${data.hireRate}%`, icon: Percent, color: 'bg-amber-100 text-amber-500' },
@@ -124,6 +160,117 @@ export default function ReportsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Call Performance Section */}
+      <div className="space-y-4 mb-8">
+        <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
+          <Phone className="w-5 h-5 text-red-500" /> Call-Performance
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card padding="md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
+                <Phone className="w-5 h-5" />
+              </div>
+              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Anrufe gesamt</span>
+            </div>
+            <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.totalCalls}</p>
+          </Card>
+          <Card padding="md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
+                <Target className="w-5 h-5" />
+              </div>
+              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Erreichbarkeit</span>
+            </div>
+            <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.reachRate}%</p>
+          </Card>
+          <Card padding="md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Termin-Quote</span>
+            </div>
+            <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.terminRate}%</p>
+          </Card>
+          <Card padding="md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
+                <Clock className="w-5 h-5" />
+              </div>
+              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Ø Reaktionszeit</span>
+            </div>
+            <p className="text-[28px] font-bold text-[var(--text-primary)]">
+              {data.callKpis.avgResponseHours !== null ? `${data.callKpis.avgResponseHours}h` : '–'}
+            </p>
+          </Card>
+        </div>
+      </div>
+
+      {/* Meta Ads Section — only when data exists */}
+      {data.metaKpis && (
+        <div className="space-y-4 mb-8">
+          <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-red-500" /> Meta Ads
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card padding="md">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
+                  <Euro className="w-5 h-5" />
+                </div>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Ausgaben</span>
+              </div>
+              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+                €{data.metaKpis.totalSpend.toFixed(2)}
+              </p>
+            </Card>
+            <Card padding="md">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
+                  <Users className="w-5 h-5" />
+                </div>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Leads</span>
+              </div>
+              <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.metaKpis.totalLeads}</p>
+            </Card>
+            <Card padding="md">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
+                  <Target className="w-5 h-5" />
+                </div>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Ø CPL</span>
+              </div>
+              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+                €{data.metaKpis.avgCpl.toFixed(2)}
+              </p>
+            </Card>
+            <Card padding="md">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Impressions</span>
+              </div>
+              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+                {data.metaKpis.totalImpressions.toLocaleString('de-DE')}
+              </p>
+            </Card>
+            <Card padding="md">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
+                  <MousePointer className="w-5 h-5" />
+                </div>
+                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Klicks</span>
+              </div>
+              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+                {data.metaKpis.totalClicks.toLocaleString('de-DE')}
+              </p>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Conversion Funnel */}

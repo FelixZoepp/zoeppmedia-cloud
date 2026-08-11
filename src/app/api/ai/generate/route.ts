@@ -1,5 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { generateContent as callClaude, ContentType, OnboardingContext } from '@/lib/ai/claude';
+
+const ALLOWED_TYPES = ['ad_copy', 'phone_script', 'script', 'funnel_text', 'video_script', 'job_posting', 'creative_brief'];
 
 export async function POST(req: Request) {
   const supabase = await createServerClient();
@@ -18,6 +21,10 @@ export async function POST(req: Request) {
 
   const { type, agency_id, context, fulfillment_task_id } = await req.json();
 
+  if (!ALLOWED_TYPES.includes(type)) {
+    return NextResponse.json({ error: 'Invalid content type' }, { status: 400 });
+  }
+
   // Fetch onboarding data for context
   const { data: onboarding } = await supabase
     .from('onboarding_submissions')
@@ -27,41 +34,32 @@ export async function POST(req: Request) {
     .limit(1)
     .single();
 
-  const prompts: Record<string, string> = {
-    ad_copy: `Erstelle 3 Facebook/Instagram Ad Copys für eine D2D-Recruiting-Kampagne.
-Unternehmen: ${onboarding?.company_name || 'N/A'}
-Branche: ${onboarding?.industry || 'D2D Vertrieb'}
-Region: ${onboarding?.region || 'Deutschland'}
-USPs: ${onboarding?.usps || 'Attraktive Provision, Quereinsteiger willkommen'}
-Gehalt/Provision: ${onboarding?.compensation_model || 'N/A'}
-Zusätzlicher Kontext: ${context || ''}
-
-Schreibe die Copys auf Deutsch, mit einem Hook, Haupttext und CTA. Jede Copy sollte anders sein (emotional, rational, social proof).`,
-
-    script: `Erstelle ein Telefon-Skript für die Erstansprache von Bewerbern aus einer D2D-Recruiting-Kampagne.
-Unternehmen: ${onboarding?.company_name || 'N/A'}
-Branche: ${onboarding?.industry || 'D2D Vertrieb'}
-Region: ${onboarding?.region || 'Deutschland'}
-USPs: ${onboarding?.usps || 'N/A'}
-Zusätzlicher Kontext: ${context || ''}
-
-Das Skript soll: Begrüßung, Qualifizierungsfragen, Termin-Pitch und Einwandbehandlung enthalten.`,
-
-    funnel_text: `Erstelle die Texte für eine Recruiting-Landingpage (Perspective Funnel).
-Unternehmen: ${onboarding?.company_name || 'N/A'}
-Branche: ${onboarding?.industry || 'D2D Vertrieb'}
-Region: ${onboarding?.region || 'Deutschland'}
-USPs: ${onboarding?.usps || 'N/A'}
-Zusätzlicher Kontext: ${context || ''}
-
-Liefere: Headline, Subheadline, 3 Benefit-Punkte, Testimonial-Placeholder, CTA-Text.`,
+  const aiContext: OnboardingContext = {
+    company_name: onboarding?.company_name ?? null,
+    industry: onboarding?.industry ?? null,
+    region: onboarding?.region ?? null,
+    employee_count: onboarding?.employee_count ?? null,
+    hiring_target: onboarding?.hiring_target ?? null,
+    hiring_timeframe: onboarding?.hiring_timeframe ?? null,
+    experience_required: onboarding?.experience_required ?? null,
+    compensation_model: onboarding?.compensation_model ?? null,
+    usps: onboarding?.usps ?? null,
+    primary_color: onboarding?.primary_color ?? null,
   };
 
-  const prompt = prompts[type] || prompts.ad_copy;
+  // Map DB content types to AI content types
+  const contentTypeMap: Record<string, ContentType> = {
+    ad_copy: 'ad_copy',
+    phone_script: 'phone_script',
+    script: 'phone_script',
+    funnel_text: 'funnel_text',
+    video_script: 'video_script',
+    job_posting: 'job_posting',
+    creative_brief: 'creative_brief',
+  };
 
-  // For now, return a placeholder. In production, this would call Claude API.
-  // The structure is ready for API integration.
-  const generatedContent = `[AI-generierter ${type} Content]\n\n${prompt}\n\n---\nHinweis: Verbinde die Claude API (ANTHROPIC_API_KEY) für echte AI-Generierung.`;
+  const aiType = contentTypeMap[type] || 'ad_copy';
+  const generatedContent = await callClaude(aiType, aiContext, context?.previousVersion, context?.feedback);
 
   // Save to generated_content table
   const { data: saved, error } = await supabase

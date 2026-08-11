@@ -35,15 +35,27 @@ export async function POST(req: Request) {
     .eq('id', profile.agency_id);
 
   // Auto-create fulfillment tasks
-  const tasks = [
-    { title: 'Perspective Funnel erstellen', task_type: 'perspective_funnel', sort_order: 1 },
-    { title: 'Ad Copys generieren', task_type: 'ad_copy', sort_order: 2 },
-    { title: 'Telefon-Skripte erstellen', task_type: 'script', sort_order: 3 },
-    { title: 'Meta Kampagne vorbereiten', task_type: 'meta_campaign', sort_order: 4 },
+  const fulfillmentTasks = [
+    { title: 'Ad Copys generieren', task_type: 'ad_copy', sort_order: 1 },
+    { title: 'Telefon-Skripte generieren', task_type: 'phone_script', sort_order: 2 },
+    { title: 'Video-Skripte generieren', task_type: 'video_script', sort_order: 3 },
+    { title: 'Stellenanzeigen generieren', task_type: 'job_posting', sort_order: 4 },
+    { title: 'Creative Brief generieren', task_type: 'creative_brief', sort_order: 5 },
+    { title: 'Perspective Funnel erstellen', task_type: 'perspective_funnel', sort_order: 6 },
+    { title: 'Meta Zugang verifizieren', task_type: 'manual', sort_order: 7 },
+    { title: 'Meta Kampagne hochladen', task_type: 'meta_upload', sort_order: 8 },
+    { title: 'Indeed Texte einpflegen', task_type: 'manual', sort_order: 9 },
+    { title: 'Funnel veröffentlichen', task_type: 'funnel_publish', sort_order: 10 },
   ];
 
   await supabase.from('fulfillment_tasks').insert(
-    tasks.map((t) => ({ ...t, agency_id: profile.agency_id }))
+    fulfillmentTasks.map((t) => ({
+      agency_id: profile.agency_id,
+      title: t.title,
+      task_type: t.task_type,
+      status: 'pending',
+      sort_order: t.sort_order,
+    }))
   );
 
   return NextResponse.json(data);

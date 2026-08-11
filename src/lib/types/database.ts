@@ -6,6 +6,8 @@ export type Agency = {
   contact_name: string;
   email: string;
   phone: string | null;
+  meta_ad_account_id: string | null;
+  meta_page_id: string | null;
   created_at: string;
 };
 
@@ -105,6 +107,7 @@ export type OnboardingSubmission = {
   contact_name: string | null;
   contact_phone: string | null;
   preferred_contact_time: string | null;
+  meta_access_steps: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -115,7 +118,7 @@ export type FulfillmentTask = {
   assigned_to: string | null;
   title: string;
   description: string | null;
-  task_type: 'perspective_funnel' | 'ad_copy' | 'script' | 'meta_campaign' | 'other';
+  task_type: 'perspective_funnel' | 'ad_copy' | 'script' | 'meta_campaign' | 'other' | 'phone_script' | 'video_script' | 'job_posting' | 'creative_brief' | 'meta_upload' | 'funnel_publish' | 'manual';
   status: FulfillmentStatus;
   sort_order: number;
   result_data: Record<string, unknown> | null;
@@ -127,7 +130,7 @@ export type GeneratedContent = {
   id: string;
   agency_id: string;
   fulfillment_task_id: string | null;
-  content_type: 'ad_copy' | 'script' | 'funnel_text' | 'other';
+  content_type: 'ad_copy' | 'script' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief' | 'other';
   content: string;
   version: number;
   approved: boolean;
@@ -294,6 +297,23 @@ export interface ReportSnapshot {
   created_at: string;
 }
 
+// Call Tracking
+export type CallResult = 'termin_vereinbart' | 'kein_interesse' | 'nicht_erreicht' | 'falsche_nummer' | 'rueckruf' | 'sonstiges';
+export type CallNextStep = 'erneut_anrufen' | 'termin_bestaetigen' | 'absage' | 'warten';
+
+export interface CallLog {
+  id: string;
+  candidate_id: string;
+  agency_id: string;
+  user_id: string;
+  result: CallResult;
+  notes: string | null;
+  next_step: CallNextStep | null;
+  next_contact_date: string | null;
+  duration_seconds: number | null;
+  created_at: string;
+}
+
 // Phase 6: SOP System, Content Library, and Approval Workflow
 
 export interface SopPhase {
@@ -339,13 +359,14 @@ export interface CustomerTask {
 export interface ContentLibraryItem {
   id: string;
   agency_id: string;
-  content_type: 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting';
+  content_type: 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief';
   title: string;
   content: string;
   variant: string | null;
   version: number;
-  status: 'draft' | 'pending_review' | 'approved' | 'changes_requested' | 'archived';
+  status: 'draft' | 'internal_review' | 'approved_internal' | 'client_review' | 'approved' | 'changes_requested' | 'deployed' | 'archived';
   feedback: string | null;
+  client_feedback: string | null;
   created_by: string | null;
   approved_by: string | null;
   approved_at: string | null;

@@ -1,21 +1,67 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
+
+const validTransitions: Record<string, string[]> = {
+  draft:             ['internal_review'],
+  internal_review:   ['approved_internal', 'draft'],
+  approved_internal: ['client_review', 'internal_review'],
+  client_review:     ['approved', 'changes_requested'],
+  approved:          ['deployed'],
+  changes_requested: ['internal_review', 'approved_internal'],
+  deployed:          ['archived'],
+  archived:          [],
+};
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const supabase = await createServerClient();
   const body = await req.json();
+
+  // Fetch current item to validate the transition
+  const { data: existing, error: fetchError } = await supabase
+    .from('content_library')
+    .select('status, agency_id')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !existing) {
+    return NextResponse.json({ error: 'Content not found' }, { status: 404 });
+  }
+
+  // Enforce valid status transitions when a status change is requested
+  if (body.status !== undefined) {
+    const currentStatus: string = existing.status;
+    const nextStatus: string = body.status;
+
+    if (currentStatus !== nextStatus) {
+      const allowed = validTransitions[currentStatus] ?? [];
+      if (!allowed.includes(nextStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status transition: ${currentStatus} → ${nextStatus}` },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
   const updates: Record<string, unknown> = {
     ...body,
     updated_at: new Date().toISOString(),
   };
 
-  if (body.status === 'approved') {
-    updates.approved_by = user.id;
+  // Track who approved / when
+  if (body.status === 'approved' || body.status === 'approved_internal') {
+    updates.approved_by = currentUser.id;
     updates.approved_at = new Date().toISOString();
+  }
+
+  // Store client feedback in the dedicated column
+  if (body.client_feedback !== undefined) {
+    updates.client_feedback = body.client_feedback;
   }
 
   const { data, error } = await supabase
@@ -27,16 +73,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Log approval actions
-  if (['pending_review', 'approved', 'changes_requested'].includes(body.status)) {
-    const item = data as { agency_id: string };
+  // Log all meaningful status transitions to approval_log
+  const statusToAction: Record<string, string> = {
+    internal_review:   'submitted',
+    approved_internal: 'approved',
+    client_review:     'submitted',
+    approved:          'approved',
+    changes_requested: 'changes_requested',
+    approved_internal_resubmit: 'resubmitted',
+  };
+
+  if (body.status && body.status !== existing.status) {
+    const action = statusToAction[body.status] ?? body.status;
+    const isResubmit =
+      body.status === 'approved_internal' && existing.status === 'changes_requested';
+
     await supabase.from('approval_log').insert({
-      agency_id: item.agency_id,
+      agency_id: existing.agency_id,
       item_type: 'content',
       item_id: id,
-      action: body.status === 'pending_review' ? 'submitted' : body.status,
-      comment: body.feedback || null,
-      acted_by: user.id,
+      action: isResubmit ? 'resubmitted' : action,
+      comment: body.client_feedback || body.feedback || null,
+      acted_by: currentUser.id,
     });
   }
 
