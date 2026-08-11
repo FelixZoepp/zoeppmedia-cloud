@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   const { agency_id, image_url, headline, body, description, link_url, cta_type, ad_set_id } =
     await request.json();
 
-  if (!agency_id || !headline || !body || !link_url || !ad_set_id) {
+  if (!agency_id || !headline || !body) {
     return NextResponse.json({ error: 'Pflichtfelder fehlen' }, { status: 400 });
   }
 
@@ -46,15 +46,18 @@ export async function POST(request: NextRequest) {
       ctaType: cta_type || 'APPLY_NOW',
     });
 
-    // 3. Create ad as PAUSED
-    const adId = await createAd(
-      agency.meta_ad_account_id,
-      ad_set_id,
-      creativeId,
-      `Ad — ${headline}`
-    );
+    // 3. Create ad as PAUSED (only when ad_set_id is provided)
+    let adId: string | undefined;
+    if (ad_set_id) {
+      adId = await createAd(
+        agency.meta_ad_account_id,
+        ad_set_id,
+        creativeId,
+        `Ad — ${headline}`
+      );
+    }
 
-    return NextResponse.json({ ad_id: adId, creative_id: creativeId, status: 'PAUSED' });
+    return NextResponse.json({ ad_id: adId ?? null, creative_id: creativeId, status: adId ? 'PAUSED' : 'CREATIVE_ONLY' });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Meta API Fehler' },

@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { getCurrentUser, isInternal } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
@@ -31,17 +32,28 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isInternal(user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
   const body = await req.json();
+  const { agency_id, content_type, title, content, variant } = body;
+
+  const insertData = {
+    agency_id,
+    content_type,
+    title,
+    content,
+    variant: variant ?? null,
+    version: 1,
+    status: 'draft' as const,
+    created_by: user.id,
+  };
+
+  const supabase = await createServerClient();
   const { data, error } = await supabase
     .from('content_library')
-    .insert({
-      ...body,
-      created_by: user.id,
-    })
+    .insert(insertData)
     .select()
     .single();
 

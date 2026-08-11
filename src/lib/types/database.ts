@@ -130,7 +130,7 @@ export type GeneratedContent = {
   id: string;
   agency_id: string;
   fulfillment_task_id: string | null;
-  content_type: 'ad_copy' | 'script' | 'funnel_text' | 'other';
+  content_type: 'ad_copy' | 'script' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief' | 'other';
   content: string;
   version: number;
   approved: boolean;
