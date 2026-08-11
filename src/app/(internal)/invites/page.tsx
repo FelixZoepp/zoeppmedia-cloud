@@ -1,11 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
-import { Building2, Mail, Phone, User, UserPlus, CheckCircle, Copy, AlertCircle } from 'lucide-react';
+import {
+  Building2,
+  Mail,
+  Phone,
+  User,
+  UserPlus,
+  CheckCircle,
+  Copy,
+  AlertCircle,
+  RefreshCw,
+  Send,
+} from 'lucide-react';
+
+type AgencyWithInvite = {
+  id: string;
+  name: string;
+  contact_name: string;
+  email: string;
+  created_at: string;
+  // joined from invite_tokens
+  invite_token?: string;
+  email_sent_at?: string | null;
+  invite_redeemed?: boolean;
+};
 
 export default function InvitesPage() {
   const [name, setName] = useState('');
@@ -16,6 +39,37 @@ export default function InvitesPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const [agencies, setAgencies] = useState<AgencyWithInvite[]>([]);
+  const [invites, setInvites] = useState<Record<string, { token: string; email_sent_at: string | null; redeemed: boolean }>>({});
+  const [listLoading, setListLoading] = useState(true);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const loadAgencies = useCallback(async () => {
+    setListLoading(true);
+    try {
+      const [agenciesRes, invitesRes] = await Promise.all([
+        fetch('/api/admin/agencies'),
+        fetch('/api/admin/invites'),
+      ]);
+      if (agenciesRes.ok) {
+        const data: AgencyWithInvite[] = await agenciesRes.json();
+        setAgencies(data);
+      }
+      if (invitesRes.ok) {
+        const data: { agency_id: string; token: string; email_sent_at: string | null; redeemed: boolean }[] = await invitesRes.json();
+        const map: Record<string, { token: string; email_sent_at: string | null; redeemed: boolean }> = {};
+        data.forEach((inv) => { map[inv.agency_id] = inv; });
+        setInvites(map);
+      }
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAgencies();
+  }, [loadAgencies]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,12 +97,27 @@ export default function InvitesPage() {
     setEmail('');
     setPhone('');
     setLoading(false);
+    await loadAgencies();
   }
 
   function handleCopy() {
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleResend(agency: AgencyWithInvite) {
+    setResendingId(agency.id);
+    try {
+      await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agency_id: agency.id, agency_name: agency.name, email: agency.email }),
+      });
+      await loadAgencies();
+    } finally {
+      setResendingId(null);
+    }
   }
 
   return (
@@ -159,7 +228,7 @@ export default function InvitesPage() {
               <CheckCircle size={20} className="text-green-700 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-[var(--text-sm)] font-semibold text-green-700 mb-2">
-                  Einladungslink erstellt!
+                  Einladungslink erstellt & E-Mail gesendet!
                 </p>
                 <code className="block text-[var(--text-sm)] text-green-700/80 break-all font-[var(--font-mono)] bg-green-100 rounded-[var(--radius-sm)] px-3 py-2">
                   {inviteUrl}
@@ -177,6 +246,82 @@ export default function InvitesPage() {
               </div>
             </div>
           </Card>
+        )}
+      </div>
+
+      {/* Agency list with invite status */}
+      <div className="mt-10 max-w-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[var(--text-base)] font-semibold text-[var(--text-primary)]">
+            Eingeladene Agenturen
+          </h2>
+          <Button variant="secondary" size="sm" onClick={loadAgencies} disabled={listLoading}>
+            <RefreshCw size={14} className={listLoading ? 'animate-spin' : ''} />
+            Aktualisieren
+          </Button>
+        </div>
+
+        {listLoading ? (
+          <p className="text-[var(--text-sm)] text-[var(--text-tertiary)]">Lädt...</p>
+        ) : agencies.length === 0 ? (
+          <p className="text-[var(--text-sm)] text-[var(--text-tertiary)]">Noch keine Agenturen eingeladen.</p>
+        ) : (
+          <div className="space-y-3">
+            {agencies.map((agency) => {
+              const inv = invites[agency.id];
+              const emailSent = inv?.email_sent_at;
+              const redeemed = inv?.redeemed;
+
+              return (
+                <Card key={agency.id} padding="md">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[var(--text-sm)] font-semibold text-[var(--text-primary)]">
+                          {agency.name}
+                        </span>
+                        {redeemed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <CheckCircle size={11} />
+                            Registriert
+                          </span>
+                        ) : emailSent ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            <Send size={11} />
+                            E-Mail gesendet
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            Kein E-Mail
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[var(--text-sm)] text-[var(--text-tertiary)] mt-0.5">
+                        {agency.contact_name} · {agency.email}
+                      </p>
+                      {emailSent && (
+                        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                          Gesendet: {new Date(emailSent).toLocaleString('de-DE')}
+                        </p>
+                      )}
+                    </div>
+                    {!redeemed && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleResend(agency)}
+                        disabled={resendingId === agency.id}
+                      >
+                        <Send size={13} />
+                        {resendingId === agency.id ? 'Sendet...' : 'Erneut senden'}
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

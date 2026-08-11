@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
+import { sendInviteEmail } from '@/lib/email/resend';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -82,6 +83,17 @@ export async function POST(request: Request) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const invite_url = `${baseUrl}/register/${invite!.token}`;
+
+  try {
+    const expiresAt = new Date(Date.now() + 7 * 86400000).toLocaleDateString('de-DE');
+    await sendInviteEmail(email, name, invite_url, expiresAt);
+    await admin
+      .from('invite_tokens')
+      .update({ email_sent_at: new Date().toISOString() })
+      .eq('id', invite!.id);
+  } catch {
+    // Email failed but invite was created — log but don't fail
+  }
 
   return NextResponse.json({ agency, invite_url });
 }
