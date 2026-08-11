@@ -19,6 +19,7 @@ export type InviteToken = {
   expires_at: string;
   redeemed: boolean;
   created_at: string;
+  email_sent_at: string | null;
 };
 
 export type User = {
@@ -382,5 +383,69 @@ export interface ApprovalLogEntry {
   action: 'submitted' | 'approved' | 'changes_requested' | 'resubmitted';
   comment: string | null;
   acted_by: string;
+  created_at: string;
+}
+
+// Phase 2: KPI System
+
+export type KpiDirection = 'lower_is_better' | 'higher_is_better';
+
+export interface KpiDefault {
+  id: string;
+  kpi_key: string;
+  label: string;
+  default_value: number;
+  unit: string;
+  direction: KpiDirection;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgencyKpiOverride {
+  id: string;
+  agency_id: string;
+  kpi_key: string;
+  value: number;
+  set_by: string | null;
+  created_at: string;
+}
+
+export type ProblemSeverity = 'warning' | 'critical';
+
+export interface AgencyProblem {
+  id: string;
+  agency_id: string;
+  problem_key: string;
+  severity: ProblemSeverity;
+  current_value: number | null;
+  target_value: number | null;
+  details: Record<string, unknown>;
+  detected_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+}
+
+export interface PlaybookEntry {
+  id: string;
+  problem_key: string;
+  title: string;
+  description: string;
+  causes: string[];
+  immediate_actions: string[];
+  long_term_actions: string[];
+  escalation_trigger: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SurveyScheduleItem {
+  id: string;
+  agency_id: string;
+  trigger_key: string;
+  template_id: string;
+  scheduled_at: string;
+  sent_at: string | null;
+  completed_at: string | null;
+  response_id: string | null;
   created_at: string;
 }

@@ -90,6 +90,25 @@ export async function GET(
     upsellSignals.push('Starkes Wachstum — mehr Services anbieten');
   }
 
+  // KPI + problem + playbook data
+  const [{ data: kpiDefaults }, { data: kpiOverrides }, { data: problems }, { data: playbooks }] = await Promise.all([
+    admin.from('kpi_defaults').select('*').order('kpi_key'),
+    admin.from('agency_kpi_overrides').select('*').eq('agency_id', id),
+    admin.from('agency_problems').select('*').eq('agency_id', id).is('resolved_at', null).order('detected_at', { ascending: false }),
+    admin.from('playbook_entries').select('*'),
+  ]);
+
+  const overrideMap = new Map((kpiOverrides || []).map((o) => [o.kpi_key, o.value]));
+  const kpis = (kpiDefaults || []).map((d) => ({
+    key: d.kpi_key,
+    label: d.label,
+    value: overrideMap.has(d.kpi_key) ? overrideMap.get(d.kpi_key)! : d.default_value,
+    unit: d.unit,
+    direction: d.direction,
+    isOverride: overrideMap.has(d.kpi_key),
+    defaultValue: d.default_value,
+  }));
+
   return NextResponse.json({
     agency,
     totalCandidates,
@@ -101,5 +120,8 @@ export async function GET(
     recentCandidates,
     upsellSignals,
     candidates,
+    kpis,
+    problems: problems || [],
+    playbooks: playbooks || [],
   });
 }

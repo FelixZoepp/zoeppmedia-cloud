@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { sendWelcomeEmail } from '@/lib/email/resend';
 
 export async function POST(request: NextRequest) {
   const { token, name, email, password } = await request.json();
@@ -64,6 +65,13 @@ export async function POST(request: NextRequest) {
     .from('invite_tokens')
     .update({ redeemed: true })
     .eq('id', invite.id);
+
+  const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`;
+  try {
+    await sendWelcomeEmail(email, name, loginUrl);
+  } catch {
+    // Email failed but registration succeeded
+  }
 
   return NextResponse.json({ success: true });
 }
