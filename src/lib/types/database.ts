@@ -51,6 +51,12 @@ export type Candidate = {
   meta_form: string | null;
   current_stage_id: string;
   created_at: string;
+  // Indeed / resume fields
+  resume_url: string | null;
+  location: string | null;
+  experience_summary: string | null;
+  last_employer: string | null;
+  indeed_job_title: string | null;
 };
 
 export type CandidateStage = {
@@ -312,6 +318,21 @@ export interface CallLog {
   next_step: CallNextStep | null;
   next_contact_date: string | null;
   duration_seconds: number | null;
+  created_at: string;
+}
+
+// Indeed Email Inbound
+
+export interface InboundEmailLog {
+  id: string;
+  agency_id: string | null;
+  from_address: string;
+  to_address: string;
+  subject: string | null;
+  status: 'processed' | 'failed' | 'no_agency';
+  error_message: string | null;
+  candidate_id: string | null;
+  raw_payload: Record<string, unknown> | null;
   created_at: string;
 }
 
