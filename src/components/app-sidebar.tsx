@@ -16,6 +16,7 @@ import {
   ListTodo,
   ListChecks,
   Target,
+  BookOpen,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -33,6 +34,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
+      { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
   {
@@ -59,6 +61,7 @@ const employeeGroups: SidebarGroup[] = [
       { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
+      { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
 ];
