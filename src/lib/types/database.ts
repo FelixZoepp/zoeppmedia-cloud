@@ -8,6 +8,8 @@ export type Agency = {
   phone: string | null;
   meta_ad_account_id: string | null;
   meta_page_id: string | null;
+  has_video_shoot: boolean;
+  reels_per_month: number;
   created_at: string;
 };
 
@@ -115,9 +117,29 @@ export type OnboardingSubmission = {
   contact_phone: string | null;
   preferred_contact_time: string | null;
   meta_access_steps: Record<string, unknown>;
+  has_video_shoot: boolean;
+  reels_per_month: number;
   created_at: string;
   updated_at: string;
 };
+
+export type RecurringTaskKey = 'indeed_restart' | 'creatives_test' | 'reels_create' | 'video_shoot_plan';
+export type RecurringTrigger = 'schedule' | 'problem' | 'manual';
+
+export interface RecurringFulfillmentTask {
+  id: string;
+  agency_id: string;
+  task_key: RecurringTaskKey;
+  title: string;
+  description: string | null;
+  status: 'pending' | 'in_progress' | 'done' | 'skipped';
+  due_date: string | null;
+  assigned_to: string | null;
+  triggered_by: RecurringTrigger | null;
+  problem_id: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
 
 export type FulfillmentTask = {
   id: string;
