@@ -36,7 +36,18 @@ interface MetaKpis {
   totalClicks: number;
 }
 
+interface KpiItem {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  direction: 'lower_is_better' | 'higher_is_better';
+  isOverride: boolean;
+  defaultValue: number;
+}
+
 interface ReportData {
+  agencyId: string;
   total: number;
   last30: number;
   last7: number;
@@ -64,6 +75,7 @@ const PERIOD_OPTIONS = [
 
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null);
+  const [kpis, setKpis] = useState<KpiItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('all');
   const [showSurvey, setShowSurvey] = useState(false);
@@ -83,6 +95,12 @@ export default function ReportsPage() {
       setData(reportData);
       setTemplates(surveyData.templates);
       setLoading(false);
+      // Fetch KPIs once we have the agencyId
+      if (reportData.agencyId) {
+        fetch(`/api/kpi/agency/${reportData.agencyId}`)
+          .then((r) => r.json())
+          .then((kpiData: KpiItem[]) => setKpis(Array.isArray(kpiData) ? kpiData : []));
+      }
     });
   }, [period]);
 
@@ -160,6 +178,43 @@ export default function ReportsPage() {
           </Card>
         ))}
       </div>
+
+      {/* KPI Soll/Ist Section */}
+      {kpis.length > 0 && (
+        <div className="space-y-4 mb-8">
+          <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <Target className="w-5 h-5 text-red-500" /> Ziel-Erreichung
+          </h2>
+          <Card padding="md">
+            <div className="space-y-5">
+              {kpis.map((kpi) => {
+                const ratio = kpi.defaultValue > 0 ? kpi.value / kpi.defaultValue : 0;
+                const isGood =
+                  kpi.direction === 'higher_is_better' ? ratio >= 1 : ratio <= 1;
+                const barWidth = Math.min(ratio * 100, 100);
+                return (
+                  <div key={kpi.key} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-[var(--text-primary)]">{kpi.label}</span>
+                      <span className="text-[12px] text-[var(--text-tertiary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">{kpi.value}{kpi.unit}</span>
+                        {' / '}
+                        <span>Ziel {kpi.defaultValue}{kpi.unit}</span>
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${isGood ? 'bg-green-500' : 'bg-red-400'}`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Call Performance Section */}
       <div className="space-y-4 mb-8">

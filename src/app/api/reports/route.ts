@@ -161,6 +161,7 @@ export async function GET(request: Request) {
       : null;
 
   return NextResponse.json({
+    agencyId,
     total,
     last30,
     last7,
