@@ -15,6 +15,7 @@ import {
   Building2,
   ListTodo,
   ListChecks,
+  Target,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -38,6 +39,7 @@ const adminGroups: SidebarGroup[] = [
     label: 'Verwaltung',
     items: [
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
+      { id: 'kpi', label: 'KPI Einstellungen', icon: <Target className="w-5 h-5" />, href: '/admin/kpi' },
       { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
     ],
   },
