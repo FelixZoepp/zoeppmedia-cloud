@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createServerClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data, error } = await supabase
+    .from('call_logs')
+    .select('*')
+    .eq('candidate_id', id)
+    .order('created_at', { ascending: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createServerClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await request.json();
+
+  // Get candidate to verify it exists and retrieve agency_id
+  const { data: candidate } = await supabase
+    .from('candidates')
+    .select('agency_id')
+    .eq('id', id)
+    .single();
+
+  if (!candidate) return NextResponse.json({ error: 'Bewerber nicht gefunden.' }, { status: 404 });
+
+  const { data, error } = await supabase
+    .from('call_logs')
+    .insert({
+      candidate_id: id,
+      agency_id: candidate.agency_id,
+      user_id: user.id,
+      result: body.result,
+      notes: body.notes || null,
+      next_step: body.next_step || null,
+      next_contact_date: body.next_contact_date || null,
+      duration_seconds: body.duration_seconds || null,
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data, { status: 201 });
+}

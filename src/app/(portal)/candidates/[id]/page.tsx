@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Mail, Phone, Megaphone, Layers, StickyNote, Clock } from 'lucide-react';
-import type { Candidate, CandidateStage, Note, PipelineStage } from '@/lib/types/database';
+import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem } from '@/lib/types/database';
+import { CallTracker } from '@/components/call-tracker';
 
 type StageHistoryEntry = CandidateStage & { stage: PipelineStage; user: { name: string } | null };
 type NoteWithUser = Note & { user: { name: string } };
@@ -26,6 +27,8 @@ export default function CandidateDetailPage() {
   const [notes, setNotes] = useState<NoteWithUser[]>([]);
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(true);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [phoneScript, setPhoneScript] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/candidates/${id}`)
@@ -35,6 +38,26 @@ export default function CandidateDetailPage() {
         setStageHistory(data.stageHistory || []);
         setNotes(data.notes || []);
         setLoading(false);
+
+        // Fetch call logs for this candidate
+        fetch(`/api/candidates/${id}/calls`)
+          .then((r) => r.json())
+          .then((logs) => { if (Array.isArray(logs)) setCallLogs(logs); })
+          .catch(() => {});
+
+        // Fetch approved phone script for this agency
+        if (data.candidate?.agency_id) {
+          fetch(
+            `/api/library?agency_id=${data.candidate.agency_id}&content_type=phone_script&status=approved_internal,approved,deployed`
+          )
+            .then((r) => r.json())
+            .then((items: ContentLibraryItem[]) => {
+              if (Array.isArray(items) && items.length > 0) {
+                setPhoneScript(items[0].content);
+              }
+            })
+            .catch(() => {});
+        }
       });
   }, [id]);
 
@@ -74,7 +97,7 @@ export default function CandidateDetailPage() {
   const source = sourceConfig[candidate.source] ?? { label: candidate.source, tone: 'neutral' as const };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-5xl">
       {/* Back button */}
       <button
         onClick={() => router.push('/dashboard')}
@@ -91,7 +114,7 @@ export default function CandidateDetailPage() {
             {candidate.name}
           </h1>
           <p className="text-[13px] text-[var(--text-tertiary)]">
-            Hinzugefuegt am {new Date(candidate.created_at).toLocaleDateString('de-DE')}
+            Hinzugefügt am {new Date(candidate.created_at).toLocaleDateString('de-DE')}
           </p>
         </div>
         <Badge tone={source.tone}>{source.label}</Badge>
@@ -181,7 +204,7 @@ export default function CandidateDetailPage() {
       </Card>
 
       {/* Notes */}
-      <Card padding="md">
+      <Card padding="md" className="mb-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <StickyNote className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -194,7 +217,7 @@ export default function CandidateDetailPage() {
             type="text"
             value={newNote}
             onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Notiz hinzufuegen..."
+            placeholder="Notiz hinzufügen..."
             className="flex-1"
           />
           <Button type="submit" variant="primary" size="md">
@@ -222,6 +245,23 @@ export default function CandidateDetailPage() {
           )}
         </div>
       </Card>
+
+      {/* Call Tracker */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
+            <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
+          </div>
+          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Anrufe</h2>
+        </div>
+        <CallTracker
+          candidateId={id}
+          candidatePhone={candidate.phone}
+          callLogs={callLogs}
+          script={phoneScript}
+          onLogCreated={(log) => setCallLogs((prev) => [log, ...prev])}
+        />
+      </div>
     </div>
   );
 }
