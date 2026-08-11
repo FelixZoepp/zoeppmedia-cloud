@@ -28,10 +28,14 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Update agency onboarding flag
+  // Update agency onboarding flag + package fields
   await supabase
     .from('agencies')
-    .update({ onboarding_completed: true })
+    .update({
+      onboarding_completed: true,
+      has_video_shoot: body.has_video_shoot || false,
+      reels_per_month: body.reels_per_month || 0,
+    })
     .eq('id', profile.agency_id);
 
   // Auto-create fulfillment tasks

@@ -48,6 +48,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     logo_url: '',
     team_photos: [] as string[],
     primary_color: '#E0354B', usps: '',
+    has_video_shoot: false, reels_per_month: 0,
     contact_name: '', contact_phone: '', preferred_contact_time: '',
     meta_access_steps: {
       business_manager: false,
@@ -178,6 +179,32 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             <div>
               <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Gehalt / Provisions-Modell</label>
               <Input value={form.compensation_model} onChange={(e) => update('compensation_model', e.target.value)} icon={<DollarSign className="w-4 h-4" />} placeholder="z.B. Fixum + Provision, reines Provisionsmodell" />
+            </div>
+
+            <div className="pt-4 border-t border-[var(--border-default)]">
+              <p className="text-[13px] font-semibold text-[var(--text-primary)] mb-3">Video & Content</p>
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border-default)] hover:border-red-200 transition cursor-pointer mb-3">
+                <input
+                  type="checkbox"
+                  checked={form.has_video_shoot}
+                  onChange={(e) => setForm(f => ({ ...f, has_video_shoot: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-red-500"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">Videodreh geplant</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">Wir planen einen Recruiting-Videodreh für euch</p>
+                </div>
+              </label>
+              <div>
+                <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Reels pro Monat</label>
+                <Input
+                  type="number"
+                  value={form.reels_per_month.toString()}
+                  onChange={(e) => setForm(f => ({ ...f, reels_per_month: parseInt(e.target.value) || 0 }))}
+                  placeholder="0 = keine Reels"
+                />
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">Wie viele Reels sollen monatlich erstellt werden? (0 wenn keine)</p>
+              </div>
             </div>
           </div>
         )}
