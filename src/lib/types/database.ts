@@ -358,6 +358,39 @@ export interface InboundEmailLog {
   created_at: string;
 }
 
+// Call Recordings
+
+export type RecordingType = 'erstgespraech' | 'vorstellungsgespraech' | 'follow_up' | 'sonstiges';
+export type TranscriptStatus = 'pending' | 'processing' | 'done' | 'failed';
+export type AnalysisStatus = 'pending' | 'processing' | 'done' | 'failed';
+
+export interface CallRecordingAnalysis {
+  script_adherence_score: number; // 0-100
+  conversation_quality_score: number; // 0-100
+  overall_score: number; // 0-100
+  strengths: string[];
+  improvements: string[];
+  key_moments: { timestamp: string; note: string }[];
+  summary: string;
+}
+
+export interface CallRecording {
+  id: string;
+  candidate_id: string;
+  agency_id: string;
+  uploaded_by: string;
+  recording_type: RecordingType;
+  file_url: string;
+  file_name: string;
+  file_size_bytes: number | null;
+  duration_seconds: number | null;
+  transcript: string | null;
+  transcript_status: TranscriptStatus;
+  analysis: CallRecordingAnalysis | null;
+  analysis_status: AnalysisStatus;
+  created_at: string;
+}
+
 // Phase 6: SOP System, Content Library, and Approval Workflow
 
 export interface SopPhase {
