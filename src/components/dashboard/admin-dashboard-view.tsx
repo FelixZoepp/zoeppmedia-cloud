@@ -41,7 +41,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-gray-100 rounded-[24px] p-14 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
+    <div className={`bg-white border border-gray-100 rounded-[28px] p-16 shadow-[0_1px_4px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] ${className}`}>
       {children}
     </div>
   );
@@ -69,7 +69,7 @@ export function AdminDashboardView({ data }: Props) {
   const kw = getISOWeek(now);
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-14">
 
       {/* ── Top Header Bar ───────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ export function AdminDashboardView({ data }: Props) {
           <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em]">
             {dayName} &middot; KW {kw}
           </span>
-          <h1 className="text-[40px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1] mt-2">
+          <h1 className="text-[44px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1] mt-3">
             {getGreeting()}, Felix.
           </h1>
         </div>
@@ -123,7 +123,7 @@ export function AdminDashboardView({ data }: Props) {
       <div className="grid grid-cols-5 gap-8">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
-          <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5 mb-10">
+          <h2 className="text-[26px] font-bold text-[var(--text-primary)] mt-3 mb-10">
             Bewerber-Entwicklung
           </h2>
           <CandidatesChart data={data.candidatesOverTime} />
@@ -131,7 +131,7 @@ export function AdminDashboardView({ data }: Props) {
 
         <DashCard className="col-span-2">
           <SectionLabel>Quellen</SectionLabel>
-          <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5 mb-10">
+          <h2 className="text-[26px] font-bold text-[var(--text-primary)] mt-3 mb-10">
             Quellen-Verteilung
           </h2>
           <SourceDonut data={data.sourceBreakdown} />
@@ -144,7 +144,7 @@ export function AdminDashboardView({ data }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <SectionLabel>Letzte Aktivität</SectionLabel>
-              <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5">
+              <h2 className="text-[26px] font-bold text-[var(--text-primary)] mt-3">
                 Neue Bewerber
               </h2>
             </div>
@@ -178,7 +178,7 @@ export function AdminDashboardView({ data }: Props) {
 
         <DashCard className="col-span-2">
           <SectionLabel>Kanäle</SectionLabel>
-          <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5 mb-10">
+          <h2 className="text-[26px] font-bold text-[var(--text-primary)] mt-3 mb-10">
             Bewerber nach Quelle
           </h2>
           <SourcesChart data={data.sourceBreakdown} />
@@ -190,7 +190,7 @@ export function AdminDashboardView({ data }: Props) {
         <div className="flex items-center justify-between mb-2">
           <div>
             <SectionLabel>Portfolio</SectionLabel>
-            <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5">
+            <h2 className="text-[26px] font-bold text-[var(--text-primary)] mt-3">
               Agenturen
             </h2>
           </div>
@@ -254,7 +254,7 @@ export function AdminDashboardView({ data }: Props) {
         <div className="flex items-center justify-between mb-2">
           <div>
             <SectionLabel>Monitoring</SectionLabel>
-            <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5">
+            <h2 className="text-[26px] font-bold text-[var(--text-primary)] mt-3">
               Agentur-Status
             </h2>
           </div>
@@ -329,19 +329,19 @@ export function AdminDashboardView({ data }: Props) {
 
 function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-[24px] px-10 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-12 h-12 rounded-[14px] bg-gray-50 flex items-center justify-center">
+    <div className="bg-white border border-gray-100 rounded-[24px] px-10 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300 ease-out hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1">
+      <div className="flex items-center gap-4 mb-7">
+        <div className="w-14 h-14 rounded-[16px] bg-gray-50 flex items-center justify-center transition-transform duration-300 hover:scale-105">
           {icon}
         </div>
-        <span className="text-[13px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">
+        <span className="text-[13px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.1em]">
           {label}
         </span>
       </div>
-      <span className="text-[42px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
+      <span className="text-[44px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
         {value}
       </span>
-      <span className="text-[14px] text-[var(--text-tertiary)] mt-4 block">
+      <span className="text-[14px] text-[var(--text-tertiary)] mt-5 block">
         {sub}
       </span>
     </div>
@@ -352,13 +352,13 @@ function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: st
 
 function QuickAction({ icon, color, title, desc, href }: { icon: React.ReactNode; color: string; title: string; desc: string; href: string }) {
   return (
-    <Link href={href} className="group p-10 rounded-[20px] border border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all">
-      <div className={`w-16 h-16 rounded-[16px] ${color} flex items-center justify-center mb-6`}>
+    <Link href={href} className="group p-10 rounded-[24px] border border-gray-100 transition-all duration-300 ease-out hover:border-gray-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)] hover:-translate-y-1">
+      <div className={`w-16 h-16 rounded-[18px] ${color} flex items-center justify-center mb-7 transition-transform duration-300 group-hover:scale-110`}>
         {icon}
       </div>
       <h3 className="text-[17px] font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
       <p className="text-[14px] text-[var(--text-tertiary)] leading-relaxed">{desc}</p>
-      <span className="text-[14px] font-semibold text-red-500 mt-5 block group-hover:translate-x-0.5 transition-transform">
+      <span className="text-[14px] font-semibold text-red-500 mt-6 block transition-transform duration-300 group-hover:translate-x-1">
         Öffnen →
       </span>
     </Link>
