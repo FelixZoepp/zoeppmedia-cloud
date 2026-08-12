@@ -41,7 +41,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-gray-100 rounded-[24px] p-12 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
+    <div className={`bg-white border border-gray-100 rounded-[24px] p-14 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
       {children}
     </div>
   );
@@ -69,7 +69,7 @@ export function AdminDashboardView({ data }: Props) {
   const kw = getISOWeek(now);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
 
       {/* ── Top Header Bar ───────────────────────────────── */}
       <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ export function AdminDashboardView({ data }: Props) {
           <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em]">
             {dayName} &middot; KW {kw}
           </span>
-          <h1 className="text-[36px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1] mt-2">
+          <h1 className="text-[40px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1] mt-2">
             {getGreeting()}, Felix.
           </h1>
         </div>
@@ -96,7 +96,7 @@ export function AdminDashboardView({ data }: Props) {
       </div>
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-7">
+      <div className="grid grid-cols-5 gap-8">
         <KpiCard icon={<Users className="w-5 h-5 text-red-500" />} label="Agenturen" value={String(data.totalAgencies)} sub={`${data.totalAgencies} aktiv`} />
         <KpiCard icon={<TrendingUp className="w-5 h-5 text-blue-500" />} label="Bewerber" value={String(data.totalCandidates)} sub="Gesamt" />
         <KpiCard icon={<BarChart3 className="w-5 h-5 text-green-500" />} label="Neu diese Woche" value={String(data.newCandidatesThisWeek)} sub={`KW ${kw}`} />
@@ -110,7 +110,7 @@ export function AdminDashboardView({ data }: Props) {
         <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-1.5 mb-6">
           Deine Aktionen
         </h2>
-        <div className="grid grid-cols-5 gap-7">
+        <div className="grid grid-cols-5 gap-8">
           <QuickAction icon={<Plus className="w-6 h-6" />} color="bg-red-50 text-red-500" title="Neue Agentur" desc="Kunden einladen" href="/invites" />
           <QuickAction icon={<Users className="w-6 h-6" />} color="bg-blue-50 text-blue-500" title="Kunden" desc="Alle Agenturen" href="/clients" />
           <QuickAction icon={<BarChart3 className="w-6 h-6" />} color="bg-green-50 text-green-500" title="Playbook" desc="Handlungsanweisungen" href="/playbook" />
@@ -120,10 +120,10 @@ export function AdminDashboardView({ data }: Props) {
       </DashCard>
 
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
-      <div className="grid grid-cols-5 gap-7">
+      <div className="grid grid-cols-5 gap-8">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
-          <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-2 mb-8">
+          <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5 mb-10">
             Bewerber-Entwicklung
           </h2>
           <CandidatesChart data={data.candidatesOverTime} />
@@ -131,7 +131,7 @@ export function AdminDashboardView({ data }: Props) {
 
         <DashCard className="col-span-2">
           <SectionLabel>Quellen</SectionLabel>
-          <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-2 mb-8">
+          <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5 mb-10">
             Quellen-Verteilung
           </h2>
           <SourceDonut data={data.sourceBreakdown} />
@@ -139,12 +139,12 @@ export function AdminDashboardView({ data }: Props) {
       </div>
 
       {/* ── Row 3: Neue Bewerber + Quellen-Bar ───────────── */}
-      <div className="grid grid-cols-5 gap-7">
+      <div className="grid grid-cols-5 gap-8">
         <DashCard className="col-span-3">
           <div className="flex items-center justify-between">
             <div>
               <SectionLabel>Letzte Aktivität</SectionLabel>
-              <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-2">
+              <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5">
                 Neue Bewerber
               </h2>
             </div>
@@ -154,7 +154,7 @@ export function AdminDashboardView({ data }: Props) {
           ) : (
             <div className="mt-6 divide-y divide-gray-100">
               {data.recentCandidates.map((c) => (
-                <div key={c.id} className="flex items-center gap-4 py-5 first:pt-2">
+                <div key={c.id} className="flex items-center gap-4 py-6 first:pt-2">
                   <div className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
                     <User className="w-4 h-4 text-gray-400" />
                   </div>
@@ -178,7 +178,7 @@ export function AdminDashboardView({ data }: Props) {
 
         <DashCard className="col-span-2">
           <SectionLabel>Kanäle</SectionLabel>
-          <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-2 mb-8">
+          <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5 mb-10">
             Bewerber nach Quelle
           </h2>
           <SourcesChart data={data.sourceBreakdown} />
@@ -190,7 +190,7 @@ export function AdminDashboardView({ data }: Props) {
         <div className="flex items-center justify-between mb-2">
           <div>
             <SectionLabel>Portfolio</SectionLabel>
-            <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-2">
+            <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5">
               Agenturen
             </h2>
           </div>
@@ -254,7 +254,7 @@ export function AdminDashboardView({ data }: Props) {
         <div className="flex items-center justify-between mb-2">
           <div>
             <SectionLabel>Monitoring</SectionLabel>
-            <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-2">
+            <h2 className="text-[24px] font-bold text-[var(--text-primary)] mt-2.5">
               Agentur-Status
             </h2>
           </div>
@@ -329,19 +329,19 @@ export function AdminDashboardView({ data }: Props) {
 
 function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-[20px] px-8 py-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-11 h-11 rounded-[12px] bg-gray-50 flex items-center justify-center">
+    <div className="bg-white border border-gray-100 rounded-[24px] px-10 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-12 h-12 rounded-[14px] bg-gray-50 flex items-center justify-center">
           {icon}
         </div>
-        <span className="text-[12px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">
+        <span className="text-[13px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">
           {label}
         </span>
       </div>
-      <span className="text-[38px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
+      <span className="text-[42px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
         {value}
       </span>
-      <span className="text-[13px] text-[var(--text-tertiary)] mt-3 block">
+      <span className="text-[14px] text-[var(--text-tertiary)] mt-4 block">
         {sub}
       </span>
     </div>
@@ -352,13 +352,13 @@ function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: st
 
 function QuickAction({ icon, color, title, desc, href }: { icon: React.ReactNode; color: string; title: string; desc: string; href: string }) {
   return (
-    <Link href={href} className="group p-8 rounded-[18px] border border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all">
-      <div className={`w-14 h-14 rounded-[14px] ${color} flex items-center justify-center mb-5`}>
+    <Link href={href} className="group p-10 rounded-[20px] border border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all">
+      <div className={`w-16 h-16 rounded-[16px] ${color} flex items-center justify-center mb-6`}>
         {icon}
       </div>
-      <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-1.5">{title}</h3>
-      <p className="text-[14px] text-[var(--text-tertiary)]">{desc}</p>
-      <span className="text-[14px] font-semibold text-red-500 mt-4 block group-hover:translate-x-0.5 transition-transform">
+      <h3 className="text-[17px] font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
+      <p className="text-[14px] text-[var(--text-tertiary)] leading-relaxed">{desc}</p>
+      <span className="text-[14px] font-semibold text-red-500 mt-5 block group-hover:translate-x-0.5 transition-transform">
         Öffnen →
       </span>
     </Link>

@@ -40,7 +40,7 @@ function getISOWeek(date: Date): number {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-[var(--border-default)] rounded-[20px] p-10 ${className}`}>
+    <div className={`bg-white border border-gray-100 rounded-[24px] p-14 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
       {children}
     </div>
   );
@@ -56,14 +56,14 @@ function SectionLabel({ children }: { children: string }) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-[var(--border-default)] rounded-[20px] px-8 py-8">
-      <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em] block mb-3">
+    <div className="bg-white border border-gray-100 rounded-[24px] px-10 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <span className="text-[13px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em] block mb-4">
         {label}
       </span>
-      <span className="text-[40px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
+      <span className="text-[42px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
         {value}
       </span>
-      <span className="text-[13px] text-[var(--text-tertiary)] uppercase tracking-wide mt-3 block">
+      <span className="text-[14px] text-[var(--text-tertiary)] uppercase tracking-wide mt-4 block">
         {sub}
       </span>
     </div>

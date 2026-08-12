@@ -10,7 +10,7 @@ export default async function PortalLayout({ children }: { children: React.React
     <div className="flex h-screen bg-[var(--surface-app)]">
       <AppSidebar role={user.role} userName={user.name} />
       <main className="flex-1 min-w-0 overflow-y-auto">
-        <div className="px-12 py-10 max-w-[1400px] mx-auto">
+        <div className="px-16 py-12 max-w-[1400px] mx-auto">
           {children}
         </div>
       </main>

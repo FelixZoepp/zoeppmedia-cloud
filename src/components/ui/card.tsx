@@ -7,15 +7,15 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const paddingMap = {
-  sm: 'p-6',
-  md: 'p-8',
-  lg: 'p-10',
+  sm: 'p-8',
+  md: 'p-10',
+  lg: 'p-14',
 };
 
 export function Card({ inset = false, padding = 'md', children, className = '', ...props }: CardProps) {
   const base = inset
-    ? 'bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[20px]'
-    : 'bg-white rounded-[20px] border border-[var(--border-default)]';
+    ? 'bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[24px]'
+    : 'bg-white rounded-[24px] border border-[var(--border-default)]';
 
   return (
     <div className={`${base} ${paddingMap[padding]} ${className}`} {...props}>

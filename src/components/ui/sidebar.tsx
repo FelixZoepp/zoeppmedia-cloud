@@ -35,7 +35,7 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       <Link
         key={item.id}
         href={item.href}
-        className={`flex items-center gap-3 px-3.5 py-3 rounded-[var(--radius-sm)] text-[14px] font-medium transition-all duration-150 ${
+        className={`flex items-center gap-3.5 px-4 py-3.5 rounded-[var(--radius-sm)] text-[14px] font-medium transition-all duration-150 ${
           isActive
             ? 'bg-red-50 text-red-600'
             : 'text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] hover:text-[var(--text-primary)]'
@@ -51,7 +51,7 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
   }
 
   return (
-    <aside className="flex flex-col flex-shrink-0 h-screen w-[260px] bg-white border-r border-[var(--border-default)]">
+    <aside className="flex flex-col flex-shrink-0 h-screen w-[280px] bg-white border-r border-[var(--border-default)]">
       {/* Brand Header */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-[var(--border-default)]">
         <div className="w-8 h-8 rounded-[var(--radius-xs)] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center text-white font-bold text-[13px] flex-shrink-0">
@@ -70,7 +70,7 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       </div>
 
       {/* Grouped Nav */}
-      <nav className="flex-1 flex flex-col px-4 pt-6 pb-4 overflow-y-auto">
+      <nav className="flex-1 flex flex-col px-5 pt-7 pb-5 overflow-y-auto">
         {groups.map((group, gi) => (
           <div key={group.label} className={gi > 0 ? 'mt-7' : ''}>
             <div className="px-3 mb-2">

@@ -10,14 +10,14 @@ interface PageHeaderProps {
 
 export function PageHeader({ label, title, description, action, counter }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between mb-12">
+    <div className="flex items-start justify-between mb-16">
       <div>
         {label && (
           <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em] mb-1.5 block">
             {label}
           </span>
         )}
-        <h1 className="text-[32px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1]">
+        <h1 className="text-[36px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1]">
           {title}
         </h1>
         {description && (
