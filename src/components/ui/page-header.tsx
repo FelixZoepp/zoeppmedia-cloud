@@ -13,7 +13,7 @@ export function PageHeader({ label, title, description, action, counter }: PageH
     <div className="flex items-start justify-between mb-10">
       <div>
         {label && (
-          <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em] mb-1.5 block">
+          <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em] mb-1 block">
             {label}
           </span>
         )}
@@ -24,7 +24,7 @@ export function PageHeader({ label, title, description, action, counter }: PageH
           <p className="text-[15px] text-[var(--text-secondary)] mt-2">{description}</p>
         )}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {counter && (
           <span className="text-[13px] font-medium text-[var(--text-tertiary)]">{counter}</span>
         )}

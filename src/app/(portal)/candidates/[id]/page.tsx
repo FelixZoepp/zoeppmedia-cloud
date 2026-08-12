@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Mail, Phone, Megaphone, Layers, StickyNote, Clock } from 'lucide-react';
-import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem } from '@/lib/types/database';
+import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem, CallRecording } from '@/lib/types/database';
 import { CallTracker } from '@/components/call-tracker';
+import { CallRecordingsPanel } from '@/components/call-recording';
 
 type StageHistoryEntry = CandidateStage & { stage: PipelineStage; user: { name: string } | null };
 type NoteWithUser = Note & { user: { name: string } };
@@ -29,6 +30,7 @@ export default function CandidateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [phoneScript, setPhoneScript] = useState<string | null>(null);
+  const [recordings, setRecordings] = useState<CallRecording[]>([]);
 
   useEffect(() => {
     fetch(`/api/candidates/${id}`)
@@ -43,6 +45,12 @@ export default function CandidateDetailPage() {
         fetch(`/api/candidates/${id}/calls`)
           .then((r) => r.json())
           .then((logs) => { if (Array.isArray(logs)) setCallLogs(logs); })
+          .catch(() => {});
+
+        // Fetch recordings
+        fetch(`/api/candidates/${id}/recordings`)
+          .then((r) => r.json())
+          .then((recs) => { if (Array.isArray(recs)) setRecordings(recs); })
           .catch(() => {});
 
         // Fetch approved phone script for this agency
@@ -299,6 +307,15 @@ export default function CandidateDetailPage() {
           callLogs={callLogs}
           script={phoneScript}
           onLogCreated={(log) => setCallLogs((prev) => [log, ...prev])}
+        />
+      </div>
+
+      {/* Call Recordings */}
+      <div className="mt-8">
+        <CallRecordingsPanel
+          candidateId={id}
+          recordings={recordings}
+          onRecordingAdded={(rec) => setRecordings((prev) => [rec, ...prev])}
         />
       </div>
     </div>
