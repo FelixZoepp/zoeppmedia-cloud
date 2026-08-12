@@ -84,7 +84,7 @@ export default function FunnelsPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-5">
           {funnels.map((funnel) => {
             const badge = STATUS_BADGE[funnel.status] ?? STATUS_BADGE.draft;
             const isPublishing = publishing === funnel.id;
@@ -93,7 +93,7 @@ export default function FunnelsPage() {
               <Card key={funnel.id} padding="md">
                 <div className="flex items-center justify-between gap-4">
                   {/* Icon + info */}
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-4 min-w-0">
                     <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center flex-shrink-0">
                       <Globe className="w-5 h-5 text-red-500" />
                     </div>

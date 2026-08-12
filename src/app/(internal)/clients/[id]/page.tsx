@@ -99,7 +99,7 @@ function ProblemAlert({
   const isCritical = problem.severity === 'critical';
   return (
     <div
-      className={`flex items-start gap-3 p-4 rounded-[var(--radius-md)] border ${
+      className={`flex items-start gap-4 p-5 rounded-[var(--radius-md)] border ${
         isCritical
           ? 'bg-red-50 border-red-200'
           : 'bg-amber-50 border-amber-200'
@@ -356,7 +356,7 @@ export default function ClientDetailPage() {
               )}
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-5">
             {problems.map((p) => (
               <ProblemAlert
                 key={p.id}
@@ -371,10 +371,10 @@ export default function ClientDetailPage() {
       )}
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {summaryKpis.map((kpi) => (
           <Card key={kpi.label} padding="md">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-4 mb-4">
               <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${
                 kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'
               }`}>
@@ -402,7 +402,7 @@ export default function ClientDetailPage() {
               KPI Soll / Ist
             </h2>
           </div>
-          <div className="space-y-5">
+          <div className="space-y-6">
             {kpis.map((kpi) => (
               <KpiBar
                 key={kpi.key}
@@ -419,7 +419,7 @@ export default function ClientDetailPage() {
         <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-6">
           Conversion Funnel
         </h2>
-        <div className="space-y-3">
+        <div className="space-y-5">
           {funnel?.map((f, index) => {
             const maxCount = Math.max(...(funnel?.map((x) => x.count) || [1]), 1);
             const width = Math.max((f.count / maxCount) * 100, 4);
@@ -450,7 +450,7 @@ export default function ClientDetailPage() {
         <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-6">
           Quellen
         </h2>
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-8">
           <div className="text-center">
             <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-red-50 flex items-center justify-center mx-auto mb-2">
               <span className="text-2xl font-extrabold text-red-500">{sourceBreakdown.meta}</span>
@@ -502,7 +502,7 @@ export default function ClientDetailPage() {
             <AlertTriangle size={16} />
             Upsell-Signale
           </h2>
-          <div className="space-y-2.5">
+          <div className="space-y-4">
             {upsellSignals.map((signal, i) => (
               <div key={i} className="flex items-start gap-2.5 text-[var(--text-sm)]">
                 <Badge tone="softAccent" className="flex-shrink-0 mt-0.5">!</Badge>

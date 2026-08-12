@@ -255,7 +255,7 @@ export default function FulfillmentPage() {
   const total = tasks.length;
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
@@ -274,13 +274,13 @@ export default function FulfillmentPage() {
         }
       />
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {tasks.map((task) => {
           const config = statusConfig[task.status] || statusConfig.pending;
           const actionBtn = getActionButton(task);
 
           return (
-            <Card key={task.id} padding="md" className="flex items-center gap-4">
+            <Card key={task.id} padding="md" className="flex items-center gap-5">
               <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 ${
                 task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'
               }`}>
@@ -296,7 +296,7 @@ export default function FulfillmentPage() {
 
               <Badge tone={config.tone}>{config.label}</Badge>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {actionBtn}
                 {/* Status progression buttons when no 1-click action applies */}
                 {!actionBtn && task.status === 'pending' && (

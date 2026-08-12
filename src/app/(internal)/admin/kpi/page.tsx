@@ -90,7 +90,7 @@ export default function AdminKpiPage() {
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <PageHeader
         label="VERWALTUNG"
         title="KPI Einstellungen"
@@ -116,12 +116,12 @@ export default function AdminKpiPage() {
             return (
               <div
                 key={kpi.kpi_key}
-                className="grid grid-cols-[1fr_140px_100px_140px] gap-4 items-center px-5 py-3.5 hover:bg-[var(--surface-subtle)] transition-colors"
+                className="grid grid-cols-[1fr_140px_100px_140px] gap-4 items-center px-5 py-4 hover:bg-[var(--surface-subtle)] transition-colors"
               >
                 {/* Label + key */}
                 <div>
                   <p className="text-[14px] font-medium text-[var(--text-primary)]">{kpi.label}</p>
-                  <p className="text-[12px] text-[var(--text-tertiary)] font-mono mt-0.5">{kpi.kpi_key}</p>
+                  <p className="text-[13px] text-[var(--text-tertiary)] font-mono mt-0.5">{kpi.kpi_key}</p>
                 </div>
 
                 {/* Inline edit input */}
@@ -179,7 +179,7 @@ export default function AdminKpiPage() {
         </div>
       </Card>
 
-      <p className="text-[13px] text-[var(--text-tertiary)] mt-4">
+      <p className="text-[13px] text-[var(--text-tertiary)] mt-6">
         Tipp: Enter zum Speichern, Escape zum Zurücksetzen.
       </p>
     </div>

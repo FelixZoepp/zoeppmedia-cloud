@@ -73,7 +73,7 @@ function TaskCard({
       className="group cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow"
       onClick={onClick}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <p className="text-[15px] font-semibold text-[var(--text-primary)] leading-snug line-clamp-2 flex-1">
           {task.title}
         </p>
@@ -300,7 +300,7 @@ export default function TasksPage() {
       />
 
       {/* Kanban Board */}
-      <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="flex gap-6 overflow-x-auto pb-4 -mx-2 px-2">
         {COLUMNS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.key);
           const colIdx = getColumnIndex(col.key);
@@ -329,7 +329,7 @@ export default function TasksPage() {
               </div>
 
               {/* Column body */}
-              <div className="space-y-3 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-3 border border-[var(--border-default)] border-dashed">
+              <div className="space-y-4 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-4 border border-[var(--border-default)] border-dashed">
                 {colTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -355,7 +355,7 @@ export default function TasksPage() {
 
       {/* ---- Create Task Modal ---- */}
       <Modal open={showCreate} onClose={resetCreateForm} title="Neue Aufgabe" width="max-w-md">
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel *</label>
             <Input
@@ -376,7 +376,7 @@ export default function TasksPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Priorität</label>
               <Select
@@ -441,7 +441,7 @@ export default function TasksPage() {
         width="max-w-xl"
       >
         {selectedTask && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {/* Meta info */}
             <div className="flex flex-wrap gap-2">
               <Badge tone={PRIORITY_BADGE[selectedTask.priority].tone}>
@@ -508,14 +508,14 @@ export default function TasksPage() {
                   <div className="w-5 h-5 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="space-y-3 max-h-48 overflow-y-auto mb-3">
+                <div className="space-y-5 max-h-48 overflow-y-auto mb-3">
                   {comments.length === 0 && (
                     <p className="text-[13px] text-[var(--text-tertiary)] text-center py-3">
                       Noch keine Kommentare
                     </p>
                   )}
                   {comments.map((c) => (
-                    <div key={c.id} className="bg-[var(--surface-subtle)] rounded-[var(--radius-sm)] p-3">
+                    <div key={c.id} className="bg-[var(--surface-subtle)] rounded-[var(--radius-sm)] p-4">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[12px] font-medium text-[var(--text-secondary)]">
                           {c.user_id.slice(0, 8)}
@@ -535,7 +535,7 @@ export default function TasksPage() {
                 </div>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Input
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
