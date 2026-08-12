@@ -51,11 +51,11 @@ export default function ClientsIndexPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {agencies.map((a) => (
             <Link key={a.id} href={`/clients/${a.id}`}>
               <Card padding="md" className="hover:shadow-[var(--shadow-md)] transition-shadow cursor-pointer group">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-4 mb-5">
                   <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center text-white font-bold text-[15px] flex-shrink-0">
                     {a.name.charAt(0).toUpperCase()}
                   </div>

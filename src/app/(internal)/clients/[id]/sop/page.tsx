@@ -228,7 +228,7 @@ export default function SopPage() {
     <div className="max-w-5xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[14px] mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
@@ -270,7 +270,7 @@ export default function SopPage() {
       {customerSop && (
         <Link
           href={`/clients/${id}/library`}
-          className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-600 text-[13px] font-medium mb-8 transition-colors"
+          className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-600 text-[14px] font-medium mb-8 transition-colors"
         >
           Content-Bibliothek ansehen &rarr;
         </Link>
@@ -350,8 +350,8 @@ export default function SopPage() {
 
               {/* Expanded task list */}
               {isExpanded && (
-                <div className="px-4 pb-4">
-                  <div className="border-t border-[var(--border-default)] pt-3 space-y-3">
+                <div className="px-5 pb-5">
+                  <div className="border-t border-[var(--border-default)] pt-4 space-y-4">
                     {phaseTasks.map((sopTask) => {
                       const ct = customerTaskMap.get(sopTask.id);
                       const status: TaskStatus = ct?.status || 'pending';
@@ -362,7 +362,7 @@ export default function SopPage() {
                       return (
                         <div
                           key={sopTask.id}
-                          className="flex items-center gap-4 p-4 rounded-[var(--radius-md)] hover:bg-gray-025 transition-colors group"
+                          className="flex items-center gap-5 p-5 rounded-[var(--radius-md)] hover:bg-gray-025 transition-colors group"
                         >
                           {/* Status icon */}
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -536,7 +536,7 @@ export default function SopPage() {
         onClose={() => { setNoteModal(null); setNoteText(''); }}
         title="Notizen"
       >
-        <div className="space-y-5">
+        <div className="space-y-8">
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}

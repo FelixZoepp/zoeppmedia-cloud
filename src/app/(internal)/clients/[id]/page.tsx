@@ -44,8 +44,6 @@ type AgencyDetail = {
 /* ── KPI Progress Bar ────────────────────────────────────── */
 
 function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, current: number) => void }) {
-  // For "lower_is_better" a ratio > 1 means we've exceeded target (good if lower).
-  // For "higher_is_better" a ratio > 1 means we've met/exceeded target (good).
   const ratio = kpi.defaultValue > 0 ? kpi.value / kpi.defaultValue : 0;
   const isGood =
     kpi.direction === 'higher_is_better' ? ratio >= 1 : ratio <= 1;
@@ -99,7 +97,7 @@ function ProblemAlert({
   const isCritical = problem.severity === 'critical';
   return (
     <div
-      className={`flex items-start gap-4 p-5 rounded-[var(--radius-md)] border ${
+      className={`flex items-start gap-5 p-6 rounded-[var(--radius-md)] border ${
         isCritical
           ? 'bg-red-50 border-red-200'
           : 'bg-amber-50 border-amber-200'
@@ -152,7 +150,7 @@ function ProblemAlert({
 
 function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
   return (
-    <div className="space-y-5 overflow-y-auto max-h-[60vh] pr-1">
+    <div className="space-y-8 overflow-y-auto max-h-[60vh] pr-1">
       <p className="text-[14px] text-[var(--text-secondary)]">{entry.description}</p>
 
       {entry.causes.length > 0 && (
@@ -202,7 +200,7 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
       )}
 
       {entry.escalation_trigger && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-[var(--radius-md)]">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-[var(--radius-md)]">
           <h3 className="text-[11px] font-bold text-red-600 uppercase tracking-wide mb-1">Eskalation wenn</h3>
           <p className="text-[13px] text-red-700">{entry.escalation_trigger}</p>
         </div>
@@ -239,7 +237,7 @@ function OverrideForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <p className="text-[14px] text-[var(--text-secondary)]">
         Neues Ziel für <strong>{kpiKey.replace(/_/g, ' ')}</strong> festlegen.
       </p>
@@ -247,7 +245,7 @@ function OverrideForm({
         type="number"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full px-4 py-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+        className="w-full px-5 py-4 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
       />
       <Button onClick={save} disabled={saving} className="w-full" glow>
         {saving ? 'Speichern…' : 'Ziel speichern'}
@@ -279,7 +277,6 @@ export default function ClientDetailPage() {
 
   async function resolveProblem(problemId: string) {
     await fetch(`/api/problems/${problemId}`, { method: 'PATCH' });
-    // Optimistic remove from local state
     setData((prev) =>
       prev
         ? { ...prev, problems: prev.problems.filter((p) => p.id !== problemId) }
@@ -327,7 +324,7 @@ export default function ClientDetailPage() {
       {/* Back link + header */}
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1.5 text-[var(--text-sm)] text-[var(--text-secondary)] hover:text-red-500 transition-colors mb-6"
+        className="inline-flex items-center gap-1.5 text-[var(--text-sm)] text-[var(--text-secondary)] hover:text-red-500 transition-colors mb-8"
       >
         <ArrowLeft size={14} />
         Zurück zur Übersicht
@@ -341,8 +338,8 @@ export default function ClientDetailPage() {
 
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (
-        <Card padding="lg" className="mb-8 !border-red-200">
-          <div className="flex items-center gap-2 mb-4">
+        <Card padding="lg" className="mb-10 !border-red-200">
+          <div className="flex items-center gap-2 mb-5">
             <AlertTriangle size={16} className="text-red-500 shrink-0" />
             <h2 className="text-[14px] font-bold text-red-600 uppercase tracking-wide">
               Aktive Probleme
@@ -356,7 +353,7 @@ export default function ClientDetailPage() {
               )}
             </div>
           </div>
-          <div className="space-y-5">
+          <div className="space-y-6">
             {problems.map((p) => (
               <ProblemAlert
                 key={p.id}
@@ -371,10 +368,10 @@ export default function ClientDetailPage() {
       )}
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         {summaryKpis.map((kpi) => (
           <Card key={kpi.label} padding="md">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-5 mb-5">
               <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${
                 kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'
               }`}>
@@ -395,14 +392,14 @@ export default function ClientDetailPage() {
 
       {/* ── KPI Soll/Ist Bars ──────────────────────────── */}
       {kpis.length > 0 && (
-        <Card padding="lg" className="mb-8">
-          <div className="flex items-center gap-2 mb-6">
+        <Card padding="lg" className="mb-10">
+          <div className="flex items-center gap-2 mb-8">
             <Target size={16} className="text-red-500" />
             <h2 className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
               KPI Soll / Ist
             </h2>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-8">
             {kpis.map((kpi) => (
               <KpiBar
                 key={kpi.key}
@@ -415,17 +412,17 @@ export default function ClientDetailPage() {
       )}
 
       {/* Funnel */}
-      <Card padding="lg" className="mb-8">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-6">
+      <Card padding="lg" className="mb-10">
+        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-8">
           Conversion Funnel
         </h2>
-        <div className="space-y-5">
+        <div className="space-y-6">
           {funnel?.map((f, index) => {
             const maxCount = Math.max(...(funnel?.map((x) => x.count) || [1]), 1);
             const width = Math.max((f.count / maxCount) * 100, 4);
             const barColor = funnelColors[index] || funnelColors[funnelColors.length - 1];
             return (
-              <div key={f.stage} className="flex items-center gap-4">
+              <div key={f.stage} className="flex items-center gap-5">
                 <span className="text-[var(--text-sm)] text-[var(--text-secondary)] w-44 flex-shrink-0 font-medium">
                   {f.stage}
                 </span>
@@ -446,8 +443,8 @@ export default function ClientDetailPage() {
       </Card>
 
       {/* Source Breakdown */}
-      <Card padding="lg" className="mb-8">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-6">
+      <Card padding="lg" className="mb-10">
+        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-8">
           Quellen
         </h2>
         <div className="grid grid-cols-3 gap-8">
@@ -473,8 +470,8 @@ export default function ClientDetailPage() {
       </Card>
 
       {/* Activity */}
-      <Card padding="lg" className="mb-8">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-4">
+      <Card padding="lg" className="mb-10">
+        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-5">
           Aktivitat
         </h2>
         <div className="flex items-center gap-3">
@@ -498,11 +495,11 @@ export default function ClientDetailPage() {
       {/* Upsell Signals */}
       {upsellSignals.length > 0 && (
         <Card padding="lg" className="!bg-amber-100/50 border border-amber-500/20">
-          <h2 className="text-[var(--text-sm)] font-semibold text-amber-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+          <h2 className="text-[var(--text-sm)] font-semibold text-amber-500 uppercase tracking-wide mb-5 flex items-center gap-2">
             <AlertTriangle size={16} />
             Upsell-Signale
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {upsellSignals.map((signal, i) => (
               <div key={i} className="flex items-start gap-2.5 text-[var(--text-sm)]">
                 <Badge tone="softAccent" className="flex-shrink-0 mt-0.5">!</Badge>

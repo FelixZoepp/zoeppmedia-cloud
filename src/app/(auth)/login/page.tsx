@@ -70,13 +70,13 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-[var(--text-primary)]">Zoepp Media Cloud</h1>
-            <p className="text-[13px] text-[var(--text-secondary)]">Willkommen zuruck</p>
+            <p className="text-[14px] text-[var(--text-secondary)]">Willkommen zuruck</p>
           </div>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-8">
           <div>
-            <label htmlFor="email" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">E-Mail</label>
+            <label htmlFor="email" className="block text-[14px] font-medium text-[var(--text-secondary)] mb-2">E-Mail</label>
             <Input
               id="email"
               type="email"
@@ -88,7 +88,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">Passwort</label>
+            <label htmlFor="password" className="block text-[14px] font-medium text-[var(--text-secondary)] mb-2">Passwort</label>
             <Input
               id="password"
               type="password"
@@ -101,7 +101,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-[var(--danger-600)] text-[13px] bg-red-50 px-3 py-2 rounded-[var(--radius-sm)]">{error}</p>
+            <p className="text-[var(--danger-600)] text-[14px] bg-red-50 px-5 py-4 rounded-[var(--radius-sm)]">{error}</p>
           )}
 
           <Button type="submit" disabled={loading} size="lg" className="w-full">

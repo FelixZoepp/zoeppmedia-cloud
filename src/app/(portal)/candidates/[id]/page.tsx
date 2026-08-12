@@ -105,7 +105,7 @@ export default function CandidateDetailPage() {
   const source = sourceConfig[candidate.source] ?? { label: candidate.source, tone: 'neutral' as const };
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-6xl">
       {/* Back button */}
       <button
         onClick={() => router.push('/dashboard')}
@@ -116,7 +116,7 @@ export default function CandidateDetailPage() {
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-10">
         <div>
           <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-1">
             {candidate.name}
@@ -129,14 +129,14 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Contact Info */}
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
+      <Card padding="md" className="mb-10">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Mail className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Kontaktdaten</h2>
         </div>
-        <div className="space-y-4 pl-12">
+        <div className="space-y-6 pl-12">
           {candidate.email && (
             <div className="flex items-center gap-3">
               <span className="text-[14px] text-[var(--text-tertiary)] w-20">E-Mail</span>
@@ -166,14 +166,14 @@ export default function CandidateDetailPage() {
 
       {/* Indeed Details + Resume */}
       {(candidate.resume_url || candidate.location || candidate.experience_summary || candidate.last_employer || candidate.indeed_job_title) && (
-        <Card padding="md" className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
+        <Card padding="md" className="mb-10">
+          <div className="flex items-center gap-5 mb-5">
             <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
               <Layers className="w-5 h-5 text-[var(--text-secondary)]" />
             </div>
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Bewerber-Details</h2>
           </div>
-          <div className="space-y-4 pl-12">
+          <div className="space-y-6 pl-12">
             {candidate.indeed_job_title && (
               <div className="flex items-center gap-2">
                 <Badge tone="softAccent">Indeed</Badge>
@@ -204,8 +204,8 @@ export default function CandidateDetailPage() {
       )}
 
       {/* Stage Timeline */}
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
+      <Card padding="md" className="mb-10">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -251,15 +251,15 @@ export default function CandidateDetailPage() {
       </Card>
 
       {/* Notes */}
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
+      <Card padding="md" className="mb-10">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <StickyNote className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Notizen</h2>
         </div>
 
-        <form onSubmit={addNote} className="flex gap-2 mb-5 pl-12">
+        <form onSubmit={addNote} className="flex gap-2 mb-8 pl-12">
           <Input
             type="text"
             value={newNote}
@@ -272,7 +272,7 @@ export default function CandidateDetailPage() {
           </Button>
         </form>
 
-        <div className="space-y-4 pl-12">
+        <div className="space-y-6 pl-12">
           {notes.map((note) => (
             <div key={note.id}>
               <p className="text-[15px] text-[var(--text-primary)]">{note.text}</p>
@@ -294,8 +294,8 @@ export default function CandidateDetailPage() {
       </Card>
 
       {/* Call Tracker */}
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
+      <div className="mb-8">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -311,7 +311,7 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Call Recordings */}
-      <div className="mt-10">
+      <div className="mt-12">
         <CallRecordingsPanel
           candidateId={id}
           recordings={recordings}

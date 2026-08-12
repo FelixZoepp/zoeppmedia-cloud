@@ -47,7 +47,7 @@ function ConversationItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-2.5 rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
+      className={`w-full text-left px-4 py-3 rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
         active
           ? 'bg-red-50 border border-red-200 text-red-600'
           : 'text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent'
@@ -84,7 +84,7 @@ function ChatBubble({ message }: { message: AIMessage }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-5`}>
       <div className={`flex items-start gap-2.5 max-w-[85%] ${isUser ? 'flex-row-reverse' : ''}`}>
         {/* Avatar */}
         <div
@@ -99,7 +99,7 @@ function ChatBubble({ message }: { message: AIMessage }) {
 
         {/* Bubble */}
         <div
-          className={`rounded-[var(--radius-lg)] px-5 py-4 ${
+          className={`rounded-[var(--radius-lg)] px-6 py-5 ${
             isUser
               ? 'bg-gradient-to-br from-[#EF5B6F] to-red-500 text-white shadow-[var(--shadow-accent)]'
               : 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-sm)] border border-[var(--border-default)]'
@@ -321,10 +321,10 @@ export default function AIToolsPage() {
         <Card padding="sm" className="flex-1 overflow-y-auto !p-2">
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-3">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-red-500" />
               </div>
-              <p className="text-[13px] text-[var(--text-secondary)]">
+              <p className="text-[14px] text-[var(--text-secondary)]">
                 Starte eine neue Unterhaltung
               </p>
             </div>
@@ -357,7 +357,7 @@ export default function AIToolsPage() {
       {/* Right Main: Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-5 mb-8">
           <Select
             options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
             value={selectedAgency}
@@ -380,20 +380,20 @@ export default function AIToolsPage() {
         </div>
 
         {/* Messages area */}
-        <Card padding="md" className="flex-1 overflow-y-auto mb-5 !p-6">
+        <Card padding="md" className="flex-1 overflow-y-auto mb-6 !p-8">
           {!activeConvId && messages.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-[var(--radius-xl)] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center mb-4 shadow-[var(--shadow-accent)]">
+              <div className="w-16 h-16 rounded-[var(--radius-xl)] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center mb-5 shadow-[var(--shadow-accent)]">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-[20px] font-bold text-[var(--text-primary)] mb-2">
                 AI Content Tools
               </h3>
-              <p className="text-[var(--text-secondary)] text-[15px] max-w-sm leading-relaxed mb-6">
+              <p className="text-[var(--text-secondary)] text-[15px] max-w-sm leading-relaxed mb-8">
                 Generiere und verfeinere Ad Copys, Skripte und Funnel-Texte mit AI-Unterstützung.
               </p>
-              <div className="grid grid-cols-2 gap-3 max-w-md w-full">
+              <div className="grid grid-cols-2 gap-5 max-w-md w-full">
                 {CONTENT_TYPES.filter((t) => t.value !== 'general').map((t) => (
                   <button
                     key={t.value}
@@ -422,12 +422,12 @@ export default function AIToolsPage() {
               ))}
 
               {sending && (
-                <div className="flex justify-start mb-4">
+                <div className="flex justify-start mb-5">
                   <div className="flex items-start gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-[var(--surface-inset)] flex items-center justify-center">
                       <Bot className="w-4 h-4 text-[var(--text-secondary)]" />
                     </div>
-                    <div className="bg-white rounded-[var(--radius-lg)] px-4 py-3 shadow-[var(--shadow-sm)] border border-[var(--border-default)]">
+                    <div className="bg-white rounded-[var(--radius-lg)] px-5 py-4 shadow-[var(--shadow-sm)] border border-[var(--border-default)]">
                       <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -444,7 +444,7 @@ export default function AIToolsPage() {
         </Card>
 
         {/* Chat Composer */}
-        <div className="flex items-end gap-4">
+        <div className="flex items-end gap-5">
           <div className="flex-1 relative bg-white border border-gray-200 rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-red-300 focus-within:shadow-[var(--focus-ring)] transition-all">
             <textarea
               ref={textareaRef}
@@ -466,7 +466,7 @@ export default function AIToolsPage() {
                   : 'Schreibe eine Nachricht...'
               }
               rows={1}
-              className="w-full px-4 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent"
+              className="w-full px-5 py-4 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent"
               style={{ minHeight: '44px', maxHeight: '160px' }}
             />
           </div>
@@ -474,7 +474,7 @@ export default function AIToolsPage() {
             onClick={sendMessage}
             disabled={!inputText.trim() || sending}
             glow={!!inputText.trim()}
-            className="h-[44px] !px-5"
+            className="h-[44px] !px-6"
           >
             {sending ? (
               <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />

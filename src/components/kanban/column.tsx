@@ -18,7 +18,7 @@ export function KanbanColumn({
 
   return (
     <div className="flex-shrink-0 w-80">
-      <div className="flex items-center gap-3 mb-5 px-1">
+      <div className="flex items-center gap-4 mb-6 px-1">
         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
         <h3 className="font-semibold text-[var(--text-primary)] text-[15px]">{stage.name}</h3>
         <span className="text-[13px] font-medium text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full">
@@ -27,7 +27,7 @@ export function KanbanColumn({
       </div>
       <div
         ref={setNodeRef}
-        className={`space-y-4 min-h-[200px] p-4 rounded-[var(--radius-lg)] transition-colors ${
+        className={`space-y-6 min-h-[200px] p-5 rounded-[var(--radius-lg)] transition-colors ${
           isOver ? 'bg-red-50' : 'bg-[var(--surface-subtle)]'
         }`}
       >

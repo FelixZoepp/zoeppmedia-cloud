@@ -160,7 +160,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Pipeline KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
         {[
           { label: 'Bewerber gesamt', value: data.total, icon: Users, color: 'bg-red-50 text-red-500' },
           { label: 'Letzte 30 Tage', value: data.last30, icon: Calendar, color: 'bg-red-50 text-red-500' },
@@ -168,7 +168,7 @@ export default function ReportsPage() {
           { label: 'Einstellungsrate', value: `${data.hireRate}%`, icon: Percent, color: 'bg-amber-100 text-amber-500' },
         ].map((kpi) => (
           <Card key={kpi.label} padding="md">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-5 mb-5">
               <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${kpi.color}`}>
                 <kpi.icon className="w-5 h-5" />
               </div>
@@ -181,12 +181,12 @@ export default function ReportsPage() {
 
       {/* KPI Soll/Ist Section */}
       {kpis.length > 0 && (
-        <div className="space-y-6 mb-10">
+        <div className="space-y-8 mb-12">
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
             <Target className="w-5 h-5 text-red-500" /> Ziel-Erreichung
           </h2>
           <Card padding="md">
-            <div className="space-y-5">
+            <div className="space-y-8">
               {kpis.map((kpi) => {
                 const ratio = kpi.defaultValue > 0 ? kpi.value / kpi.defaultValue : 0;
                 const isGood =
@@ -217,13 +217,13 @@ export default function ReportsPage() {
       )}
 
       {/* Call Performance Section */}
-      <div className="space-y-6 mb-10">
+      <div className="space-y-8 mb-12">
         <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
           <Phone className="w-5 h-5 text-red-500" /> Call-Performance
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <Card padding="md">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-5 mb-5">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
                 <Phone className="w-5 h-5" />
               </div>
@@ -232,7 +232,7 @@ export default function ReportsPage() {
             <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.totalCalls}</p>
           </Card>
           <Card padding="md">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-5 mb-5">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
                 <Target className="w-5 h-5" />
               </div>
@@ -241,7 +241,7 @@ export default function ReportsPage() {
             <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.reachRate}%</p>
           </Card>
           <Card padding="md">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-5 mb-5">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
                 <Calendar className="w-5 h-5" />
               </div>
@@ -265,11 +265,11 @@ export default function ReportsPage() {
 
       {/* Meta Ads Section — only when data exists */}
       {data.metaKpis && (
-        <div className="space-y-6 mb-10">
+        <div className="space-y-8 mb-12">
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-red-500" /> Meta Ads
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <Card padding="md">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
@@ -327,13 +327,13 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Conversion Funnel */}
         <Card padding="md">
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-red-500" /> Conversion Funnel
           </h2>
-          <div className="space-y-5">
+          <div className="space-y-8">
             {data.funnel.map((stage) => (
               <div key={stage.id} className="flex items-center gap-3">
                 <span className="text-[13px] font-medium text-[var(--text-secondary)] w-36 truncate">{stage.name}</span>
@@ -358,7 +358,7 @@ export default function ReportsPage() {
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-red-500" /> Quellen
           </h2>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-3 gap-8">
             {[
               { label: 'Meta', value: data.sources.meta, color: 'bg-red-50 text-red-600' },
               { label: 'Indeed', value: data.sources.indeed, color: 'bg-green-100 text-green-700' },
@@ -391,7 +391,7 @@ export default function ReportsPage() {
             <p className="text-[var(--text-secondary)]">Wir nutzen es, um noch besser zu werden.</p>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-8">
             {templates[0]?.questions.map((q) => (
               <div key={q.id}>
                 <label className="block text-[15px] font-medium text-[var(--text-primary)] mb-2">{q.label}</label>

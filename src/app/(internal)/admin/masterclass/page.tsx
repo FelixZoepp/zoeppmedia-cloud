@@ -187,7 +187,7 @@ export default function AdminMasterclassPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-6xl">
       <PageHeader
         label="VERWALTUNG"
         title="Masterclass verwalten"
@@ -208,7 +208,7 @@ export default function AdminMasterclassPage() {
             <Card key={mod.id} padding="sm" className="!p-0 overflow-hidden">
               <button
                 onClick={() => setExpandedModule(isExpanded ? null : mod.id)}
-                className="w-full flex items-center gap-4 p-5 hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+                className="w-full flex items-center gap-5 p-6 hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
               >
                 {isExpanded ? <ChevronDown className="w-4 h-4 text-[var(--text-tertiary)]" /> : <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)]" />}
                 <span className="font-semibold text-[15px] text-[var(--text-primary)] flex-1 text-left">{mod.title}</span>
@@ -222,10 +222,10 @@ export default function AdminMasterclassPage() {
               </button>
 
               {isExpanded && (
-                <div className="border-t border-[var(--border-default)] px-5 pb-5">
-                  <div className="space-y-3 mt-4">
+                <div className="border-t border-[var(--border-default)] px-6 pb-6">
+                  <div className="space-y-4 mt-5">
                     {modLessons.map((lesson) => (
-                      <div key={lesson.id} className="flex items-center gap-4 px-4 py-3 bg-[var(--surface-subtle)] rounded-[var(--radius-md)]">
+                      <div key={lesson.id} className="flex items-center gap-5 px-5 py-4 bg-[var(--surface-subtle)] rounded-[var(--radius-md)]">
                         <Video className="w-4 h-4 text-[var(--text-tertiary)]" />
                         <span className="text-[15px] text-[var(--text-primary)] flex-1">{lesson.title}</span>
                         {lesson.duration_minutes && <span className="text-[13px] text-[var(--text-tertiary)]">{lesson.duration_minutes}m</span>}
@@ -239,7 +239,7 @@ export default function AdminMasterclassPage() {
                       </div>
                     ))}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => openAddLesson(mod.id)} className="mt-3">
+                  <Button variant="ghost" size="sm" onClick={() => openAddLesson(mod.id)} className="mt-4">
                     <Plus className="w-3.5 h-3.5" /> Lektion hinzufügen
                   </Button>
                 </div>
@@ -251,22 +251,22 @@ export default function AdminMasterclassPage() {
 
       {/* Module Modal */}
       <Modal open={showModuleModal} onClose={() => setShowModuleModal(false)} title={editingModule ? 'Modul bearbeiten' : 'Neues Modul'}>
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={moduleTitle} onChange={(e) => setModuleTitle(e.target.value)} placeholder="z.B. Bewerber-Management" />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
             <textarea
               value={moduleDesc}
               onChange={(e) => setModuleDesc(e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
+              className="w-full px-5 py-4 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
               placeholder="Kurze Beschreibung"
             />
           </div>
-          <div className="flex gap-4 pt-3">
+          <div className="flex gap-5 pt-3">
             <Button variant="secondary" onClick={() => setShowModuleModal(false)} className="flex-1">Abbrechen</Button>
             <Button onClick={saveModule} disabled={!moduleTitle || saving} className="flex-1">
               <Save className="w-4 h-4" /> {saving ? 'Speichern...' : 'Speichern'}
@@ -277,27 +277,27 @@ export default function AdminMasterclassPage() {
 
       {/* Lesson Modal */}
       <Modal open={showLessonModal} onClose={() => setShowLessonModal(false)} title={editingLesson ? 'Lektion bearbeiten' : 'Neue Lektion'}>
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="z.B. Pipeline richtig nutzen" />
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
             <textarea
               value={lessonDesc}
               onChange={(e) => setLessonDesc(e.target.value)}
               rows={2}
-              className="w-full px-4 py-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
+              className="w-full px-5 py-4 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Video URL</label>
+              <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Video URL</label>
               <Input value={lessonVideoUrl} onChange={(e) => setLessonVideoUrl(e.target.value)} icon={<Video className="w-4 h-4" />} placeholder="YouTube/Vimeo URL" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Provider</label>
+              <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Provider</label>
               <Select
                 value={lessonVideoProvider}
                 onChange={(e) => setLessonVideoProvider(e.target.value)}
@@ -309,10 +309,10 @@ export default function AdminMasterclassPage() {
             </div>
           </div>
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Dauer (Minuten)</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Dauer (Minuten)</label>
             <Input type="number" value={lessonDuration} onChange={(e) => setLessonDuration(e.target.value)} placeholder="z.B. 10" />
           </div>
-          <div className="flex gap-4 pt-3">
+          <div className="flex gap-5 pt-3">
             <Button variant="secondary" onClick={() => setShowLessonModal(false)} className="flex-1">Abbrechen</Button>
             <Button onClick={saveLesson} disabled={!lessonTitle || saving} className="flex-1">
               <Save className="w-4 h-4" /> {saving ? 'Speichern...' : 'Speichern'}

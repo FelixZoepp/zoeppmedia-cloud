@@ -122,10 +122,10 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-6xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
+        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[14px] mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
@@ -137,7 +137,7 @@ export default function LibraryPage() {
       />
 
       {/* Filter */}
-      <div className="mb-8 overflow-x-auto">
+      <div className="mb-10 overflow-x-auto">
         <SegmentedControl
           items={contentTypeSegments}
           value={filter}
@@ -147,14 +147,14 @@ export default function LibraryPage() {
 
       {/* Content grouped by type */}
       {filter === 'all' ? (
-        <div className="space-y-8">
+        <div className="space-y-10">
           {Object.entries(contentTypeConfig).map(([type, config]) => {
             const typeItems = grouped[type];
             if (!typeItems || typeItems.length === 0) return null;
 
             return (
               <div key={type}>
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center gap-3 mb-8">
                   <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-red-50 text-red-500 flex items-center justify-center">
                     {config.icon}
                   </div>
@@ -166,7 +166,7 @@ export default function LibraryPage() {
                   </span>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {typeItems.map((item) => (
                     <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
                   ))}
@@ -180,14 +180,14 @@ export default function LibraryPage() {
               <p className="text-[var(--text-secondary)]">
                 Noch keine Inhalte generiert. Starte den SOP-Prozess, um Inhalte zu erstellen.
               </p>
-              <Link href={`/clients/${id}/sop`} className="inline-block mt-3">
+              <Link href={`/clients/${id}/sop`} className="inline-block mt-4">
                 <Button variant="soft" size="sm">Zum SOP &rarr;</Button>
               </Link>
             </Card>
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {items.map((item) => (
             <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
           ))}
@@ -209,7 +209,7 @@ export default function LibraryPage() {
         width="max-w-2xl"
       >
         {viewItem && (
-          <div className="space-y-5">
+          <div className="space-y-8">
             {/* Meta info */}
             <div className="flex items-center gap-3 flex-wrap">
               <Badge tone={statusConfig[viewItem.status].tone}>
@@ -233,7 +233,7 @@ export default function LibraryPage() {
 
             {/* Client feedback banner */}
             {viewItem.client_feedback && (
-              <div className="flex items-start gap-3 p-4 bg-amber-100/50 border border-amber-500/20 rounded-[var(--radius-md)]">
+              <div className="flex items-start gap-3 p-5 bg-amber-100/50 border border-amber-500/20 rounded-[var(--radius-md)]">
                 <MessageSquare className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[13px] font-semibold text-amber-500 mb-1">Kunden-Feedback</p>
@@ -243,7 +243,7 @@ export default function LibraryPage() {
             )}
             {/* Internal feedback banner */}
             {viewItem.feedback && (
-              <div className="flex items-start gap-3 p-4 bg-gray-50 border border-[var(--border-default)] rounded-[var(--radius-md)]">
+              <div className="flex items-start gap-3 p-5 bg-gray-50 border border-[var(--border-default)] rounded-[var(--radius-md)]">
                 <MessageSquare className="w-4 h-4 text-[var(--text-tertiary)] flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-[13px] font-semibold text-[var(--text-secondary)] mb-1">Interne Notiz</p>
@@ -254,22 +254,22 @@ export default function LibraryPage() {
 
             {/* Content area */}
             {editMode ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 text-[15px] font-semibold border border-[var(--border-default)] rounded-[var(--radius-md)] bg-white text-[var(--text-primary)] focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  className="w-full px-5 py-3 text-[15px] font-semibold border border-[var(--border-default)] rounded-[var(--radius-md)] bg-white text-[var(--text-primary)] focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
                 />
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={12}
-                  className="w-full px-4 py-3 text-[14px] font-mono leading-relaxed border border-[var(--border-default)] rounded-[var(--radius-md)] bg-white text-[var(--text-primary)] focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+                  className="w-full px-5 py-4 text-[14px] font-mono leading-relaxed border border-[var(--border-default)] rounded-[var(--radius-md)] bg-white text-[var(--text-primary)] focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
                 />
               </div>
             ) : (
-              <div className="bg-gray-025 border border-gray-100 rounded-[var(--radius-md)] p-5 max-h-80 overflow-y-auto">
+              <div className="bg-gray-025 border border-gray-100 rounded-[var(--radius-md)] p-6 max-h-80 overflow-y-auto">
                 <pre className="text-[14px] text-[var(--text-primary)] whitespace-pre-wrap font-[var(--font-ui)] leading-relaxed">
                   {viewItem.content}
                 </pre>
@@ -391,7 +391,7 @@ function ContentCard({
   return (
     <Card
       padding="md"
-      className="flex items-start gap-5 group hover:shadow-[var(--shadow-md)] transition-shadow"
+      className="flex items-start gap-6 group hover:shadow-[var(--shadow-md)] transition-shadow"
     >
       {/* Clickable area */}
       <div

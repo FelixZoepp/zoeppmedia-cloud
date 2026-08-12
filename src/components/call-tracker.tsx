@@ -89,7 +89,7 @@ export function CallTracker({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Script Panel */}
       <Card padding="md">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-4 mb-8">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Phone className="w-5 h-5 text-red-500" />
           </div>
@@ -99,7 +99,7 @@ export function CallTracker({
         {candidatePhone && (
           <a
             href={`tel:${candidatePhone}`}
-            className="inline-flex items-center gap-3 mb-5 px-4 py-2 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors"
+            className="inline-flex items-center gap-3 mb-8 px-4 py-2 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors"
           >
             <Phone className="w-3.5 h-3.5" />
             {candidatePhone}
@@ -118,18 +118,18 @@ export function CallTracker({
       </Card>
 
       {/* Log Form + History */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         <Card padding="md">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-4 mb-8">
             <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
               <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
             </div>
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Anruf protokollieren</h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Result radio grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-5">
               {resultOptions.map((opt) => (
                 <label
                   key={opt.value}
@@ -162,7 +162,7 @@ export function CallTracker({
             />
 
             {/* Next step + date */}
-            <div className="flex gap-4">
+            <div className="flex gap-6">
               <div className="flex-1">
                 <Select
                   options={nextStepSelectOptions}
@@ -193,7 +193,7 @@ export function CallTracker({
         {/* Call History */}
         {callLogs.length > 0 && (
           <Card padding="md" inset>
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-4 mb-8">
               <div className="w-9 h-9 rounded-[var(--radius-md)] bg-white flex items-center justify-center border border-[var(--border-default)]">
                 <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
               </div>
@@ -201,13 +201,13 @@ export function CallTracker({
                 Anruf-Verlauf ({callLogs.length})
               </h2>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {callLogs.map((log) => {
                 const badge = resultBadge[log.result];
                 return (
                   <div
                     key={log.id}
-                    className="p-4 rounded-[var(--radius-md)] bg-white border border-[var(--border-default)]"
+                    className="p-6 rounded-[var(--radius-md)] bg-white border border-[var(--border-default)]"
                   >
                     <div className="flex items-center gap-3 flex-wrap">
                       <Badge tone={badge?.tone ?? 'neutral'}>

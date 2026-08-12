@@ -218,7 +218,7 @@ export default function ProjectStatusPage() {
   const contentForReview = contentItems;
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <PageHeader
         label="PROJEKT"
         title="Projektstatus"
@@ -226,8 +226,8 @@ export default function ProjectStatusPage() {
       />
 
       {/* Overall progress */}
-      <Card padding="lg" className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+      <Card padding="lg" className="mb-10">
+        <div className="flex items-center justify-between mb-5">
           <span className="text-[15px] font-bold text-[var(--text-primary)]">Gesamtfortschritt</span>
           <span className="text-[22px] font-extrabold text-red-500">{overallPercent}%</span>
         </div>
@@ -249,8 +249,8 @@ export default function ProjectStatusPage() {
 
       {/* Attention needed section — SOP tasks only */}
       {needsAttention > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-6">
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-8">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </div>
@@ -259,7 +259,7 @@ export default function ProjectStatusPage() {
             </h2>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-8">
             {approvalTasks.map((ct) => {
               const sopTask = tasks.find((t) => t.id === ct.sop_task_id);
               if (!sopTask) return null;
@@ -267,7 +267,7 @@ export default function ProjectStatusPage() {
               return (
                 <Card key={ct.id} padding="md" className="border-l-4 border-l-red-500">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-5">
                       <Eye className="w-5 h-5 text-red-500 flex-shrink-0" />
                       <div>
                         <p className="font-semibold text-[15px] text-[var(--text-primary)]">{sopTask.title}</p>
@@ -374,8 +374,8 @@ export default function ProjectStatusPage() {
 
               {/* Expanded simple task list */}
               {isExpanded && (
-                <div className="px-4 pb-4">
-                  <div className="border-t border-[var(--border-default)] pt-3 space-y-1.5">
+                <div className="px-5 pb-5">
+                  <div className="border-t border-[var(--border-default)] pt-4 space-y-2">
                     {phaseTasks.map((sopTask) => {
                       const ct = customerTaskMap.get(sopTask.id);
                       const status: TaskStatus = ct?.status || 'pending';
@@ -425,8 +425,8 @@ export default function ProjectStatusPage() {
 
       {/* Content review section */}
       {contentForReview.length > 0 && (
-        <div className="mt-10">
-          <div className="flex items-center gap-2 mb-6">
+        <div className="mt-12">
+          <div className="flex items-center gap-2 mb-8">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
               <FileText className="w-4 h-4 text-red-500" />
             </div>
@@ -438,11 +438,11 @@ export default function ProjectStatusPage() {
             </span>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-8">
             {contentForReview.map((item) => (
               <Card key={item.id} padding="md" className="border-l-4 border-l-red-500">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 min-w-0">
+                  <div className="flex items-start gap-5 min-w-0">
                     <FileText className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <p className="font-semibold text-[15px] text-[var(--text-primary)]">{item.title}</p>
@@ -488,7 +488,7 @@ export default function ProjectStatusPage() {
         title="Änderung anfordern"
       >
         {feedbackModal && (
-          <div className="space-y-5">
+          <div className="space-y-8">
             <p className="text-[14px] text-[var(--text-secondary)]">
               Was sollen wir bei <strong>{feedbackModal.title}</strong> andern?
             </p>

@@ -61,14 +61,14 @@ export default function SettingsPage() {
     <div className="max-w-2xl">
       <PageHeader label="EINSTELLUNGEN" title="Einstellungen" />
 
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-4 mb-6">
+      <Card padding="md" className="mb-10">
+        <div className="flex items-center gap-5 mb-8">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <User className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Dein Profil</h2>
         </div>
-        <div className="space-y-4 pl-12">
+        <div className="space-y-6 pl-12">
           <div className="flex items-center gap-3">
             <span className="text-[14px] text-[var(--text-tertiary)] w-16">Name</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)]">{user?.name}</span>
@@ -80,14 +80,14 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-4 mb-6">
+      <Card padding="md" className="mb-10">
+        <div className="flex items-center gap-5 mb-8">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Agentur</h2>
         </div>
-        <div className="space-y-4 pl-12">
+        <div className="space-y-6 pl-12">
           <div className="flex items-center gap-3">
             <span className="text-[14px] text-[var(--text-tertiary)] w-16">Name</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency?.name}</span>
@@ -118,7 +118,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card padding="md">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-5 mb-8">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
             <Webhook className="w-5 h-5 text-red-500" />
           </div>
@@ -127,7 +127,7 @@ export default function SettingsPage() {
             <p className="text-[14px] text-[var(--text-tertiary)]">Bei Meta Lead Ads als Webhook hinterlegen</p>
           </div>
         </div>
-        <div className="bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[var(--radius-md)] p-3 flex items-center gap-3">
+        <div className="bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[var(--radius-md)] p-5 flex items-center gap-3">
           <code className="text-[13px] text-[var(--text-primary)] font-mono break-all flex-1">{webhookUrl}</code>
           <Button variant="secondary" size="sm" onClick={handleCopy} pill>
             {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}

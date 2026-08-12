@@ -46,10 +46,10 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
 
       {/* Body — visible when expanded */}
       {open && (
-        <div className="mt-4 space-y-6 border-t border-[var(--border-default)] pt-4">
+        <div className="mt-5 space-y-8 border-t border-[var(--border-default)] pt-5">
           {/* Beschreibung */}
           <div>
-            <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+            <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
               Beschreibung
             </p>
             <p className="text-[14px] text-[var(--text-primary)] leading-relaxed">
@@ -60,7 +60,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Ursachen */}
           {entry.causes.length > 0 && (
             <div>
-              <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+              <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
                 Ursachen
               </p>
               <ul className="space-y-3">
@@ -77,7 +77,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Sofort-Maßnahmen */}
           {entry.immediate_actions.length > 0 && (
             <div>
-              <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+              <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
                 Sofort-Maßnahmen
               </p>
               <ol className="space-y-3">
@@ -96,7 +96,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Langfristige Maßnahmen */}
           {entry.long_term_actions.length > 0 && (
             <div>
-              <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+              <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
                 Langfristig
               </p>
               <ul className="space-y-3">
@@ -183,7 +183,7 @@ export default function PlaybookPage() {
       />
 
       {/* Search */}
-      <div className="mb-5 max-w-sm">
+      <div className="mb-8 max-w-sm">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -193,7 +193,7 @@ export default function PlaybookPage() {
       </div>
 
       {/* Accordion list */}
-      <div className="space-y-5">
+      <div className="space-y-8">
         {filtered.length === 0 ? (
           <Card padding="lg">
             <p className="text-center text-[14px] text-[var(--text-tertiary)]">

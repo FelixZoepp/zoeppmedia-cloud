@@ -118,7 +118,7 @@ export default function MasterclassPage() {
     <div className="flex gap-10">
       {/* Left sidebar: module list */}
       <div className="w-72 flex-shrink-0">
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-4 mb-8">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-red-500" />
           </div>
@@ -129,7 +129,7 @@ export default function MasterclassPage() {
         </div>
 
         {/* Progress bar */}
-        <div className="w-full h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden mb-6">
+        <div className="w-full h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden mb-8">
           <div
             className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all"
             style={{ width: `${progressPercent}%` }}
@@ -144,7 +144,7 @@ export default function MasterclassPage() {
 
             return (
               <div key={mod.id}>
-                <div className="flex items-center gap-3 mb-3 px-1">
+                <div className="flex items-center gap-3 mb-5 px-1">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${
                     allDone ? 'bg-green-500 text-white' : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)]'
                   }`}>
@@ -158,7 +158,7 @@ export default function MasterclassPage() {
                   </span>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {modLessons.map((lesson) => {
                     const isActive = activeLesson?.id === lesson.id;
                     const isWatched = lessonProgress[lesson.id];
@@ -200,7 +200,7 @@ export default function MasterclassPage() {
           <div>
             {getVideoEmbed(activeLesson)}
 
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex items-start justify-between mb-8">
               <div>
                 <h2 className="text-[22px] font-bold text-[var(--text-primary)]">{activeLesson.title}</h2>
                 {activeLesson.description && (
@@ -219,12 +219,12 @@ export default function MasterclassPage() {
 
             {/* Lesson tasks */}
             {activeLesson.lesson_tasks && activeLesson.lesson_tasks.length > 0 && (
-              <Card padding="md" className="mt-6">
-                <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+              <Card padding="md" className="mt-8">
+                <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-5 flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-red-500" />
                   Aufgaben
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-5">
                   {activeLesson.lesson_tasks.map((task) => (
                     <label key={task.id} className="flex items-start gap-3 cursor-pointer group">
                       <input

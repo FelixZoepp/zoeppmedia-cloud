@@ -73,7 +73,7 @@ function TaskCard({
       className="group cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow"
       onClick={onClick}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <p className="text-[15px] font-semibold text-[var(--text-primary)] leading-snug line-clamp-2 flex-1">
           {task.title}
         </p>
@@ -83,12 +83,12 @@ function TaskCard({
       </div>
 
       {task.description && (
-        <p className="text-[13px] text-[var(--text-secondary)] line-clamp-2 mb-3 leading-relaxed">
+        <p className="text-[13px] text-[var(--text-secondary)] line-clamp-2 mb-4 leading-relaxed">
           {task.description}
         </p>
       )}
 
-      <div className="flex items-center gap-3 text-[12px] text-[var(--text-tertiary)] mb-3">
+      <div className="flex items-center gap-4 text-[12px] text-[var(--text-tertiary)] mb-4">
         {task.assigned_to && (
           <span className="flex items-center gap-1">
             <User className="w-3 h-3" />
@@ -300,7 +300,7 @@ export default function TasksPage() {
       />
 
       {/* Kanban Board */}
-      <div className="flex gap-6 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="flex gap-8 overflow-x-auto pb-4 -mx-2 px-2">
         {COLUMNS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.key);
           const colIdx = getColumnIndex(col.key);
@@ -308,7 +308,7 @@ export default function TasksPage() {
           return (
             <div key={col.key} className="flex-shrink-0 w-80">
               {/* Column header */}
-              <div className="flex items-center gap-2 mb-3 px-1">
+              <div className="flex items-center gap-2 mb-5 px-1">
                 <div
                   className={`w-2 h-2 rounded-full ${
                     col.key === 'done'
@@ -329,7 +329,7 @@ export default function TasksPage() {
               </div>
 
               {/* Column body */}
-              <div className="space-y-4 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-4 border border-[var(--border-default)] border-dashed">
+              <div className="space-y-6 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-5 border border-[var(--border-default)] border-dashed">
                 {colTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -355,9 +355,9 @@ export default function TasksPage() {
 
       {/* ---- Create Task Modal ---- */}
       <Modal open={showCreate} onClose={resetCreateForm} title="Neue Aufgabe" width="max-w-md">
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel *</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Titel *</label>
             <Input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -366,7 +366,7 @@ export default function TasksPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
             <textarea
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
@@ -376,9 +376,9 @@ export default function TasksPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-8">
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Priorität</label>
+              <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Priorität</label>
               <Select
                 options={PRIORITY_OPTIONS}
                 value={newPriority}
@@ -386,7 +386,7 @@ export default function TasksPage() {
               />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Status</label>
+              <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Status</label>
               <Select
                 options={STATUS_OPTIONS}
                 value={newStatus}
@@ -396,7 +396,7 @@ export default function TasksPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Zugewiesen an</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Zugewiesen an</label>
             <Input
               value={newAssignedTo}
               onChange={(e) => setNewAssignedTo(e.target.value)}
@@ -406,7 +406,7 @@ export default function TasksPage() {
           </div>
 
           <div>
-            <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Fällig am</label>
+            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Fällig am</label>
             <Input
               type="date"
               value={newDueDate}
@@ -441,7 +441,7 @@ export default function TasksPage() {
         width="max-w-xl"
       >
         {selectedTask && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Meta info */}
             <div className="flex flex-wrap gap-2">
               <Badge tone={PRIORITY_BADGE[selectedTask.priority].tone}>
@@ -476,7 +476,7 @@ export default function TasksPage() {
 
             {/* Status move buttons */}
             <div>
-              <label className="block text-[13px] font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">
+              <label className="block text-[14px] font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">
                 Status ändern
               </label>
               <div className="flex flex-wrap gap-2">
@@ -498,7 +498,7 @@ export default function TasksPage() {
 
             {/* Comments */}
             <div>
-              <label className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--text-secondary)] mb-3 uppercase tracking-wide">
+              <label className="flex items-center gap-1.5 text-[14px] font-semibold text-[var(--text-secondary)] mb-4 uppercase tracking-wide">
                 <MessageSquare className="w-3.5 h-3.5" />
                 Kommentare
               </label>
@@ -508,14 +508,14 @@ export default function TasksPage() {
                   <div className="w-5 h-5 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="space-y-5 max-h-48 overflow-y-auto mb-3">
+                <div className="space-y-8 max-h-48 overflow-y-auto mb-4">
                   {comments.length === 0 && (
                     <p className="text-[13px] text-[var(--text-tertiary)] text-center py-3">
                       Noch keine Kommentare
                     </p>
                   )}
                   {comments.map((c) => (
-                    <div key={c.id} className="bg-[var(--surface-subtle)] rounded-[var(--radius-sm)] p-4">
+                    <div key={c.id} className="bg-[var(--surface-subtle)] rounded-[var(--radius-sm)] p-5">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[12px] font-medium text-[var(--text-secondary)]">
                           {c.user_id.slice(0, 8)}
@@ -535,7 +535,7 @@ export default function TasksPage() {
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-5">
                 <Input
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}

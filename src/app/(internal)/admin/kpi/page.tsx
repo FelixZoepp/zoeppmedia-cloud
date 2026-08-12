@@ -90,7 +90,7 @@ export default function AdminKpiPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-6xl">
       <PageHeader
         label="VERWALTUNG"
         title="KPI Einstellungen"
@@ -101,7 +101,7 @@ export default function AdminKpiPage() {
       <Card padding="sm" className="!p-0 overflow-hidden">
         <div className="divide-y divide-[var(--border-default)]">
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_140px_100px_140px] gap-4 px-5 py-3 bg-[var(--surface-subtle)]">
+          <div className="grid grid-cols-[1fr_140px_100px_140px] gap-6 px-6 py-4 bg-[var(--surface-subtle)]">
             <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">KPI</span>
             <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">Standardwert</span>
             <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">Einheit</span>
@@ -116,7 +116,7 @@ export default function AdminKpiPage() {
             return (
               <div
                 key={kpi.kpi_key}
-                className="grid grid-cols-[1fr_140px_100px_140px] gap-4 items-center px-5 py-4 hover:bg-[var(--surface-subtle)] transition-colors"
+                className="grid grid-cols-[1fr_140px_100px_140px] gap-6 items-center px-6 py-5 hover:bg-[var(--surface-subtle)] transition-colors"
               >
                 {/* Label + key */}
                 <div>
@@ -179,7 +179,7 @@ export default function AdminKpiPage() {
         </div>
       </Card>
 
-      <p className="text-[13px] text-[var(--text-tertiary)] mt-6">
+      <p className="text-[14px] text-[var(--text-tertiary)] mt-8">
         Tipp: Enter zum Speichern, Escape zum Zurücksetzen.
       </p>
     </div>

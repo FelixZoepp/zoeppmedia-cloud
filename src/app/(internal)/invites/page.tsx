@@ -130,7 +130,7 @@ export default function InvitesPage() {
 
       <div className="max-w-lg">
         <Card padding="lg">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-8">
             <div>
               <label
                 htmlFor="name"
@@ -204,7 +204,7 @@ export default function InvitesPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-[var(--radius-md)] text-[var(--text-sm)] text-red-600">
+              <div className="flex items-center gap-2 px-6 py-4 bg-red-50 border border-red-200 rounded-[var(--radius-md)] text-[var(--text-sm)] text-red-600">
                 <AlertCircle size={16} className="flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -250,8 +250,8 @@ export default function InvitesPage() {
       </div>
 
       {/* Agency list with invite status */}
-      <div className="mt-10 max-w-3xl">
-        <div className="flex items-center justify-between mb-6">
+      <div className="mt-12 max-w-5xl">
+        <div className="flex items-center justify-between mb-8">
           <h2 className="text-[var(--text-base)] font-semibold text-[var(--text-primary)]">
             Eingeladene Agenturen
           </h2>
@@ -266,7 +266,7 @@ export default function InvitesPage() {
         ) : agencies.length === 0 ? (
           <p className="text-[var(--text-sm)] text-[var(--text-tertiary)]">Noch keine Agenturen eingeladen.</p>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-8">
             {agencies.map((agency) => {
               const inv = invites[agency.id];
               const emailSent = inv?.email_sent_at;
