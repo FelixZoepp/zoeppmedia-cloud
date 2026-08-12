@@ -64,7 +64,7 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-sm">
       <Card padding="lg" className="shadow-[var(--shadow-md)]">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-4 mb-10">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#EF5B6F] to-[var(--red-500)] flex items-center justify-center text-white font-bold text-lg">
             Z
           </div>
@@ -74,9 +74,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">E-Mail</label>
+            <label htmlFor="email" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">E-Mail</label>
             <Input
               id="email"
               type="email"
@@ -88,7 +88,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Passwort</label>
+            <label htmlFor="password" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">Passwort</label>
             <Input
               id="password"
               type="password"

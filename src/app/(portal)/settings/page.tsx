@@ -58,58 +58,58 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-2xl">
       <PageHeader label="EINSTELLUNGEN" title="Einstellungen" />
 
       <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-4 mb-6">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <User className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Dein Profil</h2>
         </div>
-        <div className="space-y-2 pl-12">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[var(--text-tertiary)] w-16">Name</span>
+        <div className="space-y-4 pl-12">
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] text-[var(--text-tertiary)] w-16">Name</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)]">{user?.name}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[var(--text-tertiary)] w-16">E-Mail</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] text-[var(--text-tertiary)] w-16">E-Mail</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)]">{user?.email}</span>
           </div>
         </div>
       </Card>
 
       <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-4 mb-6">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Agentur</h2>
         </div>
-        <div className="space-y-2 pl-12">
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[var(--text-tertiary)] w-16">Name</span>
+        <div className="space-y-4 pl-12">
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] text-[var(--text-tertiary)] w-16">Name</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency?.name}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[var(--text-tertiary)] w-16">E-Mail</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] text-[var(--text-tertiary)] w-16">E-Mail</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency?.email}</span>
           </div>
           {agency?.phone && (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-tertiary)] w-16">Telefon</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[14px] text-[var(--text-tertiary)] w-16">Telefon</span>
               <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency.phone}</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Ad</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Ad</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)] font-mono">
               {agency?.meta_ad_account_id || <span className="text-[var(--text-tertiary)] font-sans font-normal">Nicht konfiguriert</span>}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Page</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Page</span>
             <span className="text-[15px] font-medium text-[var(--text-primary)] font-mono">
               {agency?.meta_page_id || <span className="text-[var(--text-tertiary)] font-sans font-normal">Nicht konfiguriert</span>}
             </span>
@@ -118,13 +118,13 @@ export default function SettingsPage() {
       </Card>
 
       <Card padding="md">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-4 mb-6">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
             <Webhook className="w-5 h-5 text-red-500" />
           </div>
           <div>
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Meta Webhook URL</h2>
-            <p className="text-[13px] text-[var(--text-tertiary)]">Bei Meta Lead Ads als Webhook hinterlegen</p>
+            <p className="text-[14px] text-[var(--text-tertiary)]">Bei Meta Lead Ads als Webhook hinterlegen</p>
           </div>
         </div>
         <div className="bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[var(--radius-md)] p-3 flex items-center gap-3">

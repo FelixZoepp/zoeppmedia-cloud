@@ -160,7 +160,7 @@ export default function ProjectStatusPage() {
 
   if (!sopData?.customerSop) {
     return (
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <PageHeader label="PROJEKT" title="Projektstatus" />
         <Card padding="lg" className="text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
@@ -218,7 +218,7 @@ export default function ProjectStatusPage() {
   const contentForReview = contentItems;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <PageHeader
         label="PROJEKT"
         title="Projektstatus"
@@ -259,7 +259,7 @@ export default function ProjectStatusPage() {
             </h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {approvalTasks.map((ct) => {
               const sopTask = tasks.find((t) => t.id === ct.sop_task_id);
               if (!sopTask) return null;
@@ -267,7 +267,7 @@ export default function ProjectStatusPage() {
               return (
                 <Card key={ct.id} padding="md" className="border-l-4 border-l-red-500">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <Eye className="w-5 h-5 text-red-500 flex-shrink-0" />
                       <div>
                         <p className="font-semibold text-[15px] text-[var(--text-primary)]">{sopTask.title}</p>
@@ -302,7 +302,7 @@ export default function ProjectStatusPage() {
       )}
 
       {/* Phase cards */}
-      <div className="space-y-5">
+      <div className="space-y-8">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCTs = phaseTasks.map((t) => customerTaskMap.get(t.id)).filter(Boolean) as CustomerTask[];
@@ -317,7 +317,7 @@ export default function ProjectStatusPage() {
             <Card key={phase.id} padding="sm">
               <button
                 onClick={() => togglePhase(phase.id)}
-                className="w-full flex items-center gap-4 p-4 text-left cursor-pointer hover:bg-gray-025 rounded-[var(--radius-lg)] transition-colors"
+                className="w-full flex items-center gap-4 p-5 text-left cursor-pointer hover:bg-gray-025 rounded-[var(--radius-lg)] transition-colors"
               >
                 {/* Phase number/check */}
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-[15px] ${
@@ -352,7 +352,7 @@ export default function ProjectStatusPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-4 flex-shrink-0">
                   <span className="text-[13px] text-[var(--text-tertiary)] font-medium">
                     {phasePercent}%
                   </span>
@@ -387,7 +387,7 @@ export default function ProjectStatusPage() {
                       return (
                         <div
                           key={sopTask.id}
-                          className="flex items-center gap-3 py-2.5 px-3 rounded-[var(--radius-sm)]"
+                          className="flex items-center gap-4 py-3 px-4 rounded-[var(--radius-sm)]"
                         >
                           {config.icon}
                           <span className={`text-[14px] flex-1 ${
@@ -438,11 +438,11 @@ export default function ProjectStatusPage() {
             </span>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {contentForReview.map((item) => (
               <Card key={item.id} padding="md" className="border-l-4 border-l-red-500">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex items-start gap-4 min-w-0">
                     <FileText className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <p className="font-semibold text-[15px] text-[var(--text-primary)]">{item.title}</p>

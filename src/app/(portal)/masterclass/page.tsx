@@ -115,16 +115,16 @@ export default function MasterclassPage() {
   const progressPercent = totalLessons > 0 ? Math.round((watchedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="flex gap-8">
+    <div className="flex gap-10">
       {/* Left sidebar: module list */}
       <div className="w-72 flex-shrink-0">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-4 mb-6">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-red-500" />
           </div>
           <div>
             <h1 className="text-[18px] font-bold text-[var(--text-primary)]">Masterclass</h1>
-            <p className="text-[13px] text-[var(--text-secondary)]">{progressPercent}% abgeschlossen</p>
+            <p className="text-[14px] text-[var(--text-secondary)]">{progressPercent}% abgeschlossen</p>
           </div>
         </div>
 
@@ -136,7 +136,7 @@ export default function MasterclassPage() {
           />
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-8">
           {modules.map((mod) => {
             const modLessons = lessons.filter((l) => l.module_id === mod.id);
             const modCompleted = modLessons.filter((l) => lessonProgress[l.id]).length;
@@ -144,13 +144,13 @@ export default function MasterclassPage() {
 
             return (
               <div key={mod.id}>
-                <div className="flex items-center gap-2 mb-2 px-1">
+                <div className="flex items-center gap-3 mb-3 px-1">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${
                     allDone ? 'bg-green-500 text-white' : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)]'
                   }`}>
                     {allDone ? <Check className="w-3 h-3" /> : mod.sort_order}
                   </div>
-                  <span className="text-[13px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
+                  <span className="text-[14px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
                     {mod.title}
                   </span>
                   <span className="text-[11px] text-[var(--text-tertiary)] ml-auto">
@@ -158,7 +158,7 @@ export default function MasterclassPage() {
                   </span>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {modLessons.map((lesson) => {
                     const isActive = activeLesson?.id === lesson.id;
                     const isWatched = lessonProgress[lesson.id];
@@ -167,7 +167,7 @@ export default function MasterclassPage() {
                       <button
                         key={lesson.id}
                         onClick={() => setActiveLesson(lesson)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[var(--radius-pill)] text-left text-[14px] transition-colors cursor-pointer ${
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-pill)] text-left text-[14px] transition-colors cursor-pointer ${
                           isActive
                             ? 'bg-red-50 border border-red-200 text-red-600 font-medium'
                             : 'text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent'
@@ -240,7 +240,7 @@ export default function MasterclassPage() {
                           {task.title}
                         </span>
                         {task.description && (
-                          <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">{task.description}</p>
+                          <p className="text-[14px] text-[var(--text-secondary)] mt-0.5">{task.description}</p>
                         )}
                       </div>
                     </label>

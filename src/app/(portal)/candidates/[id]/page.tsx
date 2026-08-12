@@ -109,7 +109,7 @@ export default function CandidateDetailPage() {
       {/* Back button */}
       <button
         onClick={() => router.push('/dashboard')}
-        className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         Zur Pipeline
@@ -121,7 +121,7 @@ export default function CandidateDetailPage() {
           <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-1">
             {candidate.name}
           </h1>
-          <p className="text-[13px] text-[var(--text-tertiary)]">
+          <p className="text-[14px] text-[var(--text-tertiary)]">
             Hinzugefügt am {new Date(candidate.created_at).toLocaleDateString('de-DE')}
           </p>
         </div>
@@ -129,35 +129,35 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Contact Info */}
-      <Card padding="md" className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
+      <Card padding="md" className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Mail className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Kontaktdaten</h2>
         </div>
-        <div className="space-y-2 pl-12">
+        <div className="space-y-4 pl-12">
           {candidate.email && (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-tertiary)] w-20">E-Mail</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[14px] text-[var(--text-tertiary)] w-20">E-Mail</span>
               <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.email}</span>
             </div>
           )}
           {candidate.phone && (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-tertiary)] w-20">Telefon</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[14px] text-[var(--text-tertiary)] w-20">Telefon</span>
               <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.phone}</span>
             </div>
           )}
           {candidate.meta_campaign && (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-tertiary)] w-20">Kampagne</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[14px] text-[var(--text-tertiary)] w-20">Kampagne</span>
               <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.meta_campaign}</span>
             </div>
           )}
           {candidate.meta_adset && (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-tertiary)] w-20">Adset</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[14px] text-[var(--text-tertiary)] w-20">Adset</span>
               <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.meta_adset}</span>
             </div>
           )}
@@ -166,14 +166,14 @@ export default function CandidateDetailPage() {
 
       {/* Indeed Details + Resume */}
       {(candidate.resume_url || candidate.location || candidate.experience_summary || candidate.last_employer || candidate.indeed_job_title) && (
-        <Card padding="md" className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
+        <Card padding="md" className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
             <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
               <Layers className="w-5 h-5 text-[var(--text-secondary)]" />
             </div>
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Bewerber-Details</h2>
           </div>
-          <div className="space-y-2 pl-12">
+          <div className="space-y-4 pl-12">
             {candidate.indeed_job_title && (
               <div className="flex items-center gap-2">
                 <Badge tone="softAccent">Indeed</Badge>
@@ -204,8 +204,8 @@ export default function CandidateDetailPage() {
       )}
 
       {/* Stage Timeline */}
-      <Card padding="md" className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
+      <Card padding="md" className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -226,7 +226,7 @@ export default function CandidateDetailPage() {
               <div className="flex-1 min-w-0">
                 <span className="text-[15px] font-medium text-[var(--text-primary)]">{entry.stage.name}</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[13px] text-[var(--text-tertiary)]">
+                  <span className="text-[14px] text-[var(--text-tertiary)]">
                     {new Date(entry.changed_at).toLocaleDateString('de-DE', {
                       day: '2-digit',
                       month: '2-digit',
@@ -236,7 +236,7 @@ export default function CandidateDetailPage() {
                     })}
                   </span>
                   {entry.user && (
-                    <span className="text-[13px] text-[var(--text-tertiary)]">
+                    <span className="text-[14px] text-[var(--text-tertiary)]">
                       von {entry.user.name}
                     </span>
                   )}
@@ -245,14 +245,14 @@ export default function CandidateDetailPage() {
             </div>
           ))}
           {stageHistory.length === 0 && (
-            <p className="text-[13px] text-[var(--text-tertiary)]">Kein Verlauf vorhanden.</p>
+            <p className="text-[14px] text-[var(--text-tertiary)]">Kein Verlauf vorhanden.</p>
           )}
         </div>
       </Card>
 
       {/* Notes */}
-      <Card padding="md" className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
+      <Card padding="md" className="mb-8">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <StickyNote className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -276,7 +276,7 @@ export default function CandidateDetailPage() {
           {notes.map((note) => (
             <div key={note.id}>
               <p className="text-[15px] text-[var(--text-primary)]">{note.text}</p>
-              <p className="text-[13px] text-[var(--text-tertiary)] mt-1">
+              <p className="text-[14px] text-[var(--text-tertiary)] mt-1">
                 {note.user.name} &middot;{' '}
                 {new Date(note.created_at).toLocaleDateString('de-DE', {
                   day: '2-digit',
@@ -288,14 +288,14 @@ export default function CandidateDetailPage() {
             </div>
           ))}
           {notes.length === 0 && (
-            <p className="text-[13px] text-[var(--text-tertiary)]">Noch keine Notizen.</p>
+            <p className="text-[14px] text-[var(--text-tertiary)]">Noch keine Notizen.</p>
           )}
         </div>
       </Card>
 
       {/* Call Tracker */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -311,7 +311,7 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Call Recordings */}
-      <div className="mt-8">
+      <div className="mt-10">
         <CallRecordingsPanel
           candidateId={id}
           recordings={recordings}
