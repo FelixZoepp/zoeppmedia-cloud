@@ -122,7 +122,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-5xl">
       <Link
         href={`/clients/${id}`}
         className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
@@ -154,7 +154,7 @@ export default function LibraryPage() {
 
             return (
               <div key={type}>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-3 mb-6">
                   <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-red-50 text-red-500 flex items-center justify-center">
                     {config.icon}
                   </div>
@@ -166,7 +166,7 @@ export default function LibraryPage() {
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {typeItems.map((item) => (
                     <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
                   ))}
@@ -187,7 +187,7 @@ export default function LibraryPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {items.map((item) => (
             <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
           ))}
@@ -391,7 +391,7 @@ function ContentCard({
   return (
     <Card
       padding="md"
-      className="flex items-start gap-4 group hover:shadow-[var(--shadow-md)] transition-shadow"
+      className="flex items-start gap-5 group hover:shadow-[var(--shadow-md)] transition-shadow"
     >
       {/* Clickable area */}
       <div
@@ -437,7 +437,7 @@ function ContentCard({
           {new Date(item.updated_at).toLocaleDateString('de-DE')}
         </span>
         {/* Quick action buttons */}
-        <div className="flex gap-1.5 mt-1">
+        <div className="flex gap-2 mt-1">
           {item.status === 'draft' && (
             <Button
               size="sm"

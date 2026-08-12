@@ -21,7 +21,7 @@ const statusConfig: Record<TaskStatus, { label: string; tone: 'neutral' | 'softA
   in_progress:        { label: 'In Arbeit',         tone: 'softAccent', icon: <Play className="w-3.5 h-3.5" /> },
   waiting_approval:   { label: 'Warte auf Freigabe', tone: 'accent',    icon: <Eye className="w-3.5 h-3.5" /> },
   approved:           { label: 'Freigegeben',       tone: 'success',    icon: <Check className="w-3.5 h-3.5" /> },
-  changes_requested:  { label: 'Anderung nötig',    tone: 'outline',    icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  changes_requested:  { label: 'Änderung nötig',    tone: 'outline',    icon: <AlertTriangle className="w-3.5 h-3.5" /> },
   done:               { label: 'Erledigt',           tone: 'success',    icon: <Check className="w-3.5 h-3.5" /> },
   skipped:            { label: 'Übersprungen',       tone: 'outline',    icon: <SkipForward className="w-3.5 h-3.5" /> },
 };
@@ -225,12 +225,12 @@ export default function SopPage() {
   const overallPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-5xl">
       <Link
         href={`/clients/${id}`}
         className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[13px] mb-6 transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Zuruck zum Kunden
+        <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
       <PageHeader
@@ -276,7 +276,7 @@ export default function SopPage() {
         </Link>
       )}
 
-      <div className="space-y-5">
+      <div className="space-y-8">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCustomerTasks = phaseTasks
@@ -296,7 +296,7 @@ export default function SopPage() {
               {/* Phase header */}
               <button
                 onClick={() => togglePhase(phase.id)}
-                className="w-full flex items-center gap-4 p-4 text-left cursor-pointer hover:bg-gray-025 rounded-[var(--radius-lg)] transition-colors"
+                className="w-full flex items-center gap-5 p-5 text-left cursor-pointer hover:bg-gray-025 rounded-[var(--radius-lg)] transition-colors"
               >
                 <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 font-bold text-[15px] ${
                   allComplete
@@ -351,7 +351,7 @@ export default function SopPage() {
               {/* Expanded task list */}
               {isExpanded && (
                 <div className="px-4 pb-4">
-                  <div className="border-t border-[var(--border-default)] pt-3 space-y-2">
+                  <div className="border-t border-[var(--border-default)] pt-3 space-y-3">
                     {phaseTasks.map((sopTask) => {
                       const ct = customerTaskMap.get(sopTask.id);
                       const status: TaskStatus = ct?.status || 'pending';
@@ -362,7 +362,7 @@ export default function SopPage() {
                       return (
                         <div
                           key={sopTask.id}
-                          className="flex items-center gap-3 p-3 rounded-[var(--radius-md)] hover:bg-gray-025 transition-colors group"
+                          className="flex items-center gap-4 p-4 rounded-[var(--radius-md)] hover:bg-gray-025 transition-colors group"
                         >
                           {/* Status icon */}
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${

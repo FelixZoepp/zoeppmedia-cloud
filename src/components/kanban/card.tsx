@@ -36,11 +36,11 @@ export function KanbanCard({ candidate, onClick }: { candidate: Candidate; onCli
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="bg-white border border-[var(--border-default)] rounded-[var(--radius-md)] p-4 cursor-grab active:cursor-grabbing hover:shadow-[var(--shadow-sm)] transition-shadow"
+      className="bg-white border border-[var(--border-default)] rounded-[var(--radius-md)] p-5 cursor-grab active:cursor-grabbing hover:shadow-[var(--shadow-sm)] transition-shadow"
     >
       <p className="font-semibold text-[var(--text-primary)] text-[15px]">{candidate.name}</p>
-      {candidate.phone && <p className="text-[13px] text-[var(--text-secondary)] mt-1">{candidate.phone}</p>}
-      <div className="mt-2.5">
+      {candidate.phone && <p className="text-[13px] text-[var(--text-secondary)] mt-2">{candidate.phone}</p>}
+      <div className="mt-4">
         <Badge tone={sourceTones[candidate.source] ?? 'neutral'}>
           {sourceLabels[candidate.source] ?? candidate.source}
         </Badge>

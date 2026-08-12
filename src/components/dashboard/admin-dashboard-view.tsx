@@ -34,7 +34,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-[var(--border-default)] rounded-[14px] p-6 ${className}`}>
+    <div className={`bg-white border border-[var(--border-default)] rounded-[14px] p-8 ${className}`}>
       {children}
     </div>
   );
@@ -62,7 +62,7 @@ export function AdminDashboardView({ data }: Props) {
   const kw = getISOWeek(now);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
 
       {/* ── Page Header ──────────────────────────────────── */}
       <div className="flex items-start justify-between">
@@ -83,7 +83,7 @@ export function AdminDashboardView({ data }: Props) {
       </div>
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-5 gap-6">
         <KpiCard label="AGENTUREN" value={String(data.totalAgencies)} sub={`${data.totalAgencies} aktiv`} />
         <KpiCard label="BEWERBER" value={String(data.totalCandidates)} sub="Gesamt" />
         <KpiCard label="NEU DIESE WOCHE" value={String(data.newCandidatesThisWeek)} sub={`KW ${kw}`} />
@@ -92,7 +92,7 @@ export function AdminDashboardView({ data }: Props) {
       </div>
 
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
-      <div className="grid grid-cols-5 gap-5">
+      <div className="grid grid-cols-5 gap-6">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
@@ -111,7 +111,7 @@ export function AdminDashboardView({ data }: Props) {
       </div>
 
       {/* ── Row 3: Neue Bewerber + Quellen-Bar ───────────── */}
-      <div className="grid grid-cols-5 gap-5">
+      <div className="grid grid-cols-5 gap-6">
         <DashCard className="col-span-3">
           <div className="flex items-center justify-between">
             <div>
@@ -126,7 +126,7 @@ export function AdminDashboardView({ data }: Props) {
           ) : (
             <div className="mt-4 divide-y divide-[var(--border-default)]">
               {data.recentCandidates.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 py-3 first:pt-1">
+                <div key={c.id} className="flex items-center gap-4 py-4 first:pt-1">
                   <div className="w-8 h-8 rounded-full bg-[var(--surface-inset)] flex items-center justify-center shrink-0">
                     <User className="w-4 h-4 text-[var(--text-tertiary)]" />
                   </div>
@@ -192,8 +192,8 @@ export function AdminDashboardView({ data }: Props) {
                 const initial = agency.name.charAt(0).toUpperCase();
                 return (
                   <tr key={agency.id} className="border-b border-[var(--border-default)] last:border-0">
-                    <td className="py-3.5">
-                      <Link href={`/clients/${agency.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <td className="py-5">
+                      <Link href={`/clients/${agency.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                         <span className="w-8 h-8 rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white text-[12px] font-bold flex items-center justify-center shrink-0">
                           {initial}
                         </span>
@@ -202,13 +202,13 @@ export function AdminDashboardView({ data }: Props) {
                         </span>
                       </Link>
                     </td>
-                    <td className="text-right py-3.5 text-[14px] font-semibold text-[var(--text-primary)]">
+                    <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
                       {agency.candidates}
                     </td>
-                    <td className="text-right py-3.5 text-[14px] font-semibold text-[var(--text-primary)]">
+                    <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
                       {agency.hired}
                     </td>
-                    <td className="text-right py-3.5">
+                    <td className="text-right py-5">
                       <span className={`text-[14px] font-semibold ${rate > 0 ? 'text-green-700' : 'text-[var(--text-tertiary)]'}`}>
                         {rate}%
                       </span>
@@ -254,32 +254,32 @@ export function AdminDashboardView({ data }: Props) {
             <tbody>
               {data.agencyStatuses.map((a) => (
                 <tr key={a.id} className="border-b border-[var(--border-default)] last:border-0">
-                  <td className="py-3.5">
-                    <Link href={`/clients/${a.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                  <td className="py-5">
+                    <Link href={`/clients/${a.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                       <span className="w-8 h-8 rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white text-[12px] font-bold flex items-center justify-center shrink-0">
                         {a.name.charAt(0).toUpperCase()}
                       </span>
                       <span className="text-[14px] font-medium text-[var(--text-primary)]">{a.name}</span>
                     </Link>
                   </td>
-                  <td className="text-center py-3.5">
+                  <td className="text-center py-5">
                     <TrafficDot status={a.status} />
                   </td>
-                  <td className="text-right py-3.5 text-[14px] font-semibold text-[var(--text-primary)]">
+                  <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
                     {a.criticalCount > 0 ? (
                       <span className="text-red-600">{a.criticalCount}</span>
                     ) : (
                       <span className="text-[var(--text-tertiary)]">—</span>
                     )}
                   </td>
-                  <td className="text-right py-3.5 text-[14px] font-semibold text-[var(--text-primary)]">
+                  <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
                     {a.warningCount > 0 ? (
                       <span className="text-amber-600">{a.warningCount}</span>
                     ) : (
                       <span className="text-[var(--text-tertiary)]">—</span>
                     )}
                   </td>
-                  <td className="text-right py-3.5">
+                  <td className="text-right py-5">
                     <Link
                       href={`/clients/${a.id}`}
                       className="text-[12px] font-semibold text-red-500 hover:text-red-600 uppercase tracking-wide transition-colors"
@@ -301,7 +301,7 @@ export function AdminDashboardView({ data }: Props) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-[var(--border-default)] rounded-[14px] px-5 py-5">
+    <div className="bg-white border border-[var(--border-default)] rounded-[14px] px-6 py-6">
       <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.06em] block mb-2">
         {label}
       </span>

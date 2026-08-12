@@ -41,25 +41,25 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-sm">
       <Card padding="lg" className="shadow-[var(--shadow-md)]">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#EF5B6F] to-[var(--red-500)] flex items-center justify-center text-white font-bold text-lg">
             Z
           </div>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Registrierung</h1>
         </div>
-        <p className="text-[var(--text-secondary)] text-[15px] mb-8">Erstelle deinen Zugang zur Zoepp Media Cloud.</p>
+        <p className="text-[var(--text-secondary)] text-[15px] mb-10">Erstelle deinen Zugang zur Zoepp Media Cloud.</p>
 
-        <form onSubmit={handleRegister} className="space-y-5">
+        <form onSubmit={handleRegister} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Name</label>
+            <label htmlFor="name" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">Name</label>
             <Input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required icon={<User className="w-4 h-4" />} placeholder="Dein Name" />
           </div>
           <div>
-            <label htmlFor="email" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">E-Mail</label>
+            <label htmlFor="email" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">E-Mail</label>
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required icon={<Mail className="w-4 h-4" />} placeholder="name@firma.de" />
           </div>
           <div>
-            <label htmlFor="password" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Passwort (min. 8 Zeichen)</label>
+            <label htmlFor="password" className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2">Passwort (min. 8 Zeichen)</label>
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} icon={<Lock className="w-4 h-4" />} placeholder="Sicheres Passwort" />
           </div>
 

@@ -120,7 +120,7 @@ export default function TeamPage() {
         }
       />
 
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {loading && (
           <Card>
             <p className="text-center text-gray-400 py-8">Wird geladen…</p>
@@ -136,7 +136,7 @@ export default function TeamPage() {
         {members.map((member) => (
           <Card key={member.id}>
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-5">
                 <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
                   <Users className="w-5 h-5 text-red-500" />
                 </div>
@@ -170,7 +170,7 @@ export default function TeamPage() {
         onClose={closeModal}
         title={editingMember ? 'Mitarbeiter bearbeiten' : 'Mitarbeiter hinzufügen'}
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <Input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -187,7 +187,7 @@ export default function TeamPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Zugewiesene Kunden
               </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+              <div className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-4">
                 {agencies.map((a) => (
                   <label key={a.id} className="flex items-center gap-2.5 text-sm cursor-pointer">
                     <input

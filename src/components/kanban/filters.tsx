@@ -26,7 +26,7 @@ export function FilterBar({
   const hasFilters = filters.search || filters.source || filters.stage || filters.dateFrom || filters.dateTo;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-8">
+    <div className="flex flex-wrap items-center gap-4 mb-10">
       <div className="w-52">
         <Input
           type="text"

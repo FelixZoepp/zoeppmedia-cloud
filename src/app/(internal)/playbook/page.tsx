@@ -46,7 +46,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
 
       {/* Body — visible when expanded */}
       {open && (
-        <div className="mt-4 space-y-5 border-t border-[var(--border-default)] pt-4">
+        <div className="mt-4 space-y-6 border-t border-[var(--border-default)] pt-4">
           {/* Beschreibung */}
           <div>
             <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
@@ -63,7 +63,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
                 Ursachen
               </p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-3">
                 {entry.causes.map((cause, i) => (
                   <li key={i} className="flex items-start gap-2 text-[14px] text-[var(--text-primary)]">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
@@ -80,7 +80,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
                 Sofort-Maßnahmen
               </p>
-              <ol className="space-y-1.5">
+              <ol className="space-y-3">
                 {entry.immediate_actions.map((action, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-[14px] text-[var(--text-primary)]">
                     <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
@@ -99,7 +99,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               <p className="text-[13px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
                 Langfristig
               </p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-3">
                 {entry.long_term_actions.map((action, i) => (
                   <li key={i} className="flex items-start gap-2 text-[14px] text-[var(--text-primary)]">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
@@ -193,7 +193,7 @@ export default function PlaybookPage() {
       </div>
 
       {/* Accordion list */}
-      <div className="space-y-3">
+      <div className="space-y-5">
         {filtered.length === 0 ? (
           <Card padding="lg">
             <p className="text-center text-[14px] text-[var(--text-tertiary)]">

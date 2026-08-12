@@ -160,7 +160,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Pipeline KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         {[
           { label: 'Bewerber gesamt', value: data.total, icon: Users, color: 'bg-red-50 text-red-500' },
           { label: 'Letzte 30 Tage', value: data.last30, icon: Calendar, color: 'bg-red-50 text-red-500' },
@@ -168,7 +168,7 @@ export default function ReportsPage() {
           { label: 'Einstellungsrate', value: `${data.hireRate}%`, icon: Percent, color: 'bg-amber-100 text-amber-500' },
         ].map((kpi) => (
           <Card key={kpi.label} padding="md">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-4 mb-4">
               <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${kpi.color}`}>
                 <kpi.icon className="w-5 h-5" />
               </div>
@@ -181,7 +181,7 @@ export default function ReportsPage() {
 
       {/* KPI Soll/Ist Section */}
       {kpis.length > 0 && (
-        <div className="space-y-4 mb-8">
+        <div className="space-y-6 mb-10">
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
             <Target className="w-5 h-5 text-red-500" /> Ziel-Erreichung
           </h2>
@@ -193,7 +193,7 @@ export default function ReportsPage() {
                   kpi.direction === 'higher_is_better' ? ratio >= 1 : ratio <= 1;
                 const barWidth = Math.min(ratio * 100, 100);
                 return (
-                  <div key={kpi.key} className="space-y-1.5">
+                  <div key={kpi.key} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] font-medium text-[var(--text-primary)]">{kpi.label}</span>
                       <span className="text-[12px] text-[var(--text-tertiary)]">
@@ -217,13 +217,13 @@ export default function ReportsPage() {
       )}
 
       {/* Call Performance Section */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-6 mb-10">
         <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
           <Phone className="w-5 h-5 text-red-500" /> Call-Performance
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card padding="md">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-4 mb-4">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
                 <Phone className="w-5 h-5" />
               </div>
@@ -232,7 +232,7 @@ export default function ReportsPage() {
             <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.totalCalls}</p>
           </Card>
           <Card padding="md">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-4 mb-4">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
                 <Target className="w-5 h-5" />
               </div>
@@ -241,7 +241,7 @@ export default function ReportsPage() {
             <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.reachRate}%</p>
           </Card>
           <Card padding="md">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-4 mb-4">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
                 <Calendar className="w-5 h-5" />
               </div>
@@ -250,7 +250,7 @@ export default function ReportsPage() {
             <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.terminRate}%</p>
           </Card>
           <Card padding="md">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-4 mb-4">
               <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
                 <Clock className="w-5 h-5" />
               </div>
@@ -265,13 +265,13 @@ export default function ReportsPage() {
 
       {/* Meta Ads Section — only when data exists */}
       {data.metaKpis && (
-        <div className="space-y-4 mb-8">
+        <div className="space-y-6 mb-10">
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-red-500" /> Meta Ads
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card padding="md">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
                   <Euro className="w-5 h-5" />
                 </div>
@@ -282,7 +282,7 @@ export default function ReportsPage() {
               </p>
             </Card>
             <Card padding="md">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
                   <Users className="w-5 h-5" />
                 </div>
@@ -291,7 +291,7 @@ export default function ReportsPage() {
               <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.metaKpis.totalLeads}</p>
             </Card>
             <Card padding="md">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
                   <Target className="w-5 h-5" />
                 </div>
@@ -302,7 +302,7 @@ export default function ReportsPage() {
               </p>
             </Card>
             <Card padding="md">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-red-500">
                   <Eye className="w-5 h-5" />
                 </div>
@@ -313,7 +313,7 @@ export default function ReportsPage() {
               </p>
             </Card>
             <Card padding="md">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-4 mb-4">
                 <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
                   <MousePointer className="w-5 h-5" />
                 </div>
@@ -327,13 +327,13 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Conversion Funnel */}
         <Card padding="md">
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-red-500" /> Conversion Funnel
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-5">
             {data.funnel.map((stage) => (
               <div key={stage.id} className="flex items-center gap-3">
                 <span className="text-[13px] font-medium text-[var(--text-secondary)] w-36 truncate">{stage.name}</span>

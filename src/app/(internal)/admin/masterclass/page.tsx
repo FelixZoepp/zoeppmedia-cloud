@@ -199,7 +199,7 @@ export default function AdminMasterclassPage() {
         }
       />
 
-      <div className="space-y-5">
+      <div className="space-y-8">
         {modules.map((mod) => {
           const modLessons = lessons.filter((l) => l.module_id === mod.id);
           const isExpanded = expandedModule === mod.id;
@@ -208,7 +208,7 @@ export default function AdminMasterclassPage() {
             <Card key={mod.id} padding="sm" className="!p-0 overflow-hidden">
               <button
                 onClick={() => setExpandedModule(isExpanded ? null : mod.id)}
-                className="w-full flex items-center gap-3 p-4 hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
+                className="w-full flex items-center gap-4 p-5 hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer"
               >
                 {isExpanded ? <ChevronDown className="w-4 h-4 text-[var(--text-tertiary)]" /> : <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)]" />}
                 <span className="font-semibold text-[15px] text-[var(--text-primary)] flex-1 text-left">{mod.title}</span>
@@ -222,10 +222,10 @@ export default function AdminMasterclassPage() {
               </button>
 
               {isExpanded && (
-                <div className="border-t border-[var(--border-default)] px-4 pb-4">
-                  <div className="space-y-2 mt-3">
+                <div className="border-t border-[var(--border-default)] px-5 pb-5">
+                  <div className="space-y-3 mt-4">
                     {modLessons.map((lesson) => (
-                      <div key={lesson.id} className="flex items-center gap-3 px-3 py-2.5 bg-[var(--surface-subtle)] rounded-[var(--radius-md)]">
+                      <div key={lesson.id} className="flex items-center gap-4 px-4 py-3 bg-[var(--surface-subtle)] rounded-[var(--radius-md)]">
                         <Video className="w-4 h-4 text-[var(--text-tertiary)]" />
                         <span className="text-[15px] text-[var(--text-primary)] flex-1">{lesson.title}</span>
                         {lesson.duration_minutes && <span className="text-[13px] text-[var(--text-tertiary)]">{lesson.duration_minutes}m</span>}
@@ -251,7 +251,7 @@ export default function AdminMasterclassPage() {
 
       {/* Module Modal */}
       <Modal open={showModuleModal} onClose={() => setShowModuleModal(false)} title={editingModule ? 'Modul bearbeiten' : 'Neues Modul'}>
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={moduleTitle} onChange={(e) => setModuleTitle(e.target.value)} placeholder="z.B. Bewerber-Management" />
@@ -266,7 +266,7 @@ export default function AdminMasterclassPage() {
               placeholder="Kurze Beschreibung"
             />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-4 pt-3">
             <Button variant="secondary" onClick={() => setShowModuleModal(false)} className="flex-1">Abbrechen</Button>
             <Button onClick={saveModule} disabled={!moduleTitle || saving} className="flex-1">
               <Save className="w-4 h-4" /> {saving ? 'Speichern...' : 'Speichern'}
@@ -277,7 +277,7 @@ export default function AdminMasterclassPage() {
 
       {/* Lesson Modal */}
       <Modal open={showLessonModal} onClose={() => setShowLessonModal(false)} title={editingLesson ? 'Lektion bearbeiten' : 'Neue Lektion'}>
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="z.B. Pipeline richtig nutzen" />
@@ -312,7 +312,7 @@ export default function AdminMasterclassPage() {
             <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Dauer (Minuten)</label>
             <Input type="number" value={lessonDuration} onChange={(e) => setLessonDuration(e.target.value)} placeholder="z.B. 10" />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-4 pt-3">
             <Button variant="secondary" onClick={() => setShowLessonModal(false)} className="flex-1">Abbrechen</Button>
             <Button onClick={saveLesson} disabled={!lessonTitle || saving} className="flex-1">
               <Save className="w-4 h-4" /> {saving ? 'Speichern...' : 'Speichern'}

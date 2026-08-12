@@ -99,7 +99,7 @@ function ChatBubble({ message }: { message: AIMessage }) {
 
         {/* Bubble */}
         <div
-          className={`rounded-[var(--radius-lg)] px-4 py-3 ${
+          className={`rounded-[var(--radius-lg)] px-5 py-4 ${
             isUser
               ? 'bg-gradient-to-br from-[#EF5B6F] to-red-500 text-white shadow-[var(--shadow-accent)]'
               : 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-sm)] border border-[var(--border-default)]'
@@ -308,10 +308,10 @@ export default function AIToolsPage() {
   return (
     <div>
       <PageHeader label="FULFILLMENT" title="AI Tools" />
-    <div className="flex gap-6 h-[calc(100vh-128px)]">
+    <div className="flex gap-8 h-[calc(100vh-128px)]">
       {/* Left Sidebar: Conversations */}
       <div className="w-[280px] flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <h2 className="text-[15px] font-bold text-[var(--text-primary)]">Unterhaltungen</h2>
           <Button variant="soft" size="sm" onClick={startNewConversation}>
             <Plus className="w-3.5 h-3.5" /> Neu
@@ -329,7 +329,7 @@ export default function AIToolsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-2">
               {Object.entries(grouped).map(([agencyId, convs]) => {
                 const agencyLabel = agencies.find((a) => a.value === agencyId)?.label || (agencyId === 'no_agency' ? 'Allgemein' : agencyId.slice(0, 8));
                 return (
@@ -357,7 +357,7 @@ export default function AIToolsPage() {
       {/* Right Main: Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-4 mb-8">
           <Select
             options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
             value={selectedAgency}
@@ -401,7 +401,7 @@ export default function AIToolsPage() {
                       setSelectedType(t.value);
                       textareaRef.current?.focus();
                     }}
-                    className="flex items-center gap-3 p-4 bg-[var(--surface-subtle)] rounded-[var(--radius-md)] text-left hover:bg-red-50 hover:text-red-600 transition-colors border border-transparent hover:border-red-200 cursor-pointer group"
+                    className="flex items-center gap-3 p-6 bg-[var(--surface-subtle)] rounded-[var(--radius-md)] text-left hover:bg-red-50 hover:text-red-600 transition-colors border border-transparent hover:border-red-200 cursor-pointer group"
                   >
                     <span className="text-[var(--text-tertiary)] group-hover:text-red-500 transition-colors">
                       {CONTENT_ICONS[t.value]}
@@ -444,7 +444,7 @@ export default function AIToolsPage() {
         </Card>
 
         {/* Chat Composer */}
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-4">
           <div className="flex-1 relative bg-white border border-gray-200 rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-red-300 focus-within:shadow-[var(--focus-ring)] transition-all">
             <textarea
               ref={textareaRef}

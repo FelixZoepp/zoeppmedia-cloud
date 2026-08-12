@@ -86,10 +86,10 @@ export function CallTracker({
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Script Panel */}
       <Card padding="md">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-4 mb-6">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Phone className="w-5 h-5 text-red-500" />
           </div>
@@ -99,7 +99,7 @@ export function CallTracker({
         {candidatePhone && (
           <a
             href={`tel:${candidatePhone}`}
-            className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors"
+            className="inline-flex items-center gap-3 mb-5 px-4 py-2 rounded-lg bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors"
           >
             <Phone className="w-3.5 h-3.5" />
             {candidatePhone}
@@ -120,20 +120,20 @@ export function CallTracker({
       {/* Log Form + History */}
       <div className="space-y-4">
         <Card padding="md">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-4 mb-6">
             <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
               <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
             </div>
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Anruf protokollieren</h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Result radio grid */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {resultOptions.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`flex items-center gap-2 p-2.5 rounded-lg border text-[13px] cursor-pointer transition-colors ${
+                  className={`flex items-center gap-2 p-3 rounded-lg border text-[13px] cursor-pointer transition-colors ${
                     result === opt.value
                       ? 'border-red-300 bg-red-50 text-red-700 font-medium'
                       : 'border-gray-200 text-[var(--text-primary)] hover:border-gray-300'
@@ -158,11 +158,11 @@ export function CallTracker({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Notiz zum Anruf..."
               rows={2}
-              className="w-full rounded-[var(--radius-md)] border border-gray-200 px-3 py-2 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-red-300 focus:ring-1 focus:ring-red-200 outline-none resize-none"
+              className="w-full rounded-[var(--radius-md)] border border-gray-200 px-4 py-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-red-300 focus:ring-1 focus:ring-red-200 outline-none resize-none"
             />
 
             {/* Next step + date */}
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <div className="flex-1">
                 <Select
                   options={nextStepSelectOptions}
@@ -193,7 +193,7 @@ export function CallTracker({
         {/* Call History */}
         {callLogs.length > 0 && (
           <Card padding="md" inset>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-4 mb-6">
               <div className="w-9 h-9 rounded-[var(--radius-md)] bg-white flex items-center justify-center border border-[var(--border-default)]">
                 <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
               </div>
@@ -201,15 +201,15 @@ export function CallTracker({
                 Anruf-Verlauf ({callLogs.length})
               </h2>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-4">
               {callLogs.map((log) => {
                 const badge = resultBadge[log.result];
                 return (
                   <div
                     key={log.id}
-                    className="p-3 rounded-[var(--radius-md)] bg-white border border-[var(--border-default)]"
+                    className="p-4 rounded-[var(--radius-md)] bg-white border border-[var(--border-default)]"
                   >
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <Badge tone={badge?.tone ?? 'neutral'}>
                         {badge?.label ?? log.result}
                       </Badge>
