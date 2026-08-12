@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { CandidatesChart } from './candidates-chart';
 import { SourcesChart } from './sources-chart';
 import { SourceDonut } from './source-donut';
-import { User } from 'lucide-react';
+import { User, Search, Bell, Settings, Users, TrendingUp, BarChart3, Award, Target, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -24,6 +24,13 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
 
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Guten Morgen';
+  if (h < 18) return 'Guten Nachmittag';
+  return 'Guten Abend';
+}
+
 const SOURCE_LABELS: Record<string, string> = {
   meta: 'Meta Ads',
   indeed: 'Indeed',
@@ -34,7 +41,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-[var(--border-default)] rounded-[20px] p-10 ${className}`}>
+    <div className={`bg-white border border-gray-100 rounded-[20px] p-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
       {children}
     </div>
   );
@@ -44,7 +51,7 @@ function DashCard({ children, className = '' }: { children: React.ReactNode; cla
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.08em]">
+    <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em] block">
       {children}
     </span>
   );
@@ -64,32 +71,53 @@ export function AdminDashboardView({ data }: Props) {
   return (
     <div className="space-y-8">
 
-      {/* ── Page Header ──────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      {/* ── Top Header Bar ───────────────────────────────── */}
+      <div className="flex items-center justify-between">
         <div>
-          <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.08em]">
+          <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.1em]">
             {dayName} &middot; KW {kw}
           </span>
-          <h1 className="text-[28px] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[1.1] mt-1">
-            Dashboard
+          <h1 className="text-[32px] font-extrabold text-[var(--text-primary)] tracking-tight leading-[1.1] mt-1">
+            {getGreeting()}, Felix.
           </h1>
         </div>
-        <Link
-          href="/invites"
-          className="inline-flex items-center gap-1.5 px-5 h-10 rounded-full bg-[var(--accent-grad)] text-white text-[13px] font-semibold tracking-wide uppercase hover:opacity-90 transition-opacity"
-        >
-          + Neue Agentur
-        </Link>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-5 py-2.5 w-[280px]">
+            <Search className="w-4 h-4 text-gray-400" />
+            <span className="text-[14px] text-gray-400">Suchen... (Kunde, Bewerber)</span>
+          </div>
+          <button className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center hover:bg-gray-100 transition">
+            <Bell className="w-4.5 h-4.5 text-gray-500" />
+          </button>
+          <Link href="/admin/kpi" className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center hover:bg-gray-100 transition">
+            <Settings className="w-4.5 h-4.5 text-gray-500" />
+          </Link>
+        </div>
       </div>
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-6">
-        <KpiCard label="AGENTUREN" value={String(data.totalAgencies)} sub={`${data.totalAgencies} aktiv`} />
-        <KpiCard label="BEWERBER" value={String(data.totalCandidates)} sub="Gesamt" />
-        <KpiCard label="NEU DIESE WOCHE" value={String(data.newCandidatesThisWeek)} sub={`KW ${kw}`} />
-        <KpiCard label="EINGESTELLT" value={String(data.totalHired)} sub="Gesamt" />
-        <KpiCard label="HIRE RATE" value={data.totalCandidates > 0 ? `${Math.round((data.totalHired / data.totalCandidates) * 100)}%` : '0%'} sub="Conversion" />
+      <div className="grid grid-cols-5 gap-5">
+        <KpiCard icon={<Users className="w-5 h-5 text-red-500" />} label="Agenturen" value={String(data.totalAgencies)} sub={`${data.totalAgencies} aktiv`} />
+        <KpiCard icon={<TrendingUp className="w-5 h-5 text-blue-500" />} label="Bewerber" value={String(data.totalCandidates)} sub="Gesamt" />
+        <KpiCard icon={<BarChart3 className="w-5 h-5 text-green-500" />} label="Neu diese Woche" value={String(data.newCandidatesThisWeek)} sub={`KW ${kw}`} />
+        <KpiCard icon={<Award className="w-5 h-5 text-amber-500" />} label="Eingestellt" value={String(data.totalHired)} sub="Gesamt" />
+        <KpiCard icon={<Target className="w-5 h-5 text-purple-500" />} label="Hire Rate" value={data.totalCandidates > 0 ? `${Math.round((data.totalHired / data.totalCandidates) * 100)}%` : '0%'} sub="Conversion" />
       </div>
+
+      {/* ── Quick Actions ────────────────────────────────── */}
+      <DashCard>
+        <SectionLabel>Schnellzugriff</SectionLabel>
+        <h2 className="text-[22px] font-bold text-[var(--text-primary)] mt-1.5 mb-6">
+          Deine Aktionen
+        </h2>
+        <div className="grid grid-cols-5 gap-5">
+          <QuickAction icon={<Plus className="w-6 h-6" />} color="bg-red-50 text-red-500" title="Neue Agentur" desc="Kunden einladen" href="/invites" />
+          <QuickAction icon={<Users className="w-6 h-6" />} color="bg-blue-50 text-blue-500" title="Kunden" desc="Alle Agenturen" href="/clients" />
+          <QuickAction icon={<BarChart3 className="w-6 h-6" />} color="bg-green-50 text-green-500" title="Playbook" desc="Handlungsanweisungen" href="/playbook" />
+          <QuickAction icon={<Target className="w-6 h-6" />} color="bg-amber-50 text-amber-500" title="KPI Settings" desc="Zielwerte verwalten" href="/admin/kpi" />
+          <QuickAction icon={<TrendingUp className="w-6 h-6" />} color="bg-purple-50 text-purple-500" title="Team" desc="Mitarbeiter verwalten" href="/team" />
+        </div>
+      </DashCard>
 
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
       <div className="grid grid-cols-5 gap-6">
@@ -122,17 +150,17 @@ export function AdminDashboardView({ data }: Props) {
             </div>
           </div>
           {data.recentCandidates.length === 0 ? (
-            <p className="text-[14px] text-[var(--text-tertiary)] mt-5">Noch keine Bewerber</p>
+            <p className="text-[14px] text-[var(--text-tertiary)] mt-6">Noch keine Bewerber</p>
           ) : (
-            <div className="mt-4 divide-y divide-[var(--border-default)]">
+            <div className="mt-6 divide-y divide-gray-100">
               {data.recentCandidates.map((c) => (
-                <div key={c.id} className="flex items-center gap-4 py-4 first:pt-1">
-                  <div className="w-8 h-8 rounded-full bg-[var(--surface-inset)] flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-[var(--text-tertiary)]" />
+                <div key={c.id} className="flex items-center gap-4 py-5 first:pt-2">
+                  <div className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[14px] font-medium text-[var(--text-primary)]">{c.name}</span>
-                    <span className="text-[13px] text-[var(--text-tertiary)] ml-2">
+                    <span className="text-[14px] font-semibold text-[var(--text-primary)]">{c.name}</span>
+                    <span className="text-[13px] text-[var(--text-tertiary)] ml-3">
                       {c.agency_name}
                     </span>
                   </div>
@@ -157,9 +185,9 @@ export function AdminDashboardView({ data }: Props) {
         </DashCard>
       </div>
 
-      {/* ── Row 4: Top Agenturen (full width table) ──────── */}
+      {/* ── Row 4: Agenturen Tabelle ─────────────────────── */}
       <DashCard>
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-2">
           <div>
             <SectionLabel>Portfolio</SectionLabel>
             <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5">
@@ -175,15 +203,15 @@ export function AdminDashboardView({ data }: Props) {
         </div>
 
         {data.topAgencies.length === 0 ? (
-          <p className="text-[14px] text-[var(--text-tertiary)] mt-4">Noch keine Agenturen</p>
+          <p className="text-[14px] text-[var(--text-tertiary)] mt-6">Noch keine Agenturen</p>
         ) : (
-          <table className="w-full mt-4">
+          <table className="w-full mt-6">
             <thead>
-              <tr className="border-b border-[var(--border-default)]">
-                <th className="text-left pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Agentur</th>
-                <th className="text-right pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Bewerber</th>
-                <th className="text-right pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Eingestellt</th>
-                <th className="text-right pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Hire Rate</th>
+              <tr className="border-b border-gray-100">
+                <th className="text-left pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Agentur</th>
+                <th className="text-right pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Bewerber</th>
+                <th className="text-right pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Eingestellt</th>
+                <th className="text-right pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Hire Rate</th>
               </tr>
             </thead>
             <tbody>
@@ -191,25 +219,25 @@ export function AdminDashboardView({ data }: Props) {
                 const rate = agency.candidates > 0 ? Math.round((agency.hired / agency.candidates) * 100) : 0;
                 const initial = agency.name.charAt(0).toUpperCase();
                 return (
-                  <tr key={agency.id} className="border-b border-[var(--border-default)] last:border-0">
+                  <tr key={agency.id} className="border-b border-gray-50 last:border-0">
                     <td className="py-5">
                       <Link href={`/clients/${agency.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-                        <span className="w-8 h-8 rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+                        <span className="w-9 h-9 rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white text-[13px] font-bold flex items-center justify-center shrink-0">
                           {initial}
                         </span>
-                        <span className="text-[14px] font-medium text-[var(--text-primary)]">
+                        <span className="text-[15px] font-medium text-[var(--text-primary)]">
                           {agency.name}
                         </span>
                       </Link>
                     </td>
-                    <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
+                    <td className="text-right py-5 text-[15px] font-semibold text-[var(--text-primary)]">
                       {agency.candidates}
                     </td>
-                    <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
+                    <td className="text-right py-5 text-[15px] font-semibold text-[var(--text-primary)]">
                       {agency.hired}
                     </td>
                     <td className="text-right py-5">
-                      <span className={`text-[14px] font-semibold ${rate > 0 ? 'text-green-700' : 'text-[var(--text-tertiary)]'}`}>
+                      <span className={`text-[15px] font-semibold ${rate > 0 ? 'text-green-600' : 'text-[var(--text-tertiary)]'}`}>
                         {rate}%
                       </span>
                     </td>
@@ -223,7 +251,7 @@ export function AdminDashboardView({ data }: Props) {
 
       {/* ── Row 5: Agentur-Status (Ampel) ────────────────── */}
       <DashCard>
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-2">
           <div>
             <SectionLabel>Monitoring</SectionLabel>
             <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5">
@@ -231,7 +259,7 @@ export function AdminDashboardView({ data }: Props) {
             </h2>
           </div>
           {data.totalProblems > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-600 text-[12px] font-semibold">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-50 text-red-600 text-[13px] font-semibold">
               <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
               {data.totalProblems} aktive Problem{data.totalProblems !== 1 ? 'e' : ''}
             </span>
@@ -239,40 +267,40 @@ export function AdminDashboardView({ data }: Props) {
         </div>
 
         {data.agencyStatuses.length === 0 ? (
-          <p className="text-[14px] text-[var(--text-tertiary)] mt-4">Noch keine Agenturen</p>
+          <p className="text-[14px] text-[var(--text-tertiary)] mt-6">Noch keine Agenturen</p>
         ) : (
-          <table className="w-full mt-4">
+          <table className="w-full mt-6">
             <thead>
-              <tr className="border-b border-[var(--border-default)]">
-                <th className="text-left pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Agentur</th>
-                <th className="text-center pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Status</th>
-                <th className="text-right pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Kritisch</th>
-                <th className="text-right pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Warnung</th>
-                <th className="text-right pb-3 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide w-24"></th>
+              <tr className="border-b border-gray-100">
+                <th className="text-left pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Agentur</th>
+                <th className="text-center pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Status</th>
+                <th className="text-right pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Kritisch</th>
+                <th className="text-right pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Warnung</th>
+                <th className="text-right pb-4 text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide w-24"></th>
               </tr>
             </thead>
             <tbody>
               {data.agencyStatuses.map((a) => (
-                <tr key={a.id} className="border-b border-[var(--border-default)] last:border-0">
+                <tr key={a.id} className="border-b border-gray-50 last:border-0">
                   <td className="py-5">
                     <Link href={`/clients/${a.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-                      <span className="w-8 h-8 rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white text-[12px] font-bold flex items-center justify-center shrink-0">
+                      <span className="w-9 h-9 rounded-full bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white text-[13px] font-bold flex items-center justify-center shrink-0">
                         {a.name.charAt(0).toUpperCase()}
                       </span>
-                      <span className="text-[14px] font-medium text-[var(--text-primary)]">{a.name}</span>
+                      <span className="text-[15px] font-medium text-[var(--text-primary)]">{a.name}</span>
                     </Link>
                   </td>
                   <td className="text-center py-5">
                     <TrafficDot status={a.status} />
                   </td>
-                  <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
+                  <td className="text-right py-5 text-[15px] font-semibold">
                     {a.criticalCount > 0 ? (
                       <span className="text-red-600">{a.criticalCount}</span>
                     ) : (
                       <span className="text-[var(--text-tertiary)]">—</span>
                     )}
                   </td>
-                  <td className="text-right py-5 text-[14px] font-semibold text-[var(--text-primary)]">
+                  <td className="text-right py-5 text-[15px] font-semibold">
                     {a.warningCount > 0 ? (
                       <span className="text-amber-600">{a.warningCount}</span>
                     ) : (
@@ -282,7 +310,7 @@ export function AdminDashboardView({ data }: Props) {
                   <td className="text-right py-5">
                     <Link
                       href={`/clients/${a.id}`}
-                      className="text-[12px] font-semibold text-red-500 hover:text-red-600 uppercase tracking-wide transition-colors"
+                      className="text-[13px] font-semibold text-red-500 hover:text-red-600 uppercase tracking-wide transition-colors"
                     >
                       Details →
                     </Link>
@@ -299,19 +327,41 @@ export function AdminDashboardView({ data }: Props) {
 
 /* ── KPI Card ────────────────────────────────────────────── */
 
-function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-[var(--border-default)] rounded-[20px] px-8 py-8">
-      <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em] block mb-3">
-        {label}
-      </span>
-      <span className="text-[40px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
+    <div className="bg-white border border-gray-100 rounded-[20px] px-7 py-7 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-[12px] bg-gray-50 flex items-center justify-center">
+          {icon}
+        </div>
+        <span className="text-[12px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">
+          {label}
+        </span>
+      </div>
+      <span className="text-[36px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
         {value}
       </span>
-      <span className="text-[13px] text-[var(--text-tertiary)] uppercase tracking-wide mt-3 block">
+      <span className="text-[13px] text-[var(--text-tertiary)] mt-2 block">
         {sub}
       </span>
     </div>
+  );
+}
+
+/* ── Quick Action Card ───────────────────────────────────── */
+
+function QuickAction({ icon, color, title, desc, href }: { icon: React.ReactNode; color: string; title: string; desc: string; href: string }) {
+  return (
+    <Link href={href} className="group p-6 rounded-[16px] border border-gray-100 hover:border-gray-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-all">
+      <div className={`w-12 h-12 rounded-[14px] ${color} flex items-center justify-center mb-4`}>
+        {icon}
+      </div>
+      <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
+      <p className="text-[13px] text-[var(--text-tertiary)]">{desc}</p>
+      <span className="text-[13px] font-semibold text-red-500 mt-3 block group-hover:translate-x-0.5 transition-transform">
+        Öffnen →
+      </span>
+    </Link>
   );
 }
 
@@ -326,7 +376,7 @@ function TrafficDot({ status }: { status: 'green' | 'yellow' | 'red' }) {
   const { bg, ring, label } = map[status];
   return (
     <span className="inline-flex items-center justify-center" title={label}>
-      <span className={`w-3 h-3 rounded-full ${bg} ring-2 ${ring}`} />
+      <span className={`w-3.5 h-3.5 rounded-full ${bg} ring-3 ${ring}`} />
     </span>
   );
 }
