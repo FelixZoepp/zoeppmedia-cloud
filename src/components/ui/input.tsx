@@ -10,7 +10,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ icon, inputSize = 'md', pill = false, className = '', ...props }, ref) => {
-    const height = inputSize === 'lg' ? 'h-14' : 'h-11';
+    const height = inputSize === 'lg' ? 'h-15' : 'h-12';
     const fontSize = inputSize === 'lg' ? 'text-[17px]' : 'text-[15px]';
     const radius = pill ? 'rounded-full' : 'rounded-[var(--radius-md)]';
 

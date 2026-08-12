@@ -14,10 +14,10 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3.5 text-[13px]',
-  md: 'h-10 px-4 text-[15px]',
-  lg: 'h-12 px-6 text-[15px]',
-  xl: 'h-14 px-8 text-[17px]',
+  sm: 'h-9 px-4 text-[13px]',
+  md: 'h-11 px-5 text-[15px]',
+  lg: 'h-13 px-7 text-[15px]',
+  xl: 'h-15 px-9 text-[17px]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
