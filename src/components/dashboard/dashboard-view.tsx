@@ -40,7 +40,7 @@ function getISOWeek(date: Date): number {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-[var(--border-default)] rounded-[14px] p-6 ${className}`}>
+    <div className={`bg-white border border-[var(--border-default)] rounded-[14px] p-8 ${className}`}>
       {children}
     </div>
   );
@@ -56,7 +56,7 @@ function SectionLabel({ children }: { children: string }) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-[var(--border-default)] rounded-[14px] px-5 py-5">
+    <div className="bg-white border border-[var(--border-default)] rounded-[14px] px-6 py-6">
       <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.06em] block mb-2">
         {label}
       </span>
@@ -85,7 +85,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
   const hireRate = data.totalCandidates > 0 ? Math.round((data.hired / data.totalCandidates) * 100) : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
 
       {/* ── Pending Survey Banner ─────────────────────────── */}
       {pendingSurveys > 0 && (
@@ -121,7 +121,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-6">
         <KpiCard label="BEWERBER" value={String(data.totalCandidates)} sub="Gesamt" />
         <KpiCard label="NEU DIESE WOCHE" value={String(data.newThisWeek)} sub={`KW ${kw}`} />
         <KpiCard label="EINGESTELLT" value={String(data.hired)} sub="Gesamt" />
@@ -129,7 +129,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
-      <div className="grid grid-cols-5 gap-5">
+      <div className="grid grid-cols-5 gap-6">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
@@ -148,7 +148,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── Row 3: Pipeline + Source Bar ──────────────────── */}
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-2 gap-6">
         <DashCard>
           <SectionLabel>Pipeline</SectionLabel>
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
@@ -185,7 +185,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
               <a
                 key={c.id}
                 href={`/candidates/${c.id}`}
-                className="flex items-center gap-3 py-3 first:pt-1 hover:bg-[var(--surface-subtle)] -mx-6 px-6 transition-colors"
+                className="flex items-center gap-3 py-4 first:pt-1 hover:bg-[var(--surface-subtle)] -mx-6 px-6 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-[var(--surface-inset)] flex items-center justify-center shrink-0">
                   <User className="w-4 h-4 text-[var(--text-tertiary)]" />
