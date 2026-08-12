@@ -14,8 +14,8 @@ const paddingMap = {
 
 export function Card({ inset = false, padding = 'md', children, className = '', ...props }: CardProps) {
   const base = inset
-    ? 'bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[var(--radius-lg)]'
-    : 'bg-white rounded-[var(--radius-lg)] border border-[var(--border-default)]';
+    ? 'bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[20px]'
+    : 'bg-white rounded-[20px] border border-[var(--border-default)]';
 
   return (
     <div className={`${base} ${paddingMap[padding]} ${className}`} {...props}>

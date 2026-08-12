@@ -1,0 +1,99 @@
+'use client';
+
+import type { DashboardData } from '@/lib/dashboard';
+import { Users, UserPlus, UserCheck } from 'lucide-react';
+import type { ReactNode } from 'react';
+
+function calcChange(current: number, previous: number): string | null {
+  if (previous === 0) return current > 0 ? '+100%' : null;
+  const pct = ((current - previous) / previous) * 100;
+  const sign = pct >= 0 ? '+' : '';
+  return `${sign}${pct.toFixed(1)}%`;
+}
+
+interface KpiCardProps {
+  label: string;
+  value: number;
+  change: string | null;
+  icon: ReactNode;
+  accent?: boolean;
+}
+
+function KpiCard({ label, value, change, icon, accent }: KpiCardProps) {
+  const isPositive = change && change.startsWith('+');
+
+  return (
+    <div
+      className={`rounded-[var(--radius-xl)] p-5 shadow-[var(--shadow-sm)] ${
+        accent
+          ? 'bg-[var(--accent-grad)] text-white'
+          : 'bg-white'
+      }`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span
+          className={`text-[13px] font-medium ${
+            accent ? 'text-white/80' : 'text-[var(--text-secondary)]'
+          }`}
+        >
+          {label}
+        </span>
+        <span className={accent ? 'text-white/60' : 'text-[var(--text-tertiary)]'}>
+          {icon}
+        </span>
+      </div>
+      <div className="flex items-end gap-3">
+        <span
+          className={`text-[32px] font-extrabold leading-none tracking-[var(--tracking-heading)] ${
+            accent ? 'text-white' : 'text-[var(--text-primary)]'
+          }`}
+        >
+          {value}
+        </span>
+        {change && (
+          <span
+            className={`text-[12px] font-semibold px-2 py-0.5 rounded-full mb-1 ${
+              accent
+                ? 'bg-white/20 text-white'
+                : isPositive
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-50 text-red-600'
+            }`}
+          >
+            {change}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface KpiCardsProps {
+  data: DashboardData;
+}
+
+export function KpiCards({ data }: KpiCardsProps) {
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      <KpiCard
+        label="Bewerber"
+        value={data.totalCandidates}
+        change={calcChange(data.totalCandidates, data.totalPrevWeek)}
+        icon={<Users className="w-5 h-5" />}
+        accent
+      />
+      <KpiCard
+        label="Neu diese Woche"
+        value={data.newThisWeek}
+        change={calcChange(data.newThisWeek, data.newPrevWeek)}
+        icon={<UserPlus className="w-5 h-5" />}
+      />
+      <KpiCard
+        label="Eingestellt"
+        value={data.hired}
+        change={calcChange(data.hired, data.hiredPrevWeek)}
+        icon={<UserCheck className="w-5 h-5" />}
+      />
+    </div>
+  );
+}

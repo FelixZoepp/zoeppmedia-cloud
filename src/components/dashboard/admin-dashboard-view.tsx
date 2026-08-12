@@ -34,7 +34,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-[var(--border-default)] rounded-[14px] p-8 ${className}`}>
+    <div className={`bg-white border border-[var(--border-default)] rounded-[20px] p-10 ${className}`}>
       {children}
     </div>
   );
@@ -62,7 +62,7 @@ export function AdminDashboardView({ data }: Props) {
   const kw = getISOWeek(now);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
 
       {/* ── Page Header ──────────────────────────────────── */}
       <div className="flex items-start justify-between">
@@ -95,7 +95,7 @@ export function AdminDashboardView({ data }: Props) {
       <div className="grid grid-cols-5 gap-6">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5 mb-6">
             Bewerber-Entwicklung
           </h2>
           <CandidatesChart data={data.candidatesOverTime} />
@@ -103,7 +103,7 @@ export function AdminDashboardView({ data }: Props) {
 
         <DashCard className="col-span-2">
           <SectionLabel>Quellen</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5 mb-6">
             Quellen-Verteilung
           </h2>
           <SourceDonut data={data.sourceBreakdown} />
@@ -116,7 +116,7 @@ export function AdminDashboardView({ data }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <SectionLabel>Letzte Aktivität</SectionLabel>
-              <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1">
+              <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5">
                 Neue Bewerber
               </h2>
             </div>
@@ -150,7 +150,7 @@ export function AdminDashboardView({ data }: Props) {
 
         <DashCard className="col-span-2">
           <SectionLabel>Kanäle</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5 mb-6">
             Bewerber nach Quelle
           </h2>
           <SourcesChart data={data.sourceBreakdown} />
@@ -162,7 +162,7 @@ export function AdminDashboardView({ data }: Props) {
         <div className="flex items-center justify-between mb-1">
           <div>
             <SectionLabel>Portfolio</SectionLabel>
-            <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1">
+            <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5">
               Agenturen
             </h2>
           </div>
@@ -226,7 +226,7 @@ export function AdminDashboardView({ data }: Props) {
         <div className="flex items-center justify-between mb-1">
           <div>
             <SectionLabel>Monitoring</SectionLabel>
-            <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1">
+            <h2 className="text-[20px] font-bold text-[var(--text-primary)] mt-1.5">
               Agentur-Status
             </h2>
           </div>
@@ -301,14 +301,14 @@ export function AdminDashboardView({ data }: Props) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-[var(--border-default)] rounded-[14px] px-6 py-6">
-      <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.06em] block mb-2">
+    <div className="bg-white border border-[var(--border-default)] rounded-[20px] px-8 py-8">
+      <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em] block mb-3">
         {label}
       </span>
-      <span className="text-[36px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
+      <span className="text-[40px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
         {value}
       </span>
-      <span className="text-[12px] text-[var(--text-tertiary)] uppercase tracking-wide mt-2 block">
+      <span className="text-[13px] text-[var(--text-tertiary)] uppercase tracking-wide mt-3 block">
         {sub}
       </span>
     </div>
