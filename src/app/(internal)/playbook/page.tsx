@@ -3,16 +3,28 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import type { PlaybookEntry } from '@/lib/types/database';
-import { ChevronDown, ChevronUp, Search, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, AlertTriangle, Plus, Pencil, Trash2 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
 /*  Accordion Item                                                      */
 /* ------------------------------------------------------------------ */
 
-function AccordionItem({ entry }: { entry: PlaybookEntry }) {
+function AccordionItem({
+  entry,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: {
+  entry: PlaybookEntry;
+  isAdmin: boolean;
+  onEdit: (entry: PlaybookEntry) => void;
+  onDelete: (entry: PlaybookEntry) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -39,8 +51,34 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
             {entry.title}
           </p>
         </div>
-        <div className="flex-shrink-0 text-gray-400">
-          {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isAdmin && (
+            <>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); onEdit(entry); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onEdit(entry); } }}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Bearbeiten"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </span>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); onDelete(entry); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onDelete(entry); } }}
+                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                title="Löschen"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </span>
+            </>
+          )}
+          <span className="text-gray-400">
+            {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </span>
         </div>
       </button>
 
@@ -133,6 +171,195 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Playbook Form Modal                                                 */
+/* ------------------------------------------------------------------ */
+
+interface PlaybookFormData {
+  problem_key: string;
+  title: string;
+  description: string;
+  causes: string;
+  immediate_actions: string;
+  long_term_actions: string;
+  escalation_trigger: string;
+}
+
+const emptyForm: PlaybookFormData = {
+  problem_key: '',
+  title: '',
+  description: '',
+  causes: '',
+  immediate_actions: '',
+  long_term_actions: '',
+  escalation_trigger: '',
+};
+
+function PlaybookFormModal({
+  open,
+  onClose,
+  onSaved,
+  editEntry,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  editEntry: PlaybookEntry | null;
+}) {
+  const [form, setForm] = useState<PlaybookFormData>(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (editEntry) {
+      setForm({
+        problem_key: editEntry.problem_key,
+        title: editEntry.title,
+        description: editEntry.description,
+        causes: editEntry.causes.join('\n'),
+        immediate_actions: editEntry.immediate_actions.join('\n'),
+        long_term_actions: editEntry.long_term_actions.join('\n'),
+        escalation_trigger: editEntry.escalation_trigger ?? '',
+      });
+    } else {
+      setForm(emptyForm);
+    }
+    setError('');
+  }, [editEntry, open]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+
+    const payload = {
+      problem_key: form.problem_key.trim(),
+      title: form.title.trim(),
+      description: form.description.trim(),
+      causes: form.causes.split('\n').map((s) => s.trim()).filter(Boolean),
+      immediate_actions: form.immediate_actions.split('\n').map((s) => s.trim()).filter(Boolean),
+      long_term_actions: form.long_term_actions.split('\n').map((s) => s.trim()).filter(Boolean),
+      escalation_trigger: form.escalation_trigger.trim() || null,
+    };
+
+    try {
+      const url = editEntry ? `/api/playbook/${editEntry.problem_key}` : '/api/playbook';
+      const method = editEntry ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Fehler beim Speichern');
+        setSaving(false);
+        return;
+      }
+
+      onSaved();
+      onClose();
+    } catch {
+      setError('Netzwerkfehler');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={editEntry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'} width="max-w-2xl">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-1">Problem-Key</label>
+            <Input
+              value={form.problem_key}
+              onChange={(e) => setForm((f) => ({ ...f, problem_key: e.target.value }))}
+              placeholder="z.B. low_ctr"
+              required
+              disabled={!!editEntry}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-1">Titel</label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              placeholder="Kurzer Titel"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-900 mb-1">Beschreibung</label>
+          <textarea
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 min-h-[80px] resize-y"
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Was bedeutet dieses Problem?"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-900 mb-1">Ursachen <span className="font-normal text-gray-400">(eine pro Zeile)</span></label>
+          <textarea
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 min-h-[80px] resize-y"
+            value={form.causes}
+            onChange={(e) => setForm((f) => ({ ...f, causes: e.target.value }))}
+            placeholder="Ursache 1&#10;Ursache 2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-900 mb-1">Sofort-Maßnahmen <span className="font-normal text-gray-400">(eine pro Zeile)</span></label>
+          <textarea
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 min-h-[80px] resize-y"
+            value={form.immediate_actions}
+            onChange={(e) => setForm((f) => ({ ...f, immediate_actions: e.target.value }))}
+            placeholder="Schritt 1&#10;Schritt 2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-900 mb-1">Langfristige Maßnahmen <span className="font-normal text-gray-400">(eine pro Zeile)</span></label>
+          <textarea
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 min-h-[80px] resize-y"
+            value={form.long_term_actions}
+            onChange={(e) => setForm((f) => ({ ...f, long_term_actions: e.target.value }))}
+            placeholder="Maßnahme 1&#10;Maßnahme 2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-900 mb-1">Eskalations-Trigger <span className="font-normal text-gray-400">(optional)</span></label>
+          <Input
+            value={form.escalation_trigger}
+            onChange={(e) => setForm((f) => ({ ...f, escalation_trigger: e.target.value }))}
+            placeholder="Wann eskalieren?"
+          />
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-600">{error}</p>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button type="submit" size="sm" disabled={saving}>
+            {saving ? 'Speichert...' : editEntry ? 'Aktualisieren' : 'Erstellen'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -140,6 +367,9 @@ export default function PlaybookPage() {
   const [entries, setEntries] = useState<PlaybookEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<PlaybookEntry | null>(null);
 
   const fetchEntries = useCallback(() => {
     fetch('/api/playbook')
@@ -153,7 +383,31 @@ export default function PlaybookPage() {
 
   useEffect(() => {
     fetchEntries();
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.role === 'admin') setIsAdmin(true);
+      })
+      .catch(() => {});
   }, [fetchEntries]);
+
+  function handleEdit(entry: PlaybookEntry) {
+    setEditEntry(entry);
+    setModalOpen(true);
+  }
+
+  async function handleDelete(entry: PlaybookEntry) {
+    if (!confirm(`Eintrag "${entry.title}" wirklich löschen?`)) return;
+    const res = await fetch(`/api/playbook/${entry.problem_key}`, { method: 'DELETE' });
+    if (res.ok) {
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    }
+  }
+
+  function handleNewEntry() {
+    setEditEntry(null);
+    setModalOpen(true);
+  }
 
   const filtered = entries.filter((e) => {
     const q = search.toLowerCase();
@@ -180,6 +434,14 @@ export default function PlaybookPage() {
         title="Playbook"
         description="Problemlösungen und Handlungsempfehlungen für häufige KPI-Abweichungen"
         counter={`${filtered.length} Einträge`}
+        action={
+          isAdmin ? (
+            <Button size="sm" onClick={handleNewEntry}>
+              <Plus className="w-4 h-4" />
+              Neuer Eintrag
+            </Button>
+          ) : undefined
+        }
       />
 
       {/* Search */}
@@ -197,13 +459,28 @@ export default function PlaybookPage() {
         {filtered.length === 0 ? (
           <Card padding="lg">
             <p className="text-center text-sm text-gray-400">
-              {search ? `Keine Einträge für „${search}"` : 'Keine Playbook-Einträge vorhanden.'}
+              {search ? `Keine Einträge für "${search}"` : 'Keine Playbook-Einträge vorhanden.'}
             </p>
           </Card>
         ) : (
-          filtered.map((entry) => <AccordionItem key={entry.id} entry={entry} />)
+          filtered.map((entry) => (
+            <AccordionItem
+              key={entry.id}
+              entry={entry}
+              isAdmin={isAdmin}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))
         )}
       </div>
+
+      <PlaybookFormModal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditEntry(null); }}
+        onSaved={fetchEntries}
+        editEntry={editEntry}
+      />
     </div>
   );
 }

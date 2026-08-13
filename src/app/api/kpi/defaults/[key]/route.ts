@@ -21,3 +21,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ key: string }> }) {
+  const { key } = await params;
+  const user = await getCurrentUser();
+  if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+
+  const supabase = await createServerClient();
+  const { error } = await supabase
+    .from('kpi_defaults')
+    .delete()
+    .eq('kpi_key', key);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

@@ -16,6 +16,7 @@ import {
   AlertCircle,
   RefreshCw,
   Send,
+  Trash2,
 } from 'lucide-react';
 
 type AgencyWithInvite = {
@@ -44,6 +45,7 @@ export default function InvitesPage() {
   const [invites, setInvites] = useState<Record<string, { token: string; email_sent_at: string | null; redeemed: boolean }>>({});
   const [listLoading, setListLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadAgencies = useCallback(async () => {
     setListLoading(true);
@@ -117,6 +119,19 @@ export default function InvitesPage() {
       await loadAgencies();
     } finally {
       setResendingId(null);
+    }
+  }
+
+  async function handleDelete(agency: AgencyWithInvite) {
+    if (!confirm(`Agentur "${agency.name}" wirklich löschen? Alle Einladungen und Benutzer werden ebenfalls gelöscht.`)) return;
+    setDeletingId(agency.id);
+    try {
+      const res = await fetch(`/api/admin/agencies/${agency.id}/delete`, { method: 'DELETE' });
+      if (res.ok) {
+        setAgencies((prev) => prev.filter((a) => a.id !== agency.id));
+      }
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -305,18 +320,30 @@ export default function InvitesPage() {
                         </p>
                       )}
                     </div>
-                    {!redeemed && (
+                    <div className="flex items-center gap-2">
+                      {!redeemed && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleResend(agency)}
+                          disabled={resendingId === agency.id}
+                        >
+                          <Send size={13} />
+                          {resendingId === agency.id ? 'Sendet...' : 'Erneut senden'}
+                        </Button>
+                      )}
                       <Button
                         type="button"
-                        variant="secondary"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => handleResend(agency)}
-                        disabled={resendingId === agency.id}
+                        onClick={() => handleDelete(agency)}
+                        disabled={deletingId === agency.id}
+                        className="!text-red-500 hover:!bg-red-50"
                       >
-                        <Send size={13} />
-                        {resendingId === agency.id ? 'Sendet...' : 'Erneut senden'}
+                        <Trash2 size={14} />
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </Card>
               );

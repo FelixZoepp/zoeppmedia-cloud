@@ -5,11 +5,12 @@ import { useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import {
   FolderKanban, FileText, PhoneCall, Target, MoreHorizontal,
   Check, Clock, Eye, Play, ArrowLeft, Sparkles, Upload, Rocket,
-  Video, Briefcase, Megaphone,
+  Video, Briefcase, Megaphone, RotateCcw, X,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -38,6 +39,15 @@ const statusConfig: Record<string, { label: string; tone: 'neutral' | 'softAccen
 
 const AI_TYPES = ['ad_copy', 'phone_script', 'video_script', 'job_posting', 'creative_brief'];
 
+const REVIEW_QUESTIONS = [
+  'Firmenname korrekt?',
+  'Branche/Region passend?',
+  'Tonalität professionell und motivierend?',
+  'Keine Rechtschreibfehler?',
+  'Call-to-Action vorhanden?',
+  'Kontaktdaten/Links korrekt?',
+];
+
 interface FulfillmentTask {
   id: string;
   title: string;
@@ -52,6 +62,14 @@ export default function FulfillmentPage() {
   const [tasks, setTasks] = useState<FulfillmentTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Review flow state
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewContent, setReviewContent] = useState('');
+  const [reviewTask, setReviewTask] = useState<FulfillmentTask | null>(null);
+  const [reviewChecks, setReviewChecks] = useState<boolean[]>(REVIEW_QUESTIONS.map(() => false));
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewRevising, setReviewRevising] = useState(false);
 
   useEffect(() => {
     fetch(`/api/fulfillment?agency_id=${id}`)
@@ -88,19 +106,12 @@ export default function FulfillmentPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // Save generated content to library as draft
-        await fetch('/api/library', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            agency_id: id,
-            content_type: task.task_type,
-            title: task.title,
-            content: data.content ?? '',
-            status: 'draft',
-          }),
-        });
-        await updateStatus(task.id, 'review');
+        const content = data.content ?? '';
+        // Open the review modal instead of saving immediately
+        setReviewTask(task);
+        setReviewContent(content);
+        setReviewChecks(REVIEW_QUESTIONS.map(() => false));
+        setReviewOpen(true);
       } else {
         await updateStatus(task.id, 'pending');
       }
@@ -110,6 +121,76 @@ export default function FulfillmentPage() {
       setActionLoading(null);
     }
   }
+
+  async function handleReviewApprove() {
+    if (!reviewTask) return;
+    setReviewSaving(true);
+
+    try {
+      // Save generated content to library with status 'internal_review'
+      await fetch('/api/library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agency_id: id,
+          content_type: reviewTask.task_type,
+          title: reviewTask.title,
+          content: reviewContent,
+          status: 'internal_review',
+        }),
+      });
+      await updateStatus(reviewTask.id, 'review');
+      setReviewOpen(false);
+      setReviewTask(null);
+      setReviewContent('');
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
+  async function handleReviewRevise() {
+    if (!reviewTask) return;
+    setReviewRevising(true);
+
+    // Build feedback from unchecked items
+    const issues = REVIEW_QUESTIONS.filter((_, i) => !reviewChecks[i]);
+    const feedback = `Bitte überarbeite: ${issues.join(', ')}`;
+
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: reviewTask.task_type,
+          agency_id: id,
+          fulfillment_task_id: reviewTask.id,
+          feedback,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setReviewContent(data.content ?? '');
+        setReviewChecks(REVIEW_QUESTIONS.map(() => false));
+      }
+    } finally {
+      setReviewRevising(false);
+    }
+  }
+
+  async function handleReviewDiscard() {
+    if (!reviewTask) return;
+    await updateStatus(reviewTask.id, 'pending');
+    setReviewOpen(false);
+    setReviewTask(null);
+    setReviewContent('');
+  }
+
+  function toggleCheck(index: number) {
+    setReviewChecks((prev) => prev.map((c, i) => (i === index ? !c : c)));
+  }
+
+  const allChecked = reviewChecks.every(Boolean);
 
   async function uploadToMeta(task: FulfillmentTask) {
     setActionLoading(task.id);
@@ -325,6 +406,76 @@ export default function FulfillmentPage() {
           </Card>
         )}
       </div>
+
+      {/* Review Modal */}
+      <Modal
+        open={reviewOpen}
+        onClose={() => {}}
+        title="Content prüfen"
+        width="max-w-3xl"
+      >
+        <div className="space-y-6">
+          {/* Content Preview */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Generierter Content</p>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
+              <pre className="text-sm text-gray-900 whitespace-pre-wrap font-sans leading-relaxed">{reviewContent}</pre>
+            </div>
+          </div>
+
+          {/* Checklist */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Prüfliste</p>
+            <div className="space-y-2">
+              {REVIEW_QUESTIONS.map((question, i) => (
+                <label
+                  key={i}
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={reviewChecks[i]}
+                    onChange={() => toggleCheck(i)}
+                    className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 accent-red-600"
+                  />
+                  <span className="text-sm text-gray-900">{question}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleReviewApprove}
+              disabled={!allChecked || reviewSaving}
+            >
+              <Check className="w-3.5 h-3.5" />
+              {reviewSaving ? 'Speichert...' : 'Freigeben'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleReviewRevise}
+              disabled={reviewRevising}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {reviewRevising ? 'Überarbeitet...' : 'Überarbeiten'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleReviewDiscard}
+              className="ml-auto"
+            >
+              <X className="w-3.5 h-3.5" />
+              Verwerfen
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
