@@ -34,6 +34,8 @@ async function getEffectiveKpis(supabase: SupabaseClient, agencyId: string): Pro
 
 const sevenDaysAgo = () => new Date(Date.now() - 7 * 86400000).toISOString();
 const twoDaysAgo = () => new Date(Date.now() - 2 * 86400000).toISOString();
+const threeDaysAgo = () => new Date(Date.now() - 3 * 86400000).toISOString();
+const fiveDaysAgo = () => new Date(Date.now() - 5 * 86400000).toISOString();
 const oneDayAgo = () => new Date(Date.now() - 86400000).toISOString();
 
 const problemChecks: ProblemCheck[] = [
@@ -153,12 +155,28 @@ const problemChecks: ProblemCheck[] = [
     kpiKey: 'min_indeed_per_2days',
     severity: 'warning',
     check: async (supabase, agencyId, target) => {
+      // Check: min 10 Indeed-Bewerber in 3 Tagen
       const { count } = await supabase
         .from('candidates')
         .select('*', { count: 'exact', head: true })
         .eq('agency_id', agencyId)
         .eq('source', 'indeed')
-        .gte('created_at', twoDaysAgo());
+        .gte('created_at', threeDaysAgo());
+      return { triggered: (count || 0) < target, currentValue: count || 0 };
+    },
+  },
+  {
+    key: 'low_meta_leads',
+    kpiKey: 'min_meta_leads_5days',
+    severity: 'warning',
+    check: async (supabase, agencyId, target) => {
+      // Check: min 5 Meta-Leads in 5 Tagen
+      const { count } = await supabase
+        .from('candidates')
+        .select('*', { count: 'exact', head: true })
+        .eq('agency_id', agencyId)
+        .eq('source', 'meta')
+        .gte('created_at', fiveDaysAgo());
       return { triggered: (count || 0) < target, currentValue: count || 0 };
     },
   },
