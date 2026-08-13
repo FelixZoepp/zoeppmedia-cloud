@@ -35,13 +35,13 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       <Link
         key={item.id}
         href={item.href}
-        className={`flex items-center gap-4 px-4 py-3 rounded-[10px] text-[15px] font-medium transition-all duration-200 ${
+        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
           isActive
-            ? 'bg-red-50 text-[#C00015]'
-            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)]'
+            ? 'bg-red-50 text-red-600'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
         }`}
       >
-        <span className={`flex-shrink-0 ${isActive ? 'text-[#E31B23]' : 'text-[var(--text-tertiary)]'}`}>
+        <span className={`flex-shrink-0 ${isActive ? 'text-red-500' : 'text-gray-400'}`}>
           {item.icon}
         </span>
         <span className="flex-1 truncate">{item.label}</span>
@@ -51,18 +51,18 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
   }
 
   return (
-    <aside className="flex flex-col flex-shrink-0 h-screen w-[240px] bg-white border-r border-[var(--border-default)]">
+    <aside className="flex flex-col flex-shrink-0 h-screen w-[240px] bg-white border-r border-gray-200">
       {/* Brand Header */}
-      <div className="flex items-center gap-3.5 px-6 h-[64px] border-b border-[var(--border-default)]">
-        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-b from-[#E31B23] to-[#C00015] flex items-center justify-center text-white font-bold text-[14px] flex-shrink-0 shadow-[0_2px_8px_rgba(227,27,35,0.25)]">
+      <div className="flex items-center gap-3 px-5 h-14 border-b border-gray-200">
+        <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
           {brand}
         </div>
         <div className="min-w-0">
-          <span className="text-[14px] font-bold text-[var(--text-primary)] tracking-[0.02em] uppercase block truncate">
+          <span className="text-sm font-bold text-gray-900 uppercase block truncate">
             {brandLabel}
           </span>
           {brandSub && (
-            <span className="label-caps text-[var(--text-tertiary)] block mt-0.5">
+            <span className="text-xs text-gray-400 uppercase block">
               {brandSub}
             </span>
           )}
@@ -70,31 +70,25 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       </div>
 
       {/* Grouped Nav */}
-      <nav className="flex-1 flex flex-col px-4 pt-6 pb-4 overflow-y-auto">
+      <nav className="flex-1 flex flex-col px-3 pt-4 pb-3 overflow-y-auto">
         {groups.map((group, gi) => (
-          <div key={group.label} className={gi > 0 ? 'mt-8' : ''}>
-            <div className="px-4 mb-3">
-              <span className="label-caps text-[var(--text-tertiary)]">
+          <div key={group.label} className={gi > 0 ? 'mt-6' : ''}>
+            <div className="px-3 mb-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 {group.label}
               </span>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               {group.items.map(renderItem)}
             </div>
           </div>
         ))}
       </nav>
 
-      {/* Promo Slot */}
-      {promo && (
-        <div className="px-4 pb-2">
-          {promo}
-        </div>
-      )}
+      {promo && <div className="px-3 pb-2">{promo}</div>}
 
-      {/* Bottom Items */}
       {bottomItems && (
-        <div className="flex flex-col gap-1 px-4 pb-5 border-t border-[var(--border-default)] pt-4">
+        <div className="flex flex-col gap-0.5 px-3 pb-4 border-t border-gray-200 pt-3">
           {bottomItems.map(renderItem)}
         </div>
       )}

@@ -70,11 +70,11 @@ function TaskCard({
   return (
     <Card
       padding="sm"
-      className="group cursor-pointer hover:shadow-[var(--shadow-md)] transition-shadow"
+      className="group cursor-pointer hover:shadow-md transition-shadow"
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-4 mb-4">
-        <p className="text-[15px] font-semibold text-[var(--text-primary)] leading-snug line-clamp-2 flex-1">
+        <p className="text-[15px] font-semibold text-gray-900 leading-snug line-clamp-2 flex-1">
           {task.title}
         </p>
         <Badge tone={p.tone} className="flex-shrink-0 text-[11px] !px-2 !py-0.5">
@@ -83,12 +83,12 @@ function TaskCard({
       </div>
 
       {task.description && (
-        <p className="text-[13px] text-[var(--text-secondary)] line-clamp-2 mb-4 leading-relaxed">
+        <p className="text-[13px] text-gray-600 line-clamp-2 mb-4 leading-relaxed">
           {task.description}
         </p>
       )}
 
-      <div className="flex items-center gap-4 text-[12px] text-[var(--text-tertiary)] mb-4">
+      <div className="flex items-center gap-4 text-[12px] text-gray-400 mb-4">
         {task.assigned_to && (
           <span className="flex items-center gap-1">
             <User className="w-3 h-3" />
@@ -102,7 +102,7 @@ function TaskCard({
           </span>
         )}
         {dueDate && (
-          <span className={`flex items-center gap-1 ${isOverdue ? 'text-[var(--danger-600)] font-medium' : ''}`}>
+          <span className={`flex items-center gap-1 ${isOverdue ? 'text-red-600 font-medium' : ''}`}>
             <Calendar className="w-3 h-3" />
             {dueDate}
           </span>
@@ -111,13 +111,13 @@ function TaskCard({
 
       {/* Move buttons */}
       <div
-        className="flex items-center gap-1 pt-2 border-t border-[var(--border-default)] opacity-0 group-hover:opacity-100 transition-opacity"
+        className="flex items-center gap-1 pt-2 border-t border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           disabled={!canMoveLeft}
           onClick={onMoveLeft}
-          className="flex items-center gap-0.5 px-2 py-1 rounded-[var(--radius-xs)] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-red-50 hover:text-[#E31B23] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="flex items-center gap-0.5 px-2 py-1 rounded text-[12px] font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <ChevronLeft className="w-3 h-3" /> Zurück
         </button>
@@ -125,7 +125,7 @@ function TaskCard({
         <button
           disabled={!canMoveRight}
           onClick={onMoveRight}
-          className="flex items-center gap-0.5 px-2 py-1 rounded-[var(--radius-xs)] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-red-50 hover:text-[#E31B23] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="flex items-center gap-0.5 px-2 py-1 rounded text-[12px] font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           Weiter <ChevronRight className="w-3 h-3" />
         </button>
@@ -320,16 +320,16 @@ export default function TasksPage() {
                       : 'bg-gray-400'
                   }`}
                 />
-                <span className="text-[13px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
+                <span className="text-[13px] font-semibold text-gray-900 uppercase tracking-wide">
                   {col.label}
                 </span>
-                <span className="text-[12px] text-[var(--text-tertiary)] font-medium ml-auto">
+                <span className="text-[12px] text-gray-400 font-medium ml-auto">
                   {colTasks.length}
                 </span>
               </div>
 
               {/* Column body */}
-              <div className="space-y-6 min-h-[200px] bg-[var(--surface-app)] rounded-[var(--radius-lg)] p-5 border border-[var(--border-default)] border-dashed">
+              <div className="space-y-6 min-h-[200px] bg-gray-50 rounded-xl p-5 border border-gray-200 border-dashed">
                 {colTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -343,7 +343,7 @@ export default function TasksPage() {
                 ))}
 
                 {colTasks.length === 0 && (
-                  <div className="flex items-center justify-center h-24 text-[13px] text-[var(--text-tertiary)]">
+                  <div className="flex items-center justify-center h-24 text-[13px] text-gray-400">
                     Keine Aufgaben
                   </div>
                 )}
@@ -357,7 +357,7 @@ export default function TasksPage() {
       <Modal open={showCreate} onClose={resetCreateForm} title="Neue Aufgabe" width="max-w-md">
         <div className="space-y-8">
           <div>
-            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Titel *</label>
+            <label className="block text-[14px] font-medium text-gray-600 mb-1.5">Titel *</label>
             <Input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -366,19 +366,19 @@ export default function TasksPage() {
           </div>
 
           <div>
-            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Beschreibung</label>
+            <label className="block text-[14px] font-medium text-gray-600 mb-1.5">Beschreibung</label>
             <textarea
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="Optionale Details..."
               rows={3}
-              className="w-full bg-white/60 border border-[var(--border-default)] rounded-[var(--radius-md)] px-4 py-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] shadow-[var(--shadow-xs)] outline-none resize-none focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)]"
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 shadow-sm outline-none resize-none focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)]"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-8">
             <div>
-              <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Priorität</label>
+              <label className="block text-[14px] font-medium text-gray-600 mb-1.5">Priorität</label>
               <Select
                 options={PRIORITY_OPTIONS}
                 value={newPriority}
@@ -386,7 +386,7 @@ export default function TasksPage() {
               />
             </div>
             <div>
-              <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Status</label>
+              <label className="block text-[14px] font-medium text-gray-600 mb-1.5">Status</label>
               <Select
                 options={STATUS_OPTIONS}
                 value={newStatus}
@@ -396,7 +396,7 @@ export default function TasksPage() {
           </div>
 
           <div>
-            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Zugewiesen an</label>
+            <label className="block text-[14px] font-medium text-gray-600 mb-1.5">Zugewiesen an</label>
             <Input
               value={newAssignedTo}
               onChange={(e) => setNewAssignedTo(e.target.value)}
@@ -406,7 +406,7 @@ export default function TasksPage() {
           </div>
 
           <div>
-            <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Fällig am</label>
+            <label className="block text-[14px] font-medium text-gray-600 mb-1.5">Fällig am</label>
             <Input
               type="date"
               value={newDueDate}
@@ -467,8 +467,8 @@ export default function TasksPage() {
 
             {/* Description */}
             {selectedTask.description && (
-              <div className="bg-[var(--surface-subtle)] rounded-[var(--radius-md)] p-4">
-                <p className="text-[var(--text-body)] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className=" text-gray-900 whitespace-pre-wrap leading-relaxed">
                   {selectedTask.description}
                 </p>
               </div>
@@ -476,7 +476,7 @@ export default function TasksPage() {
 
             {/* Status move buttons */}
             <div>
-              <label className="block text-[14px] font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">
+              <label className="block text-[14px] font-semibold text-gray-600 mb-2 uppercase tracking-wide">
                 Status ändern
               </label>
               <div className="flex flex-wrap gap-2">
@@ -498,7 +498,7 @@ export default function TasksPage() {
 
             {/* Comments */}
             <div>
-              <label className="flex items-center gap-1.5 text-[14px] font-semibold text-[var(--text-secondary)] mb-4 uppercase tracking-wide">
+              <label className="flex items-center gap-1.5 text-[14px] font-semibold text-gray-600 mb-4 uppercase tracking-wide">
                 <MessageSquare className="w-3.5 h-3.5" />
                 Kommentare
               </label>
@@ -510,17 +510,17 @@ export default function TasksPage() {
               ) : (
                 <div className="space-y-5 max-h-48 overflow-y-auto mb-4">
                   {comments.length === 0 && (
-                    <p className="text-[13px] text-[var(--text-tertiary)] text-center py-3">
+                    <p className="text-[13px] text-gray-400 text-center py-3">
                       Noch keine Kommentare
                     </p>
                   )}
                   {comments.map((c) => (
-                    <div key={c.id} className="bg-[var(--surface-subtle)] rounded-[var(--radius-sm)] p-5">
+                    <div key={c.id} className="bg-gray-50 rounded-lg p-5">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                        <span className="text-[12px] font-medium text-gray-600">
                           {c.user_id.slice(0, 8)}
                         </span>
-                        <span className="text-[11px] text-[var(--text-tertiary)]">
+                        <span className="text-[11px] text-gray-400">
                           {new Date(c.created_at).toLocaleDateString('de-DE', {
                             day: '2-digit',
                             month: '2-digit',
@@ -529,7 +529,7 @@ export default function TasksPage() {
                           })}
                         </span>
                       </div>
-                      <p className="text-[14px] text-[var(--text-primary)]">{c.text}</p>
+                      <p className="text-[14px] text-gray-900">{c.text}</p>
                     </div>
                   ))}
                 </div>
@@ -555,10 +555,10 @@ export default function TasksPage() {
             </div>
 
             {/* Delete */}
-            <div className="pt-3 border-t border-[var(--border-default)]">
+            <div className="pt-3 border-t border-gray-200">
               <button
                 onClick={() => deleteTask(selectedTask.id)}
-                className="flex items-center gap-1.5 text-[13px] text-[var(--danger-600)] hover:text-red-700 font-medium transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-[13px] text-red-600 hover:text-red-700 font-medium transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Aufgabe löschen

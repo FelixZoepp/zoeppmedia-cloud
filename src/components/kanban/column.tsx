@@ -20,15 +20,15 @@ export function KanbanColumn({
     <div className="flex-shrink-0 w-80">
       <div className="flex items-center gap-4 mb-5 px-1">
         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-        <h3 className="font-semibold text-[var(--text-primary)] text-[15px]">{stage.name}</h3>
-        <span className="text-[13px] font-medium text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full">
+        <h3 className="font-semibold text-gray-900 text-[15px]">{stage.name}</h3>
+        <span className="text-[13px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
           {candidates.length}
         </span>
       </div>
       <div
         ref={setNodeRef}
-        className={`space-y-5 min-h-[200px] p-5 rounded-[var(--radius-lg)] transition-colors ${
-          isOver ? 'bg-red-50' : 'bg-[var(--surface-subtle)]'
+        className={`space-y-5 min-h-[200px] p-5 rounded-xl transition-colors ${
+          isOver ? 'bg-red-50' : 'bg-gray-50'
         }`}
       >
         <SortableContext items={candidates.map((c) => c.id)} strategy={verticalListSortingStrategy}>

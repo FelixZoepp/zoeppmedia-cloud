@@ -162,19 +162,19 @@ export default function ReportsPage() {
       {/* Pipeline KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         {[
-          { label: 'Bewerber gesamt', value: data.total, icon: Users, color: 'bg-red-50 text-[#E31B23]' },
-          { label: 'Letzte 30 Tage', value: data.last30, icon: Calendar, color: 'bg-red-50 text-[#E31B23]' },
+          { label: 'Bewerber gesamt', value: data.total, icon: Users, color: 'bg-red-50 text-red-600' },
+          { label: 'Letzte 30 Tage', value: data.last30, icon: Calendar, color: 'bg-red-50 text-red-600' },
           { label: 'Eingestellt', value: data.hired, icon: UserCheck, color: 'bg-green-100 text-green-700' },
           { label: 'Einstellungsrate', value: `${data.hireRate}%`, icon: Percent, color: 'bg-amber-100 text-amber-500' },
         ].map((kpi) => (
           <Card key={kpi.label} padding="md">
             <div className="flex items-center gap-5 mb-5">
-              <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${kpi.color}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${kpi.color}`}>
                 <kpi.icon className="w-5 h-5" />
               </div>
-              <span className="text-[13px] font-medium text-[var(--text-secondary)]">{kpi.label}</span>
+              <span className="text-[13px] font-medium text-gray-600">{kpi.label}</span>
             </div>
-            <p className="text-[28px] font-bold text-[var(--text-primary)]">{kpi.value}</p>
+            <p className="text-[28px] font-bold text-gray-900">{kpi.value}</p>
           </Card>
         ))}
       </div>
@@ -182,8 +182,8 @@ export default function ReportsPage() {
       {/* KPI Soll/Ist Section */}
       {kpis.length > 0 && (
         <div className="space-y-5 mb-8">
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
-            <Target className="w-5 h-5 text-[#E31B23]" /> Ziel-Erreichung
+          <h2 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
+            <Target className="w-5 h-5 text-red-600" /> Ziel-Erreichung
           </h2>
           <Card padding="md">
             <div className="space-y-5">
@@ -195,14 +195,14 @@ export default function ReportsPage() {
                 return (
                   <div key={kpi.key} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-[var(--text-primary)]">{kpi.label}</span>
-                      <span className="text-[12px] text-[var(--text-tertiary)]">
-                        <span className="font-semibold text-[var(--text-primary)]">{kpi.value}{kpi.unit}</span>
+                      <span className="text-[13px] font-medium text-gray-900">{kpi.label}</span>
+                      <span className="text-[12px] text-gray-400">
+                        <span className="font-semibold text-gray-900">{kpi.value}{kpi.unit}</span>
                         {' / '}
                         <span>Ziel {kpi.defaultValue}{kpi.unit}</span>
                       </span>
                     </div>
-                    <div className="w-full h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+                    <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${isGood ? 'bg-green-500' : 'bg-red-400'}`}
                         style={{ width: `${barWidth}%` }}
@@ -218,45 +218,45 @@ export default function ReportsPage() {
 
       {/* Call Performance Section */}
       <div className="space-y-5 mb-8">
-        <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
-          <Phone className="w-5 h-5 text-[#E31B23]" /> Call-Performance
+        <h2 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
+          <Phone className="w-5 h-5 text-red-600" /> Call-Performance
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           <Card padding="md">
             <div className="flex items-center gap-5 mb-5">
-              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-[#E31B23]">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-red-600">
                 <Phone className="w-5 h-5" />
               </div>
-              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Anrufe gesamt</span>
+              <span className="text-[13px] font-medium text-gray-600">Anrufe gesamt</span>
             </div>
-            <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.totalCalls}</p>
+            <p className="text-[28px] font-bold text-gray-900">{data.callKpis.totalCalls}</p>
           </Card>
           <Card padding="md">
             <div className="flex items-center gap-5 mb-5">
-              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green-100 text-green-700">
                 <Target className="w-5 h-5" />
               </div>
-              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Erreichbarkeit</span>
+              <span className="text-[13px] font-medium text-gray-600">Erreichbarkeit</span>
             </div>
-            <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.reachRate}%</p>
+            <p className="text-[28px] font-bold text-gray-900">{data.callKpis.reachRate}%</p>
           </Card>
           <Card padding="md">
             <div className="flex items-center gap-5 mb-5">
-              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-100 text-amber-500">
                 <Calendar className="w-5 h-5" />
               </div>
-              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Termin-Quote</span>
+              <span className="text-[13px] font-medium text-gray-600">Termin-Quote</span>
             </div>
-            <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.callKpis.terminRate}%</p>
+            <p className="text-[28px] font-bold text-gray-900">{data.callKpis.terminRate}%</p>
           </Card>
           <Card padding="md">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-[#E31B23]">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-red-600">
                 <Clock className="w-5 h-5" />
               </div>
-              <span className="text-[13px] font-medium text-[var(--text-secondary)]">Ø Reaktionszeit</span>
+              <span className="text-[13px] font-medium text-gray-600">Ø Reaktionszeit</span>
             </div>
-            <p className="text-[28px] font-bold text-[var(--text-primary)]">
+            <p className="text-[28px] font-bold text-gray-900">
               {data.callKpis.avgResponseHours !== null ? `${data.callKpis.avgResponseHours}h` : '–'}
             </p>
           </Card>
@@ -266,60 +266,60 @@ export default function ReportsPage() {
       {/* Meta Ads Section — only when data exists */}
       {data.metaKpis && (
         <div className="space-y-5 mb-8">
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] flex items-center gap-2">
-            <Megaphone className="w-5 h-5 text-[#E31B23]" /> Meta Ads
+          <h2 className="text-[18px] font-bold text-gray-900 flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-red-600" /> Meta Ads
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
             <Card padding="md">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-[#E31B23]">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-red-600">
                   <Euro className="w-5 h-5" />
                 </div>
-                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Ausgaben</span>
+                <span className="text-[13px] font-medium text-gray-600">Ausgaben</span>
               </div>
-              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+              <p className="text-[28px] font-bold text-gray-900">
                 €{data.metaKpis.totalSpend.toFixed(2)}
               </p>
             </Card>
             <Card padding="md">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green-100 text-green-700">
                   <Users className="w-5 h-5" />
                 </div>
-                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Leads</span>
+                <span className="text-[13px] font-medium text-gray-600">Leads</span>
               </div>
-              <p className="text-[28px] font-bold text-[var(--text-primary)]">{data.metaKpis.totalLeads}</p>
+              <p className="text-[28px] font-bold text-gray-900">{data.metaKpis.totalLeads}</p>
             </Card>
             <Card padding="md">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-amber-100 text-amber-500">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-100 text-amber-500">
                   <Target className="w-5 h-5" />
                 </div>
-                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Ø CPL</span>
+                <span className="text-[13px] font-medium text-gray-600">Ø CPL</span>
               </div>
-              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+              <p className="text-[28px] font-bold text-gray-900">
                 €{data.metaKpis.avgCpl.toFixed(2)}
               </p>
             </Card>
             <Card padding="md">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-red-50 text-[#E31B23]">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-red-600">
                   <Eye className="w-5 h-5" />
                 </div>
-                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Impressions</span>
+                <span className="text-[13px] font-medium text-gray-600">Impressions</span>
               </div>
-              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+              <p className="text-[28px] font-bold text-gray-900">
                 {data.metaKpis.totalImpressions.toLocaleString('de-DE')}
               </p>
             </Card>
             <Card padding="md">
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center bg-green-100 text-green-700">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-green-100 text-green-700">
                   <MousePointer className="w-5 h-5" />
                 </div>
-                <span className="text-[13px] font-medium text-[var(--text-secondary)]">Klicks</span>
+                <span className="text-[13px] font-medium text-gray-600">Klicks</span>
               </div>
-              <p className="text-[28px] font-bold text-[var(--text-primary)]">
+              <p className="text-[28px] font-bold text-gray-900">
                 {data.metaKpis.totalClicks.toLocaleString('de-DE')}
               </p>
             </Card>
@@ -330,16 +330,16 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Conversion Funnel */}
         <Card padding="md">
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-5 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-[#E31B23]" /> Conversion Funnel
+          <h2 className="text-[18px] font-bold text-gray-900 mb-5 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-red-600" /> Conversion Funnel
           </h2>
           <div className="space-y-5">
             {data.funnel.map((stage) => (
               <div key={stage.id} className="flex items-center gap-3">
-                <span className="text-[13px] font-medium text-[var(--text-secondary)] w-36 truncate">{stage.name}</span>
-                <div className="flex-1 h-8 bg-[var(--surface-inset)] rounded-[var(--radius-sm)] overflow-hidden">
+                <span className="text-[13px] font-medium text-gray-600 w-36 truncate">{stage.name}</span>
+                <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden">
                   <div
-                    className="h-full rounded-[var(--radius-sm)] transition-all flex items-center px-3"
+                    className="h-full rounded-lg transition-all flex items-center px-3"
                     style={{
                       width: `${Math.max((stage.count / maxFunnel) * 100, 8)}%`,
                       backgroundColor: stage.color,
@@ -355,22 +355,22 @@ export default function ReportsPage() {
 
         {/* Source Breakdown */}
         <Card padding="md">
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-5 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-[#E31B23]" /> Quellen
+          <h2 className="text-[18px] font-bold text-gray-900 mb-5 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-red-600" /> Quellen
           </h2>
           <div className="grid grid-cols-3 gap-5">
             {[
-              { label: 'Meta', value: data.sources.meta, color: 'bg-red-50 text-[#C00015]' },
+              { label: 'Meta', value: data.sources.meta, color: 'bg-red-50 text-red-700' },
               { label: 'Indeed', value: data.sources.indeed, color: 'bg-green-100 text-green-700' },
-              { label: 'Manuell', value: data.sources.manual, color: 'bg-[var(--surface-inset)] text-[var(--text-secondary)]' },
+              { label: 'Manuell', value: data.sources.manual, color: 'bg-gray-100 text-gray-600' },
             ].map((source) => (
               <div key={source.label} className="text-center">
-                <div className={`w-16 h-16 rounded-[var(--radius-lg)] ${source.color} flex items-center justify-center mx-auto mb-2`}>
+                <div className={`w-16 h-16 rounded-xl ${source.color} flex items-center justify-center mx-auto mb-2`}>
                   <span className="text-[22px] font-bold">{source.value}</span>
                 </div>
-                <p className="text-[13px] font-medium text-[var(--text-secondary)]">{source.label}</p>
+                <p className="text-[13px] font-medium text-gray-600">{source.label}</p>
                 {totalSources > 0 && (
-                  <p className="text-[11px] text-[var(--text-tertiary)]">
+                  <p className="text-[11px] text-gray-400">
                     {Math.round((source.value / totalSources) * 100)}%
                   </p>
                 )}
@@ -387,14 +387,14 @@ export default function ReportsPage() {
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
               <Star className="w-8 h-8 text-green-700" />
             </div>
-            <h3 className="text-[18px] font-bold text-[var(--text-primary)] mb-2">Danke für dein Feedback!</h3>
-            <p className="text-[var(--text-secondary)]">Wir nutzen es, um noch besser zu werden.</p>
+            <h3 className="text-[18px] font-bold text-gray-900 mb-2">Danke für dein Feedback!</h3>
+            <p className="text-gray-600">Wir nutzen es, um noch besser zu werden.</p>
           </div>
         ) : (
           <div className="space-y-5">
             {templates[0]?.questions.map((q) => (
               <div key={q.id}>
-                <label className="block text-[15px] font-medium text-[var(--text-primary)] mb-2">{q.label}</label>
+                <label className="block text-[15px] font-medium text-gray-900 mb-2">{q.label}</label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -406,7 +406,7 @@ export default function ReportsPage() {
                         className={`w-8 h-8 ${
                           (ratings[q.id] || 0) >= star
                             ? 'text-amber-500 fill-amber-500'
-                            : 'text-[var(--border-default)]'
+                            : 'text-gray-200'
                         }`}
                       />
                     </button>
@@ -416,14 +416,14 @@ export default function ReportsPage() {
             ))}
 
             <div>
-              <label className="block text-[15px] font-medium text-[var(--text-primary)] mb-2">
+              <label className="block text-[15px] font-medium text-gray-900 mb-2">
                 Kommentar (optional)
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
-                className="w-full px-4 py-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 placeholder:text-gray-400 bg-white shadow-sm outline-none resize-none"
                 placeholder="Was können wir besser machen?"
               />
             </div>

@@ -63,20 +63,20 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <Card padding="lg" className="shadow-[var(--shadow-md)]">
+      <Card padding="lg" className="shadow-md">
         <div className="flex items-center gap-4 mb-10">
-          <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#E31B23] to-[#C00015] flex items-center justify-center text-white font-bold text-lg">
+          <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white font-bold text-lg">
             Z
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">Zoepp Media Cloud</h1>
-            <p className="text-[14px] text-[var(--text-secondary)]">Willkommen zuruck</p>
+            <h1 className="text-xl font-bold text-gray-900">Zoepp Media Cloud</h1>
+            <p className="text-[14px] text-gray-600">Willkommen zuruck</p>
           </div>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-8">
           <div>
-            <label htmlFor="email" className="block text-[14px] font-medium text-[var(--text-secondary)] mb-2">E-Mail</label>
+            <label htmlFor="email" className="block text-[14px] font-medium text-gray-600 mb-2">E-Mail</label>
             <Input
               id="email"
               type="email"
@@ -88,7 +88,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-[14px] font-medium text-[var(--text-secondary)] mb-2">Passwort</label>
+            <label htmlFor="password" className="block text-[14px] font-medium text-gray-600 mb-2">Passwort</label>
             <Input
               id="password"
               type="password"
@@ -101,7 +101,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-[var(--danger-600)] text-[14px] bg-red-50 px-5 py-4 rounded-[var(--radius-sm)]">{error}</p>
+            <p className="text-red-600 text-[14px] bg-red-50 px-5 py-4 rounded-lg">{error}</p>
           )}
 
           <Button type="submit" disabled={loading} size="lg" className="w-full">

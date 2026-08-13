@@ -19,7 +19,7 @@ const toneBg: Record<FeatureRowTone, string> = {
 export function FeatureRow({ icon, tone = 'success', checked, children }: FeatureRowProps) {
   return (
     <div className="flex items-center gap-3 py-2">
-      <div className={`w-[38px] h-[38px] rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
+      <div className={`w-[38px] h-[38px] rounded-xl flex items-center justify-center flex-shrink-0 ${toneBg[tone]}`}>
         {icon || <Check className="w-5 h-5" />}
       </div>
       <span className="text-[15px] font-medium text-gray-900 flex-1">{children}</span>

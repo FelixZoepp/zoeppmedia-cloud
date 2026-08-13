@@ -109,16 +109,16 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               onClick={() => s.id < step && setStep(s.id)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
                 s.id === step
-                  ? 'bg-red-50 border border-red-200 text-[#C00015]'
+                  ? 'bg-red-50 border border-red-200 text-red-700'
                   : s.id < step
                   ? 'bg-green-100 text-green-700 cursor-pointer'
-                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)]'
+                  : 'bg-gray-100 text-gray-400'
               }`}
             >
               {s.id < step ? <Check className="w-3.5 h-3.5" /> : <s.icon className="w-3.5 h-3.5" />}
               {s.title}
             </button>
-            {i < steps.length - 1 && <div className="w-6 h-px bg-[var(--border-default)]" />}
+            {i < steps.length - 1 && <div className="w-6 h-px bg-gray-200" />}
           </div>
         ))}
       </div>
@@ -128,23 +128,23 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Firmenname *</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Firmenname *</label>
               <Input value={form.company_name} onChange={(e) => update('company_name', e.target.value)} icon={<Building2 className="w-4 h-4" />} placeholder="Dein Unternehmen" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Branche *</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Branche *</label>
               <Select value={form.industry} onChange={(e) => update('industry', e.target.value)} options={industries} />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Region / Standort</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Region / Standort</label>
               <Input value={form.region} onChange={(e) => update('region', e.target.value)} icon={<MapPin className="w-4 h-4" />} placeholder="z.B. Berlin, NRW, bundesweit" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Aktuelle Mitarbeiteranzahl</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Aktuelle Mitarbeiteranzahl</label>
               <Input value={form.employee_count} onChange={(e) => update('employee_count', e.target.value)} icon={<Users className="w-4 h-4" />} placeholder="z.B. 5-10" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Website</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Website</label>
               <Input value={form.website_url} onChange={(e) => update('website_url', e.target.value)} icon={<Globe className="w-4 h-4" />} placeholder="https://..." />
             </div>
           </div>
@@ -154,11 +154,11 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Wie viele Mitarbeiter einstellen?</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Wie viele Mitarbeiter einstellen?</label>
               <Input type="number" value={form.hiring_target} onChange={(e) => update('hiring_target', e.target.value)} icon={<Target className="w-4 h-4" />} placeholder="z.B. 5" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">In welchem Zeitraum?</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">In welchem Zeitraum?</label>
               <Select value={form.hiring_timeframe} onChange={(e) => update('hiring_timeframe', e.target.value)} options={[
                 { value: '', label: 'Zeitraum wählen' },
                 { value: '1_month', label: 'Innerhalb 1 Monat' },
@@ -168,7 +168,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               ]} />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Erfahrung gewünscht?</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Erfahrung gewünscht?</label>
               <Select value={form.experience_required} onChange={(e) => update('experience_required', e.target.value)} options={[
                 { value: '', label: 'Auswählen' },
                 { value: 'experienced', label: 'Nur mit Erfahrung' },
@@ -177,13 +177,13 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               ]} />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Gehalt / Provisions-Modell</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Gehalt / Provisions-Modell</label>
               <Input value={form.compensation_model} onChange={(e) => update('compensation_model', e.target.value)} icon={<DollarSign className="w-4 h-4" />} placeholder="z.B. Fixum + Provision, reines Provisionsmodell" />
             </div>
 
-            <div className="pt-4 border-t border-[var(--border-default)]">
-              <p className="text-[13px] font-semibold text-[var(--text-primary)] mb-3">Video & Content</p>
-              <label className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border-default)] hover:border-red-200 transition cursor-pointer mb-3">
+            <div className="pt-4 border-t border-gray-200">
+              <p className="text-[13px] font-semibold text-gray-900 mb-3">Video & Content</p>
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-red-200 transition cursor-pointer mb-3">
                 <input
                   type="checkbox"
                   checked={form.has_video_shoot}
@@ -191,19 +191,19 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   className="w-5 h-5 rounded accent-[#E31B23]"
                 />
                 <div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Videodreh geplant</p>
-                  <p className="text-xs text-[var(--text-tertiary)]">Wir planen einen Recruiting-Videodreh für euch</p>
+                  <p className="text-sm font-medium text-gray-900">Videodreh geplant</p>
+                  <p className="text-xs text-gray-400">Wir planen einen Recruiting-Videodreh für euch</p>
                 </div>
               </label>
               <div>
-                <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Reels pro Monat</label>
+                <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Reels pro Monat</label>
                 <Input
                   type="number"
                   value={form.reels_per_month.toString()}
                   onChange={(e) => setForm(f => ({ ...f, reels_per_month: parseInt(e.target.value) || 0 }))}
                   placeholder="0 = keine Reels"
                 />
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">Wie viele Reels sollen monatlich erstellt werden? (0 wenn keine)</p>
+                <p className="text-xs text-gray-400 mt-1">Wie viele Reels sollen monatlich erstellt werden? (0 wenn keine)</p>
               </div>
             </div>
           </div>
@@ -233,25 +233,25 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               label="Team-Fotos (optional)"
             />
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Primärfarbe</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Primärfarbe</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
                   value={form.primary_color}
                   onChange={(e) => update('primary_color', e.target.value)}
-                  className="w-11 h-11 rounded-[var(--radius-md)] border border-[var(--border-default)] cursor-pointer"
+                  className="w-11 h-11 rounded-xl border border-gray-200 cursor-pointer"
                 />
                 <Input value={form.primary_color} onChange={(e) => update('primary_color', e.target.value)} icon={<Palette className="w-4 h-4" />} className="flex-1" />
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Was macht euch besonders? (USPs)</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Was macht euch besonders? (USPs)</label>
               <textarea
                 value={form.usps}
                 onChange={(e) => update('usps', e.target.value)}
                 placeholder="z.B. Höchste Provisionen der Branche, eigenes Schulungsprogramm, familiäres Team..."
                 rows={4}
-                className="w-full px-4 py-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] bg-white shadow-[var(--shadow-xs)] outline-none resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 placeholder:text-gray-400 bg-white shadow-sm outline-none resize-none"
               />
             </div>
           </div>
@@ -261,15 +261,15 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Ansprechpartner</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Ansprechpartner</label>
               <Input value={form.contact_name} onChange={(e) => update('contact_name', e.target.value)} icon={<User className="w-4 h-4" />} placeholder="Vor- und Nachname" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Telefon</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Telefon</label>
               <Input value={form.contact_phone} onChange={(e) => update('contact_phone', e.target.value)} icon={<Phone className="w-4 h-4" />} placeholder="+49..." />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)] mb-1.5">Bevorzugte Kontaktzeit</label>
+              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Bevorzugte Kontaktzeit</label>
               <Select value={form.preferred_contact_time} onChange={(e) => update('preferred_contact_time', e.target.value)} options={[
                 { value: '', label: 'Auswählen' },
                 { value: 'morning', label: 'Vormittags (9-12 Uhr)' },
@@ -280,7 +280,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             </div>
 
             {error && (
-              <p className="text-[var(--danger-600)] text-[13px] bg-red-50 px-3 py-2 rounded-[var(--radius-sm)]">{error}</p>
+              <p className="text-red-600 text-[13px] bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
           </div>
         )}
@@ -288,7 +288,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {/* Step 5: Meta-Zugang */}
         {step === 5 && (
           <div className="space-y-4">
-            <div className="p-4 rounded-[var(--radius-md)] bg-blue-50 border border-blue-100">
+            <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
               <p className="text-sm text-blue-800 font-medium">
                 Damit wir Anzeigen in deinem Namen schalten können, brauchen wir Zugang zu deinem Meta Business Manager.
                 Folge den Schritten unten — dauert ca. 5 Minuten.
@@ -324,7 +324,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             ].map((item) => (
               <label
                 key={item.key}
-                className="flex items-start gap-3 p-4 rounded-[var(--radius-md)] border border-[var(--border-default)] hover:border-red-200 transition cursor-pointer"
+                className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 hover:border-red-200 transition cursor-pointer"
               >
                 <input
                   type="checkbox"
@@ -338,8 +338,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   className="mt-0.5 w-5 h-5 rounded accent-red-500 shrink-0"
                 />
                 <div>
-                  <p className="font-semibold text-[var(--text-primary)] text-[15px]">{item.title}</p>
-                  <p className="text-sm text-[var(--text-secondary)] mt-0.5">{item.desc}</p>
+                  <p className="font-semibold text-gray-900 text-[15px]">{item.title}</p>
+                  <p className="text-sm text-gray-600 mt-0.5">{item.desc}</p>
                 </div>
               </label>
             ))}
@@ -390,13 +390,13 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             </div>
 
             {error && (
-              <p className="text-[var(--danger-600)] text-[13px] bg-red-50 px-3 py-2 rounded-[var(--radius-sm)]">{error}</p>
+              <p className="text-red-600 text-[13px] bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
           </div>
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between mt-8 pt-6 border-t border-[var(--border-default)]">
+        <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
           {step > 1 ? (
             <Button variant="ghost" onClick={() => setStep(step - 1)}>
               <ChevronLeft className="w-4 h-4" /> Zurück

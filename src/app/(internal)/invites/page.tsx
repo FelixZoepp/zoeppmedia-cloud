@@ -134,7 +134,7 @@ export default function InvitesPage() {
             <div>
               <label
                 htmlFor="name"
-                className="block text-[var(--text-sm)] font-semibold text-[var(--text-primary)] mb-2"
+                className="block text-sm font-semibold text-gray-900 mb-2"
               >
                 Agenturname
               </label>
@@ -152,7 +152,7 @@ export default function InvitesPage() {
             <div>
               <label
                 htmlFor="contact"
-                className="block text-[var(--text-sm)] font-semibold text-[var(--text-primary)] mb-2"
+                className="block text-sm font-semibold text-gray-900 mb-2"
               >
                 Ansprechpartner
               </label>
@@ -170,7 +170,7 @@ export default function InvitesPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-[var(--text-sm)] font-semibold text-[var(--text-primary)] mb-2"
+                className="block text-sm font-semibold text-gray-900 mb-2"
               >
                 E-Mail
               </label>
@@ -188,10 +188,10 @@ export default function InvitesPage() {
             <div>
               <label
                 htmlFor="phone"
-                className="block text-[var(--text-sm)] font-semibold text-[var(--text-primary)] mb-2"
+                className="block text-sm font-semibold text-gray-900 mb-2"
               >
                 Telefon
-                <span className="font-normal text-[var(--text-tertiary)] ml-1">(optional)</span>
+                <span className="font-normal text-gray-400 ml-1">(optional)</span>
               </label>
               <Input
                 id="phone"
@@ -204,7 +204,7 @@ export default function InvitesPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 px-6 py-4 bg-red-50 border border-red-200 rounded-[var(--radius-md)] text-[var(--text-sm)] text-red-600">
+              <div className="flex items-center gap-2 px-6 py-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
                 <AlertCircle size={16} className="flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -227,10 +227,10 @@ export default function InvitesPage() {
             <div className="flex items-start gap-3">
               <CheckCircle size={20} className="text-green-700 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-[var(--text-sm)] font-semibold text-green-700 mb-2">
+                <p className="text-sm font-semibold text-green-700 mb-2">
                   Einladungslink erstellt & E-Mail gesendet!
                 </p>
-                <code className="block text-[var(--text-sm)] text-green-700/80 break-all font-[var(--font-mono)] bg-green-100 rounded-[var(--radius-sm)] px-3 py-2">
+                <code className="block text-sm text-green-700/80 break-all font-sans bg-green-100 rounded-lg px-3 py-2">
                   {inviteUrl}
                 </code>
                 <Button
@@ -252,7 +252,7 @@ export default function InvitesPage() {
       {/* Agency list with invite status */}
       <div className="mt-8 max-w-5xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[var(--text-base)] font-semibold text-[var(--text-primary)]">
+          <h2 className="text-base font-semibold text-gray-900">
             Eingeladene Agenturen
           </h2>
           <Button variant="secondary" size="sm" onClick={loadAgencies} disabled={listLoading}>
@@ -262,9 +262,9 @@ export default function InvitesPage() {
         </div>
 
         {listLoading ? (
-          <p className="text-[var(--text-sm)] text-[var(--text-tertiary)]">Lädt...</p>
+          <p className="text-sm text-gray-400">Lädt...</p>
         ) : agencies.length === 0 ? (
-          <p className="text-[var(--text-sm)] text-[var(--text-tertiary)]">Noch keine Agenturen eingeladen.</p>
+          <p className="text-sm text-gray-400">Noch keine Agenturen eingeladen.</p>
         ) : (
           <div className="space-y-5">
             {agencies.map((agency) => {
@@ -277,7 +277,7 @@ export default function InvitesPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <span className="text-[var(--text-sm)] font-semibold text-[var(--text-primary)]">
+                        <span className="text-sm font-semibold text-gray-900">
                           {agency.name}
                         </span>
                         {redeemed ? (
@@ -296,11 +296,11 @@ export default function InvitesPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[var(--text-sm)] text-[var(--text-tertiary)] mt-0.5">
+                      <p className="text-sm text-gray-400 mt-0.5">
                         {agency.contact_name} · {agency.email}
                       </p>
                       {emailSent && (
-                        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                        <p className="text-xs text-gray-400 mt-0.5">
                           Gesendet: {new Date(emailSent).toLocaleString('de-DE')}
                         </p>
                       )}

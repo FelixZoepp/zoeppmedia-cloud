@@ -24,28 +24,28 @@ function KpiCard({ label, value, change, icon, accent }: KpiCardProps) {
 
   return (
     <div
-      className={`rounded-[var(--radius-xl)] p-5 shadow-[var(--shadow-sm)] ${
+      className={`rounded-xl p-5 shadow-sm ${
         accent
-          ? 'bg-[var(--accent-grad)] text-white'
+          ? 'bg-red-600 text-white'
           : 'bg-white'
       }`}
     >
       <div className="flex items-center justify-between mb-3">
         <span
           className={`text-[13px] font-medium ${
-            accent ? 'text-white/80' : 'text-[var(--text-secondary)]'
+            accent ? 'text-white/80' : 'text-gray-600'
           }`}
         >
           {label}
         </span>
-        <span className={accent ? 'text-white/60' : 'text-[var(--text-tertiary)]'}>
+        <span className={accent ? 'text-white/60' : 'text-gray-400'}>
           {icon}
         </span>
       </div>
       <div className="flex items-end gap-3">
         <span
-          className={`text-[32px] font-extrabold leading-none tracking-[var(--tracking-heading)] ${
-            accent ? 'text-white' : 'text-[var(--text-primary)]'
+          className={`text-[32px] font-extrabold leading-none tracking-tight ${
+            accent ? 'text-white' : 'text-gray-900'
           }`}
         >
           {value}

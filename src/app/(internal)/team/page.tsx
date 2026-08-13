@@ -123,13 +123,13 @@ export default function TeamPage() {
       <div className="grid gap-5">
         {loading && (
           <Card>
-            <p className="text-center text-[var(--text-tertiary)] py-8">Wird geladen…</p>
+            <p className="text-center text-gray-400 py-8">Wird geladen…</p>
           </Card>
         )}
 
         {!loading && members.length === 0 && (
           <Card inset>
-            <p className="text-center text-[var(--text-tertiary)] py-8">Noch keine Mitarbeiter hinzugefügt</p>
+            <p className="text-center text-gray-400 py-8">Noch keine Mitarbeiter hinzugefügt</p>
           </Card>
         )}
 
@@ -138,11 +138,11 @@ export default function TeamPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-6">
                 <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-[#E31B23]" />
+                  <Users className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-[var(--text-primary)]">{member.name}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">{member.position || 'Keine Position'}</p>
+                  <p className="font-semibold text-gray-900">{member.name}</p>
+                  <p className="text-sm text-gray-600">{member.position || 'Keine Position'}</p>
                 </div>
               </div>
 
@@ -184,10 +184,10 @@ export default function TeamPage() {
 
           {agencies.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+              <label className="block text-sm font-medium text-gray-600 mb-2">
                 Zugewiesene Kunden
               </label>
-              <div className="space-y-4 max-h-48 overflow-y-auto border border-[var(--border-default)] rounded-[var(--radius-md)] p-5">
+              <div className="space-y-4 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-5">
                 {agencies.map((a) => (
                   <label key={a.id} className="flex items-center gap-2.5 text-sm cursor-pointer">
                     <input
@@ -196,7 +196,7 @@ export default function TeamPage() {
                       onChange={(e) => toggleAgency(a.id, e.target.checked)}
                       className="accent-[#E31B23] w-4 h-4"
                     />
-                    <span className="text-[var(--text-primary)]">{a.name}</span>
+                    <span className="text-gray-900">{a.name}</span>
                   </label>
                 ))}
               </div>
@@ -204,7 +204,7 @@ export default function TeamPage() {
           )}
 
           {error && (
-            <p className="text-sm text-[#E31B23]">{error}</p>
+            <p className="text-sm text-red-600">{error}</p>
           )}
 
           <Button variant="primary" className="w-full" onClick={handleSave} disabled={saving}>

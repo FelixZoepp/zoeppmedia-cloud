@@ -90,10 +90,10 @@ export function CallTracker({
       {/* Script Panel */}
       <Card padding="md">
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <Phone className="w-5 h-5 text-[#E31B23]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <Phone className="w-5 h-5 text-red-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Telefon-Skript</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Telefon-Skript</h2>
         </div>
 
         {candidatePhone && (
@@ -107,11 +107,11 @@ export function CallTracker({
         )}
 
         {script ? (
-          <div className="text-[15px] text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
+          <div className="text-[15px] text-gray-900 whitespace-pre-wrap leading-relaxed">
             {script}
           </div>
         ) : (
-          <p className="text-[13px] text-[var(--text-tertiary)]">
+          <p className="text-[13px] text-gray-400">
             Noch kein Skript verfügbar. Bitte wende dich an deinen Ansprechpartner.
           </p>
         )}
@@ -121,10 +121,10 @@ export function CallTracker({
       <div className="space-y-5">
         <Card padding="md">
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-              <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
+            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+              <Phone className="w-5 h-5 text-gray-600" />
             </div>
-            <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Anruf protokollieren</h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">Anruf protokollieren</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -135,8 +135,8 @@ export function CallTracker({
                   key={opt.value}
                   className={`flex items-center gap-2 p-3 rounded-lg border text-[13px] cursor-pointer transition-colors ${
                     result === opt.value
-                      ? 'border-[#E31B23]/30 bg-red-50 text-[#C00015] font-medium'
-                      : 'border-gray-200 text-[var(--text-primary)] hover:border-gray-300'
+                      ? 'border-[#E31B23]/30 bg-red-50 text-red-700 font-medium'
+                      : 'border-gray-200 text-gray-900 hover:border-gray-300'
                   }`}
                 >
                   <input
@@ -158,7 +158,7 @@ export function CallTracker({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Notiz zum Anruf..."
               rows={2}
-              className="w-full rounded-[10px] border border-[var(--border-default)] px-4 py-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] outline-none resize-none bg-white/60 backdrop-blur-sm"
+              className="w-full rounded-[10px] border border-gray-200 px-4 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] outline-none resize-none bg-white"
             />
 
             {/* Next step + date */}
@@ -174,7 +174,7 @@ export function CallTracker({
                 type="date"
                 value={nextDate}
                 onChange={(e) => setNextDate(e.target.value)}
-                className="rounded-[10px] border border-[var(--border-default)] px-3 py-2 text-[15px] text-[var(--text-primary)] outline-none focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] bg-white/60 backdrop-blur-sm"
+                className="rounded-[10px] border border-gray-200 px-3 py-2 text-[15px] text-gray-900 outline-none focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] bg-white"
               />
             </div>
 
@@ -194,10 +194,10 @@ export function CallTracker({
         {callLogs.length > 0 && (
           <Card padding="md" inset>
             <div className="flex items-center gap-4 mb-8">
-              <div className="w-9 h-9 rounded-[var(--radius-md)] bg-white flex items-center justify-center border border-[var(--border-default)]">
-                <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
+              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center border border-gray-200">
+                <Clock className="w-5 h-5 text-gray-600" />
               </div>
-              <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">
+              <h2 className="text-[15px] font-semibold text-gray-900">
                 Anruf-Verlauf ({callLogs.length})
               </h2>
             </div>
@@ -207,13 +207,13 @@ export function CallTracker({
                 return (
                   <div
                     key={log.id}
-                    className="p-6 rounded-[var(--radius-md)] bg-white border border-[var(--border-default)]"
+                    className="p-6 rounded-xl bg-white border border-gray-200"
                   >
                     <div className="flex items-center gap-3 flex-wrap">
                       <Badge tone={badge?.tone ?? 'neutral'}>
                         {badge?.label ?? log.result}
                       </Badge>
-                      <span className="text-[13px] text-[var(--text-tertiary)]">
+                      <span className="text-[13px] text-gray-400">
                         {new Date(log.created_at).toLocaleString('de-DE', {
                           day: '2-digit',
                           month: '2-digit',
@@ -224,10 +224,10 @@ export function CallTracker({
                       </span>
                     </div>
                     {log.notes && (
-                      <p className="text-[15px] text-[var(--text-primary)] mt-1">{log.notes}</p>
+                      <p className="text-[15px] text-gray-900 mt-1">{log.notes}</p>
                     )}
                     {log.next_step && (
-                      <p className="text-[13px] text-[var(--text-tertiary)] mt-0.5">
+                      <p className="text-[13px] text-gray-400 mt-0.5">
                         Nächster Schritt:{' '}
                         {nextStepOptions.find((o) => o.value === log.next_step)?.label ?? log.next_step}
                         {log.next_contact_date && (

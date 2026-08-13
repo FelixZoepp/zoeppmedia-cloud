@@ -44,9 +44,9 @@ export function SourceDonut({ data }: SourceDonutProps) {
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
                 />
-                <span className="text-[13px] text-[var(--text-primary)]">{item.name}</span>
+                <span className="text-[13px] text-gray-900">{item.name}</span>
               </div>
-              <span className="text-[13px] font-semibold text-[var(--text-secondary)] tabular-nums">
+              <span className="text-[13px] font-semibold text-gray-600 tabular-nums">
                 {pct}%
               </span>
             </div>

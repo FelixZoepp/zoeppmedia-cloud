@@ -63,55 +63,55 @@ export default function SettingsPage() {
 
       <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <User className="w-5 h-5 text-[var(--text-secondary)]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <User className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Dein Profil</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Dein Profil</h2>
         </div>
         <div className="space-y-6 pl-12">
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-[var(--text-tertiary)] w-16">Name</span>
-            <span className="text-[15px] font-medium text-[var(--text-primary)]">{user?.name}</span>
+            <span className="text-[14px] text-gray-400 w-16">Name</span>
+            <span className="text-[15px] font-medium text-gray-900">{user?.name}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-[var(--text-tertiary)] w-16">E-Mail</span>
-            <span className="text-[15px] font-medium text-[var(--text-primary)]">{user?.email}</span>
+            <span className="text-[14px] text-gray-400 w-16">E-Mail</span>
+            <span className="text-[15px] font-medium text-gray-900">{user?.email}</span>
           </div>
         </div>
       </Card>
 
       <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Agentur</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Agentur</h2>
         </div>
         <div className="space-y-6 pl-12">
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-[var(--text-tertiary)] w-16">Name</span>
-            <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency?.name}</span>
+            <span className="text-[14px] text-gray-400 w-16">Name</span>
+            <span className="text-[15px] font-medium text-gray-900">{agency?.name}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-[var(--text-tertiary)] w-16">E-Mail</span>
-            <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency?.email}</span>
+            <span className="text-[14px] text-gray-400 w-16">E-Mail</span>
+            <span className="text-[15px] font-medium text-gray-900">{agency?.email}</span>
           </div>
           {agency?.phone && (
             <div className="flex items-center gap-3">
-              <span className="text-[14px] text-[var(--text-tertiary)] w-16">Telefon</span>
-              <span className="text-[15px] font-medium text-[var(--text-primary)]">{agency.phone}</span>
+              <span className="text-[14px] text-gray-400 w-16">Telefon</span>
+              <span className="text-[15px] font-medium text-gray-900">{agency.phone}</span>
             </div>
           )}
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Ad</span>
-            <span className="text-[15px] font-medium text-[var(--text-primary)] font-mono">
-              {agency?.meta_ad_account_id || <span className="text-[var(--text-tertiary)] font-sans font-normal">Nicht konfiguriert</span>}
+            <span className="text-[14px] text-gray-400 w-16 shrink-0">Meta Ad</span>
+            <span className="text-[15px] font-medium text-gray-900 font-mono">
+              {agency?.meta_ad_account_id || <span className="text-gray-400 font-sans font-normal">Nicht konfiguriert</span>}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-[var(--text-tertiary)] w-16 shrink-0">Meta Page</span>
-            <span className="text-[15px] font-medium text-[var(--text-primary)] font-mono">
-              {agency?.meta_page_id || <span className="text-[var(--text-tertiary)] font-sans font-normal">Nicht konfiguriert</span>}
+            <span className="text-[14px] text-gray-400 w-16 shrink-0">Meta Page</span>
+            <span className="text-[15px] font-medium text-gray-900 font-mono">
+              {agency?.meta_page_id || <span className="text-gray-400 font-sans font-normal">Nicht konfiguriert</span>}
             </span>
           </div>
         </div>
@@ -119,16 +119,16 @@ export default function SettingsPage() {
 
       <Card padding="md">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
-            <Webhook className="w-5 h-5 text-[#E31B23]" />
+          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
+            <Webhook className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Meta Webhook URL</h2>
-            <p className="text-[14px] text-[var(--text-tertiary)]">Bei Meta Lead Ads als Webhook hinterlegen</p>
+            <h2 className="text-[15px] font-semibold text-gray-900">Meta Webhook URL</h2>
+            <p className="text-[14px] text-gray-400">Bei Meta Lead Ads als Webhook hinterlegen</p>
           </div>
         </div>
-        <div className="bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[var(--radius-md)] p-5 flex items-center gap-3">
-          <code className="text-[13px] text-[var(--text-primary)] font-mono break-all flex-1">{webhookUrl}</code>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex items-center gap-3">
+          <code className="text-[13px] text-gray-900 font-mono break-all flex-1">{webhookUrl}</code>
           <Button variant="secondary" size="sm" onClick={handleCopy} pill>
             {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Kopiert' : 'Kopieren'}

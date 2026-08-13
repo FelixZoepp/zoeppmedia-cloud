@@ -23,11 +23,11 @@ const statusConfig: Record<string, { label: string; icon: typeof CheckCircle; co
   pending: { label: 'Ausstehend', icon: Clock, color: 'text-gray-400' },
   processing: { label: 'Wird verarbeitet...', icon: Clock, color: 'text-amber-500' },
   done: { label: 'Fertig', icon: CheckCircle, color: 'text-green-500' },
-  failed: { label: 'Fehlgeschlagen', icon: AlertCircle, color: 'text-[#E31B23]' },
+  failed: { label: 'Fehlgeschlagen', icon: AlertCircle, color: 'text-red-600' },
 };
 
 function ScoreBar({ label, score }: { label: string; score: number }) {
-  const color = score >= 70 ? 'bg-green-500' : score >= 40 ? 'bg-amber-500' : 'bg-[#E31B23]';
+  const color = score >= 70 ? 'bg-green-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-600';
   return (
     <div>
       <div className="flex justify-between text-sm mb-2">
@@ -149,8 +149,8 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
 
   return (
     <Card>
-      <h3 className="font-semibold text-[var(--text-primary)] mb-8 flex items-center gap-2">
-        <Mic className="w-5 h-5 text-[#E31B23]" />
+      <h3 className="font-semibold text-gray-900 mb-8 flex items-center gap-2">
+        <Mic className="w-5 h-5 text-red-600" />
         Gesprächsaufnahmen
       </h3>
 
@@ -159,14 +159,14 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
         <select
           value={recordingType}
           onChange={(e) => setRecordingType(e.target.value)}
-          className="rounded-[10px] border border-[var(--border-default)] px-4 py-3 text-sm focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] outline-none bg-white/60 backdrop-blur-sm"
+          className="rounded-[10px] border border-gray-200 px-4 py-3 text-sm focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] outline-none bg-white"
         >
           {typeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex-1 flex items-center justify-center gap-2 px-5 py-4 rounded-[10px] border-2 border-dashed border-[var(--border-default)] text-sm text-[var(--text-tertiary)] hover:border-[#E31B23]/30 hover:text-[#E31B23] transition"
+          className="flex-1 flex items-center justify-center gap-2 px-5 py-4 rounded-[10px] border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-[#E31B23]/30 hover:text-red-600 transition"
         >
           {uploading ? (
             <span className="animate-pulse">Wird hochgeladen & analysiert...</span>
@@ -186,7 +186,7 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
         />
       </div>
 
-      {error && <p className="text-sm text-[#E31B23] mb-4">{error}</p>}
+      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {/* Recordings List */}
       {recordings.length > 0 ? (
@@ -199,14 +199,14 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
             const AnalysisIcon = analysisStatus.icon;
 
             return (
-              <div key={rec.id} className="border border-[var(--border-default)] rounded-[16px] overflow-hidden bg-white/75 backdrop-blur-[20px]">
+              <div key={rec.id} className="border border-gray-200 rounded-[16px] overflow-hidden bg-white">
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : rec.id)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-[var(--surface-subtle)] transition text-left"
+                  className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                      <FileAudio className="w-5 h-5 text-[#E31B23]" />
+                      <FileAudio className="w-5 h-5 text-red-600" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">{rec.file_name}</p>
@@ -241,7 +241,7 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
                     {rec.transcript && (
                       <div className="mt-5">
                         <p className="text-sm font-semibold text-gray-700 mb-2">Transkript</p>
-                        <div className="bg-[var(--surface-subtle)] rounded-[10px] p-6 text-sm text-[var(--text-primary)] leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap">
+                        <div className="bg-gray-50 rounded-[10px] p-6 text-sm text-gray-900 leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap">
                           {rec.transcript}
                         </div>
                       </div>
@@ -261,7 +261,7 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
                     )}
 
                     {rec.analysis_status === 'failed' && (
-                      <p className="mt-4 text-sm text-[#E31B23]">Analyse fehlgeschlagen. Bitte versuche es erneut.</p>
+                      <p className="mt-4 text-sm text-red-600">Analyse fehlgeschlagen. Bitte versuche es erneut.</p>
                     )}
 
                     {/* Audio Player */}

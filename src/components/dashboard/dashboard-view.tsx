@@ -40,7 +40,7 @@ function getISOWeek(date: Date): number {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white/75 backdrop-blur-[20px] border border-[var(--border-default)] rounded-[16px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
+    <div className={`bg-white border border-gray-200 rounded-[16px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
       {children}
     </div>
   );
@@ -48,7 +48,7 @@ function DashCard({ children, className = '' }: { children: React.ReactNode; cla
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <span className="label-caps text-[#E31B23]">
+    <span className="text-xs font-semibold uppercase tracking-wider text-red-600">
       {children}
     </span>
   );
@@ -56,14 +56,14 @@ function SectionLabel({ children }: { children: string }) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white/75 backdrop-blur-[20px] border border-[var(--border-default)] rounded-[16px] px-8 py-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <span className="label-caps text-[var(--text-tertiary)] block mb-4">
+    <div className="bg-white border border-gray-200 rounded-[16px] px-8 py-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-4">
         {label}
       </span>
-      <span className="text-[42px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
+      <span className="text-[42px] font-extrabold text-gray-900 leading-none tracking-tight block">
         {value}
       </span>
-      <span className="text-[14px] text-[var(--text-tertiary)] uppercase tracking-wide mt-4 block">
+      <span className="text-[14px] text-gray-400 uppercase tracking-wide mt-4 block">
         {sub}
       </span>
     </div>
@@ -112,10 +112,10 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
 
       {/* ── Page Header ──────────────────────────────────── */}
       <div>
-        <span className="label-caps text-[#E31B23]">
+        <span className="text-xs font-semibold uppercase tracking-wider text-red-600">
           {dayName} &middot; KW {kw}
         </span>
-        <h1 className="text-[28px] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[1.1] mt-1">
+        <h1 className="text-[28px] font-extrabold text-gray-900 tracking-tight leading-[1.1] mt-1">
           Dashboard
         </h1>
       </div>
@@ -132,7 +132,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       <div className="grid grid-cols-5 gap-5">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[18px] font-bold text-gray-900 mt-1 mb-5">
             Bewerber-Entwicklung
           </h2>
           <CandidatesChart data={data.candidatesOverTime} />
@@ -140,7 +140,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
 
         <DashCard className="col-span-2">
           <SectionLabel>Quellen</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[18px] font-bold text-gray-900 mt-1 mb-5">
             Quellen-Verteilung
           </h2>
           <SourceDonut data={data.sourceBreakdown} />
@@ -151,7 +151,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       <div className="grid grid-cols-2 gap-5">
         <DashCard>
           <SectionLabel>Pipeline</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[18px] font-bold text-gray-900 mt-1 mb-5">
             Bewerber nach Phase
           </h2>
           <PipelineChart data={data.stageBreakdown} />
@@ -159,7 +159,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
 
         <DashCard>
           <SectionLabel>Kanäle</SectionLabel>
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
+          <h2 className="text-[18px] font-bold text-gray-900 mt-1 mb-5">
             Bewerber nach Quelle
           </h2>
           <SourcesChart data={data.sourceBreakdown} />
@@ -171,30 +171,30 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
         <div className="flex items-center justify-between mb-1">
           <div>
             <SectionLabel>Letzte Aktivität</SectionLabel>
-            <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1">
+            <h2 className="text-[18px] font-bold text-gray-900 mt-1">
               Neue Bewerber
             </h2>
           </div>
         </div>
 
         {data.recentCandidates.length === 0 ? (
-          <p className="text-[14px] text-[var(--text-tertiary)] mt-4">Noch keine Bewerber</p>
+          <p className="text-[14px] text-gray-400 mt-4">Noch keine Bewerber</p>
         ) : (
-          <div className="mt-4 divide-y divide-[var(--border-default)]">
+          <div className="mt-4 divide-y divide-gray-200">
             {data.recentCandidates.map((c) => (
               <a
                 key={c.id}
                 href={`/candidates/${c.id}`}
-                className="flex items-center gap-3 py-4 first:pt-1 hover:bg-[var(--surface-subtle)] -mx-6 px-6 transition-colors"
+                className="flex items-center gap-3 py-4 first:pt-1 hover:bg-gray-50 -mx-6 px-6 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-[var(--surface-inset)] flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-[var(--text-tertiary)]" />
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-gray-400" />
                 </div>
-                <span className="flex-1 text-[14px] font-medium text-[var(--text-primary)]">{c.name}</span>
-                <span className="text-[12px] text-[var(--text-tertiary)] shrink-0">
+                <span className="flex-1 text-[14px] font-medium text-gray-900">{c.name}</span>
+                <span className="text-[12px] text-gray-400 shrink-0">
                   {SOURCE_LABELS[c.source] || c.source}
                 </span>
-                <span className="text-[12px] text-[var(--text-tertiary)] shrink-0 w-24 text-right">
+                <span className="text-[12px] text-gray-400 shrink-0 w-24 text-right">
                   {timeAgo(c.created_at)}
                 </span>
               </a>

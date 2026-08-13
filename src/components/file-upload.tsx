@@ -73,7 +73,7 @@ export function FileUpload({
   return (
     <div className="space-y-5">
       {label && (
-        <label className="block text-[13px] font-medium text-[var(--text-secondary)]">
+        <label className="block text-[13px] font-medium text-gray-600">
           {label}
         </label>
       )}
@@ -83,7 +83,7 @@ export function FileUpload({
           {value.map((url) => (
             <div
               key={url}
-              className="relative group w-20 h-20 rounded-[var(--radius-md)] overflow-hidden border border-[var(--border-default)]"
+              className="relative group w-20 h-20 rounded-xl overflow-hidden border border-gray-200"
             >
               <img src={url} alt="" className="w-full h-full object-cover" />
               <button
@@ -103,7 +103,7 @@ export function FileUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-2 px-6 py-5 rounded-[10px] border-2 border-dashed border-[var(--border-default)] text-sm text-[var(--text-tertiary)] hover:border-[#E31B23]/30 hover:text-[#E31B23] transition disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-5 rounded-[10px] border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-[#E31B23]/30 hover:text-red-600 transition disabled:opacity-50"
         >
           {uploading ? (
             <span className="animate-pulse">Hochladen...</span>
@@ -124,7 +124,7 @@ export function FileUpload({
         onChange={handleUpload}
         className="hidden"
       />
-      {error && <p className="text-sm text-[var(--danger-600)]">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }

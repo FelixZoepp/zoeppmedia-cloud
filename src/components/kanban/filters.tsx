@@ -61,14 +61,14 @@ export function FilterBar({
           type="date"
           value={filters.dateFrom}
           onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+          className="h-11 px-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 bg-white shadow-sm outline-none"
         />
-        <span className="text-[var(--text-tertiary)] text-[13px]">bis</span>
+        <span className="text-gray-400 text-[13px]">bis</span>
         <input
           type="date"
           value={filters.dateTo}
           onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-          className="h-11 px-3 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+          className="h-11 px-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 bg-white shadow-sm outline-none"
         />
       </div>
       {hasFilters && (

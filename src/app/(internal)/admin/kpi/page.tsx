@@ -99,13 +99,13 @@ export default function AdminKpiPage() {
       />
 
       <Card padding="sm" className="!p-0 overflow-hidden">
-        <div className="divide-y divide-[var(--border-default)]">
+        <div className="divide-y divide-gray-200">
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_140px_100px_140px] gap-6 px-6 py-4 bg-[var(--surface-subtle)]">
-            <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">KPI</span>
-            <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">Standardwert</span>
-            <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">Einheit</span>
-            <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em]">Richtung</span>
+          <div className="grid grid-cols-[1fr_140px_100px_140px] gap-6 px-6 py-4 bg-gray-50">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.08em]">KPI</span>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.08em]">Standardwert</span>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.08em]">Einheit</span>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.08em]">Richtung</span>
           </div>
 
           {defaults.map((kpi) => {
@@ -116,12 +116,12 @@ export default function AdminKpiPage() {
             return (
               <div
                 key={kpi.kpi_key}
-                className="grid grid-cols-[1fr_140px_100px_140px] gap-6 items-center px-6 py-5 hover:bg-[var(--surface-subtle)] transition-colors"
+                className="grid grid-cols-[1fr_140px_100px_140px] gap-6 items-center px-6 py-5 hover:bg-gray-50 transition-colors"
               >
                 {/* Label + key */}
                 <div>
-                  <p className="text-[14px] font-medium text-[var(--text-primary)]">{kpi.label}</p>
-                  <p className="text-[13px] text-[var(--text-tertiary)] font-mono mt-0.5">{kpi.kpi_key}</p>
+                  <p className="text-[14px] font-medium text-gray-900">{kpi.label}</p>
+                  <p className="text-[13px] text-gray-400 font-mono mt-0.5">{kpi.kpi_key}</p>
                 </div>
 
                 {/* Inline edit input */}
@@ -142,7 +142,7 @@ export default function AdminKpiPage() {
                   {dirty && (
                     <button
                       onClick={() => resetValue(kpi.kpi_key)}
-                      className="p-1 hover:bg-gray-100 rounded text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                      className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
                       title="Zurücksetzen"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -151,7 +151,7 @@ export default function AdminKpiPage() {
                 </div>
 
                 {/* Unit */}
-                <span className="text-[14px] text-[var(--text-secondary)]">{kpi.unit}</span>
+                <span className="text-[14px] text-gray-600">{kpi.unit}</span>
 
                 {/* Direction + save action */}
                 <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export default function AdminKpiPage() {
         </div>
       </Card>
 
-      <p className="text-[14px] text-[var(--text-tertiary)] mt-8">
+      <p className="text-[14px] text-gray-400 mt-8">
         Tipp: Enter zum Speichern, Escape zum Zurücksetzen.
       </p>
     </div>

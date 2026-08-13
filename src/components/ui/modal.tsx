@@ -29,15 +29,15 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: Mo
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#0B1C30]/20 backdrop-blur-md transition-all duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className={`bg-white/90 backdrop-blur-[40px] rounded-[20px] shadow-[0_24px_80px_rgba(11,28,48,0.12),0_0_0_1px_rgba(255,255,255,0.6)_inset] p-10 w-full ${width} animate-in fade-in zoom-in-95 duration-300`}>
+      <div className={`bg-white rounded-2xl shadow-xl p-8 w-full ${width} animate-in fade-in zoom-in-95 duration-200`}>
         {(title) && (
-          <div className="flex items-center justify-between mb-8">
-            {title && <h2 className="text-[24px] font-bold text-[var(--text-primary)]">{title}</h2>}
+          <div className="flex items-center justify-between mb-6">
+            {title && <h2 className="text-xl font-bold text-gray-900">{title}</h2>}
             <IconButton size="sm" onClick={onClose}>
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </IconButton>
           </div>
         )}

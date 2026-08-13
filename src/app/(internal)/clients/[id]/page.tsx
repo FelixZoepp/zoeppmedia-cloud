@@ -52,12 +52,12 @@ function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, c
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-[var(--text-primary)]">{kpi.label}</span>
+        <span className="text-[13px] font-medium text-gray-900">{kpi.label}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-[var(--text-tertiary)]">
-            Ist: <span className="font-semibold text-[var(--text-primary)]">{kpi.value}{kpi.unit}</span>
+          <span className="text-[12px] text-gray-400">
+            Ist: <span className="font-semibold text-gray-900">{kpi.value}{kpi.unit}</span>
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-gray-400">
             Soll: <span className="font-semibold">{kpi.defaultValue}{kpi.unit}</span>
           </span>
           {kpi.isOverride && (
@@ -65,15 +65,15 @@ function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, c
           )}
           <button
             onClick={() => onOverride(kpi.key, kpi.value)}
-            className="text-[11px] font-semibold text-[#E31B23] hover:text-[#C00015] uppercase tracking-wide transition-colors"
+            className="text-[11px] font-semibold text-red-600 hover:text-red-700 uppercase tracking-wide transition-colors"
           >
             Ziel anpassen
           </button>
         </div>
       </div>
-      <div className="w-full h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+      <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${isGood ? 'bg-green-500' : 'bg-[#E31B23]'}`}
+          className={`h-full rounded-full transition-all duration-500 ${isGood ? 'bg-green-500' : 'bg-red-600'}`}
           style={{ width: `${barWidth}%` }}
         />
       </div>
@@ -97,7 +97,7 @@ function ProblemAlert({
   const isCritical = problem.severity === 'critical';
   return (
     <div
-      className={`flex items-start gap-5 p-6 rounded-[var(--radius-md)] border ${
+      className={`flex items-start gap-5 p-6 rounded-xl border ${
         isCritical
           ? 'bg-red-50 border-red-200'
           : 'bg-amber-50 border-amber-200'
@@ -105,7 +105,7 @@ function ProblemAlert({
     >
       <AlertTriangle
         size={16}
-        className={`mt-0.5 shrink-0 ${isCritical ? 'text-[#E31B23]' : 'text-amber-500'}`}
+        className={`mt-0.5 shrink-0 ${isCritical ? 'text-red-600' : 'text-amber-500'}`}
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
@@ -117,7 +117,7 @@ function ProblemAlert({
           </Badge>
         </div>
         {(problem.current_value !== null || problem.target_value !== null) && (
-          <p className="text-[12px] text-[var(--text-secondary)] mb-2">
+          <p className="text-[12px] text-gray-600 mb-2">
             {problem.current_value !== null && `Aktuell: ${problem.current_value}`}
             {problem.current_value !== null && problem.target_value !== null && ' · '}
             {problem.target_value !== null && `Ziel: ${problem.target_value}`}
@@ -127,7 +127,7 @@ function ProblemAlert({
           {playbook && (
             <button
               onClick={() => onPlaybook(playbook)}
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#C00015] hover:text-[#E31B23] transition-colors"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-700 hover:text-red-600 transition-colors"
             >
               <BookOpen size={12} />
               Playbook anzeigen
@@ -151,15 +151,15 @@ function ProblemAlert({
 function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
   return (
     <div className="space-y-8 overflow-y-auto max-h-[60vh] pr-1">
-      <p className="text-[14px] text-[var(--text-secondary)]">{entry.description}</p>
+      <p className="text-[14px] text-gray-600">{entry.description}</p>
 
       {entry.causes.length > 0 && (
         <div>
-          <h3 className="text-[12px] font-bold text-[var(--text-tertiary)] uppercase tracking-wide mb-2">Mögliche Ursachen</h3>
+          <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wide mb-2">Mögliche Ursachen</h3>
           <ul className="space-y-1.5">
             {entry.causes.map((c, i) => (
-              <li key={i} className="flex items-start gap-2 text-[13px] text-[var(--text-primary)]">
-                <ChevronRight size={14} className="text-[#E31B23] mt-0.5 shrink-0" />
+              <li key={i} className="flex items-start gap-2 text-[13px] text-gray-900">
+                <ChevronRight size={14} className="text-red-600 mt-0.5 shrink-0" />
                 {c}
               </li>
             ))}
@@ -172,7 +172,7 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
           <h3 className="text-[12px] font-bold text-amber-600 uppercase tracking-wide mb-2">Sofortmaßnahmen</h3>
           <ul className="space-y-1.5">
             {entry.immediate_actions.map((a, i) => (
-              <li key={i} className="flex items-start gap-2 text-[13px] text-[var(--text-primary)]">
+              <li key={i} className="flex items-start gap-2 text-[13px] text-gray-900">
                 <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {i + 1}
                 </span>
@@ -188,7 +188,7 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
           <h3 className="text-[12px] font-bold text-green-700 uppercase tracking-wide mb-2">Langfristige Maßnahmen</h3>
           <ul className="space-y-1.5">
             {entry.long_term_actions.map((a, i) => (
-              <li key={i} className="flex items-start gap-2 text-[13px] text-[var(--text-primary)]">
+              <li key={i} className="flex items-start gap-2 text-[13px] text-gray-900">
                 <span className="w-4 h-4 rounded-full bg-green-100 text-green-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {i + 1}
                 </span>
@@ -200,7 +200,7 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
       )}
 
       {entry.escalation_trigger && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-[var(--radius-md)]">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
           <h3 className="text-[11px] font-bold text-red-600 uppercase tracking-wide mb-1">Eskalation wenn</h3>
           <p className="text-[13px] text-red-700">{entry.escalation_trigger}</p>
         </div>
@@ -238,14 +238,14 @@ function OverrideForm({
 
   return (
     <div className="space-y-6">
-      <p className="text-[14px] text-[var(--text-secondary)]">
+      <p className="text-[14px] text-gray-600">
         Neues Ziel für <strong>{kpiKey.replace(/_/g, ' ')}</strong> festlegen.
       </p>
       <input
         type="number"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full px-5 py-4 border border-[var(--border-default)] rounded-[var(--radius-md)] text-[15px] text-[var(--text-primary)] bg-white shadow-[var(--shadow-xs)] outline-none"
+        className="w-full px-5 py-4 border border-gray-200 rounded-xl text-[15px] text-gray-900 bg-white shadow-sm outline-none"
       />
       <Button onClick={save} disabled={saving} className="w-full" glow>
         {saving ? 'Speichern…' : 'Ziel speichern'}
@@ -295,7 +295,7 @@ export default function ClientDetailPage() {
   if (!data) {
     return (
       <Card padding="lg" className="text-center">
-        <p className="text-[var(--text-secondary)]">Agentur nicht gefunden.</p>
+        <p className="text-gray-600">Agentur nicht gefunden.</p>
       </Card>
     );
   }
@@ -312,8 +312,8 @@ export default function ClientDetailPage() {
   ];
 
   const funnelColors = [
-    'var(--red-500)', 'var(--red-400)', 'var(--red-300)',
-    'var(--red-200)', 'var(--red-100)', 'var(--gray-300)',
+    '#ef4444', '#f87171', '#fca5a5',
+    '#fecaca', '#fee2e2', '#d1d5db',
   ];
 
   const criticalCount = problems.filter((p) => p.severity === 'critical').length;
@@ -324,7 +324,7 @@ export default function ClientDetailPage() {
       {/* Back link + header */}
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1.5 text-[var(--text-sm)] text-[var(--text-secondary)] hover:text-red-500 transition-colors mb-8"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-red-500 transition-colors mb-8"
       >
         <ArrowLeft size={14} />
         Zurück zur Übersicht
@@ -340,8 +340,8 @@ export default function ClientDetailPage() {
       {problems.length > 0 && (
         <Card padding="lg" className="mb-8 !border-red-200">
           <div className="flex items-center gap-2 mb-5">
-            <AlertTriangle size={16} className="text-[#E31B23] shrink-0" />
-            <h2 className="text-[14px] font-bold text-[#C00015] uppercase tracking-wide">
+            <AlertTriangle size={16} className="text-red-600 shrink-0" />
+            <h2 className="text-[14px] font-bold text-red-700 uppercase tracking-wide">
               Aktive Probleme
             </h2>
             <div className="flex items-center gap-2 ml-auto">
@@ -372,17 +372,17 @@ export default function ClientDetailPage() {
         {summaryKpis.map((kpi) => (
           <Card key={kpi.label} padding="md">
             <div className="flex items-center gap-5 mb-5">
-              <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${
-                kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-[#E31B23]'
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
               }`}>
                 {kpi.icon}
               </div>
-              <span className="text-[var(--text-sm)] text-[var(--text-secondary)] font-medium">
+              <span className="text-sm text-gray-600 font-medium">
                 {kpi.label}
               </span>
             </div>
-            <p className={`text-3xl font-extrabold tracking-[var(--tracking-heading)] ${
-              kpi.accent ? 'text-green-700' : 'text-[var(--text-primary)]'
+            <p className={`text-3xl font-extrabold tracking-tight ${
+              kpi.accent ? 'text-green-700' : 'text-gray-900'
             }`}>
               {kpi.value}
             </p>
@@ -394,8 +394,8 @@ export default function ClientDetailPage() {
       {kpis.length > 0 && (
         <Card padding="lg" className="mb-8">
           <div className="flex items-center gap-2 mb-8">
-            <Target size={16} className="text-[#E31B23]" />
-            <h2 className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+            <Target size={16} className="text-red-600" />
+            <h2 className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide">
               KPI Soll / Ist
             </h2>
           </div>
@@ -413,7 +413,7 @@ export default function ClientDetailPage() {
 
       {/* Funnel */}
       <Card padding="lg" className="mb-10">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-8">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-8">
           Conversion Funnel
         </h2>
         <div className="space-y-6">
@@ -423,7 +423,7 @@ export default function ClientDetailPage() {
             const barColor = funnelColors[index] || funnelColors[funnelColors.length - 1];
             return (
               <div key={f.stage} className="flex items-center gap-5">
-                <span className="text-[var(--text-sm)] text-[var(--text-secondary)] w-44 flex-shrink-0 font-medium">
+                <span className="text-sm text-gray-600 w-44 flex-shrink-0 font-medium">
                   {f.stage}
                 </span>
                 <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
@@ -431,7 +431,7 @@ export default function ClientDetailPage() {
                     className="h-full rounded-full flex items-center px-3 transition-all duration-500"
                     style={{ width: `${width}%`, backgroundColor: barColor }}
                   >
-                    <span className="text-[var(--text-sm)] font-semibold text-white drop-shadow-sm">
+                    <span className="text-sm font-semibold text-white drop-shadow-sm">
                       {f.count}
                     </span>
                   </div>
@@ -444,38 +444,38 @@ export default function ClientDetailPage() {
 
       {/* Source Breakdown */}
       <Card padding="lg" className="mb-10">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-8">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-8">
           Quellen
         </h2>
         <div className="grid grid-cols-3 gap-8">
           <div className="text-center">
-            <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-red-50 flex items-center justify-center mx-auto mb-2">
-              <span className="text-2xl font-extrabold text-[#E31B23]">{sourceBreakdown.meta}</span>
+            <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-2">
+              <span className="text-2xl font-extrabold text-red-600">{sourceBreakdown.meta}</span>
             </div>
-            <p className="text-[var(--text-sm)] text-[var(--text-secondary)] font-medium">Meta</p>
+            <p className="text-sm text-gray-600 font-medium">Meta</p>
           </div>
           <div className="text-center">
-            <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-red-50 flex items-center justify-center mx-auto mb-2">
-              <span className="text-2xl font-extrabold text-[#E31B23]">{sourceBreakdown.indeed}</span>
+            <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-2">
+              <span className="text-2xl font-extrabold text-red-600">{sourceBreakdown.indeed}</span>
             </div>
-            <p className="text-[var(--text-sm)] text-[var(--text-secondary)] font-medium">Indeed</p>
+            <p className="text-sm text-gray-600 font-medium">Indeed</p>
           </div>
           <div className="text-center">
-            <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-gray-100 flex items-center justify-center mx-auto mb-2">
-              <span className="text-2xl font-extrabold text-[var(--text-primary)]">{sourceBreakdown.manual}</span>
+            <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-2">
+              <span className="text-2xl font-extrabold text-gray-900">{sourceBreakdown.manual}</span>
             </div>
-            <p className="text-[var(--text-sm)] text-[var(--text-secondary)] font-medium">Manuell</p>
+            <p className="text-sm text-gray-600 font-medium">Manuell</p>
           </div>
         </div>
       </Card>
 
       {/* Activity */}
       <Card padding="lg" className="mb-10">
-        <h2 className="text-[var(--text-sm)] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-5">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-5">
           Aktivitat
         </h2>
         <div className="flex items-center gap-3">
-          <span className="text-[var(--text-secondary)] text-[var(--text-sm)]">Letzter Login:</span>
+          <span className="text-gray-600 text-sm">Letzter Login:</span>
           {lastLogin ? (
             <Badge tone="success">
               {new Date(lastLogin).toLocaleDateString('de-DE', {
@@ -495,13 +495,13 @@ export default function ClientDetailPage() {
       {/* Upsell Signals */}
       {upsellSignals.length > 0 && (
         <Card padding="lg" className="!bg-amber-100/50 border border-amber-500/20">
-          <h2 className="text-[var(--text-sm)] font-semibold text-amber-500 uppercase tracking-wide mb-5 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-amber-500 uppercase tracking-wide mb-5 flex items-center gap-2">
             <AlertTriangle size={16} />
             Upsell-Signale
           </h2>
           <div className="space-y-5">
             {upsellSignals.map((signal, i) => (
-              <div key={i} className="flex items-start gap-2.5 text-[var(--text-sm)]">
+              <div key={i} className="flex items-start gap-2.5 text-sm">
                 <Badge tone="softAccent" className="flex-shrink-0 mt-0.5">!</Badge>
                 <span className="text-amber-500 font-medium">{signal}</span>
               </div>

@@ -198,7 +198,7 @@ export default function SopPage() {
   if (!data) {
     return (
       <Card padding="lg" className="text-center">
-        <p className="text-[var(--text-secondary)]">Daten konnten nicht geladen werden.</p>
+        <p className="text-gray-600">Daten konnten nicht geladen werden.</p>
       </Card>
     );
   }
@@ -228,7 +228,7 @@ export default function SopPage() {
     <div className="max-w-5xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[14px] mb-8 transition-colors"
+        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-[14px] mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
@@ -244,9 +244,9 @@ export default function SopPage() {
         action={
           <div className="flex items-center gap-4">
             {customerSop && (
-              <div className="w-32 h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+              <div className="w-32 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all duration-500"
+                  className="h-full bg-red-600 rounded-full transition-all duration-500"
                   style={{ width: `${overallPercent}%` }}
                 />
               </div>
@@ -296,21 +296,21 @@ export default function SopPage() {
               {/* Phase header */}
               <button
                 onClick={() => togglePhase(phase.id)}
-                className="w-full flex items-center gap-5 p-5 text-left cursor-pointer hover:bg-gray-025 rounded-[var(--radius-lg)] transition-colors"
+                className="w-full flex items-center gap-5 p-5 text-left cursor-pointer hover:bg-gray-025 rounded-xl transition-colors"
               >
-                <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 font-bold text-[15px] ${
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-[15px] ${
                   allComplete
                     ? 'bg-green-100 text-green-700'
                     : hasAttention
                       ? 'bg-amber-100 text-amber-500'
-                      : 'bg-red-50 text-[#E31B23]'
+                      : 'bg-red-50 text-red-600'
                 }`}>
                   {allComplete ? <Check className="w-5 h-5" /> : phaseIndex + 1}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-[15px] text-[var(--text-primary)]">
+                    <h3 className="font-bold text-[15px] text-gray-900">
                       Phase {phaseIndex + 1}: {phase.title}
                     </h3>
                     {hasAttention && (
@@ -318,7 +318,7 @@ export default function SopPage() {
                     )}
                   </div>
                   {phase.description && (
-                    <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 truncate">
+                    <p className="text-[13px] text-gray-600 mt-0.5 truncate">
                       {phase.description}
                     </p>
                   )}
@@ -327,10 +327,10 @@ export default function SopPage() {
                 <div className="flex items-center gap-3 flex-shrink-0">
                   {customerSop && (
                     <>
-                      <span className="text-[13px] text-[var(--text-secondary)] font-medium">
+                      <span className="text-[13px] text-gray-600 font-medium">
                         {phaseDone}/{phaseTotal}
                       </span>
-                      <div className="w-20 h-1.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+                      <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
                             allComplete ? 'bg-green-500' : 'bg-gradient-to-r from-[#EF5B6F] to-red-500'
@@ -341,9 +341,9 @@ export default function SopPage() {
                     </>
                   )}
                   {isExpanded ? (
-                    <ChevronDown className="w-5 h-5 text-[var(--text-tertiary)]" />
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
                   ) : (
-                    <ChevronRight className="w-5 h-5 text-[var(--text-tertiary)]" />
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
                   )}
                 </div>
               </button>
@@ -351,7 +351,7 @@ export default function SopPage() {
               {/* Expanded task list */}
               {isExpanded && (
                 <div className="px-5 pb-5">
-                  <div className="border-t border-[var(--border-default)] pt-4 space-y-4">
+                  <div className="border-t border-gray-200 pt-4 space-y-4">
                     {phaseTasks.map((sopTask) => {
                       const ct = customerTaskMap.get(sopTask.id);
                       const status: TaskStatus = ct?.status || 'pending';
@@ -362,14 +362,14 @@ export default function SopPage() {
                       return (
                         <div
                           key={sopTask.id}
-                          className="flex items-center gap-5 p-5 rounded-[var(--radius-md)] hover:bg-gray-025 transition-colors group"
+                          className="flex items-center gap-5 p-5 rounded-xl hover:bg-gray-025 transition-colors group"
                         >
                           {/* Status icon */}
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
                             status === 'done' ? 'bg-green-100 text-green-700'
                               : status === 'skipped' ? 'bg-gray-100 text-gray-400'
-                                : status === 'waiting_approval' ? 'bg-red-50 text-[#E31B23]'
-                                  : status === 'in_progress' ? 'bg-red-50 text-[#E31B23]/80'
+                                : status === 'waiting_approval' ? 'bg-red-50 text-red-600'
+                                  : status === 'in_progress' ? 'bg-red-50 text-red-600/80'
                                     : status === 'changes_requested' ? 'bg-amber-100 text-amber-500'
                                       : status === 'approved' ? 'bg-green-100 text-green-700'
                                         : 'bg-gray-100 text-gray-400'
@@ -394,29 +394,29 @@ export default function SopPage() {
                             <div className="flex items-center gap-2">
                               <span className={`text-[14px] font-medium ${
                                 status === 'done' || status === 'skipped'
-                                  ? 'text-[var(--text-tertiary)] line-through'
-                                  : 'text-[var(--text-primary)]'
+                                  ? 'text-gray-400 line-through'
+                                  : 'text-gray-900'
                               }`}>
                                 {sopTask.title}
                               </span>
                               {isAiTask && (
-                                <span className="text-[11px] font-semibold text-[#E31B23] bg-red-50 px-1.5 py-0.5 rounded">
+                                <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
                                   AI
                                 </span>
                               )}
                               {sopTask.task_type !== 'manual' && sopTask.task_type !== 'ai_generate' && (
-                                <span className="text-[11px] font-medium text-[var(--text-tertiary)] bg-gray-100 px-1.5 py-0.5 rounded">
+                                <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
                                   {taskTypeLabels[sopTask.task_type]}
                                 </span>
                               )}
                             </div>
                             {sopTask.description && (
-                              <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5 truncate">
+                              <p className="text-[12px] text-gray-400 mt-0.5 truncate">
                                 {sopTask.description}
                               </p>
                             )}
                             {ct?.notes && (
-                              <p className="text-[12px] text-[var(--text-secondary)] mt-1 italic">
+                              <p className="text-[12px] text-gray-600 mt-1 italic">
                                 Notiz: {ct.notes}
                               </p>
                             )}
@@ -498,7 +498,7 @@ export default function SopPage() {
                                   setNoteModal({ taskId: ct.id, currentNotes: ct.notes || '' });
                                   setNoteText(ct.notes || '');
                                 }}
-                                className="text-[12px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors px-1"
+                                className="text-[12px] text-gray-400 hover:text-gray-600 transition-colors px-1"
                                 title="Notizen"
                               >
                                 ...
@@ -510,7 +510,7 @@ export default function SopPage() {
                     })}
 
                     {phaseTasks.length === 0 && (
-                      <p className="text-[13px] text-[var(--text-tertiary)] py-3 text-center">
+                      <p className="text-[13px] text-gray-400 py-3 text-center">
                         Keine Aufgaben in dieser Phase
                       </p>
                     )}
@@ -523,7 +523,7 @@ export default function SopPage() {
 
         {phases.length === 0 && (
           <Card padding="lg" className="text-center">
-            <p className="text-[var(--text-secondary)]">
+            <p className="text-gray-600">
               Keine SOP-Phasen konfiguriert. Bitte erstelle die SOP-Vorlage zuerst.
             </p>
           </Card>
@@ -542,7 +542,7 @@ export default function SopPage() {
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Notizen zu dieser Aufgabe..."
             rows={4}
-            className="w-full px-4 py-3 text-[15px] border border-[var(--border-default)] rounded-[var(--radius-md)] bg-white text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+            className="w-full px-4 py-3 text-[15px] border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => { setNoteModal(null); setNoteText(''); }}>

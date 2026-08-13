@@ -16,7 +16,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <Card padding="sm" className="transition-shadow hover:shadow-[var(--shadow-md)]">
+    <Card padding="sm" className="transition-shadow hover:shadow-md">
       {/* Header — always visible */}
       <button
         onClick={() => setOpen((o) => !o)}
@@ -35,24 +35,24 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               </Badge>
             )}
           </div>
-          <p className="text-[15px] font-semibold text-[var(--text-primary)] leading-snug">
+          <p className="text-[15px] font-semibold text-gray-900 leading-snug">
             {entry.title}
           </p>
         </div>
-        <div className="flex-shrink-0 text-[var(--text-tertiary)]">
+        <div className="flex-shrink-0 text-gray-400">
           {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </button>
 
       {/* Body — visible when expanded */}
       {open && (
-        <div className="mt-5 space-y-8 border-t border-[var(--border-default)] pt-5">
+        <div className="mt-5 space-y-8 border-t border-gray-200 pt-5">
           {/* Beschreibung */}
           <div>
-            <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+            <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
               Beschreibung
             </p>
-            <p className="text-[14px] text-[var(--text-primary)] leading-relaxed">
+            <p className="text-[14px] text-gray-900 leading-relaxed">
               {entry.description}
             </p>
           </div>
@@ -60,13 +60,13 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Ursachen */}
           {entry.causes.length > 0 && (
             <div>
-              <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+              <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                 Ursachen
               </p>
               <ul className="space-y-3">
                 {entry.causes.map((cause, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[14px] text-[var(--text-primary)]">
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#E31B23]/70 flex-shrink-0" />
+                  <li key={i} className="flex items-start gap-2 text-[14px] text-gray-900">
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-600/70 flex-shrink-0" />
                     {cause}
                   </li>
                 ))}
@@ -77,13 +77,13 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Sofort-Maßnahmen */}
           {entry.immediate_actions.length > 0 && (
             <div>
-              <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+              <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                 Sofort-Maßnahmen
               </p>
               <ol className="space-y-3">
                 {entry.immediate_actions.map((action, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-[14px] text-[var(--text-primary)]">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#E31B23] text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
+                  <li key={i} className="flex items-start gap-2.5 text-[14px] text-gray-900">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
                       {i + 1}
                     </span>
                     {action}
@@ -96,12 +96,12 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Langfristige Maßnahmen */}
           {entry.long_term_actions.length > 0 && (
             <div>
-              <p className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1.5">
+              <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                 Langfristig
               </p>
               <ul className="space-y-3">
                 {entry.long_term_actions.map((action, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[14px] text-[var(--text-primary)]">
+                  <li key={i} className="flex items-start gap-2 text-[14px] text-gray-900">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
                     {action}
                   </li>
@@ -114,9 +114,9 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {entry.escalation_trigger && (
             <Card inset padding="sm" className="border-red-100 bg-red-50">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-[#E31B23] flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[12px] font-bold text-[#E31B23] uppercase tracking-wide mb-0.5">
+                  <p className="text-[12px] font-bold text-red-600 uppercase tracking-wide mb-0.5">
                     Eskalations-Trigger
                   </p>
                   <p className="text-[14px] text-red-700 leading-relaxed">
@@ -196,7 +196,7 @@ export default function PlaybookPage() {
       <div className="space-y-5">
         {filtered.length === 0 ? (
           <Card padding="lg">
-            <p className="text-center text-[14px] text-[var(--text-tertiary)]">
+            <p className="text-center text-[14px] text-gray-400">
               {search ? `Keine Einträge für „${search}"` : 'Keine Playbook-Einträge vorhanden.'}
             </p>
           </Card>

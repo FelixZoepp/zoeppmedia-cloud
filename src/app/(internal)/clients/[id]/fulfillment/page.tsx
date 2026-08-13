@@ -256,7 +256,7 @@ export default function FulfillmentPage() {
 
   return (
     <div className="max-w-6xl">
-      <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-red-500 text-[14px] mb-8 transition-colors">
+      <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-[14px] mb-8 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
@@ -265,9 +265,9 @@ export default function FulfillmentPage() {
         title="Fulfillment"
         description={`${completed} von ${total} Aufgaben erledigt`}
         action={
-          <div className="w-24 h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+          <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all"
+              className="h-full bg-red-600 rounded-full transition-all"
               style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
             />
           </div>
@@ -281,16 +281,16 @@ export default function FulfillmentPage() {
 
           return (
             <Card key={task.id} padding="md" className="flex items-center gap-6">
-              <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 ${
-                task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-[#E31B23]'
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
               }`}>
                 {task.status === 'done' ? <Check className="w-5 h-5" /> : (taskIcons[task.task_type] ?? <MoreHorizontal className="w-5 h-5" />)}
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[15px] text-[var(--text-primary)]">{task.title}</p>
+                <p className="font-semibold text-[15px] text-gray-900">{task.title}</p>
                 {task.description && (
-                  <p className="text-[13px] text-[var(--text-secondary)] truncate">{task.description}</p>
+                  <p className="text-[13px] text-gray-600 truncate">{task.description}</p>
                 )}
               </div>
 
@@ -321,7 +321,7 @@ export default function FulfillmentPage() {
 
         {tasks.length === 0 && (
           <Card padding="lg" className="text-center">
-            <p className="text-[var(--text-secondary)]">Noch keine Aufgaben. Das Onboarding wurde noch nicht abgeschlossen.</p>
+            <p className="text-gray-600">Noch keine Aufgaben. Das Onboarding wurde noch nicht abgeschlossen.</p>
           </Card>
         )}
       </div>

@@ -75,11 +75,11 @@ export default function FunnelsPage() {
 
       {funnels.length === 0 ? (
         <Card padding="lg" className="text-center">
-          <FolderKanban className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-          <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-2">
+          <FolderKanban className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-[18px] font-bold text-gray-900 mb-2">
             Noch keine Funnels erstellt
           </h2>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-gray-600">
             Funnels werden automatisch beim Fulfillment-Prozess angelegt.
           </p>
         </Card>
@@ -94,14 +94,14 @@ export default function FunnelsPage() {
                 <div className="flex items-center justify-between gap-6">
                   {/* Icon + info */}
                   <div className="flex items-center gap-6 min-w-0">
-                    <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center flex-shrink-0">
-                      <Globe className="w-5 h-5 text-[#E31B23]" />
+                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-5 h-5 text-red-600" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[15px] font-semibold text-[var(--text-primary)] truncate">
+                      <p className="text-[15px] font-semibold text-gray-900 truncate">
                         {funnel.name}
                       </p>
-                      <p className="text-[13px] text-[var(--text-tertiary)] truncate">
+                      <p className="text-[13px] text-gray-400 truncate">
                         {funnel.agencies?.name ?? '—'}
                       </p>
                       {funnel.url && (
@@ -109,7 +109,7 @@ export default function FunnelsPage() {
                           href={funnel.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[12px] text-[#E31B23] hover:underline mt-0.5"
+                          className="inline-flex items-center gap-1 text-[12px] text-red-600 hover:underline mt-0.5"
                         >
                           {funnel.url}
                           <ExternalLink className="w-3 h-3 flex-shrink-0" />

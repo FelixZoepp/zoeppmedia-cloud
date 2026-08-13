@@ -97,7 +97,7 @@ export default function CandidateDetailPage() {
   if (!candidate) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-[15px] text-[var(--text-tertiary)]">Bewerber nicht gefunden.</p>
+        <p className="text-[15px] text-gray-400">Bewerber nicht gefunden.</p>
       </div>
     );
   }
@@ -109,7 +109,7 @@ export default function CandidateDetailPage() {
       {/* Back button */}
       <button
         onClick={() => router.push('/dashboard')}
-        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
+        className="inline-flex items-center gap-1.5 text-[14px] font-medium text-gray-600 hover:text-gray-900 transition-colors mb-6 cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
         Zur Pipeline
@@ -118,10 +118,10 @@ export default function CandidateDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-1">
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-1">
             {candidate.name}
           </h1>
-          <p className="text-[14px] text-[var(--text-tertiary)]">
+          <p className="text-[14px] text-gray-400">
             Hinzugefügt am {new Date(candidate.created_at).toLocaleDateString('de-DE')}
           </p>
         </div>
@@ -131,34 +131,34 @@ export default function CandidateDetailPage() {
       {/* Contact Info */}
       <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <Mail className="w-5 h-5 text-[var(--text-secondary)]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <Mail className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Kontaktdaten</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Kontaktdaten</h2>
         </div>
         <div className="space-y-6 pl-12">
           {candidate.email && (
             <div className="flex items-center gap-3">
-              <span className="text-[14px] text-[var(--text-tertiary)] w-20">E-Mail</span>
-              <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.email}</span>
+              <span className="text-[14px] text-gray-400 w-20">E-Mail</span>
+              <span className="text-[15px] font-medium text-gray-900">{candidate.email}</span>
             </div>
           )}
           {candidate.phone && (
             <div className="flex items-center gap-3">
-              <span className="text-[14px] text-[var(--text-tertiary)] w-20">Telefon</span>
-              <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.phone}</span>
+              <span className="text-[14px] text-gray-400 w-20">Telefon</span>
+              <span className="text-[15px] font-medium text-gray-900">{candidate.phone}</span>
             </div>
           )}
           {candidate.meta_campaign && (
             <div className="flex items-center gap-3">
-              <span className="text-[14px] text-[var(--text-tertiary)] w-20">Kampagne</span>
-              <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.meta_campaign}</span>
+              <span className="text-[14px] text-gray-400 w-20">Kampagne</span>
+              <span className="text-[15px] font-medium text-gray-900">{candidate.meta_campaign}</span>
             </div>
           )}
           {candidate.meta_adset && (
             <div className="flex items-center gap-3">
-              <span className="text-[14px] text-[var(--text-tertiary)] w-20">Adset</span>
-              <span className="text-[15px] font-medium text-[var(--text-primary)]">{candidate.meta_adset}</span>
+              <span className="text-[14px] text-gray-400 w-20">Adset</span>
+              <span className="text-[15px] font-medium text-gray-900">{candidate.meta_adset}</span>
             </div>
           )}
         </div>
@@ -168,10 +168,10 @@ export default function CandidateDetailPage() {
       {(candidate.resume_url || candidate.location || candidate.experience_summary || candidate.last_employer || candidate.indeed_job_title) && (
         <Card padding="md" className="mb-8">
           <div className="flex items-center gap-5 mb-5">
-            <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-              <Layers className="w-5 h-5 text-[var(--text-secondary)]" />
+            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+              <Layers className="w-5 h-5 text-gray-600" />
             </div>
-            <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Bewerber-Details</h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">Bewerber-Details</h2>
           </div>
           <div className="space-y-6 pl-12">
             {candidate.indeed_job_title && (
@@ -194,7 +194,7 @@ export default function CandidateDetailPage() {
                 href={candidate.resume_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-[10px] bg-red-50 text-[#C00015] text-sm font-medium hover:bg-red-100 transition"
+                className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-[10px] bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition"
               >
                 Lebenslauf anzeigen (PDF)
               </a>
@@ -206,17 +206,17 @@ export default function CandidateDetailPage() {
       {/* Stage Timeline */}
       <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Phasen-Verlauf</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Phasen-Verlauf</h2>
         </div>
         <div className="pl-12 space-y-0">
           {stageHistory.map((entry, i) => (
             <div key={entry.id} className="relative flex items-start gap-3 pb-4 last:pb-0">
               {/* Connector line */}
               {i < stageHistory.length - 1 && (
-                <div className="absolute left-[5px] top-[14px] w-px h-[calc(100%-6px)] bg-[var(--border-default)]" />
+                <div className="absolute left-[5px] top-[14px] w-px h-[calc(100%-6px)] bg-gray-200" />
               )}
               {/* Dot */}
               <div
@@ -224,9 +224,9 @@ export default function CandidateDetailPage() {
                 style={{ backgroundColor: entry.stage.color }}
               />
               <div className="flex-1 min-w-0">
-                <span className="text-[15px] font-medium text-[var(--text-primary)]">{entry.stage.name}</span>
+                <span className="text-[15px] font-medium text-gray-900">{entry.stage.name}</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[14px] text-[var(--text-tertiary)]">
+                  <span className="text-[14px] text-gray-400">
                     {new Date(entry.changed_at).toLocaleDateString('de-DE', {
                       day: '2-digit',
                       month: '2-digit',
@@ -236,7 +236,7 @@ export default function CandidateDetailPage() {
                     })}
                   </span>
                   {entry.user && (
-                    <span className="text-[14px] text-[var(--text-tertiary)]">
+                    <span className="text-[14px] text-gray-400">
                       von {entry.user.name}
                     </span>
                   )}
@@ -245,7 +245,7 @@ export default function CandidateDetailPage() {
             </div>
           ))}
           {stageHistory.length === 0 && (
-            <p className="text-[14px] text-[var(--text-tertiary)]">Kein Verlauf vorhanden.</p>
+            <p className="text-[14px] text-gray-400">Kein Verlauf vorhanden.</p>
           )}
         </div>
       </Card>
@@ -253,10 +253,10 @@ export default function CandidateDetailPage() {
       {/* Notes */}
       <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <StickyNote className="w-5 h-5 text-[var(--text-secondary)]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <StickyNote className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Notizen</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Notizen</h2>
         </div>
 
         <form onSubmit={addNote} className="flex gap-2 mb-8 pl-12">
@@ -275,8 +275,8 @@ export default function CandidateDetailPage() {
         <div className="space-y-6 pl-12">
           {notes.map((note) => (
             <div key={note.id}>
-              <p className="text-[15px] text-[var(--text-primary)]">{note.text}</p>
-              <p className="text-[14px] text-[var(--text-tertiary)] mt-1">
+              <p className="text-[15px] text-gray-900">{note.text}</p>
+              <p className="text-[14px] text-gray-400 mt-1">
                 {note.user.name} &middot;{' '}
                 {new Date(note.created_at).toLocaleDateString('de-DE', {
                   day: '2-digit',
@@ -288,7 +288,7 @@ export default function CandidateDetailPage() {
             </div>
           ))}
           {notes.length === 0 && (
-            <p className="text-[14px] text-[var(--text-tertiary)]">Noch keine Notizen.</p>
+            <p className="text-[14px] text-gray-400">Noch keine Notizen.</p>
           )}
         </div>
       </Card>
@@ -296,10 +296,10 @@ export default function CandidateDetailPage() {
       {/* Call Tracker */}
       <div className="mb-8">
         <div className="flex items-center gap-5 mb-5">
-          <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <Phone className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Anrufe</h2>
+          <h2 className="text-[15px] font-semibold text-gray-900">Anrufe</h2>
         </div>
         <CallTracker
           candidateId={id}

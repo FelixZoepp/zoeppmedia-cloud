@@ -12,7 +12,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       <div className={`relative ${className}`}>
         <select
           ref={ref}
-          className="appearance-none w-full h-11 bg-white border border-gray-200 rounded-[var(--radius-md)] px-4 pr-10 text-[15px] font-medium text-gray-900 shadow-[var(--shadow-xs)] cursor-pointer outline-none focus-ring"
+          className="appearance-none w-full h-11 bg-white border border-gray-200 rounded-xl px-4 pr-10 text-[15px] font-medium text-gray-900 shadow-sm cursor-pointer outline-none focus-ring"
           {...props}
         >
           {options.map((opt) => (

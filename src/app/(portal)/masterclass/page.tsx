@@ -90,7 +90,7 @@ export default function MasterclassPage() {
     }
 
     return (
-      <div className="aspect-video bg-black rounded-[var(--radius-lg)] overflow-hidden mb-6">
+      <div className="aspect-video bg-black rounded-xl overflow-hidden mb-6">
         <iframe
           src={embedUrl}
           className="w-full h-full"
@@ -119,19 +119,19 @@ export default function MasterclassPage() {
       {/* Left sidebar: module list */}
       <div className="w-72 flex-shrink-0">
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-[#E31B23]" />
+          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+            <GraduationCap className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h1 className="text-[18px] font-bold text-[var(--text-primary)]">Masterclass</h1>
-            <p className="text-[14px] text-[var(--text-secondary)]">{progressPercent}% abgeschlossen</p>
+            <h1 className="text-[18px] font-bold text-gray-900">Masterclass</h1>
+            <p className="text-[14px] text-gray-600">{progressPercent}% abgeschlossen</p>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="w-full h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden mb-8">
+        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-8">
           <div
-            className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all"
+            className="h-full bg-red-600 rounded-full transition-all"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -146,14 +146,14 @@ export default function MasterclassPage() {
               <div key={mod.id}>
                 <div className="flex items-center gap-3 mb-5 px-1">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${
-                    allDone ? 'bg-green-500 text-white' : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)]'
+                    allDone ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'
                   }`}>
                     {allDone ? <Check className="w-3 h-3" /> : mod.sort_order}
                   </div>
-                  <span className="text-[14px] font-semibold text-[var(--text-primary)] uppercase tracking-wide">
+                  <span className="text-[14px] font-semibold text-gray-900 uppercase tracking-wide">
                     {mod.title}
                   </span>
-                  <span className="text-[11px] text-[var(--text-tertiary)] ml-auto">
+                  <span className="text-[11px] text-gray-400 ml-auto">
                     {modCompleted}/{modLessons.length}
                   </span>
                 </div>
@@ -167,20 +167,20 @@ export default function MasterclassPage() {
                       <button
                         key={lesson.id}
                         onClick={() => setActiveLesson(lesson)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-pill)] text-left text-[14px] transition-colors cursor-pointer ${
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-left text-[14px] transition-colors cursor-pointer ${
                           isActive
-                            ? 'bg-red-50 border border-red-200 text-[#C00015] font-medium'
-                            : 'text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent'
+                            ? 'bg-red-50 border border-red-200 text-red-700 font-medium'
+                            : 'text-gray-900 hover:bg-gray-50 border border-transparent'
                         }`}
                       >
                         {isWatched ? (
                           <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
                         ) : (
-                          <Play className="w-4 h-4 text-[var(--text-tertiary)] flex-shrink-0" />
+                          <Play className="w-4 h-4 text-gray-400 flex-shrink-0" />
                         )}
                         <span className="truncate">{lesson.title}</span>
                         {lesson.duration_minutes && (
-                          <span className="text-[11px] text-[var(--text-tertiary)] ml-auto flex-shrink-0">
+                          <span className="text-[11px] text-gray-400 ml-auto flex-shrink-0">
                             {lesson.duration_minutes}m
                           </span>
                         )}
@@ -202,9 +202,9 @@ export default function MasterclassPage() {
 
             <div className="flex items-start justify-between mb-8">
               <div>
-                <h2 className="text-[22px] font-bold text-[var(--text-primary)]">{activeLesson.title}</h2>
+                <h2 className="text-[22px] font-bold text-gray-900">{activeLesson.title}</h2>
                 {activeLesson.description && (
-                  <p className="text-[var(--text-secondary)] mt-1">{activeLesson.description}</p>
+                  <p className="text-gray-600 mt-1">{activeLesson.description}</p>
                 )}
               </div>
               <Button
@@ -220,8 +220,8 @@ export default function MasterclassPage() {
             {/* Lesson tasks */}
             {activeLesson.lesson_tasks && activeLesson.lesson_tasks.length > 0 && (
               <Card padding="md" className="mt-8">
-                <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-5 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-[#E31B23]" />
+                <h3 className="text-[15px] font-semibold text-gray-900 mb-5 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-red-600" />
                   Aufgaben
                 </h3>
                 <div className="space-y-5">
@@ -231,16 +231,16 @@ export default function MasterclassPage() {
                         type="checkbox"
                         checked={taskProgress[task.id] || false}
                         onChange={() => toggleTaskCompleted(task.id)}
-                        className="mt-0.5 w-5 h-5 rounded-[var(--radius-xs)] border-[var(--border-default)] text-[#E31B23] accent-[#E31B23]"
+                        className="mt-0.5 w-5 h-5 rounded border-gray-200 text-red-600 accent-[#E31B23]"
                       />
                       <div>
                         <span className={`text-[15px] font-medium ${
-                          taskProgress[task.id] ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'
+                          taskProgress[task.id] ? 'text-gray-400 line-through' : 'text-gray-900'
                         }`}>
                           {task.title}
                         </span>
                         {task.description && (
-                          <p className="text-[14px] text-[var(--text-secondary)] mt-0.5">{task.description}</p>
+                          <p className="text-[14px] text-gray-600 mt-0.5">{task.description}</p>
                         )}
                       </div>
                     </label>
@@ -251,9 +251,9 @@ export default function MasterclassPage() {
           </div>
         ) : (
           <Card padding="lg" className="text-center">
-            <GraduationCap className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-            <h2 className="text-[18px] font-bold text-[var(--text-primary)] mb-2">Wähle eine Lektion</h2>
-            <p className="text-[var(--text-secondary)]">
+            <GraduationCap className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-[18px] font-bold text-gray-900 mb-2">Wähle eine Lektion</h2>
+            <p className="text-gray-600">
               Klicke auf eine Lektion links, um mit der Masterclass zu beginnen.
             </p>
           </Card>
