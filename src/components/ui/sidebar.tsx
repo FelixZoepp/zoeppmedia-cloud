@@ -35,7 +35,7 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       <Link
         key={item.id}
         href={item.href}
-        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
           isActive
             ? 'bg-red-50 text-red-600'
             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'

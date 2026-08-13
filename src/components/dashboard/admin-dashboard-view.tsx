@@ -36,7 +36,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
   const kw = getISOWeek(now);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
 
       {/* Top Bar */}
       <div className="flex items-center justify-between">
@@ -64,7 +64,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
         <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
           {dayName} &middot; KW {kw}
         </span>
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mt-1">
+        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight mt-2">
           {getGreeting()}, Felix.
         </h1>
       </div>
@@ -93,12 +93,12 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
 
       {/* Charts */}
       <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Recruiting</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber-Entwicklung</h2>
           <CandidatesChart data={data.candidatesOverTime} />
         </div>
-        <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Quellen</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Quellen-Verteilung</h2>
           <SourceDonut data={data.sourceBreakdown} />
@@ -107,7 +107,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
 
       {/* Recent + Sources */}
       <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Letzte Aktivität</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1">Neue Bewerber</h2>
           {data.recentCandidates.length === 0 ? (
@@ -130,7 +130,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
             </div>
           )}
         </div>
-        <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Kanäle</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber nach Quelle</h2>
           <SourcesChart data={data.sourceBreakdown} />
@@ -138,7 +138,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       </div>
 
       {/* Agencies Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Portfolio</span>
@@ -181,7 +181,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       </div>
 
       {/* Status Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Monitoring</span>
@@ -234,24 +234,24 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
 
 function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; iconBg: string; label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-9 h-9 rounded-full ${iconBg} flex items-center justify-center`}>{icon}</div>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-8 py-7">
+      <div className="flex items-start justify-between mb-4">
+        <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center`}>{icon}</div>
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
       </div>
-      <span className="text-3xl font-extrabold text-gray-900 leading-none block">{value}</span>
-      <span className="text-xs text-gray-400 uppercase tracking-wider mt-1.5 block">{sub}</span>
+      <span className="text-4xl font-extrabold text-gray-900 leading-none block">{value}</span>
+      <span className="text-xs text-gray-400 uppercase tracking-wider mt-2 block">{sub}</span>
     </div>
   );
 }
 
 function QuickAction({ icon, color, title, desc, href }: { icon: React.ReactNode; color: string; title: string; desc: string; href: string }) {
   return (
-    <Link href={href} className="group bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center mb-4`}>{icon}</div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-0.5">{title}</h3>
-      <p className="text-xs text-gray-400">{desc}</p>
-      <span className="text-xs font-semibold text-red-600 mt-3 block group-hover:translate-x-0.5 transition-transform">Öffnen →</span>
+    <Link href={href} className="group bg-white p-8 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+      <div className={`w-14 h-14 rounded-xl ${color} flex items-center justify-center mb-5`}>{icon}</div>
+      <h3 className="text-base font-semibold text-gray-900 mb-1">{title}</h3>
+      <p className="text-sm text-gray-400">{desc}</p>
+      <span className="text-sm font-semibold text-red-600 mt-4 block group-hover:translate-x-0.5 transition-transform">Öffnen →</span>
     </Link>
   );
 }

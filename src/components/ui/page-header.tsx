@@ -17,7 +17,7 @@ export function PageHeader({ label, title, description, action, counter }: PageH
             {label}
           </span>
         )}
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-gray-900">
           {title}
         </h1>
         {description && (
