@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { logActivity } from '@/lib/activity/log';
 
 const validTransitions: Record<string, string[]> = {
   draft:             ['internal_review'],
@@ -72,6 +73,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Log content approval / rejection to activity_log
+  if (body.status && body.status !== existing.status) {
+    const isApproval = body.status === 'approved' || body.status === 'approved_internal';
+    const isRejection = body.status === 'changes_requested';
+    if (isApproval || isRejection) {
+      await logActivity(supabase, {
+        agency_id: existing.agency_id,
+        user_id: currentUser.id,
+        action: isApproval
+          ? `Inhalt freigegeben (${body.status})`
+          : `Änderungen angefordert`,
+        action_type: isApproval ? 'content_approval' : 'content_rejection',
+        metadata: { content_id: id, from_status: existing.status, to_status: body.status },
+      });
+    }
+  }
 
   // Log all meaningful status transitions to approval_log
   const statusToAction: Record<string, string> = {

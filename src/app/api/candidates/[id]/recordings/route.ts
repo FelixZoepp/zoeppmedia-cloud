@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { transcribeAudio } from '@/lib/recordings/transcribe';
 import { analyzeCallRecording } from '@/lib/recordings/analyze';
+import { logActivity } from '@/lib/activity/log';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -86,6 +87,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // 3. Transcribe in background (don't block response)
   processRecording(admin, recording.id, buffer, file.name, candidate.agency_id, recordingType).catch(() => {});
+
+  await logActivity(supabase, {
+    agency_id: candidate.agency_id,
+    user_id: user.id,
+    candidate_id: id,
+    action: `Gesprächsaufnahme hochgeladen: ${file.name}`,
+    action_type: 'recording_upload',
+    metadata: { recording_type: recordingType, file_name: file.name, file_size_bytes: file.size },
+  });
 
   return NextResponse.json(recording, { status: 201 });
 }

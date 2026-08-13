@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { logActivity } from '@/lib/activity/log';
 
 export async function GET(
   _request: NextRequest,
@@ -58,5 +59,15 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logActivity(supabase, {
+    agency_id: candidate.agency_id,
+    user_id: user.id,
+    candidate_id: id,
+    action: `Anruf erfasst: ${body.result}`,
+    action_type: 'call',
+    metadata: { result: body.result, next_step: body.next_step ?? null },
+  });
+
   return NextResponse.json(data, { status: 201 });
 }

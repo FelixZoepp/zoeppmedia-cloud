@@ -610,6 +610,45 @@ export interface CalendlyEvent {
 
 export type BranchKey = 'solar' | 'glasfaser' | 'strom_gas' | 'telko' | 'versicherung';
 
+// Activity Log
+
+export type ActivityActionType =
+  | 'login'
+  | 'call'
+  | 'stage_change'
+  | 'note'
+  | 'content_approval'
+  | 'content_rejection'
+  | 'recording_upload'
+  | 'onboarding_complete'
+  | 'survey_submitted'
+  | 'funnel_published'
+  | 'candidate_created'
+  | 'invite_sent'
+  | 'email_sent'
+  | 'task_completed'
+  | 'other';
+
+export interface ActivityLogEntry {
+  id: string;
+  agency_id: string | null;
+  user_id: string | null;
+  candidate_id: string | null;
+  action: string;
+  action_type: ActivityActionType;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface LoginHistoryEntry {
+  id: string;
+  user_id: string;
+  agency_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
 export interface BranchProfile {
   id: string;
   branch: BranchKey;

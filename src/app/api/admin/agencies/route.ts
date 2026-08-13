@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { sendInviteEmail } from '@/lib/email/resend';
+import { logActivity } from '@/lib/activity/log';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -94,6 +95,14 @@ export async function POST(request: Request) {
   } catch {
     // Email failed but invite was created — log but don't fail
   }
+
+  const admin2 = createAdminClient();
+  await logActivity(admin2, {
+    agency_id: agency.id,
+    action: `Einladung gesendet an ${email}`,
+    action_type: 'invite_sent',
+    metadata: { email, agency_name: name },
+  });
 
   return NextResponse.json({ agency, invite_url });
 }

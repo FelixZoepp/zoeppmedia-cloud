@@ -6,10 +6,11 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Mail, Phone, Megaphone, Layers, StickyNote, Clock, CalendarCheck } from 'lucide-react';
-import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem, CallRecording, CalendlyEvent } from '@/lib/types/database';
+import { ArrowLeft, Mail, Phone, Megaphone, Layers, StickyNote, Clock, CalendarCheck, History } from 'lucide-react';
+import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem, CallRecording, CalendlyEvent, ActivityLogEntry } from '@/lib/types/database';
 import { CallTracker } from '@/components/call-tracker';
 import { CallRecordingsPanel } from '@/components/call-recording';
+import { ActivityFeed } from '@/components/activity-feed';
 
 type StageHistoryEntry = CandidateStage & { stage: PipelineStage; user: { name: string } | null };
 type NoteWithUser = Note & { user: { name: string } };
@@ -32,6 +33,7 @@ export default function CandidateDetailPage() {
   const [phoneScript, setPhoneScript] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<CallRecording[]>([]);
   const [calendlyEvents, setCalendlyEvents] = useState<CalendlyEvent[]>([]);
+  const [timeline, setTimeline] = useState<ActivityLogEntry[]>([]);
 
   useEffect(() => {
     fetch(`/api/candidates/${id}`)
@@ -58,6 +60,12 @@ export default function CandidateDetailPage() {
         fetch(`/api/calendly/events?candidate_id=${id}`)
           .then((r) => r.json())
           .then((events) => { if (Array.isArray(events)) setCalendlyEvents(events); })
+          .catch(() => {});
+
+        // Fetch activity timeline
+        fetch(`/api/activity?candidate_id=${id}&limit=100`)
+          .then((r) => r.json())
+          .then((entries) => { if (Array.isArray(entries)) setTimeline(entries); })
           .catch(() => {});
 
         // Fetch approved phone script for this agency
@@ -386,6 +394,25 @@ export default function CandidateDetailPage() {
           onRecordingAdded={(rec) => setRecordings((prev) => [rec, ...prev])}
         />
       </div>
+
+      {/* Chronik / Activity Timeline */}
+      <Card padding="md" className="mt-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <History className="w-5 h-5 text-gray-600" />
+          </div>
+          <h2 className="text-sm font-semibold text-gray-900">Chronik</h2>
+          {timeline.length > 0 && (
+            <Badge tone="neutral">{timeline.length}</Badge>
+          )}
+        </div>
+        <div className="pl-12">
+          <ActivityFeed
+            entries={timeline}
+            emptyText="Noch keine Aktivitäten für diesen Bewerber."
+          />
+        </div>
+      </Card>
     </div>
   );
 }

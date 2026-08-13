@@ -10,9 +10,10 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
-  BookOpen, CheckCircle, ChevronRight, Target,
+  BookOpen, CheckCircle, ChevronRight, Target, Activity, ExternalLink,
 } from 'lucide-react';
-import type { Agency, AgencyProblem, PlaybookEntry } from '@/lib/types/database';
+import type { Agency, AgencyProblem, PlaybookEntry, ActivityLogEntry, PerspectiveFunnel } from '@/lib/types/database';
+import { ActivityFeed } from '@/components/activity-feed';
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -25,6 +26,13 @@ interface KpiItem {
   isOverride: boolean;
   defaultValue: number;
 }
+
+type LoginHistoryStats = {
+  entries: { id: string; created_at: string; ip_address: string | null }[];
+  last7: number;
+  last30: number;
+  lastLogin: string | null;
+};
 
 type AgencyDetail = {
   agency: Agency;
@@ -262,6 +270,9 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activePlaybook, setActivePlaybook] = useState<PlaybookEntry | null>(null);
   const [overrideKpi, setOverrideKpi] = useState<{ key: string; value: number } | null>(null);
+  const [activityEntries, setActivityEntries] = useState<ActivityLogEntry[]>([]);
+  const [loginStats, setLoginStats] = useState<LoginHistoryStats | null>(null);
+  const [funnels, setFunnels] = useState<PerspectiveFunnel[]>([]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -274,6 +285,30 @@ export default function ClientDetailPage() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    // Activity feed (last 20 entries)
+    fetch(`/api/activity?agency_id=${id}&limit=20`)
+      .then((r) => r.json())
+      .then((entries) => { if (Array.isArray(entries)) setActivityEntries(entries); })
+      .catch(() => {});
+
+    // Login history stats
+    fetch(`/api/activity/login-history?agency_id=${id}&limit=100`)
+      .then((r) => r.json())
+      .then((stats) => { if (stats?.lastLogin !== undefined) setLoginStats(stats); })
+      .catch(() => {});
+
+    // Perspective funnels (fetch all, filter client-side)
+    fetch(`/api/perspective/funnels`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) {
+          setFunnels(d.filter((f: PerspectiveFunnel) => f.agency_id === id));
+        }
+      })
+      .catch(() => {});
+  }, [id]);
 
   async function resolveProblem(problemId: string) {
     await fetch(`/api/problems/${problemId}`, { method: 'PATCH' });
@@ -469,27 +504,124 @@ export default function ClientDetailPage() {
         </div>
       </Card>
 
-      {/* Activity */}
+      {/* ── Aktivität ──────────────────────────────────── */}
       <Card padding="lg" className="mb-6">
-        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">
-          Aktivitat
-        </h2>
-        <div className="flex items-center gap-3">
-          <span className="text-gray-600 text-sm">Letzter Login:</span>
-          {lastLogin ? (
-            <Badge tone="success">
-              {new Date(lastLogin).toLocaleDateString('de-DE', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Badge>
-          ) : (
-            <Badge tone="outline">Nie</Badge>
-          )}
+        <div className="flex items-center gap-2 mb-6">
+          <Activity size={16} className="text-red-600" />
+          <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+            Aktivität
+          </h2>
         </div>
+
+        {/* Login stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Letzter Login</p>
+            {loginStats?.lastLogin ? (
+              <>
+                <p className="text-sm font-semibold text-gray-900">
+                  {new Date(loginStats.lastLogin).toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })}
+                </p>
+                {/* Inactivity warning */}
+                {(() => {
+                  const daysSince = Math.floor(
+                    (Date.now() - new Date(loginStats.lastLogin).getTime()) / 86400000
+                  );
+                  return daysSince >= 3 ? (
+                    <p className="text-xs text-red-600 font-medium mt-1">
+                      Inaktiv seit {daysSince} Tagen
+                    </p>
+                  ) : null;
+                })()}
+              </>
+            ) : (
+              <p className="text-sm font-semibold text-gray-400">Nie</p>
+            )}
+          </div>
+          <div className="p-4 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Logins letzte 7 Tage</p>
+            <p className="text-2xl font-extrabold text-gray-900">
+              {loginStats?.last7 ?? '—'}
+            </p>
+          </div>
+          <div className="p-4 bg-gray-50 rounded-xl">
+            <p className="text-xs text-gray-400 mb-1">Logins letzte 30 Tage</p>
+            <p className="text-2xl font-extrabold text-gray-900">
+              {loginStats?.last30 ?? '—'}
+            </p>
+          </div>
+        </div>
+
+        {/* Call activity today / this week */}
+        {(() => {
+          const now = Date.now();
+          const todayCalls = activityEntries.filter(
+            (e) => e.action_type === 'call' && now - new Date(e.created_at).getTime() < 86400000
+          ).length;
+          const weekCalls = activityEntries.filter(
+            (e) => e.action_type === 'call' && now - new Date(e.created_at).getTime() < 7 * 86400000
+          ).length;
+          return (todayCalls > 0 || weekCalls > 0) ? (
+            <div className="flex items-center gap-4 mb-6 text-sm text-gray-600">
+              <span>Anrufe heute: <strong className="text-gray-900">{todayCalls}</strong></span>
+              <span className="text-gray-300">|</span>
+              <span>Anrufe diese Woche: <strong className="text-gray-900">{weekCalls}</strong></span>
+            </div>
+          ) : null;
+        })()}
+
+        {/* Activity feed */}
+        <ActivityFeed
+          entries={activityEntries}
+          compact
+          emptyText="Noch keine Aktivitäten für diesen Kunden."
+        />
+      </Card>
+
+      {/* ── Funnel ─────────────────────────────────────── */}
+      <Card padding="lg" className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-6">
+          Funnel
+        </h2>
+        {funnels.length === 0 ? (
+          <p className="text-sm text-gray-400">Kein Funnel vorhanden.</p>
+        ) : (
+          <div className="space-y-4">
+            {funnels.map((f) => (
+              <div key={f.id} className="flex items-center justify-between gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{f.name}</p>
+                  {f.url && (
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{f.url}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-2">
+                    <Badge tone={f.status === 'published' ? 'success' : 'neutral'}>
+                      {f.status === 'published' ? 'Veröffentlicht' : f.status === 'archived' ? 'Archiviert' : 'Entwurf'}
+                    </Badge>
+                    <span className="text-xs text-gray-400">
+                      {sourceBreakdown.meta} Bewerber aus Meta
+                    </span>
+                  </div>
+                </div>
+                {f.url && (
+                  <a
+                    href={f.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 transition-colors"
+                  >
+                    <ExternalLink size={13} />
+                    Öffnen
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Upsell Signals */}

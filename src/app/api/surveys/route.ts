@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activity/log';
 
 export async function GET(req: Request) {
   const supabase = await createServerClient();
@@ -52,5 +53,14 @@ export async function POST(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logActivity(supabase, {
+    agency_id: profile.agency_id,
+    user_id: user.id,
+    action: 'Umfrage ausgefüllt',
+    action_type: 'survey_submitted',
+    metadata: { template_id: body.template_id, rating: body.rating ?? null },
+  });
+
   return NextResponse.json(data);
 }

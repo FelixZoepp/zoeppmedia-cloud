@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activity/log';
 
 export async function POST(req: Request) {
   const supabase = await createServerClient();
@@ -61,6 +62,14 @@ export async function POST(req: Request) {
       sort_order: t.sort_order,
     }))
   );
+
+  await logActivity(supabase, {
+    agency_id: profile.agency_id,
+    user_id: user.id,
+    action: 'Onboarding abgeschlossen',
+    action_type: 'onboarding_complete',
+    metadata: { submission_id: data.id },
+  });
 
   return NextResponse.json(data);
 }

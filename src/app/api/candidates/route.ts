@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { logActivity } from '@/lib/activity/log';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -64,6 +65,15 @@ export async function POST(request: Request) {
     candidate_id: candidate.id,
     stage_id: stage!.id,
     changed_by: user.id,
+  });
+
+  await logActivity(supabase, {
+    agency_id: profile.agency_id,
+    user_id: user.id,
+    candidate_id: candidate.id,
+    action: `Bewerber erstellt: ${candidate.name}`,
+    action_type: 'candidate_created',
+    metadata: { source: candidate.source },
   });
 
   return NextResponse.json(candidate, { status: 201 });
