@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     agency_id: invite.agency_id,
     email,
     name,
-    role: 'owner',
+    role: 'agency_owner',
   });
 
   if (userError) {
