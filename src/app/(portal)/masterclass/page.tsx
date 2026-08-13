@@ -104,7 +104,7 @@ export default function MasterclassPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -115,12 +115,12 @@ export default function MasterclassPage() {
   const progressPercent = totalLessons > 0 ? Math.round((watchedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="flex gap-10">
+    <div className="flex gap-8">
       {/* Left sidebar: module list */}
       <div className="w-72 flex-shrink-0">
         <div className="flex items-center gap-4 mb-8">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-red-500" />
+            <GraduationCap className="w-5 h-5 text-[#E31B23]" />
           </div>
           <div>
             <h1 className="text-[18px] font-bold text-[var(--text-primary)]">Masterclass</h1>
@@ -131,7 +131,7 @@ export default function MasterclassPage() {
         {/* Progress bar */}
         <div className="w-full h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden mb-8">
           <div
-            className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all"
+            className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -169,7 +169,7 @@ export default function MasterclassPage() {
                         onClick={() => setActiveLesson(lesson)}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-pill)] text-left text-[14px] transition-colors cursor-pointer ${
                           isActive
-                            ? 'bg-red-50 border border-red-200 text-red-600 font-medium'
+                            ? 'bg-red-50 border border-red-200 text-[#C00015] font-medium'
                             : 'text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent'
                         }`}
                       >
@@ -221,7 +221,7 @@ export default function MasterclassPage() {
             {activeLesson.lesson_tasks && activeLesson.lesson_tasks.length > 0 && (
               <Card padding="md" className="mt-8">
                 <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-5 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-red-500" />
+                  <BookOpen className="w-4 h-4 text-[#E31B23]" />
                   Aufgaben
                 </h3>
                 <div className="space-y-5">
@@ -231,7 +231,7 @@ export default function MasterclassPage() {
                         type="checkbox"
                         checked={taskProgress[task.id] || false}
                         onChange={() => toggleTaskCompleted(task.id)}
-                        className="mt-0.5 w-5 h-5 rounded-[var(--radius-xs)] border-[var(--border-default)] text-red-500 accent-[var(--red-500)]"
+                        className="mt-0.5 w-5 h-5 rounded-[var(--radius-xs)] border-[var(--border-default)] text-[#E31B23] accent-[#E31B23]"
                       />
                       <div>
                         <span className={`text-[15px] font-medium ${

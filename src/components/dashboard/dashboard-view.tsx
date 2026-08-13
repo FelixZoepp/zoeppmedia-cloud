@@ -40,7 +40,7 @@ function getISOWeek(date: Date): number {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-gray-100 rounded-[24px] p-14 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
+    <div className={`bg-white/75 backdrop-blur-[20px] border border-[var(--border-default)] rounded-[16px] p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${className}`}>
       {children}
     </div>
   );
@@ -48,7 +48,7 @@ function DashCard({ children, className = '' }: { children: React.ReactNode; cla
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.08em]">
+    <span className="label-caps text-[#E31B23]">
       {children}
     </span>
   );
@@ -56,8 +56,8 @@ function SectionLabel({ children }: { children: string }) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-[24px] px-10 py-10 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <span className="text-[13px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.08em] block mb-4">
+    <div className="bg-white/75 backdrop-blur-[20px] border border-[var(--border-default)] rounded-[16px] px-8 py-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <span className="label-caps text-[var(--text-tertiary)] block mb-4">
         {label}
       </span>
       <span className="text-[42px] font-extrabold text-[var(--text-primary)] leading-none tracking-tight block">
@@ -85,7 +85,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
   const hireRate = data.totalCandidates > 0 ? Math.round((data.hired / data.totalCandidates) * 100) : 0;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
 
       {/* ── Pending Survey Banner ─────────────────────────── */}
       {pendingSurveys > 0 && (
@@ -112,7 +112,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
 
       {/* ── Page Header ──────────────────────────────────── */}
       <div>
-        <span className="text-[11px] font-bold text-red-500 uppercase tracking-[0.08em]">
+        <span className="label-caps text-[#E31B23]">
           {dayName} &middot; KW {kw}
         </span>
         <h1 className="text-[28px] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] leading-[1.1] mt-1">
@@ -121,7 +121,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-4 gap-5">
         <KpiCard label="BEWERBER" value={String(data.totalCandidates)} sub="Gesamt" />
         <KpiCard label="NEU DIESE WOCHE" value={String(data.newThisWeek)} sub={`KW ${kw}`} />
         <KpiCard label="EINGESTELLT" value={String(data.hired)} sub="Gesamt" />
@@ -129,7 +129,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
-      <div className="grid grid-cols-5 gap-6">
+      <div className="grid grid-cols-5 gap-5">
         <DashCard className="col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">
@@ -148,7 +148,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── Row 3: Pipeline + Source Bar ──────────────────── */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-5">
         <DashCard>
           <SectionLabel>Pipeline</SectionLabel>
           <h2 className="text-[18px] font-bold text-[var(--text-primary)] mt-1 mb-5">

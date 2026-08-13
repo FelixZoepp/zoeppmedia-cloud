@@ -181,7 +181,7 @@ export default function AdminMasterclassPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -199,7 +199,7 @@ export default function AdminMasterclassPage() {
         }
       />
 
-      <div className="space-y-8">
+      <div className="space-y-5">
         {modules.map((mod) => {
           const modLessons = lessons.filter((l) => l.module_id === mod.id);
           const isExpanded = expandedModule === mod.id;
@@ -251,7 +251,7 @@ export default function AdminMasterclassPage() {
 
       {/* Module Modal */}
       <Modal open={showModuleModal} onClose={() => setShowModuleModal(false)} title={editingModule ? 'Modul bearbeiten' : 'Neues Modul'}>
-        <div className="space-y-8">
+        <div className="space-y-5">
           <div>
             <label className="block text-[14px] font-medium text-[var(--text-secondary)] mb-1.5">Titel</label>
             <Input value={moduleTitle} onChange={(e) => setModuleTitle(e.target.value)} placeholder="z.B. Bewerber-Management" />

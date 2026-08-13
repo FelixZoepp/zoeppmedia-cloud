@@ -86,12 +86,12 @@ export function CallTracker({
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* Script Panel */}
       <Card padding="md">
         <div className="flex items-center gap-4 mb-8">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
-            <Phone className="w-5 h-5 text-red-500" />
+            <Phone className="w-5 h-5 text-[#E31B23]" />
           </div>
           <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Telefon-Skript</h2>
         </div>
@@ -118,7 +118,7 @@ export function CallTracker({
       </Card>
 
       {/* Log Form + History */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         <Card padding="md">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
@@ -135,7 +135,7 @@ export function CallTracker({
                   key={opt.value}
                   className={`flex items-center gap-2 p-3 rounded-lg border text-[13px] cursor-pointer transition-colors ${
                     result === opt.value
-                      ? 'border-red-300 bg-red-50 text-red-700 font-medium'
+                      ? 'border-[#E31B23]/30 bg-red-50 text-[#C00015] font-medium'
                       : 'border-gray-200 text-[var(--text-primary)] hover:border-gray-300'
                   }`}
                 >
@@ -158,7 +158,7 @@ export function CallTracker({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Notiz zum Anruf..."
               rows={2}
-              className="w-full rounded-[var(--radius-md)] border border-gray-200 px-4 py-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-red-300 focus:ring-1 focus:ring-red-200 outline-none resize-none"
+              className="w-full rounded-[10px] border border-[var(--border-default)] px-4 py-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] outline-none resize-none bg-white/60 backdrop-blur-sm"
             />
 
             {/* Next step + date */}
@@ -174,7 +174,7 @@ export function CallTracker({
                 type="date"
                 value={nextDate}
                 onChange={(e) => setNextDate(e.target.value)}
-                className="rounded-[var(--radius-md)] border border-gray-200 px-3 py-2 text-[15px] text-[var(--text-primary)] outline-none focus:border-red-300 focus:ring-1 focus:ring-red-200"
+                className="rounded-[10px] border border-[var(--border-default)] px-3 py-2 text-[15px] text-[var(--text-primary)] outline-none focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] bg-white/60 backdrop-blur-sm"
               />
             </div>
 

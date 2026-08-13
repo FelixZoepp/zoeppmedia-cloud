@@ -65,7 +65,7 @@ function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, c
           )}
           <button
             onClick={() => onOverride(kpi.key, kpi.value)}
-            className="text-[11px] font-semibold text-red-500 hover:text-red-600 uppercase tracking-wide transition-colors"
+            className="text-[11px] font-semibold text-[#E31B23] hover:text-[#C00015] uppercase tracking-wide transition-colors"
           >
             Ziel anpassen
           </button>
@@ -73,7 +73,7 @@ function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, c
       </div>
       <div className="w-full h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${isGood ? 'bg-green-500' : 'bg-red-500'}`}
+          className={`h-full rounded-full transition-all duration-500 ${isGood ? 'bg-green-500' : 'bg-[#E31B23]'}`}
           style={{ width: `${barWidth}%` }}
         />
       </div>
@@ -105,7 +105,7 @@ function ProblemAlert({
     >
       <AlertTriangle
         size={16}
-        className={`mt-0.5 shrink-0 ${isCritical ? 'text-red-500' : 'text-amber-500'}`}
+        className={`mt-0.5 shrink-0 ${isCritical ? 'text-[#E31B23]' : 'text-amber-500'}`}
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
@@ -127,7 +127,7 @@ function ProblemAlert({
           {playbook && (
             <button
               onClick={() => onPlaybook(playbook)}
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-600 hover:text-red-700 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#C00015] hover:text-[#E31B23] transition-colors"
             >
               <BookOpen size={12} />
               Playbook anzeigen
@@ -159,7 +159,7 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
           <ul className="space-y-1.5">
             {entry.causes.map((c, i) => (
               <li key={i} className="flex items-start gap-2 text-[13px] text-[var(--text-primary)]">
-                <ChevronRight size={14} className="text-red-500 mt-0.5 shrink-0" />
+                <ChevronRight size={14} className="text-[#E31B23] mt-0.5 shrink-0" />
                 {c}
               </li>
             ))}
@@ -287,7 +287,7 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -338,10 +338,10 @@ export default function ClientDetailPage() {
 
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (
-        <Card padding="lg" className="mb-10 !border-red-200">
+        <Card padding="lg" className="mb-8 !border-red-200">
           <div className="flex items-center gap-2 mb-5">
-            <AlertTriangle size={16} className="text-red-500 shrink-0" />
-            <h2 className="text-[14px] font-bold text-red-600 uppercase tracking-wide">
+            <AlertTriangle size={16} className="text-[#E31B23] shrink-0" />
+            <h2 className="text-[14px] font-bold text-[#C00015] uppercase tracking-wide">
               Aktive Probleme
             </h2>
             <div className="flex items-center gap-2 ml-auto">
@@ -368,12 +368,12 @@ export default function ClientDetailPage() {
       )}
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         {summaryKpis.map((kpi) => (
           <Card key={kpi.label} padding="md">
             <div className="flex items-center gap-5 mb-5">
               <div className={`w-9 h-9 rounded-[var(--radius-md)] flex items-center justify-center ${
-                kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'
+                kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-[#E31B23]'
               }`}>
                 {kpi.icon}
               </div>
@@ -392,14 +392,14 @@ export default function ClientDetailPage() {
 
       {/* ── KPI Soll/Ist Bars ──────────────────────────── */}
       {kpis.length > 0 && (
-        <Card padding="lg" className="mb-10">
+        <Card padding="lg" className="mb-8">
           <div className="flex items-center gap-2 mb-8">
-            <Target size={16} className="text-red-500" />
+            <Target size={16} className="text-[#E31B23]" />
             <h2 className="text-[14px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
               KPI Soll / Ist
             </h2>
           </div>
-          <div className="space-y-8">
+          <div className="space-y-5">
             {kpis.map((kpi) => (
               <KpiBar
                 key={kpi.key}
@@ -450,13 +450,13 @@ export default function ClientDetailPage() {
         <div className="grid grid-cols-3 gap-8">
           <div className="text-center">
             <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-red-50 flex items-center justify-center mx-auto mb-2">
-              <span className="text-2xl font-extrabold text-red-500">{sourceBreakdown.meta}</span>
+              <span className="text-2xl font-extrabold text-[#E31B23]">{sourceBreakdown.meta}</span>
             </div>
             <p className="text-[var(--text-sm)] text-[var(--text-secondary)] font-medium">Meta</p>
           </div>
           <div className="text-center">
             <div className="w-14 h-14 rounded-[var(--radius-lg)] bg-red-50 flex items-center justify-center mx-auto mb-2">
-              <span className="text-2xl font-extrabold text-red-500">{sourceBreakdown.indeed}</span>
+              <span className="text-2xl font-extrabold text-[#E31B23]">{sourceBreakdown.indeed}</span>
             </div>
             <p className="text-[var(--text-sm)] text-[var(--text-secondary)] font-medium">Indeed</p>
           </div>

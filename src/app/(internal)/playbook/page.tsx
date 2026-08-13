@@ -66,7 +66,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               <ul className="space-y-3">
                 {entry.causes.map((cause, i) => (
                   <li key={i} className="flex items-start gap-2 text-[14px] text-[var(--text-primary)]">
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#E31B23]/70 flex-shrink-0" />
                     {cause}
                   </li>
                 ))}
@@ -83,7 +83,7 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               <ol className="space-y-3">
                 {entry.immediate_actions.map((action, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-[14px] text-[var(--text-primary)]">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#E31B23] text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
                       {i + 1}
                     </span>
                     {action}
@@ -114,9 +114,9 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {entry.escalation_trigger && (
             <Card inset padding="sm" className="border-red-100 bg-red-50">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-[#E31B23] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[12px] font-bold text-red-500 uppercase tracking-wide mb-0.5">
+                  <p className="text-[12px] font-bold text-[#E31B23] uppercase tracking-wide mb-0.5">
                     Eskalations-Trigger
                   </p>
                   <p className="text-[14px] text-red-700 leading-relaxed">
@@ -168,7 +168,7 @@ export default function PlaybookPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -193,7 +193,7 @@ export default function PlaybookPage() {
       </div>
 
       {/* Accordion list */}
-      <div className="space-y-8">
+      <div className="space-y-5">
         {filtered.length === 0 ? (
           <Card padding="lg">
             <p className="text-center text-[14px] text-[var(--text-tertiary)]">

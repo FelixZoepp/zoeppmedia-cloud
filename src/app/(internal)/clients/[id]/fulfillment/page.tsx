@@ -246,7 +246,7 @@ export default function FulfillmentPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -267,14 +267,14 @@ export default function FulfillmentPage() {
         action={
           <div className="w-24 h-2 bg-[var(--surface-inset)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all"
+              className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all"
               style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
             />
           </div>
         }
       />
 
-      <div className="space-y-8">
+      <div className="space-y-5">
         {tasks.map((task) => {
           const config = statusConfig[task.status] || statusConfig.pending;
           const actionBtn = getActionButton(task);
@@ -282,7 +282,7 @@ export default function FulfillmentPage() {
           return (
             <Card key={task.id} padding="md" className="flex items-center gap-6">
               <div className={`w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center flex-shrink-0 ${
-                task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'
+                task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-[#E31B23]'
               }`}>
                 {task.status === 'done' ? <Check className="w-5 h-5" /> : (taskIcons[task.task_type] ?? <MoreHorizontal className="w-5 h-5" />)}
               </div>

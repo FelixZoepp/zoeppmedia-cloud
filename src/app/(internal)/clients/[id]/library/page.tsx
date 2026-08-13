@@ -116,7 +116,7 @@ export default function LibraryPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -137,7 +137,7 @@ export default function LibraryPage() {
       />
 
       {/* Filter */}
-      <div className="mb-10 overflow-x-auto">
+      <div className="mb-8 overflow-x-auto">
         <SegmentedControl
           items={contentTypeSegments}
           value={filter}
@@ -147,15 +147,15 @@ export default function LibraryPage() {
 
       {/* Content grouped by type */}
       {filter === 'all' ? (
-        <div className="space-y-10">
+        <div className="space-y-8">
           {Object.entries(contentTypeConfig).map(([type, config]) => {
             const typeItems = grouped[type];
             if (!typeItems || typeItems.length === 0) return null;
 
             return (
               <div key={type}>
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-red-50 text-red-500 flex items-center justify-center">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-8 h-8 rounded-[var(--radius-sm)] bg-red-50 text-[#E31B23] flex items-center justify-center">
                     {config.icon}
                   </div>
                   <h2 className="text-[15px] font-bold text-[var(--text-primary)]">
@@ -166,7 +166,7 @@ export default function LibraryPage() {
                   </span>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {typeItems.map((item) => (
                     <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
                   ))}
@@ -395,7 +395,7 @@ function ContentCard({
     >
       {/* Clickable area */}
       <div
-        className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0 cursor-pointer"
+        className="w-10 h-10 rounded-[var(--radius-md)] bg-red-50 text-[#E31B23] flex items-center justify-center flex-shrink-0 cursor-pointer"
         onClick={onView}
       >
         {typeConfig.icon}

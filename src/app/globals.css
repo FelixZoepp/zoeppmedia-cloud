@@ -4,49 +4,52 @@
 @import "../styles/tokens/typography.css";
 @import "../styles/tokens/spacing.css";
 
+/* Hanken Grotesk + JetBrains Mono from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+
 @theme {
-  /* Colors */
-  --color-red-50: #FDF0F2;
-  --color-red-100: #FADEE2;
-  --color-red-200: #F5BFC7;
-  --color-red-300: #F09AA6;
-  --color-red-400: #EA6A7C;
-  --color-red-500: #E0354B;
-  --color-red-600: #C92B40;
-  --color-red-700: #A62134;
-  --color-red-800: #701622;
-  --color-red-900: #3A0D14;
+  /* Colors – Liquid Glass */
+  --color-red-50: #FFF5F5;
+  --color-red-100: #FFDAD6;
+  --color-red-200: #FFB4AC;
+  --color-red-300: #FF897E;
+  --color-red-400: #E31B23;
+  --color-red-500: #C00015;
+  --color-red-600: #93000D;
+  --color-red-700: #690006;
+  --color-red-800: #410002;
+  --color-red-900: #2D0001;
 
   --color-gray-000: #FFFFFF;
-  --color-gray-025: #FAFBFC;
-  --color-gray-050: #F5F6F8;
-  --color-gray-100: #EFF1F4;
-  --color-gray-200: #E7E9ED;
-  --color-gray-300: #D6DAE0;
-  --color-gray-400: #AEB4BD;
-  --color-gray-500: #8B919B;
-  --color-gray-600: #5F646D;
-  --color-gray-700: #41454C;
-  --color-gray-800: #26282D;
-  --color-gray-900: #17181A;
+  --color-gray-025: #F8F9FF;
+  --color-gray-050: #EFF4FF;
+  --color-gray-100: #E5EEFF;
+  --color-gray-200: #DCE9FF;
+  --color-gray-300: #D3E4FE;
+  --color-gray-400: #926E6B;
+  --color-gray-500: #5D3F3C;
+  --color-gray-600: #41454C;
+  --color-gray-700: #213145;
+  --color-gray-800: #0B1C30;
+  --color-gray-900: #0B1C30;
 
   --color-green-100: #E4F7EC;
   --color-green-500: #2FBF71;
   --color-green-700: #1E8A50;
   --color-amber-100: #FCF2E0;
   --color-amber-500: #E8A13C;
-  --color-danger-600: #B3261E;
+  --color-danger-600: #BA1A1A;
 
   /* Font */
-  --font-ui: "Inter Tight", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  --font-ui: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(23,24,26,0.05);
-  --shadow-sm: 0 1px 3px rgba(23,24,26,0.06), 0 4px 12px rgba(23,24,26,0.05);
-  --shadow-md: 0 2px 6px rgba(23,24,26,0.06), 0 12px 28px rgba(23,24,26,0.08);
-  --shadow-lg: 0 4px 12px rgba(23,24,26,0.08), 0 24px 60px rgba(23,24,26,0.12);
-  --shadow-accent: 0 2px 6px rgba(224,53,75,0.35), 0 8px 20px rgba(224,53,75,0.25);
+  /* Shadows – glass-style */
+  --shadow-xs: 0 1px 2px rgba(11,28,48,0.04);
+  --shadow-sm: 0 1px 3px rgba(11,28,48,0.05), 0 4px 12px rgba(11,28,48,0.04);
+  --shadow-md: 0 2px 6px rgba(11,28,48,0.05), 0 12px 28px rgba(11,28,48,0.06);
+  --shadow-lg: 0 4px 12px rgba(11,28,48,0.06), 0 24px 60px rgba(11,28,48,0.10);
+  --shadow-accent: 0 2px 6px rgba(227,27,35,0.25), 0 8px 20px rgba(227,27,35,0.15);
 
   /* Radii */
   --radius-xs: 8px;
@@ -78,7 +81,34 @@ body {
 /* Focus ring utility */
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 3px rgba(227, 27, 35, 0.15);
+}
+
+/* Glass card utility */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-default);
+  border-top-color: var(--border-glass-top);
+  border-left-color: var(--border-glass-side);
+}
+
+.glass-raised {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur-raised));
+  -webkit-backdrop-filter: blur(var(--glass-blur-raised));
+  box-shadow: var(--glass-glow);
+}
+
+/* Label caps utility – JetBrains Mono */
+.label-caps {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* Scrollbar styling */

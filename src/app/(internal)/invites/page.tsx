@@ -250,8 +250,8 @@ export default function InvitesPage() {
       </div>
 
       {/* Agency list with invite status */}
-      <div className="mt-12 max-w-5xl">
-        <div className="flex items-center justify-between mb-8">
+      <div className="mt-8 max-w-5xl">
+        <div className="flex items-center justify-between mb-5">
           <h2 className="text-[var(--text-base)] font-semibold text-[var(--text-primary)]">
             Eingeladene Agenturen
           </h2>
@@ -266,7 +266,7 @@ export default function InvitesPage() {
         ) : agencies.length === 0 ? (
           <p className="text-[var(--text-sm)] text-[var(--text-tertiary)]">Noch keine Agenturen eingeladen.</p>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-5">
             {agencies.map((agency) => {
               const inv = invites[agency.id];
               const emailSent = inv?.email_sent_at;

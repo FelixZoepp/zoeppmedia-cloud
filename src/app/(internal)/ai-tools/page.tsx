@@ -49,12 +49,12 @@ function ConversationItem({
       onClick={onClick}
       className={`w-full text-left px-4 py-3 rounded-[var(--radius-sm)] transition-colors cursor-pointer ${
         active
-          ? 'bg-red-50 border border-red-200 text-red-600'
+          ? 'bg-red-50 border border-red-200 text-[#C00015]'
           : 'text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] border border-transparent'
       }`}
     >
       <div className="flex items-center gap-2 mb-0.5">
-        <span className={`flex-shrink-0 ${active ? 'text-red-500' : 'text-[var(--text-tertiary)]'}`}>
+        <span className={`flex-shrink-0 ${active ? 'text-[#E31B23]' : 'text-[var(--text-tertiary)]'}`}>
           {CONTENT_ICONS[conversation.conversation_type] || <MessageSquare className="w-4 h-4" />}
         </span>
         <span className="text-[14px] font-medium truncate flex-1">
@@ -90,7 +90,7 @@ function ChatBubble({ message }: { message: AIMessage }) {
         <div
           className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
             isUser
-              ? 'bg-gradient-to-b from-[#EF5B6F] to-red-500 text-white'
+              ? 'bg-gradient-to-b from-[#E31B23] to-[#C00015] text-white'
               : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
           }`}
         >
@@ -101,7 +101,7 @@ function ChatBubble({ message }: { message: AIMessage }) {
         <div
           className={`rounded-[var(--radius-lg)] px-6 py-5 ${
             isUser
-              ? 'bg-gradient-to-br from-[#EF5B6F] to-red-500 text-white shadow-[var(--shadow-accent)]'
+              ? 'bg-gradient-to-br from-[#E31B23] to-[#C00015] text-white shadow-[var(--shadow-accent)]'
               : 'bg-white text-[var(--text-primary)] shadow-[var(--shadow-sm)] border border-[var(--border-default)]'
           }`}
         >
@@ -298,7 +298,7 @@ export default function AIToolsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -308,10 +308,10 @@ export default function AIToolsPage() {
   return (
     <div>
       <PageHeader label="FULFILLMENT" title="AI Tools" />
-    <div className="flex gap-8 h-[calc(100vh-128px)]">
+    <div className="flex gap-5 h-[calc(100vh-128px)]">
       {/* Left Sidebar: Conversations */}
       <div className="w-[280px] flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-5">
           <h2 className="text-[15px] font-bold text-[var(--text-primary)]">Unterhaltungen</h2>
           <Button variant="soft" size="sm" onClick={startNewConversation}>
             <Plus className="w-3.5 h-3.5" /> Neu
@@ -322,7 +322,7 @@ export default function AIToolsPage() {
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                <Sparkles className="w-6 h-6 text-red-500" />
+                <Sparkles className="w-6 h-6 text-[#E31B23]" />
               </div>
               <p className="text-[14px] text-[var(--text-secondary)]">
                 Starte eine neue Unterhaltung
@@ -357,7 +357,7 @@ export default function AIToolsPage() {
       {/* Right Main: Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-5 mb-8">
+        <div className="flex items-center gap-5 mb-5">
           <Select
             options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
             value={selectedAgency}
@@ -384,7 +384,7 @@ export default function AIToolsPage() {
           {!activeConvId && messages.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-[var(--radius-xl)] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center mb-5 shadow-[var(--shadow-accent)]">
+              <div className="w-16 h-16 rounded-[var(--radius-xl)] bg-gradient-to-b from-[#E31B23] to-[#C00015] flex items-center justify-center mb-5 shadow-[var(--shadow-accent)]">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-[20px] font-bold text-[var(--text-primary)] mb-2">
@@ -429,9 +429,9 @@ export default function AIToolsPage() {
                     </div>
                     <div className="bg-white rounded-[var(--radius-lg)] px-5 py-4 shadow-[var(--shadow-sm)] border border-[var(--border-default)]">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <div className="w-2 h-2 bg-[#E31B23]/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 bg-[#E31B23]/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 bg-[#E31B23]/70 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     </div>
                   </div>
@@ -445,7 +445,7 @@ export default function AIToolsPage() {
 
         {/* Chat Composer */}
         <div className="flex items-end gap-5">
-          <div className="flex-1 relative bg-white border border-gray-200 rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-red-300 focus-within:shadow-[var(--focus-ring)] transition-all">
+          <div className="flex-1 relative bg-white/60 border border-[var(--border-default)] rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] overflow-hidden focus-within:border-[#E31B23]/40 focus-within:shadow-[0_0_0_3px_rgba(227,27,35,0.08)] transition-all">
             <textarea
               ref={textareaRef}
               value={inputText}
@@ -466,7 +466,7 @@ export default function AIToolsPage() {
                   : 'Schreibe eine Nachricht...'
               }
               rows={1}
-              className="w-full px-5 py-4 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent"
+              className="w-full px-5 py-4 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none bg-transparent"
               style={{ minHeight: '44px', maxHeight: '160px' }}
             />
           </div>

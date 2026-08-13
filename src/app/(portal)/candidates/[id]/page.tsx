@@ -89,7 +89,7 @@ export default function CandidateDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -116,7 +116,7 @@ export default function CandidateDetailPage() {
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-10">
+      <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-[var(--text-h2)] font-extrabold text-[var(--text-primary)] tracking-[var(--tracking-heading)] mb-1">
             {candidate.name}
@@ -129,7 +129,7 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Contact Info */}
-      <Card padding="md" className="mb-10">
+      <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Mail className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -166,7 +166,7 @@ export default function CandidateDetailPage() {
 
       {/* Indeed Details + Resume */}
       {(candidate.resume_url || candidate.location || candidate.experience_summary || candidate.last_employer || candidate.indeed_job_title) && (
-        <Card padding="md" className="mb-10">
+        <Card padding="md" className="mb-8">
           <div className="flex items-center gap-5 mb-5">
             <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
               <Layers className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -194,7 +194,7 @@ export default function CandidateDetailPage() {
                 href={candidate.resume_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition"
+                className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-[10px] bg-red-50 text-[#C00015] text-sm font-medium hover:bg-red-100 transition"
               >
                 Lebenslauf anzeigen (PDF)
               </a>
@@ -204,7 +204,7 @@ export default function CandidateDetailPage() {
       )}
 
       {/* Stage Timeline */}
-      <Card padding="md" className="mb-10">
+      <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Clock className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -251,7 +251,7 @@ export default function CandidateDetailPage() {
       </Card>
 
       {/* Notes */}
-      <Card padding="md" className="mb-10">
+      <Card padding="md" className="mb-8">
         <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <StickyNote className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -311,7 +311,7 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Call Recordings */}
-      <div className="mt-12">
+      <div className="mt-8">
         <CallRecordingsPanel
           candidateId={id}
           recordings={recordings}
