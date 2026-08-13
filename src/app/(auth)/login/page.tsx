@@ -65,7 +65,7 @@ export default function LoginPage() {
     <div className="w-full max-w-sm">
       <Card padding="lg" className="shadow-[var(--shadow-md)]">
         <div className="flex items-center gap-4 mb-10">
-          <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#EF5B6F] to-[var(--red-500)] flex items-center justify-center text-white font-bold text-lg">
+          <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#E31B23] to-[#C00015] flex items-center justify-center text-white font-bold text-lg">
             Z
           </div>
           <div>

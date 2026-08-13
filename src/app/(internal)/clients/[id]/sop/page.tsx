@@ -190,7 +190,7 @@ export default function SopPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -246,7 +246,7 @@ export default function SopPage() {
             {customerSop && (
               <div className="w-32 h-2.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all duration-500"
                   style={{ width: `${overallPercent}%` }}
                 />
               </div>
@@ -276,7 +276,7 @@ export default function SopPage() {
         </Link>
       )}
 
-      <div className="space-y-8">
+      <div className="space-y-5">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCustomerTasks = phaseTasks
@@ -303,7 +303,7 @@ export default function SopPage() {
                     ? 'bg-green-100 text-green-700'
                     : hasAttention
                       ? 'bg-amber-100 text-amber-500'
-                      : 'bg-red-50 text-red-500'
+                      : 'bg-red-50 text-[#E31B23]'
                 }`}>
                   {allComplete ? <Check className="w-5 h-5" /> : phaseIndex + 1}
                 </div>
@@ -368,8 +368,8 @@ export default function SopPage() {
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
                             status === 'done' ? 'bg-green-100 text-green-700'
                               : status === 'skipped' ? 'bg-gray-100 text-gray-400'
-                                : status === 'waiting_approval' ? 'bg-red-50 text-red-500'
-                                  : status === 'in_progress' ? 'bg-red-50 text-red-400'
+                                : status === 'waiting_approval' ? 'bg-red-50 text-[#E31B23]'
+                                  : status === 'in_progress' ? 'bg-red-50 text-[#E31B23]/80'
                                     : status === 'changes_requested' ? 'bg-amber-100 text-amber-500'
                                       : status === 'approved' ? 'bg-green-100 text-green-700'
                                         : 'bg-gray-100 text-gray-400'
@@ -400,7 +400,7 @@ export default function SopPage() {
                                 {sopTask.title}
                               </span>
                               {isAiTask && (
-                                <span className="text-[11px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">
+                                <span className="text-[11px] font-semibold text-[#E31B23] bg-red-50 px-1.5 py-0.5 rounded">
                                   AI
                                 </span>
                               )}

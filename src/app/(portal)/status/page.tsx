@@ -16,8 +16,8 @@ type TaskStatus = CustomerTask['status'];
 
 const clientStatusConfig: Record<TaskStatus, { label: string; icon: React.ReactNode; show: boolean }> = {
   pending:            { label: 'Ausstehend',        icon: <Clock className="w-3.5 h-3.5 text-gray-400" />,  show: false },
-  in_progress:        { label: 'In Bearbeitung',    icon: <Clock className="w-3.5 h-3.5 text-red-400" />,   show: true },
-  waiting_approval:   { label: 'Ihre Freigabe nötig', icon: <AlertTriangle className="w-3.5 h-3.5 text-red-500" />, show: true },
+  in_progress:        { label: 'In Bearbeitung',    icon: <Clock className="w-3.5 h-3.5 text-[#E31B23]/80" />,   show: true },
+  waiting_approval:   { label: 'Ihre Freigabe nötig', icon: <AlertTriangle className="w-3.5 h-3.5 text-[#E31B23]" />, show: true },
   approved:           { label: 'Freigegeben',       icon: <Check className="w-3.5 h-3.5 text-green-600" />, show: true },
   changes_requested:  { label: 'Änderung angefragt', icon: <Clock className="w-3.5 h-3.5 text-amber-500" />, show: true },
   done:               { label: 'Erledigt',           icon: <Check className="w-3.5 h-3.5 text-green-600" />, show: true },
@@ -153,7 +153,7 @@ export default function ProjectStatusPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -164,7 +164,7 @@ export default function ProjectStatusPage() {
         <PageHeader label="PROJEKT" title="Projektstatus" />
         <Card padding="lg" className="text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-            <Clock className="w-8 h-8 text-red-400" />
+            <Clock className="w-8 h-8 text-[#E31B23]/80" />
           </div>
           <h2 className="text-[17px] font-bold text-[var(--text-primary)] mb-2">
             Ihr Projekt wird vorbereitet
@@ -226,21 +226,21 @@ export default function ProjectStatusPage() {
       />
 
       {/* Overall progress */}
-      <Card padding="lg" className="mb-10">
+      <Card padding="lg" className="mb-8">
         <div className="flex items-center justify-between mb-5">
           <span className="text-[15px] font-bold text-[var(--text-primary)]">Gesamtfortschritt</span>
-          <span className="text-[22px] font-extrabold text-red-500">{overallPercent}%</span>
+          <span className="text-[22px] font-extrabold text-[#E31B23]">{overallPercent}%</span>
         </div>
         <div className="w-full h-3 bg-[var(--surface-inset)] rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-[#EF5B6F] to-red-500 rounded-full transition-all duration-700"
+            className="h-full bg-gradient-to-r from-[#E31B23] to-[#C00015] rounded-full transition-all duration-700"
             style={{ width: `${overallPercent}%` }}
           />
         </div>
         <div className="flex justify-between mt-3">
           <span className="text-[13px] text-[var(--text-tertiary)]">{doneTasks} von {totalTasks} Aufgaben</span>
           {(needsAttention + contentForReview.length) > 0 && (
-            <span className="text-[13px] font-medium text-red-500">
+            <span className="text-[13px] font-medium text-[#E31B23]">
               {needsAttention + contentForReview.length} {(needsAttention + contentForReview.length) === 1 ? 'Punkt braucht' : 'Punkte brauchen'} Ihre Aufmerksamkeit
             </span>
           )}
@@ -249,17 +249,17 @@ export default function ProjectStatusPage() {
 
       {/* Attention needed section — SOP tasks only */}
       {needsAttention > 0 && (
-        <div className="mb-10">
-          <div className="flex items-center gap-2 mb-8">
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-5">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
+              <AlertTriangle className="w-4 h-4 text-[#E31B23]" />
             </div>
             <h2 className="text-[15px] font-bold text-[var(--text-primary)]">
               Ihre Freigabe wird benötigt
             </h2>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-5">
             {approvalTasks.map((ct) => {
               const sopTask = tasks.find((t) => t.id === ct.sop_task_id);
               if (!sopTask) return null;
@@ -268,7 +268,7 @@ export default function ProjectStatusPage() {
                 <Card key={ct.id} padding="md" className="border-l-4 border-l-red-500">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-5">
-                      <Eye className="w-5 h-5 text-red-500 flex-shrink-0" />
+                      <Eye className="w-5 h-5 text-[#E31B23] flex-shrink-0" />
                       <div>
                         <p className="font-semibold text-[15px] text-[var(--text-primary)]">{sopTask.title}</p>
                         {sopTask.description && (
@@ -302,7 +302,7 @@ export default function ProjectStatusPage() {
       )}
 
       {/* Phase cards */}
-      <div className="space-y-8">
+      <div className="space-y-5">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCTs = phaseTasks.map((t) => customerTaskMap.get(t.id)).filter(Boolean) as CustomerTask[];
@@ -326,7 +326,7 @@ export default function ProjectStatusPage() {
                     : phaseIndex < currentPhaseIndex
                       ? 'bg-green-100 text-green-700'
                       : phaseIndex === currentPhaseIndex
-                        ? 'bg-red-50 text-red-500'
+                        ? 'bg-red-50 text-[#E31B23]'
                         : 'bg-gray-100 text-gray-400'
                 }`}>
                   {allComplete || phaseIndex < currentPhaseIndex ? (
@@ -359,7 +359,7 @@ export default function ProjectStatusPage() {
                   <div className="w-16 h-1.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        allComplete ? 'bg-green-500' : 'bg-gradient-to-r from-[#EF5B6F] to-red-500'
+                        allComplete ? 'bg-green-500' : 'bg-gradient-to-r from-[#E31B23] to-[#C00015]'
                       }`}
                       style={{ width: `${phasePercent}%` }}
                     />
@@ -403,9 +403,9 @@ export default function ProjectStatusPage() {
                             status === 'done' || status === 'approved'
                               ? 'text-green-600'
                               : status === 'waiting_approval'
-                                ? 'text-red-500'
+                                ? 'text-[#E31B23]'
                                 : status === 'in_progress'
-                                  ? 'text-red-400'
+                                  ? 'text-[#E31B23]/80'
                                   : status === 'changes_requested'
                                     ? 'text-amber-500'
                                     : 'text-[var(--text-tertiary)]'
@@ -425,10 +425,10 @@ export default function ProjectStatusPage() {
 
       {/* Content review section */}
       {contentForReview.length > 0 && (
-        <div className="mt-12">
-          <div className="flex items-center gap-2 mb-8">
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-5">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-red-500" />
+              <FileText className="w-4 h-4 text-[#E31B23]" />
             </div>
             <h2 className="text-[15px] font-bold text-[var(--text-primary)]">
               Inhalte zur Freigabe
@@ -443,7 +443,7 @@ export default function ProjectStatusPage() {
               <Card key={item.id} padding="md" className="border-l-4 border-l-red-500">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-5 min-w-0">
-                    <FileText className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <FileText className="w-5 h-5 text-[#E31B23] flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <p className="font-semibold text-[15px] text-[var(--text-primary)]">{item.title}</p>
                       <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">
@@ -451,7 +451,7 @@ export default function ProjectStatusPage() {
                       </p>
                       <button
                         onClick={() => setContentPreview(item)}
-                        className="text-[13px] text-red-500 hover:text-red-600 font-medium mt-1 cursor-pointer"
+                        className="text-[13px] text-[#E31B23] hover:text-red-600 font-medium mt-1 cursor-pointer"
                       >
                         Vorschau ansehen
                       </button>

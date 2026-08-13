@@ -109,7 +109,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               onClick={() => s.id < step && setStep(s.id)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
                 s.id === step
-                  ? 'bg-red-50 border border-red-200 text-red-600'
+                  ? 'bg-red-50 border border-red-200 text-[#C00015]'
                   : s.id < step
                   ? 'bg-green-100 text-green-700 cursor-pointer'
                   : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)]'
@@ -188,7 +188,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   type="checkbox"
                   checked={form.has_video_shoot}
                   onChange={(e) => setForm(f => ({ ...f, has_video_shoot: e.target.checked }))}
-                  className="w-5 h-5 rounded accent-red-500"
+                  className="w-5 h-5 rounded accent-[#E31B23]"
                 />
                 <div>
                   <p className="text-sm font-medium text-[var(--text-primary)]">Videodreh geplant</p>
@@ -383,7 +383,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                       meta_access_steps: { ...f.meta_access_steps, indeed_forwarding: e.target.checked },
                     }))
                   }
-                  className="w-5 h-5 rounded accent-red-500"
+                  className="w-5 h-5 rounded accent-[#E31B23]"
                 />
                 <span className="text-sm font-medium text-gray-900">Indeed-Weiterleitung eingerichtet</span>
               </label>

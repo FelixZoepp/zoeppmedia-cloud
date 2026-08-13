@@ -29,7 +29,7 @@ export default function ClientsIndexPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -51,16 +51,16 @@ export default function ClientsIndexPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {agencies.map((a) => (
             <Link key={a.id} href={`/clients/${a.id}`}>
               <Card padding="md" className="hover:shadow-[var(--shadow-md)] transition-shadow cursor-pointer group">
                 <div className="flex items-center gap-4 mb-5">
-                  <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center text-white font-bold text-[15px] flex-shrink-0">
+                  <div className="w-10 h-10 rounded-[var(--radius-md)] bg-gradient-to-b from-[#E31B23] to-[#C00015] flex items-center justify-center text-white font-bold text-[15px] flex-shrink-0">
                     {a.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[15px] font-semibold text-[var(--text-primary)] truncate group-hover:text-red-500 transition-colors">
+                    <p className="text-[15px] font-semibold text-[var(--text-primary)] truncate group-hover:text-[#E31B23] transition-colors">
                       {a.name}
                     </p>
                     <p className="text-[13px] text-[var(--text-tertiary)] truncate">

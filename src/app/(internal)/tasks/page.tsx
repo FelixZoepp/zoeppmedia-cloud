@@ -117,7 +117,7 @@ function TaskCard({
         <button
           disabled={!canMoveLeft}
           onClick={onMoveLeft}
-          className="flex items-center gap-0.5 px-2 py-1 rounded-[var(--radius-xs)] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-red-50 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="flex items-center gap-0.5 px-2 py-1 rounded-[var(--radius-xs)] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-red-50 hover:text-[#E31B23] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           <ChevronLeft className="w-3 h-3" /> Zurück
         </button>
@@ -125,7 +125,7 @@ function TaskCard({
         <button
           disabled={!canMoveRight}
           onClick={onMoveRight}
-          className="flex items-center gap-0.5 px-2 py-1 rounded-[var(--radius-xs)] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-red-50 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="flex items-center gap-0.5 px-2 py-1 rounded-[var(--radius-xs)] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-red-50 hover:text-[#E31B23] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           Weiter <ChevronRight className="w-3 h-3" />
         </button>
@@ -280,7 +280,7 @@ export default function TasksPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -300,7 +300,7 @@ export default function TasksPage() {
       />
 
       {/* Kanban Board */}
-      <div className="flex gap-8 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="flex gap-5 overflow-x-auto pb-4 -mx-2 px-2">
         {COLUMNS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col.key);
           const colIdx = getColumnIndex(col.key);
@@ -372,7 +372,7 @@ export default function TasksPage() {
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="Optionale Details..."
               rows={3}
-              className="w-full bg-white border border-gray-200 rounded-[var(--radius-md)] px-4 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 shadow-[var(--shadow-xs)] outline-none resize-none focus-ring"
+              className="w-full bg-white/60 border border-[var(--border-default)] rounded-[var(--radius-md)] px-4 py-3 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] shadow-[var(--shadow-xs)] outline-none resize-none focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)]"
             />
           </div>
 
@@ -441,7 +441,7 @@ export default function TasksPage() {
         width="max-w-xl"
       >
         {selectedTask && (
-          <div className="space-y-8">
+          <div className="space-y-5">
             {/* Meta info */}
             <div className="flex flex-wrap gap-2">
               <Badge tone={PRIORITY_BADGE[selectedTask.priority].tone}>
@@ -505,10 +505,10 @@ export default function TasksPage() {
 
               {loadingComments ? (
                 <div className="flex items-center justify-center py-6">
-                  <div className="w-5 h-5 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="space-y-8 max-h-48 overflow-y-auto mb-4">
+                <div className="space-y-5 max-h-48 overflow-y-auto mb-4">
                   {comments.length === 0 && (
                     <p className="text-[13px] text-[var(--text-tertiary)] text-center py-3">
                       Noch keine Kommentare

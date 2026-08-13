@@ -42,7 +42,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
       </div>
     );
   }
@@ -61,8 +61,8 @@ export default function SettingsPage() {
     <div className="max-w-2xl">
       <PageHeader label="EINSTELLUNGEN" title="Einstellungen" />
 
-      <Card padding="md" className="mb-10">
-        <div className="flex items-center gap-5 mb-8">
+      <Card padding="md" className="mb-8">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <User className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -80,8 +80,8 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <Card padding="md" className="mb-10">
-        <div className="flex items-center gap-5 mb-8">
+      <Card padding="md" className="mb-8">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-[var(--surface-inset)] flex items-center justify-center">
             <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />
           </div>
@@ -118,9 +118,9 @@ export default function SettingsPage() {
       </Card>
 
       <Card padding="md">
-        <div className="flex items-center gap-5 mb-8">
+        <div className="flex items-center gap-5 mb-5">
           <div className="w-9 h-9 rounded-[var(--radius-md)] bg-red-50 flex items-center justify-center">
-            <Webhook className="w-5 h-5 text-red-500" />
+            <Webhook className="w-5 h-5 text-[#E31B23]" />
           </div>
           <div>
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">Meta Webhook URL</h2>
