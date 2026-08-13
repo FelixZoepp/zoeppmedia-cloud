@@ -1,7 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildTemplateContext, GENERATOR_RULES } from './templates';
 
-const anthropic = new Anthropic();
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!_anthropic) {
+    _anthropic = new Anthropic();
+  }
+  return _anthropic;
+}
 
 export type ContentType = 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief';
 
@@ -76,7 +82,7 @@ export async function generateContent(
     userMessage = `Hier ist die vorherige Version:\n\n${previousVersion}\n\nFeedback: ${feedback}\n\nBitte überarbeite den Content basierend auf dem Feedback.`;
   }
 
-  const response = await anthropic.messages.create({
+  const response = await getAnthropic().messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 4000,
     system: systemPrompt,
@@ -91,7 +97,7 @@ export async function chatWithClaude(
   messages: { role: 'user' | 'assistant'; content: string }[],
   systemPrompt: string
 ): Promise<string> {
-  const response = await anthropic.messages.create({
+  const response = await getAnthropic().messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2000,
     system: systemPrompt,
