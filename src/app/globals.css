@@ -1,11 +1,11 @@
+/* Fonts MUST load before Tailwind processes */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+
 @import "tailwindcss";
 @import "../styles/tokens/colors.css";
 @import "../styles/tokens/effects.css";
 @import "../styles/tokens/typography.css";
 @import "../styles/tokens/spacing.css";
-
-/* Hanken Grotesk + JetBrains Mono from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
 
 @theme {
   /* Colors – Liquid Glass */
@@ -40,11 +40,11 @@
   --color-amber-500: #E8A13C;
   --color-danger-600: #BA1A1A;
 
-  /* Font */
+  /* Font families */
   --font-ui: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 
-  /* Shadows – glass-style */
+  /* Shadows */
   --shadow-xs: 0 1px 2px rgba(11,28,48,0.04);
   --shadow-sm: 0 1px 3px rgba(11,28,48,0.05), 0 4px 12px rgba(11,28,48,0.04);
   --shadow-md: 0 2px 6px rgba(11,28,48,0.05), 0 12px 28px rgba(11,28,48,0.06);
@@ -68,12 +68,12 @@
 }
 
 body {
-  font-family: var(--font-ui);
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-  letter-spacing: var(--tracking-body);
-  color: var(--text-primary);
-  background-color: var(--surface-app);
+  font-family: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #0B1C30;
+  background-color: #F8F9FF;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -86,24 +86,24 @@ body {
 
 /* Glass card utility */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--border-default);
-  border-top-color: var(--border-glass-top);
-  border-left-color: var(--border-glass-side);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(211, 228, 254, 0.6);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  border-left-color: rgba(255, 255, 255, 0.4);
 }
 
 .glass-raised {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur-raised));
-  -webkit-backdrop-filter: blur(var(--glass-blur-raised));
-  box-shadow: var(--glass-glow);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 0 4px 24px rgba(227, 27, 35, 0.1);
 }
 
 /* Label caps utility – JetBrains Mono */
 .label-caps {
-  font-family: var(--font-mono);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 12px;
   font-weight: 600;
   line-height: 16px;
@@ -122,10 +122,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: var(--radius-pill);
+  background: #D3E4FE;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-400);
+  background: #926E6B;
 }
