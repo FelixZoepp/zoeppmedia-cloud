@@ -42,7 +42,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -61,56 +61,56 @@ export default function SettingsPage() {
     <div className="max-w-2xl">
       <PageHeader label="EINSTELLUNGEN" title="Einstellungen" />
 
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-5 mb-5">
+      <Card padding="md" className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
             <User className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-gray-900">Dein Profil</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Dein Profil</h2>
         </div>
         <div className="space-y-6 pl-12">
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-gray-400 w-16">Name</span>
-            <span className="text-[15px] font-medium text-gray-900">{user?.name}</span>
+            <span className="text-sm text-gray-400 w-16">Name</span>
+            <span className="text-sm font-medium text-gray-900">{user?.name}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-gray-400 w-16">E-Mail</span>
-            <span className="text-[15px] font-medium text-gray-900">{user?.email}</span>
+            <span className="text-sm text-gray-400 w-16">E-Mail</span>
+            <span className="text-sm font-medium text-gray-900">{user?.email}</span>
           </div>
         </div>
       </Card>
 
-      <Card padding="md" className="mb-8">
-        <div className="flex items-center gap-5 mb-5">
+      <Card padding="md" className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
             <Building2 className="w-5 h-5 text-gray-600" />
           </div>
-          <h2 className="text-[15px] font-semibold text-gray-900">Agentur</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Agentur</h2>
         </div>
         <div className="space-y-6 pl-12">
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-gray-400 w-16">Name</span>
-            <span className="text-[15px] font-medium text-gray-900">{agency?.name}</span>
+            <span className="text-sm text-gray-400 w-16">Name</span>
+            <span className="text-sm font-medium text-gray-900">{agency?.name}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-gray-400 w-16">E-Mail</span>
-            <span className="text-[15px] font-medium text-gray-900">{agency?.email}</span>
+            <span className="text-sm text-gray-400 w-16">E-Mail</span>
+            <span className="text-sm font-medium text-gray-900">{agency?.email}</span>
           </div>
           {agency?.phone && (
             <div className="flex items-center gap-3">
-              <span className="text-[14px] text-gray-400 w-16">Telefon</span>
-              <span className="text-[15px] font-medium text-gray-900">{agency.phone}</span>
+              <span className="text-sm text-gray-400 w-16">Telefon</span>
+              <span className="text-sm font-medium text-gray-900">{agency.phone}</span>
             </div>
           )}
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-gray-400 w-16 shrink-0">Meta Ad</span>
-            <span className="text-[15px] font-medium text-gray-900 font-mono">
+            <span className="text-sm text-gray-400 w-16 shrink-0">Meta Ad</span>
+            <span className="text-sm font-medium text-gray-900 font-mono">
               {agency?.meta_ad_account_id || <span className="text-gray-400 font-sans font-normal">Nicht konfiguriert</span>}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[14px] text-gray-400 w-16 shrink-0">Meta Page</span>
-            <span className="text-[15px] font-medium text-gray-900 font-mono">
+            <span className="text-sm text-gray-400 w-16 shrink-0">Meta Page</span>
+            <span className="text-sm font-medium text-gray-900 font-mono">
               {agency?.meta_page_id || <span className="text-gray-400 font-sans font-normal">Nicht konfiguriert</span>}
             </span>
           </div>
@@ -118,17 +118,17 @@ export default function SettingsPage() {
       </Card>
 
       <Card padding="md">
-        <div className="flex items-center gap-5 mb-5">
+        <div className="flex items-center gap-4 mb-4">
           <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
             <Webhook className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h2 className="text-[15px] font-semibold text-gray-900">Meta Webhook URL</h2>
-            <p className="text-[14px] text-gray-400">Bei Meta Lead Ads als Webhook hinterlegen</p>
+            <h2 className="text-sm font-semibold text-gray-900">Meta Webhook URL</h2>
+            <p className="text-sm text-gray-400">Bei Meta Lead Ads als Webhook hinterlegen</p>
           </div>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 flex items-center gap-3">
-          <code className="text-[13px] text-gray-900 font-mono break-all flex-1">{webhookUrl}</code>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+          <code className="text-xs text-gray-900 font-mono break-all flex-1">{webhookUrl}</code>
           <Button variant="secondary" size="sm" onClick={handleCopy} pill>
             {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Kopiert' : 'Kopieren'}

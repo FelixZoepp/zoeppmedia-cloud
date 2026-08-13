@@ -190,7 +190,7 @@ export default function SopPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -228,7 +228,7 @@ export default function SopPage() {
     <div className="max-w-5xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-[14px] mb-8 transition-colors"
+        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-sm mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
@@ -270,13 +270,13 @@ export default function SopPage() {
       {customerSop && (
         <Link
           href={`/clients/${id}/library`}
-          className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-600 text-[14px] font-medium mb-8 transition-colors"
+          className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-600 text-sm font-medium mb-8 transition-colors"
         >
           Content-Bibliothek ansehen &rarr;
         </Link>
       )}
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCustomerTasks = phaseTasks
@@ -296,9 +296,9 @@ export default function SopPage() {
               {/* Phase header */}
               <button
                 onClick={() => togglePhase(phase.id)}
-                className="w-full flex items-center gap-5 p-5 text-left cursor-pointer hover:bg-gray-025 rounded-xl transition-colors"
+                className="w-full flex items-center gap-4 p-4 text-left cursor-pointer hover:bg-gray-50 rounded-xl transition-colors"
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-[15px] ${
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-sm ${
                   allComplete
                     ? 'bg-green-100 text-green-700'
                     : hasAttention
@@ -310,7 +310,7 @@ export default function SopPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-[15px] text-gray-900">
+                    <h3 className="font-bold text-sm text-gray-900">
                       Phase {phaseIndex + 1}: {phase.title}
                     </h3>
                     {hasAttention && (
@@ -318,7 +318,7 @@ export default function SopPage() {
                     )}
                   </div>
                   {phase.description && (
-                    <p className="text-[13px] text-gray-600 mt-0.5 truncate">
+                    <p className="text-xs text-gray-600 mt-0.5 truncate">
                       {phase.description}
                     </p>
                   )}
@@ -327,7 +327,7 @@ export default function SopPage() {
                 <div className="flex items-center gap-3 flex-shrink-0">
                   {customerSop && (
                     <>
-                      <span className="text-[13px] text-gray-600 font-medium">
+                      <span className="text-xs text-gray-600 font-medium">
                         {phaseDone}/{phaseTotal}
                       </span>
                       <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -350,7 +350,7 @@ export default function SopPage() {
 
               {/* Expanded task list */}
               {isExpanded && (
-                <div className="px-5 pb-5">
+                <div className="px-4 pb-5">
                   <div className="border-t border-gray-200 pt-4 space-y-4">
                     {phaseTasks.map((sopTask) => {
                       const ct = customerTaskMap.get(sopTask.id);
@@ -362,7 +362,7 @@ export default function SopPage() {
                       return (
                         <div
                           key={sopTask.id}
-                          className="flex items-center gap-5 p-5 rounded-xl hover:bg-gray-025 transition-colors group"
+                          className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors group"
                         >
                           {/* Status icon */}
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -392,7 +392,7 @@ export default function SopPage() {
                           {/* Task info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className={`text-[14px] font-medium ${
+                              <span className={`text-sm font-medium ${
                                 status === 'done' || status === 'skipped'
                                   ? 'text-gray-400 line-through'
                                   : 'text-gray-900'
@@ -400,23 +400,23 @@ export default function SopPage() {
                                 {sopTask.title}
                               </span>
                               {isAiTask && (
-                                <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+                                <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
                                   AI
                                 </span>
                               )}
                               {sopTask.task_type !== 'manual' && sopTask.task_type !== 'ai_generate' && (
-                                <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                                <span className="text-xs font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
                                   {taskTypeLabels[sopTask.task_type]}
                                 </span>
                               )}
                             </div>
                             {sopTask.description && (
-                              <p className="text-[12px] text-gray-400 mt-0.5 truncate">
+                              <p className="text-xs text-gray-400 mt-0.5 truncate">
                                 {sopTask.description}
                               </p>
                             )}
                             {ct?.notes && (
-                              <p className="text-[12px] text-gray-600 mt-1 italic">
+                              <p className="text-xs text-gray-600 mt-1 italic">
                                 Notiz: {ct.notes}
                               </p>
                             )}
@@ -498,7 +498,7 @@ export default function SopPage() {
                                   setNoteModal({ taskId: ct.id, currentNotes: ct.notes || '' });
                                   setNoteText(ct.notes || '');
                                 }}
-                                className="text-[12px] text-gray-400 hover:text-gray-600 transition-colors px-1"
+                                className="text-xs text-gray-400 hover:text-gray-600 transition-colors px-1"
                                 title="Notizen"
                               >
                                 ...
@@ -510,7 +510,7 @@ export default function SopPage() {
                     })}
 
                     {phaseTasks.length === 0 && (
-                      <p className="text-[13px] text-gray-400 py-3 text-center">
+                      <p className="text-xs text-gray-400 py-3 text-center">
                         Keine Aufgaben in dieser Phase
                       </p>
                     )}
@@ -536,13 +536,13 @@ export default function SopPage() {
         onClose={() => { setNoteModal(null); setNoteText(''); }}
         title="Notizen"
       >
-        <div className="space-y-8">
+        <div className="space-y-4">
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Notizen zu dieser Aufgabe..."
             rows={4}
-            className="w-full px-4 py-3 text-[15px] border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => { setNoteModal(null); setNoteText(''); }}>

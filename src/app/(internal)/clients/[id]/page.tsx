@@ -52,20 +52,20 @@ function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, c
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-gray-900">{kpi.label}</span>
+        <span className="text-xs font-medium text-gray-900">{kpi.label}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-gray-400">
+          <span className="text-xs text-gray-400">
             Ist: <span className="font-semibold text-gray-900">{kpi.value}{kpi.unit}</span>
           </span>
-          <span className="text-[12px] text-gray-400">
+          <span className="text-xs text-gray-400">
             Soll: <span className="font-semibold">{kpi.defaultValue}{kpi.unit}</span>
           </span>
           {kpi.isOverride && (
-            <Badge tone="softAccent" className="text-[10px] py-0.5 px-2">Individuell</Badge>
+            <Badge tone="softAccent" className="text-xs py-0.5 px-2">Individuell</Badge>
           )}
           <button
             onClick={() => onOverride(kpi.key, kpi.value)}
-            className="text-[11px] font-semibold text-red-600 hover:text-red-700 uppercase tracking-wide transition-colors"
+            className="text-xs font-semibold text-red-600 hover:text-red-700 uppercase tracking-wide transition-colors"
           >
             Ziel anpassen
           </button>
@@ -97,7 +97,7 @@ function ProblemAlert({
   const isCritical = problem.severity === 'critical';
   return (
     <div
-      className={`flex items-start gap-5 p-6 rounded-xl border ${
+      className={`flex items-start gap-4 p-4 rounded-xl border ${
         isCritical
           ? 'bg-red-50 border-red-200'
           : 'bg-amber-50 border-amber-200'
@@ -109,15 +109,15 @@ function ProblemAlert({
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className={`text-[13px] font-semibold ${isCritical ? 'text-red-700' : 'text-amber-700'}`}>
+          <span className={`text-xs font-semibold ${isCritical ? 'text-red-700' : 'text-amber-700'}`}>
             {problem.problem_key.replace(/_/g, ' ')}
           </span>
-          <Badge tone={isCritical ? 'accent' : 'neutral'} className="text-[10px] py-0.5 px-2">
+          <Badge tone={isCritical ? 'accent' : 'neutral'} className="text-xs py-0.5 px-2">
             {isCritical ? 'Kritisch' : 'Warnung'}
           </Badge>
         </div>
         {(problem.current_value !== null || problem.target_value !== null) && (
-          <p className="text-[12px] text-gray-600 mb-2">
+          <p className="text-xs text-gray-600 mb-2">
             {problem.current_value !== null && `Aktuell: ${problem.current_value}`}
             {problem.current_value !== null && problem.target_value !== null && ' · '}
             {problem.target_value !== null && `Ziel: ${problem.target_value}`}
@@ -127,7 +127,7 @@ function ProblemAlert({
           {playbook && (
             <button
               onClick={() => onPlaybook(playbook)}
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-700 hover:text-red-600 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 hover:text-red-600 transition-colors"
             >
               <BookOpen size={12} />
               Playbook anzeigen
@@ -135,7 +135,7 @@ function ProblemAlert({
           )}
           <button
             onClick={() => onResolve(problem.id)}
-            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-green-700 hover:text-green-800 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 hover:text-green-800 transition-colors"
           >
             <CheckCircle size={12} />
             Als gelöst markieren
@@ -151,14 +151,14 @@ function ProblemAlert({
 function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
   return (
     <div className="space-y-8 overflow-y-auto max-h-[60vh] pr-1">
-      <p className="text-[14px] text-gray-600">{entry.description}</p>
+      <p className="text-sm text-gray-600">{entry.description}</p>
 
       {entry.causes.length > 0 && (
         <div>
-          <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-wide mb-2">Mögliche Ursachen</h3>
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Mögliche Ursachen</h3>
           <ul className="space-y-1.5">
             {entry.causes.map((c, i) => (
-              <li key={i} className="flex items-start gap-2 text-[13px] text-gray-900">
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-900">
                 <ChevronRight size={14} className="text-red-600 mt-0.5 shrink-0" />
                 {c}
               </li>
@@ -169,11 +169,11 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
 
       {entry.immediate_actions.length > 0 && (
         <div>
-          <h3 className="text-[12px] font-bold text-amber-600 uppercase tracking-wide mb-2">Sofortmaßnahmen</h3>
+          <h3 className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-2">Sofortmaßnahmen</h3>
           <ul className="space-y-1.5">
             {entry.immediate_actions.map((a, i) => (
-              <li key={i} className="flex items-start gap-2 text-[13px] text-gray-900">
-                <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-900">
+                <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-600 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {i + 1}
                 </span>
                 {a}
@@ -185,11 +185,11 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
 
       {entry.long_term_actions.length > 0 && (
         <div>
-          <h3 className="text-[12px] font-bold text-green-700 uppercase tracking-wide mb-2">Langfristige Maßnahmen</h3>
+          <h3 className="text-xs font-bold text-green-700 uppercase tracking-wide mb-2">Langfristige Maßnahmen</h3>
           <ul className="space-y-1.5">
             {entry.long_term_actions.map((a, i) => (
-              <li key={i} className="flex items-start gap-2 text-[13px] text-gray-900">
-                <span className="w-4 h-4 rounded-full bg-green-100 text-green-700 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-900">
+                <span className="w-4 h-4 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {i + 1}
                 </span>
                 {a}
@@ -201,8 +201,8 @@ function PlaybookContent({ entry }: { entry: PlaybookEntry }) {
 
       {entry.escalation_trigger && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-          <h3 className="text-[11px] font-bold text-red-600 uppercase tracking-wide mb-1">Eskalation wenn</h3>
-          <p className="text-[13px] text-red-700">{entry.escalation_trigger}</p>
+          <h3 className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Eskalation wenn</h3>
+          <p className="text-xs text-red-700">{entry.escalation_trigger}</p>
         </div>
       )}
     </div>
@@ -238,14 +238,14 @@ function OverrideForm({
 
   return (
     <div className="space-y-6">
-      <p className="text-[14px] text-gray-600">
+      <p className="text-sm text-gray-600">
         Neues Ziel für <strong>{kpiKey.replace(/_/g, ' ')}</strong> festlegen.
       </p>
       <input
         type="number"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full px-5 py-4 border border-gray-200 rounded-xl text-[15px] text-gray-900 bg-white shadow-sm outline-none"
+        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 bg-white shadow-sm outline-none"
       />
       <Button onClick={save} disabled={saving} className="w-full" glow>
         {saving ? 'Speichern…' : 'Ziel speichern'}
@@ -287,7 +287,7 @@ export default function ClientDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -324,7 +324,7 @@ export default function ClientDetailPage() {
       {/* Back link + header */}
       <Link
         href="/admin"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-red-500 transition-colors mb-8"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-red-500 transition-colors mb-6"
       >
         <ArrowLeft size={14} />
         Zurück zur Übersicht
@@ -339,9 +339,9 @@ export default function ClientDetailPage() {
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (
         <Card padding="lg" className="mb-8 !border-red-200">
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-4">
             <AlertTriangle size={16} className="text-red-600 shrink-0" />
-            <h2 className="text-[14px] font-bold text-red-700 uppercase tracking-wide">
+            <h2 className="text-sm font-bold text-red-700 uppercase tracking-wide">
               Aktive Probleme
             </h2>
             <div className="flex items-center gap-2 ml-auto">
@@ -368,10 +368,10 @@ export default function ClientDetailPage() {
       )}
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {summaryKpis.map((kpi) => (
           <Card key={kpi.label} padding="md">
-            <div className="flex items-center gap-5 mb-5">
+            <div className="flex items-center gap-4 mb-4">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
                 kpi.accent ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
               }`}>
@@ -392,14 +392,14 @@ export default function ClientDetailPage() {
 
       {/* ── KPI Soll/Ist Bars ──────────────────────────── */}
       {kpis.length > 0 && (
-        <Card padding="lg" className="mb-8">
-          <div className="flex items-center gap-2 mb-8">
+        <Card padding="lg" className="mb-6">
+          <div className="flex items-center gap-2 mb-6">
             <Target size={16} className="text-red-600" />
-            <h2 className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide">
+            <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
               KPI Soll / Ist
             </h2>
           </div>
-          <div className="space-y-5">
+          <div className="space-y-4">
             {kpis.map((kpi) => (
               <KpiBar
                 key={kpi.key}
@@ -412,8 +412,8 @@ export default function ClientDetailPage() {
       )}
 
       {/* Funnel */}
-      <Card padding="lg" className="mb-10">
-        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-8">
+      <Card padding="lg" className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-6">
           Conversion Funnel
         </h2>
         <div className="space-y-6">
@@ -422,7 +422,7 @@ export default function ClientDetailPage() {
             const width = Math.max((f.count / maxCount) * 100, 4);
             const barColor = funnelColors[index] || funnelColors[funnelColors.length - 1];
             return (
-              <div key={f.stage} className="flex items-center gap-5">
+              <div key={f.stage} className="flex items-center gap-4">
                 <span className="text-sm text-gray-600 w-44 flex-shrink-0 font-medium">
                   {f.stage}
                 </span>
@@ -443,11 +443,11 @@ export default function ClientDetailPage() {
       </Card>
 
       {/* Source Breakdown */}
-      <Card padding="lg" className="mb-10">
-        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-8">
+      <Card padding="lg" className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-6">
           Quellen
         </h2>
-        <div className="grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
             <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-2">
               <span className="text-2xl font-extrabold text-red-600">{sourceBreakdown.meta}</span>
@@ -470,8 +470,8 @@ export default function ClientDetailPage() {
       </Card>
 
       {/* Activity */}
-      <Card padding="lg" className="mb-10">
-        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-5">
+      <Card padding="lg" className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">
           Aktivitat
         </h2>
         <div className="flex items-center gap-3">
@@ -499,7 +499,7 @@ export default function ClientDetailPage() {
             <AlertTriangle size={16} />
             Upsell-Signale
           </h2>
-          <div className="space-y-5">
+          <div className="space-y-4">
             {upsellSignals.map((signal, i) => (
               <div key={i} className="flex items-start gap-2.5 text-sm">
                 <Badge tone="softAccent" className="flex-shrink-0 mt-0.5">!</Badge>

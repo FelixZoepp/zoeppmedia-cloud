@@ -43,8 +43,8 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 function AnalysisView({ analysis }: { analysis: CallRecordingAnalysis }) {
   return (
-    <div className="space-y-8 mt-5">
-      <div className="grid grid-cols-3 gap-5">
+    <div className="space-y-4 mt-4">
+      <div className="grid grid-cols-3 gap-4">
         <ScoreBar label="Skript-Treue" score={analysis.script_adherence_score} />
         <ScoreBar label="Gesprächsqualität" score={analysis.conversation_quality_score} />
         <ScoreBar label="Gesamt" score={analysis.overall_score} />
@@ -149,24 +149,24 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
 
   return (
     <Card>
-      <h3 className="font-semibold text-gray-900 mb-8 flex items-center gap-2">
+      <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
         <Mic className="w-5 h-5 text-red-600" />
         Gesprächsaufnahmen
       </h3>
 
       {/* Upload Area */}
-      <div className="flex items-center gap-5 mb-8">
+      <div className="flex items-center gap-4 mb-6">
         <select
           value={recordingType}
           onChange={(e) => setRecordingType(e.target.value)}
-          className="rounded-[10px] border border-gray-200 px-4 py-3 text-sm focus:border-[#E31B23]/40 focus:ring-1 focus:ring-[rgba(227,27,35,0.08)] outline-none bg-white"
+          className="h-10 rounded-lg border border-gray-300 px-3 text-sm focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none bg-white"
         >
           {typeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex-1 flex items-center justify-center gap-2 px-5 py-4 rounded-[10px] border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-[#E31B23]/30 hover:text-red-600 transition"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-200 hover:text-red-600 transition"
         >
           {uploading ? (
             <span className="animate-pulse">Wird hochgeladen & analysiert...</span>
@@ -190,7 +190,7 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
 
       {/* Recordings List */}
       {recordings.length > 0 ? (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {recordings.map(rec => {
             const isExpanded = expandedId === rec.id;
             const transcriptStatus = statusConfig[rec.transcript_status];
@@ -199,10 +199,10 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
             const AnalysisIcon = analysisStatus.icon;
 
             return (
-              <div key={rec.id} className="border border-gray-200 rounded-[16px] overflow-hidden bg-white">
+              <div key={rec.id} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : rec.id)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-gray-50 transition text-left"
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
@@ -236,12 +236,12 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
                 </button>
 
                 {isExpanded && (
-                  <div className="px-6 pb-6 border-t border-gray-100">
+                  <div className="px-4 pb-6 border-t border-gray-100">
                     {/* Transcript */}
                     {rec.transcript && (
                       <div className="mt-5">
                         <p className="text-sm font-semibold text-gray-700 mb-2">Transkript</p>
-                        <div className="bg-gray-50 rounded-[10px] p-6 text-sm text-gray-900 leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap">
+                        <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-900 leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap">
                           {rec.transcript}
                         </div>
                       </div>

@@ -107,7 +107,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
           <div key={s.id} className="flex items-center gap-2">
             <button
               onClick={() => s.id < step && setStep(s.id)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 s.id === step
                   ? 'bg-red-50 border border-red-200 text-red-700'
                   : s.id < step
@@ -128,23 +128,23 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 1 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Firmenname *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Firmenname *</label>
               <Input value={form.company_name} onChange={(e) => update('company_name', e.target.value)} icon={<Building2 className="w-4 h-4" />} placeholder="Dein Unternehmen" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Branche *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Branche *</label>
               <Select value={form.industry} onChange={(e) => update('industry', e.target.value)} options={industries} />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Region / Standort</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Region / Standort</label>
               <Input value={form.region} onChange={(e) => update('region', e.target.value)} icon={<MapPin className="w-4 h-4" />} placeholder="z.B. Berlin, NRW, bundesweit" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Aktuelle Mitarbeiteranzahl</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Aktuelle Mitarbeiteranzahl</label>
               <Input value={form.employee_count} onChange={(e) => update('employee_count', e.target.value)} icon={<Users className="w-4 h-4" />} placeholder="z.B. 5-10" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Website</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Website</label>
               <Input value={form.website_url} onChange={(e) => update('website_url', e.target.value)} icon={<Globe className="w-4 h-4" />} placeholder="https://..." />
             </div>
           </div>
@@ -154,11 +154,11 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Wie viele Mitarbeiter einstellen?</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Wie viele Mitarbeiter einstellen?</label>
               <Input type="number" value={form.hiring_target} onChange={(e) => update('hiring_target', e.target.value)} icon={<Target className="w-4 h-4" />} placeholder="z.B. 5" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">In welchem Zeitraum?</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">In welchem Zeitraum?</label>
               <Select value={form.hiring_timeframe} onChange={(e) => update('hiring_timeframe', e.target.value)} options={[
                 { value: '', label: 'Zeitraum wählen' },
                 { value: '1_month', label: 'Innerhalb 1 Monat' },
@@ -168,7 +168,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               ]} />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Erfahrung gewünscht?</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Erfahrung gewünscht?</label>
               <Select value={form.experience_required} onChange={(e) => update('experience_required', e.target.value)} options={[
                 { value: '', label: 'Auswählen' },
                 { value: 'experienced', label: 'Nur mit Erfahrung' },
@@ -177,18 +177,18 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               ]} />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Gehalt / Provisions-Modell</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Gehalt / Provisions-Modell</label>
               <Input value={form.compensation_model} onChange={(e) => update('compensation_model', e.target.value)} icon={<DollarSign className="w-4 h-4" />} placeholder="z.B. Fixum + Provision, reines Provisionsmodell" />
             </div>
 
             <div className="pt-4 border-t border-gray-200">
-              <p className="text-[13px] font-semibold text-gray-900 mb-3">Video & Content</p>
+              <p className="text-xs font-semibold text-gray-900 mb-3">Video & Content</p>
               <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-red-200 transition cursor-pointer mb-3">
                 <input
                   type="checkbox"
                   checked={form.has_video_shoot}
                   onChange={(e) => setForm(f => ({ ...f, has_video_shoot: e.target.checked }))}
-                  className="w-5 h-5 rounded accent-[#E31B23]"
+                  className="w-5 h-5 rounded accent-red-600"
                 />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Videodreh geplant</p>
@@ -196,7 +196,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                 </div>
               </label>
               <div>
-                <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Reels pro Monat</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Reels pro Monat</label>
                 <Input
                   type="number"
                   value={form.reels_per_month.toString()}
@@ -233,7 +233,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               label="Team-Fotos (optional)"
             />
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Primärfarbe</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Primärfarbe</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -245,13 +245,13 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               </div>
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Was macht euch besonders? (USPs)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Was macht euch besonders? (USPs)</label>
               <textarea
                 value={form.usps}
                 onChange={(e) => update('usps', e.target.value)}
                 placeholder="z.B. Höchste Provisionen der Branche, eigenes Schulungsprogramm, familiäres Team..."
                 rows={4}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 placeholder:text-gray-400 bg-white shadow-sm outline-none resize-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 bg-white outline-none resize-none"
               />
             </div>
           </div>
@@ -261,15 +261,15 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 4 && (
           <div className="space-y-5">
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Ansprechpartner</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Ansprechpartner</label>
               <Input value={form.contact_name} onChange={(e) => update('contact_name', e.target.value)} icon={<User className="w-4 h-4" />} placeholder="Vor- und Nachname" />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Telefon</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Telefon</label>
               <Input value={form.contact_phone} onChange={(e) => update('contact_phone', e.target.value)} icon={<Phone className="w-4 h-4" />} placeholder="+49..." />
             </div>
             <div>
-              <label className="block text-[13px] font-medium text-gray-600 mb-1.5">Bevorzugte Kontaktzeit</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Bevorzugte Kontaktzeit</label>
               <Select value={form.preferred_contact_time} onChange={(e) => update('preferred_contact_time', e.target.value)} options={[
                 { value: '', label: 'Auswählen' },
                 { value: 'morning', label: 'Vormittags (9-12 Uhr)' },
@@ -280,7 +280,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             </div>
 
             {error && (
-              <p className="text-red-600 text-[13px] bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
           </div>
         )}
@@ -338,7 +338,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   className="mt-0.5 w-5 h-5 rounded accent-red-500 shrink-0"
                 />
                 <div>
-                  <p className="font-semibold text-gray-900 text-[15px]">{item.title}</p>
+                  <p className="font-semibold text-gray-900 text-sm">{item.title}</p>
                   <p className="text-sm text-gray-600 mt-0.5">{item.desc}</p>
                 </div>
               </label>
@@ -383,14 +383,14 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                       meta_access_steps: { ...f.meta_access_steps, indeed_forwarding: e.target.checked },
                     }))
                   }
-                  className="w-5 h-5 rounded accent-[#E31B23]"
+                  className="w-5 h-5 rounded accent-red-600"
                 />
                 <span className="text-sm font-medium text-gray-900">Indeed-Weiterleitung eingerichtet</span>
               </label>
             </div>
 
             {error && (
-              <p className="text-red-600 text-[13px] bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+              <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
           </div>
         )}

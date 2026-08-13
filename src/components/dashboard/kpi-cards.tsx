@@ -24,7 +24,7 @@ function KpiCard({ label, value, change, icon, accent }: KpiCardProps) {
 
   return (
     <div
-      className={`rounded-xl p-5 shadow-sm ${
+      className={`rounded-xl p-6 shadow-sm ${
         accent
           ? 'bg-red-600 text-white'
           : 'bg-white'
@@ -32,7 +32,7 @@ function KpiCard({ label, value, change, icon, accent }: KpiCardProps) {
     >
       <div className="flex items-center justify-between mb-3">
         <span
-          className={`text-[13px] font-medium ${
+          className={`text-xs font-medium ${
             accent ? 'text-white/80' : 'text-gray-600'
           }`}
         >
@@ -44,7 +44,7 @@ function KpiCard({ label, value, change, icon, accent }: KpiCardProps) {
       </div>
       <div className="flex items-end gap-3">
         <span
-          className={`text-[32px] font-extrabold leading-none tracking-tight ${
+          className={`text-3xl font-extrabold leading-none tracking-tight ${
             accent ? 'text-white' : 'text-gray-900'
           }`}
         >
@@ -52,7 +52,7 @@ function KpiCard({ label, value, change, icon, accent }: KpiCardProps) {
         </span>
         {change && (
           <span
-            className={`text-[12px] font-semibold px-2 py-0.5 rounded-full mb-1 ${
+            className={`text-xs font-semibold px-2 py-0.5 rounded-full mb-1 ${
               accent
                 ? 'bg-white/20 text-white'
                 : isPositive

@@ -71,15 +71,15 @@ export function FileUpload({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {label && (
-        <label className="block text-[13px] font-medium text-gray-600">
+        <label className="block text-xs font-medium text-gray-600">
           {label}
         </label>
       )}
 
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-5">
+        <div className="flex flex-wrap gap-4">
           {value.map((url) => (
             <div
               key={url}
@@ -89,7 +89,7 @@ export function FileUpload({
               <button
                 type="button"
                 onClick={() => handleRemove(url)}
-                className="absolute top-1 right-1 p-0.5 bg-white/90 rounded-full opacity-0 group-hover:opacity-100 transition"
+                className="absolute top-1 right-1 p-0.5 bg-white rounded-full opacity-0 group-hover:opacity-100 transition"
               >
                 <X className="w-3.5 h-3.5 text-gray-600" />
               </button>
@@ -103,7 +103,7 @@ export function FileUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-2 px-6 py-5 rounded-[10px] border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-[#E31B23]/30 hover:text-red-600 transition disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-red-200 hover:text-red-600 transition disabled:opacity-50"
         >
           {uploading ? (
             <span className="animate-pulse">Hochladen...</span>

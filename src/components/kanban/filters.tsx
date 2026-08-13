@@ -26,7 +26,7 @@ export function FilterBar({
   const hasFilters = filters.search || filters.source || filters.stage || filters.dateFrom || filters.dateTo;
 
   return (
-    <div className="flex flex-wrap items-center gap-5 mb-8">
+    <div className="flex flex-wrap items-center gap-4 mb-6">
       <div className="w-52">
         <Input
           type="text"
@@ -61,14 +61,14 @@ export function FilterBar({
           type="date"
           value={filters.dateFrom}
           onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-          className="h-11 px-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 bg-white shadow-sm outline-none"
+          className="h-10 px-3 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white shadow-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
         />
-        <span className="text-gray-400 text-[13px]">bis</span>
+        <span className="text-gray-400 text-xs">bis</span>
         <input
           type="date"
           value={filters.dateTo}
           onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-          className="h-11 px-3 border border-gray-200 rounded-xl text-[15px] text-gray-900 bg-white shadow-sm outline-none"
+          className="h-10 px-3 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white shadow-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
         />
       </div>
       {hasFilters && (

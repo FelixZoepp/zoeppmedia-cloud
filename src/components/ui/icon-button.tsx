@@ -21,7 +21,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     const base = 'inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer focus-ring';
     const state = active
       ? 'bg-red-50 border border-red-200 text-red-600'
-      : 'bg-transparent text-gray-600 hover:bg-gray-050 border border-transparent';
+      : 'bg-transparent text-gray-600 hover:bg-gray-100 border border-transparent';
 
     return (
       <button ref={ref} className={`${base} ${sizeMap[size]} ${state} ${className}`} {...props}>

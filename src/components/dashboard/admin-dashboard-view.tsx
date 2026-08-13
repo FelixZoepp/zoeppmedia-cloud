@@ -36,7 +36,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
   const kw = getISOWeek(now);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
       {/* Top Bar */}
       <div className="flex items-center justify-between">
@@ -81,7 +81,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       {/* Quick Actions */}
       <div>
         <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Schnellzugriff</span>
-        <h2 className="text-xl font-bold text-gray-900 mt-1 mb-5">Deine Aktionen</h2>
+        <h2 className="text-xl font-bold text-gray-900 mt-1 mb-4">Deine Aktionen</h2>
         <div className="grid grid-cols-5 gap-4">
           <QuickAction icon={<Plus className="w-6 h-6" />} color="bg-red-50 text-red-600" title="Neue Agentur" desc="Kunden einladen" href="/invites" />
           <QuickAction icon={<Users className="w-6 h-6" />} color="bg-red-50 text-red-600" title="Kunden" desc="Alle Agenturen" href="/clients" />
@@ -95,12 +95,12 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       <div className="grid grid-cols-5 gap-4">
         <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Recruiting</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-5">Bewerber-Entwicklung</h2>
+          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber-Entwicklung</h2>
           <CandidatesChart data={data.candidatesOverTime} />
         </div>
         <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Quellen</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-5">Quellen-Verteilung</h2>
+          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Quellen-Verteilung</h2>
           <SourceDonut data={data.sourceBreakdown} />
         </div>
       </div>
@@ -132,7 +132,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
         </div>
         <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Kanäle</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-5">Bewerber nach Quelle</h2>
+          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber nach Quelle</h2>
           <SourcesChart data={data.sourceBreakdown} />
         </div>
       </div>

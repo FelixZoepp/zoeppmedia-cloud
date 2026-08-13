@@ -25,17 +25,17 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-0.5">
-            <Badge tone="softAccent" className="text-[11px] !px-2 !py-0.5 font-mono">
+            <Badge tone="softAccent" className="text-xs !px-2 !py-0.5 font-mono">
               {entry.problem_key}
             </Badge>
             {entry.escalation_trigger && (
-              <Badge tone="accent" className="text-[11px] !px-2 !py-0.5">
+              <Badge tone="accent" className="text-xs !px-2 !py-0.5">
                 <AlertTriangle className="w-3 h-3 mr-1" />
                 Eskalation
               </Badge>
             )}
           </div>
-          <p className="text-[15px] font-semibold text-gray-900 leading-snug">
+          <p className="text-sm font-semibold text-gray-900 leading-snug">
             {entry.title}
           </p>
         </div>
@@ -49,10 +49,10 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
         <div className="mt-5 space-y-8 border-t border-gray-200 pt-5">
           {/* Beschreibung */}
           <div>
-            <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
               Beschreibung
             </p>
-            <p className="text-[14px] text-gray-900 leading-relaxed">
+            <p className="text-sm text-gray-900 leading-relaxed">
               {entry.description}
             </p>
           </div>
@@ -60,12 +60,12 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Ursachen */}
           {entry.causes.length > 0 && (
             <div>
-              <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                 Ursachen
               </p>
               <ul className="space-y-3">
                 {entry.causes.map((cause, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[14px] text-gray-900">
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-900">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-600/70 flex-shrink-0" />
                     {cause}
                   </li>
@@ -77,13 +77,13 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Sofort-Maßnahmen */}
           {entry.immediate_actions.length > 0 && (
             <div>
-              <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                 Sofort-Maßnahmen
               </p>
               <ol className="space-y-3">
                 {entry.immediate_actions.map((action, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-[14px] text-gray-900">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-900">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
                       {i + 1}
                     </span>
                     {action}
@@ -96,12 +96,12 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
           {/* Langfristige Maßnahmen */}
           {entry.long_term_actions.length > 0 && (
             <div>
-              <p className="text-[14px] font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
                 Langfristig
               </p>
               <ul className="space-y-3">
                 {entry.long_term_actions.map((action, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[14px] text-gray-900">
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-900">
                     <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
                     {action}
                   </li>
@@ -116,10 +116,10 @@ function AccordionItem({ entry }: { entry: PlaybookEntry }) {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[12px] font-bold text-red-600 uppercase tracking-wide mb-0.5">
+                  <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-0.5">
                     Eskalations-Trigger
                   </p>
-                  <p className="text-[14px] text-red-700 leading-relaxed">
+                  <p className="text-sm text-red-700 leading-relaxed">
                     {entry.escalation_trigger}
                   </p>
                 </div>
@@ -168,7 +168,7 @@ export default function PlaybookPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -193,10 +193,10 @@ export default function PlaybookPage() {
       </div>
 
       {/* Accordion list */}
-      <div className="space-y-5">
+      <div className="space-y-4">
         {filtered.length === 0 ? (
           <Card padding="lg">
-            <p className="text-center text-[14px] text-gray-400">
+            <p className="text-center text-sm text-gray-400">
               {search ? `Keine Einträge für „${search}"` : 'Keine Playbook-Einträge vorhanden.'}
             </p>
           </Card>

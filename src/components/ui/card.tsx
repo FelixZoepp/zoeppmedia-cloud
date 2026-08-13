@@ -7,7 +7,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const paddingMap = {
-  sm: 'p-5',
+  sm: 'p-4',
   md: 'p-6',
   lg: 'p-8',
 };

@@ -116,7 +116,7 @@ export default function LibraryPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -125,7 +125,7 @@ export default function LibraryPage() {
     <div className="max-w-6xl">
       <Link
         href={`/clients/${id}`}
-        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-[14px] mb-8 transition-colors"
+        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-sm mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
@@ -147,26 +147,26 @@ export default function LibraryPage() {
 
       {/* Content grouped by type */}
       {filter === 'all' ? (
-        <div className="space-y-8">
+        <div className="space-y-4">
           {Object.entries(contentTypeConfig).map(([type, config]) => {
             const typeItems = grouped[type];
             if (!typeItems || typeItems.length === 0) return null;
 
             return (
               <div key={type}>
-                <div className="flex items-center gap-3 mb-5">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
                     {config.icon}
                   </div>
-                  <h2 className="text-[15px] font-bold text-gray-900">
+                  <h2 className="text-sm font-bold text-gray-900">
                     {config.label}
                   </h2>
-                  <span className="text-[13px] text-gray-400 font-medium">
+                  <span className="text-xs text-gray-400 font-medium">
                     ({typeItems.length})
                   </span>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {typeItems.map((item) => (
                     <ContentCard key={item.id} item={item} onView={() => openView(item)} onStatusChange={updateStatus} />
                   ))}
@@ -209,45 +209,45 @@ export default function LibraryPage() {
         width="max-w-2xl"
       >
         {viewItem && (
-          <div className="space-y-8">
+          <div className="space-y-4">
             {/* Meta info */}
             <div className="flex items-center gap-3 flex-wrap">
               <Badge tone={statusConfig[viewItem.status].tone}>
                 {statusConfig[viewItem.status].label}
               </Badge>
-              <span className="text-[13px] text-gray-400">
+              <span className="text-xs text-gray-400">
                 {contentTypeConfig[viewItem.content_type].label}
               </span>
               {viewItem.variant && (
-                <span className="text-[13px] text-gray-400">
+                <span className="text-xs text-gray-400">
                   Variante: {viewItem.variant}
                 </span>
               )}
-              <span className="text-[13px] text-gray-400">
+              <span className="text-xs text-gray-400">
                 Version {viewItem.version}
               </span>
-              <span className="text-[13px] text-gray-400">
+              <span className="text-xs text-gray-400">
                 {new Date(viewItem.created_at).toLocaleDateString('de-DE')}
               </span>
             </div>
 
             {/* Client feedback banner */}
             {viewItem.client_feedback && (
-              <div className="flex items-start gap-3 p-5 bg-amber-100/50 border border-amber-500/20 rounded-xl">
+              <div className="flex items-start gap-3 p-4 bg-amber-100/50 border border-amber-500/20 rounded-xl">
                 <MessageSquare className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[13px] font-semibold text-amber-500 mb-1">Kunden-Feedback</p>
-                  <p className="text-[13px] text-gray-900">{viewItem.client_feedback}</p>
+                  <p className="text-xs font-semibold text-amber-500 mb-1">Kunden-Feedback</p>
+                  <p className="text-xs text-gray-900">{viewItem.client_feedback}</p>
                 </div>
               </div>
             )}
             {/* Internal feedback banner */}
             {viewItem.feedback && (
-              <div className="flex items-start gap-3 p-5 bg-gray-50 border border-gray-200 rounded-xl">
+              <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
                 <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[13px] font-semibold text-gray-600 mb-1">Interne Notiz</p>
-                  <p className="text-[13px] text-gray-900">{viewItem.feedback}</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">Interne Notiz</p>
+                  <p className="text-xs text-gray-900">{viewItem.feedback}</p>
                 </div>
               </div>
             )}
@@ -259,18 +259,18 @@ export default function LibraryPage() {
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-5 py-3 text-[15px] font-semibold border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  className="w-full px-4 py-3 text-sm font-semibold border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
                 />
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={12}
-                  className="w-full px-5 py-4 text-[14px] font-mono leading-relaxed border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+                  className="w-full px-4 py-3 text-sm font-mono leading-relaxed border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
                 />
               </div>
             ) : (
-              <div className="bg-gray-025 border border-gray-100 rounded-xl p-6 max-h-80 overflow-y-auto">
-                <pre className="text-[14px] text-gray-900 whitespace-pre-wrap font-sans leading-relaxed">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 max-h-80 overflow-y-auto">
+                <pre className="text-sm text-gray-900 whitespace-pre-wrap font-sans leading-relaxed">
                   {viewItem.content}
                 </pre>
               </div>
@@ -391,7 +391,7 @@ function ContentCard({
   return (
     <Card
       padding="md"
-      className="flex items-start gap-6 group hover:shadow-md transition-shadow"
+      className="flex items-start gap-4 group hover:shadow-md transition-shadow"
     >
       {/* Clickable area */}
       <div
@@ -403,27 +403,27 @@ function ContentCard({
 
       <div className="flex-1 min-w-0 cursor-pointer" onClick={onView}>
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold text-[15px] text-gray-900 truncate">
+          <h3 className="font-semibold text-sm text-gray-900 truncate">
             {item.title}
           </h3>
           {item.variant && (
-            <span className="text-[12px] text-gray-400 font-medium bg-gray-100 px-1.5 py-0.5 rounded">
+            <span className="text-xs text-gray-400 font-medium bg-gray-100 px-1.5 py-0.5 rounded">
               {item.variant}
             </span>
           )}
-          <span className="text-[12px] text-gray-400">
+          <span className="text-xs text-gray-400">
             v{item.version}
           </span>
         </div>
 
-        <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
           {item.content.slice(0, 150)}{item.content.length > 150 ? '...' : ''}
         </p>
 
         {(item.feedback || item.client_feedback) && (
           <div className="flex items-center gap-1.5 mt-2 text-amber-500">
             <MessageSquare className="w-3 h-3" />
-            <span className="text-[12px] font-medium truncate">
+            <span className="text-xs font-medium truncate">
               {(item.client_feedback || item.feedback || '').slice(0, 80)}
               {((item.client_feedback || item.feedback) || '').length > 80 ? '...' : ''}
             </span>
@@ -433,7 +433,7 @@ function ContentCard({
 
       <div className="flex flex-col items-end gap-2 flex-shrink-0">
         <Badge tone={config.tone}>{config.label}</Badge>
-        <span className="text-[12px] text-gray-400">
+        <span className="text-xs text-gray-400">
           {new Date(item.updated_at).toLocaleDateString('de-DE')}
         </span>
         {/* Quick action buttons */}

@@ -27,10 +27,10 @@ export function SegmentedControl({ items, value, onChange, className = '' }: Seg
           <button
             key={item.value}
             onClick={() => onChange(item.value)}
-            className={`px-4 py-2 text-[15px] font-medium rounded-full transition-all cursor-pointer ${
+            className={`px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
               isActive
                 ? 'bg-red-50 border border-red-200 text-red-600'
-                : 'bg-transparent border border-transparent text-gray-600 hover:bg-gray-050'
+                : 'bg-transparent border border-transparent text-gray-600 hover:bg-gray-100'
             }`}
           >
             {item.label}

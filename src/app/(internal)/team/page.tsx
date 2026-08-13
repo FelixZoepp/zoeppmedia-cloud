@@ -120,7 +120,7 @@ export default function TeamPage() {
         }
       />
 
-      <div className="grid gap-5">
+      <div className="grid gap-4">
         {loading && (
           <Card>
             <p className="text-center text-gray-400 py-8">Wird geladen…</p>
@@ -136,7 +136,7 @@ export default function TeamPage() {
         {members.map((member) => (
           <Card key={member.id}>
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
                   <Users className="w-5 h-5 text-red-600" />
                 </div>
@@ -170,7 +170,7 @@ export default function TeamPage() {
         onClose={closeModal}
         title={editingMember ? 'Mitarbeiter bearbeiten' : 'Mitarbeiter hinzufügen'}
       >
-        <div className="space-y-8">
+        <div className="space-y-4">
           <Input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -194,7 +194,7 @@ export default function TeamPage() {
                       type="checkbox"
                       checked={form.agency_ids.includes(a.id)}
                       onChange={(e) => toggleAgency(a.id, e.target.checked)}
-                      className="accent-[#E31B23] w-4 h-4"
+                      className="accent-red-600 w-4 h-4"
                     />
                     <span className="text-gray-900">{a.name}</span>
                   </label>

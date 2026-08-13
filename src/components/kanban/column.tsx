@@ -18,16 +18,16 @@ export function KanbanColumn({
 
   return (
     <div className="flex-shrink-0 w-80">
-      <div className="flex items-center gap-4 mb-5 px-1">
+      <div className="flex items-center gap-3 mb-4 px-1">
         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
-        <h3 className="font-semibold text-gray-900 text-[15px]">{stage.name}</h3>
-        <span className="text-[13px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+        <h3 className="font-semibold text-gray-900 text-sm">{stage.name}</h3>
+        <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
           {candidates.length}
         </span>
       </div>
       <div
         ref={setNodeRef}
-        className={`space-y-5 min-h-[200px] p-5 rounded-xl transition-colors ${
+        className={`space-y-3 min-h-[200px] p-4 rounded-xl transition-colors ${
           isOver ? 'bg-red-50' : 'bg-gray-50'
         }`}
       >

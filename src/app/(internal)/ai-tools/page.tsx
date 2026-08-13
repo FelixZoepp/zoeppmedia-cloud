@@ -57,18 +57,18 @@ function ConversationItem({
         <span className={`flex-shrink-0 ${active ? 'text-red-600' : 'text-gray-400'}`}>
           {CONTENT_ICONS[conversation.conversation_type] || <MessageSquare className="w-4 h-4" />}
         </span>
-        <span className="text-[14px] font-medium truncate flex-1">
+        <span className="text-sm font-medium truncate flex-1">
           {conversation.title || 'Neue Unterhaltung'}
         </span>
       </div>
       <div className="flex items-center gap-2 pl-6">
-        <span className="text-[11px] text-gray-400">
+        <span className="text-xs text-gray-400">
           {new Date(conversation.updated_at).toLocaleDateString('de-DE', {
             day: '2-digit',
             month: '2-digit',
           })}
         </span>
-        <Badge tone="outline" className="!text-[10px] !px-1.5 !py-0">
+        <Badge tone="outline" className="!text-xs !px-1.5 !py-0">
           {CONTENT_TYPES.find((t) => t.value === conversation.conversation_type)?.label || conversation.conversation_type}
         </Badge>
       </div>
@@ -99,15 +99,15 @@ function ChatBubble({ message }: { message: AIMessage }) {
 
         {/* Bubble */}
         <div
-          className={`rounded-xl px-6 py-5 ${
+          className={`rounded-xl px-4 py-3 ${
             isUser
               ? 'bg-red-600 text-white shadow-md'
               : 'bg-white text-gray-900 shadow-sm border border-gray-200'
           }`}
         >
-          <p className="text-[14px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
           <p
-            className={`text-[11px] mt-2 ${
+            className={`text-xs mt-2 ${
               isUser ? 'text-white/60' : 'text-gray-400'
             }`}
           >
@@ -298,7 +298,7 @@ export default function AIToolsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -308,11 +308,11 @@ export default function AIToolsPage() {
   return (
     <div>
       <PageHeader label="FULFILLMENT" title="AI Tools" />
-    <div className="flex gap-5 h-[calc(100vh-128px)]">
+    <div className="flex gap-4 h-[calc(100vh-128px)]">
       {/* Left Sidebar: Conversations */}
       <div className="w-[280px] flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-bold text-gray-900">Unterhaltungen</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold text-gray-900">Unterhaltungen</h2>
           <Button variant="soft" size="sm" onClick={startNewConversation}>
             <Plus className="w-3.5 h-3.5" /> Neu
           </Button>
@@ -324,7 +324,7 @@ export default function AIToolsPage() {
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
                 <Sparkles className="w-6 h-6 text-red-600" />
               </div>
-              <p className="text-[14px] text-gray-600">
+              <p className="text-sm text-gray-600">
                 Starte eine neue Unterhaltung
               </p>
             </div>
@@ -334,7 +334,7 @@ export default function AIToolsPage() {
                 const agencyLabel = agencies.find((a) => a.value === agencyId)?.label || (agencyId === 'no_agency' ? 'Allgemein' : agencyId.slice(0, 8));
                 return (
                   <div key={agencyId}>
-                    <div className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <div className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       <Building2 className="w-3 h-3" />
                       {agencyLabel}
                     </div>
@@ -357,7 +357,7 @@ export default function AIToolsPage() {
       {/* Right Main: Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-5 mb-5">
+        <div className="flex items-center gap-4 mb-4">
           <Select
             options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
             value={selectedAgency}
@@ -387,13 +387,13 @@ export default function AIToolsPage() {
               <div className="w-16 h-16 rounded-xl bg-red-600 flex items-center justify-center mb-5 shadow-md">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-[20px] font-bold text-gray-900 mb-2">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
                 AI Content Tools
               </h3>
-              <p className="text-gray-600 text-[15px] max-w-sm leading-relaxed mb-8">
+              <p className="text-gray-600 text-sm max-w-sm leading-relaxed mb-6">
                 Generiere und verfeinere Ad Copys, Skripte und Funnel-Texte mit AI-Unterstützung.
               </p>
-              <div className="grid grid-cols-2 gap-5 max-w-md w-full">
+              <div className="grid grid-cols-2 gap-4 max-w-md w-full">
                 {CONTENT_TYPES.filter((t) => t.value !== 'general').map((t) => (
                   <button
                     key={t.value}
@@ -401,12 +401,12 @@ export default function AIToolsPage() {
                       setSelectedType(t.value);
                       textareaRef.current?.focus();
                     }}
-                    className="flex items-center gap-3 p-6 bg-gray-50 rounded-xl text-left hover:bg-red-50 hover:text-red-600 transition-colors border border-transparent hover:border-red-200 cursor-pointer group"
+                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl text-left hover:bg-red-50 hover:text-red-600 transition-colors border border-transparent hover:border-red-200 cursor-pointer group"
                   >
                     <span className="text-gray-400 group-hover:text-red-500 transition-colors">
                       {CONTENT_ICONS[t.value]}
                     </span>
-                    <span className="text-[14px] font-medium">{t.label}</span>
+                    <span className="text-sm font-medium">{t.label}</span>
                   </button>
                 ))}
               </div>
@@ -422,12 +422,12 @@ export default function AIToolsPage() {
               ))}
 
               {sending && (
-                <div className="flex justify-start mb-5">
+                <div className="flex justify-start mb-4">
                   <div className="flex items-start gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                       <Bot className="w-4 h-4 text-gray-600" />
                     </div>
-                    <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-200">
+                    <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-200">
                       <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 bg-red-600/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <div className="w-2 h-2 bg-red-600/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -444,8 +444,8 @@ export default function AIToolsPage() {
         </Card>
 
         {/* Chat Composer */}
-        <div className="flex items-end gap-5">
-          <div className="flex-1 relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden focus-within:border-[#E31B23]/40 focus-within:shadow-[0_0_0_3px_rgba(227,27,35,0.08)] transition-all">
+        <div className="flex items-end gap-4">
+          <div className="flex-1 relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100 transition-all">
             <textarea
               ref={textareaRef}
               value={inputText}
@@ -466,7 +466,7 @@ export default function AIToolsPage() {
                   : 'Schreibe eine Nachricht...'
               }
               rows={1}
-              className="w-full px-5 py-4 text-[15px] text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent"
+              className="w-full px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent"
               style={{ minHeight: '44px', maxHeight: '160px' }}
             />
           </div>

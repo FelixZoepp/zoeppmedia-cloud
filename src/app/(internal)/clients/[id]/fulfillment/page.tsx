@@ -246,7 +246,7 @@ export default function FulfillmentPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -256,7 +256,7 @@ export default function FulfillmentPage() {
 
   return (
     <div className="max-w-6xl">
-      <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-[14px] mb-8 transition-colors">
+      <Link href={`/clients/${id}`} className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-sm mb-8 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
@@ -274,13 +274,13 @@ export default function FulfillmentPage() {
         }
       />
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {tasks.map((task) => {
           const config = statusConfig[task.status] || statusConfig.pending;
           const actionBtn = getActionButton(task);
 
           return (
-            <Card key={task.id} padding="md" className="flex items-center gap-6">
+            <Card key={task.id} padding="md" className="flex items-center gap-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                 task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
               }`}>
@@ -288,9 +288,9 @@ export default function FulfillmentPage() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-[15px] text-gray-900">{task.title}</p>
+                <p className="font-semibold text-sm text-gray-900">{task.title}</p>
                 {task.description && (
-                  <p className="text-[13px] text-gray-600 truncate">{task.description}</p>
+                  <p className="text-xs text-gray-600 truncate">{task.description}</p>
                 )}
               </div>
 

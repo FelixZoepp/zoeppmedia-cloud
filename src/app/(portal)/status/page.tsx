@@ -153,7 +153,7 @@ export default function ProjectStatusPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-[#E31B23] rounded-full animate-spin" />
+        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -166,7 +166,7 @@ export default function ProjectStatusPage() {
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <Clock className="w-8 h-8 text-red-600/80" />
           </div>
-          <h2 className="text-[17px] font-bold text-gray-900 mb-2">
+          <h2 className="text-lg font-bold text-gray-900 mb-2">
             Ihr Projekt wird vorbereitet
           </h2>
           <p className="text-gray-600">
@@ -226,10 +226,10 @@ export default function ProjectStatusPage() {
       />
 
       {/* Overall progress */}
-      <Card padding="lg" className="mb-8">
-        <div className="flex items-center justify-between mb-5">
-          <span className="text-[15px] font-bold text-gray-900">Gesamtfortschritt</span>
-          <span className="text-[22px] font-extrabold text-red-600">{overallPercent}%</span>
+      <Card padding="lg" className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-bold text-gray-900">Gesamtfortschritt</span>
+          <span className="text-xl font-extrabold text-red-600">{overallPercent}%</span>
         </div>
         <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
@@ -238,9 +238,9 @@ export default function ProjectStatusPage() {
           />
         </div>
         <div className="flex justify-between mt-3">
-          <span className="text-[13px] text-gray-400">{doneTasks} von {totalTasks} Aufgaben</span>
+          <span className="text-xs text-gray-400">{doneTasks} von {totalTasks} Aufgaben</span>
           {(needsAttention + contentForReview.length) > 0 && (
-            <span className="text-[13px] font-medium text-red-600">
+            <span className="text-xs font-medium text-red-600">
               {needsAttention + contentForReview.length} {(needsAttention + contentForReview.length) === 1 ? 'Punkt braucht' : 'Punkte brauchen'} Ihre Aufmerksamkeit
             </span>
           )}
@@ -249,17 +249,17 @@ export default function ProjectStatusPage() {
 
       {/* Attention needed section — SOP tasks only */}
       {needsAttention > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-5">
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4 text-red-600" />
             </div>
-            <h2 className="text-[15px] font-bold text-gray-900">
+            <h2 className="text-sm font-bold text-gray-900">
               Ihre Freigabe wird benötigt
             </h2>
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-4">
             {approvalTasks.map((ct) => {
               const sopTask = tasks.find((t) => t.id === ct.sop_task_id);
               if (!sopTask) return null;
@@ -267,12 +267,12 @@ export default function ProjectStatusPage() {
               return (
                 <Card key={ct.id} padding="md" className="border-l-4 border-l-red-500">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-4">
                       <Eye className="w-5 h-5 text-red-600 flex-shrink-0" />
                       <div>
-                        <p className="font-semibold text-[15px] text-gray-900">{sopTask.title}</p>
+                        <p className="font-semibold text-sm text-gray-900">{sopTask.title}</p>
                         {sopTask.description && (
-                          <p className="text-[13px] text-gray-600 mt-0.5">{sopTask.description}</p>
+                          <p className="text-xs text-gray-600 mt-0.5">{sopTask.description}</p>
                         )}
                       </div>
                     </div>
@@ -302,7 +302,7 @@ export default function ProjectStatusPage() {
       )}
 
       {/* Phase cards */}
-      <div className="space-y-5">
+      <div className="space-y-4">
         {phases.map((phase, phaseIndex) => {
           const phaseTasks = tasksByPhase.get(phase.id) || [];
           const phaseCTs = phaseTasks.map((t) => customerTaskMap.get(t.id)).filter(Boolean) as CustomerTask[];
@@ -317,10 +317,10 @@ export default function ProjectStatusPage() {
             <Card key={phase.id} padding="sm">
               <button
                 onClick={() => togglePhase(phase.id)}
-                className="w-full flex items-center gap-4 p-5 text-left cursor-pointer hover:bg-gray-025 rounded-xl transition-colors"
+                className="w-full flex items-center gap-4 p-4 text-left cursor-pointer hover:bg-gray-50 rounded-xl transition-colors"
               >
                 {/* Phase number/check */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-[15px] ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm ${
                   allComplete
                     ? 'bg-green-100 text-green-700'
                     : phaseIndex < currentPhaseIndex
@@ -338,7 +338,7 @@ export default function ProjectStatusPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-[15px] text-gray-900">
+                    <h3 className="font-bold text-sm text-gray-900">
                       {phase.title}
                     </h3>
                     {hasApprovalNeeded && (
@@ -346,14 +346,14 @@ export default function ProjectStatusPage() {
                     )}
                   </div>
                   {phase.description && (
-                    <p className="text-[13px] text-gray-600 mt-0.5">
+                    <p className="text-xs text-gray-600 mt-0.5">
                       {phase.description}
                     </p>
                   )}
                 </div>
 
                 <div className="flex items-center gap-4 flex-shrink-0">
-                  <span className="text-[13px] text-gray-400 font-medium">
+                  <span className="text-xs text-gray-400 font-medium">
                     {phasePercent}%
                   </span>
                   <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -374,7 +374,7 @@ export default function ProjectStatusPage() {
 
               {/* Expanded simple task list */}
               {isExpanded && (
-                <div className="px-5 pb-5">
+                <div className="px-4 pb-5">
                   <div className="border-t border-gray-200 pt-4 space-y-2">
                     {phaseTasks.map((sopTask) => {
                       const ct = customerTaskMap.get(sopTask.id);
@@ -390,7 +390,7 @@ export default function ProjectStatusPage() {
                           className="flex items-center gap-4 py-3 px-4 rounded-lg"
                         >
                           {config.icon}
-                          <span className={`text-[14px] flex-1 ${
+                          <span className={`text-sm flex-1 ${
                             status === 'done' || status === 'approved'
                               ? 'text-gray-400'
                               : status === 'waiting_approval'
@@ -399,7 +399,7 @@ export default function ProjectStatusPage() {
                           }`}>
                             {sopTask.title}
                           </span>
-                          <span className={`text-[12px] font-medium ${
+                          <span className={`text-xs font-medium ${
                             status === 'done' || status === 'approved'
                               ? 'text-green-600'
                               : status === 'waiting_approval'
@@ -426,32 +426,32 @@ export default function ProjectStatusPage() {
       {/* Content review section */}
       {contentForReview.length > 0 && (
         <div className="mt-8">
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
               <FileText className="w-4 h-4 text-red-600" />
             </div>
-            <h2 className="text-[15px] font-bold text-gray-900">
+            <h2 className="text-sm font-bold text-gray-900">
               Inhalte zur Freigabe
             </h2>
-            <span className="text-[13px] text-gray-400 font-medium ml-1">
+            <span className="text-xs text-gray-400 font-medium ml-1">
               ({contentForReview.length})
             </span>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-4">
             {contentForReview.map((item) => (
               <Card key={item.id} padding="md" className="border-l-4 border-l-red-500">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-5 min-w-0">
+                  <div className="flex items-start gap-4 min-w-0">
                     <FileText className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <p className="font-semibold text-[15px] text-gray-900">{item.title}</p>
-                      <p className="text-[13px] text-gray-600 mt-0.5 line-clamp-2">
+                      <p className="font-semibold text-sm text-gray-900">{item.title}</p>
+                      <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
                         {item.content.slice(0, 120)}{item.content.length > 120 ? '...' : ''}
                       </p>
                       <button
                         onClick={() => setContentPreview(item)}
-                        className="text-[13px] text-red-600 hover:text-red-600 font-medium mt-1 cursor-pointer"
+                        className="text-xs text-red-600 hover:text-red-600 font-medium mt-1 cursor-pointer"
                       >
                         Vorschau ansehen
                       </button>
@@ -488,8 +488,8 @@ export default function ProjectStatusPage() {
         title="Änderung anfordern"
       >
         {feedbackModal && (
-          <div className="space-y-8">
-            <p className="text-[14px] text-gray-600">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
               Was sollen wir bei <strong>{feedbackModal.title}</strong> andern?
             </p>
             <textarea
@@ -497,7 +497,7 @@ export default function ProjectStatusPage() {
               onChange={(e) => setFeedbackText(e.target.value)}
               placeholder="Beschreiben Sie kurz, was geandert werden soll..."
               rows={4}
-              className="w-full px-4 py-3 text-[15px] border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
             />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => { setFeedbackModal(null); setFeedbackText(''); }}>
@@ -530,9 +530,9 @@ export default function ProjectStatusPage() {
         width="max-w-2xl"
       >
         {contentPreview && (
-          <div className="space-y-5">
-            <div className="bg-gray-025 border border-gray-100 rounded-xl p-5 max-h-80 overflow-y-auto">
-              <pre className="text-[14px] text-gray-900 whitespace-pre-wrap font-sans leading-relaxed">
+          <div className="space-y-4">
+            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 max-h-80 overflow-y-auto">
+              <pre className="text-sm text-gray-900 whitespace-pre-wrap font-sans leading-relaxed">
                 {contentPreview.content}
               </pre>
             </div>

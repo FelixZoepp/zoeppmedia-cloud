@@ -34,11 +34,11 @@ function timeAgo(dateStr: string): string {
 export function RecentCandidates({ candidates }: RecentCandidatesProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-5">
-      <h3 className="text-[15px] font-semibold text-gray-900 mb-4">
+      <h3 className="text-sm font-semibold text-gray-900 mb-4">
         Bewerber
       </h3>
       {candidates.length === 0 ? (
-        <p className="text-[13px] text-gray-400">Noch keine Bewerber</p>
+        <p className="text-xs text-gray-400">Noch keine Bewerber</p>
       ) : (
         <div className="space-y-4">
           {candidates.map((c) => (
@@ -51,13 +51,13 @@ export function RecentCandidates({ candidates }: RecentCandidatesProps) {
                 <User className="w-4 h-4 text-gray-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-gray-900 truncate group-hover:text-red-500 transition-colors">
+                <p className="text-xs font-medium text-gray-900 truncate group-hover:text-red-500 transition-colors">
                   {c.name}
                 </p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   {sourceLabels[c.source] || c.source}
                 </p>
-                <p className="text-[11px] text-gray-400">
+                <p className="text-xs text-gray-400">
                   {timeAgo(c.created_at)}
                 </p>
               </div>
