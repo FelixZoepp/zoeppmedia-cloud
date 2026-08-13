@@ -564,3 +564,42 @@ export interface SurveyScheduleItem {
   response_id: string | null;
   created_at: string;
 }
+
+// Template Database
+
+export type TemplateContentType =
+  | 'ad_winkel_1' | 'ad_winkel_2' | 'ad_winkel_3'
+  | 'funnel' | 'phone_script' | 'vg_leitfaden' | 'follow_up'
+  | 'absage_telefon' | 'absage_vg' | 'absage_schriftlich'
+  | 'indeed' | 'generator_rules';
+
+export type TemplateBranch = 'solar' | 'glasfaser' | 'strom_gas' | 'telko' | 'versicherung' | 'all';
+
+export interface ContentTemplate {
+  id: string;
+  template_key: string;
+  branch: TemplateBranch;
+  content_type: TemplateContentType;
+  title: string;
+  template_text: string;
+  metadata: Record<string, unknown>;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BranchKey = 'solar' | 'glasfaser' | 'strom_gas' | 'telko' | 'versicherung';
+
+export interface BranchProfile {
+  id: string;
+  branch: BranchKey;
+  default_values: Record<string, unknown>;
+  strongest_angle: string | null;
+  target_audience: string | null;
+  common_rejection: string | null;
+  notes: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}

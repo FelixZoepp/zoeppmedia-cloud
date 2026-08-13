@@ -17,6 +17,7 @@ import {
   ListChecks,
   Target,
   BookOpen,
+  FileText,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -42,6 +43,7 @@ const adminGroups: SidebarGroup[] = [
     items: [
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
       { id: 'kpi', label: 'KPI Einstellungen', icon: <Target className="w-5 h-5" />, href: '/admin/kpi' },
+      { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },
       { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
     ],
   },

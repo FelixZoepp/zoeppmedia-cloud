@@ -2,11 +2,12 @@ import type { ReactNode, HTMLAttributes } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   inset?: boolean;
-  padding?: 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'sm' | 'md' | 'lg';
   children: ReactNode;
 }
 
 const paddingMap = {
+  none: '',
   sm: 'p-5',
   md: 'p-8',
   lg: 'p-10',
