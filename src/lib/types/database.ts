@@ -121,6 +121,28 @@ export type OnboardingSubmission = {
   reels_per_month: number;
   created_at: string;
   updated_at: string;
+  // D2D-specific fields
+  job_title: string | null;
+  regions: string[] | null;
+  radius_km: number | null;
+  product: 'pv' | 'glasfaser' | 'strom_gas' | 'telko' | 'versicherung' | null;
+  task_type: 'leads_only' | 'contract_close' | null;
+  compensation: 'pure_commission' | 'commission_guarantee' | 'fixed_commission' | null;
+  commission_per_unit: string | null;
+  monthly_earning_from: number | null;
+  monthly_earning_to: number | null;
+  employment_type: 'self_employed' | 'employed' | null;
+  career_levels: string[] | null;
+  company_car_from: string | null;
+  training_type: 'one_on_one' | 'video_course' | 'mentor' | 'learning_by_doing' | null;
+  client_nameable: boolean;
+  client_name: string | null;
+  extras: string[] | null;
+  experience_needed: boolean;
+  drivers_license_needed: boolean;
+  start_date: string | null;
+  career_page_url: string | null;
+  tone: 'du' | 'sie';
 };
 
 export type RecurringTaskKey = 'indeed_restart' | 'creatives_test' | 'reels_create' | 'video_shoot_plan';

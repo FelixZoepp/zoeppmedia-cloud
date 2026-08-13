@@ -1,0 +1,22 @@
+-- Replace generic onboarding with D2D-specific fields
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS job_title TEXT;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS regions TEXT[];
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS radius_km INTEGER;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS product TEXT CHECK (product IN ('pv', 'glasfaser', 'strom_gas', 'telko', 'versicherung'));
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS task_type TEXT CHECK (task_type IN ('leads_only', 'contract_close'));
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS compensation TEXT CHECK (compensation IN ('pure_commission', 'commission_guarantee', 'fixed_commission'));
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS commission_per_unit TEXT;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS monthly_earning_from INTEGER;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS monthly_earning_to INTEGER;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS employment_type TEXT CHECK (employment_type IN ('self_employed', 'employed'));
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS career_levels TEXT[];
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS company_car_from TEXT;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS training_type TEXT CHECK (training_type IN ('one_on_one', 'video_course', 'mentor', 'learning_by_doing'));
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS client_nameable BOOLEAN DEFAULT false;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS extras TEXT[];
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS experience_needed BOOLEAN DEFAULT false;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS drivers_license_needed BOOLEAN DEFAULT false;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS start_date TEXT;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS career_page_url TEXT;
+ALTER TABLE onboarding_submissions ADD COLUMN IF NOT EXISTS tone TEXT DEFAULT 'du' CHECK (tone IN ('du', 'sie'));
