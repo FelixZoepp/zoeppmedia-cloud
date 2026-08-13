@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight } from 'lucide-react';
+import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle } from 'lucide-react';
+import type { PlaybookTask } from '@/lib/types/database';
 
 interface Agency {
   id: string;
@@ -58,12 +59,25 @@ function getGreeting(): string {
 export function EmployeeDashboardView() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playbookTasks, setPlaybookTasks] = useState<PlaybookTask[]>([]);
 
   useEffect(() => {
     fetch('/api/employee/dashboard')
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
+
+    fetch('/api/playbook-tasks?status=pending')
+      .then((r) => r.ok ? r.json() : [])
+      .then((pending: PlaybookTask[]) => {
+        fetch('/api/playbook-tasks?status=in_progress')
+          .then((r) => r.ok ? r.json() : [])
+          .then((inProgress: PlaybookTask[]) => {
+            setPlaybookTasks([...inProgress, ...pending]);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -196,6 +210,51 @@ export function EmployeeDashboardView() {
                 </div>
               </Card>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Playbook Aufgaben */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <BookOpen className="w-5 h-5 text-red-600" />
+          <h2 className="text-lg font-bold text-gray-900">Playbook Aufgaben</h2>
+          <span className="text-sm text-gray-400 ml-1">{playbookTasks.length}</span>
+        </div>
+        {playbookTasks.length === 0 ? (
+          <Card padding="md">
+            <p className="text-sm text-gray-400 text-center">Keine offenen Playbook-Aufgaben.</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {playbookTasks.slice(0, 10).map((task) => (
+              <Card key={task.id} padding="sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 leading-snug">{task.action_text}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Badge tone="softAccent" className="text-xs !px-2 !py-0.5 font-mono">
+                        {task.playbook_key}
+                      </Badge>
+                      <Badge
+                        tone={task.status === 'in_progress' ? 'accent' : 'neutral'}
+                        className="text-xs !px-2 !py-0.5"
+                      >
+                        {task.status === 'in_progress' ? 'In Bearbeitung' : 'Offen'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <CheckCircle className="w-4 h-4 text-gray-200 shrink-0" />
+                </div>
+              </Card>
+            ))}
+            {playbookTasks.length > 10 && (
+              <Link href="/playbook">
+                <p className="text-xs text-red-600 hover:underline text-center pt-1">
+                  Alle {playbookTasks.length} Aufgaben ansehen
+                </p>
+              </Link>
+            )}
           </div>
         )}
       </div>

@@ -186,13 +186,38 @@ export async function detectProblemsForAgency(
       .limit(1);
 
     if (result.triggered && (!existing || existing.length === 0)) {
-      await supabase.from('agency_problems').insert({
-        agency_id: agencyId,
-        problem_key: check.key,
-        severity: check.severity,
-        current_value: result.currentValue,
-        target_value: target,
-      });
+      const { data: newProblem } = await supabase
+        .from('agency_problems')
+        .insert({
+          agency_id: agencyId,
+          problem_key: check.key,
+          severity: check.severity,
+          current_value: result.currentValue,
+          target_value: target,
+        })
+        .select('id')
+        .single();
+
+      // Auto-create playbook tasks from immediate_actions
+      if (newProblem) {
+        const { data: playbook } = await supabase
+          .from('playbook_entries')
+          .select('immediate_actions')
+          .eq('problem_key', check.key)
+          .single();
+
+        if (playbook && Array.isArray(playbook.immediate_actions) && playbook.immediate_actions.length > 0) {
+          const taskRows = playbook.immediate_actions.map((action: string) => ({
+            agency_id: agencyId,
+            problem_id: newProblem.id,
+            playbook_key: check.key,
+            action_text: action,
+            action_type: 'immediate',
+          }));
+          await supabase.from('playbook_tasks').insert(taskRows);
+        }
+      }
+
       detected++;
     } else if (!result.triggered && existing && existing.length > 0) {
       await supabase

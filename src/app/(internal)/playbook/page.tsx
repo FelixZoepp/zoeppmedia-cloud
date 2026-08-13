@@ -7,11 +7,138 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
-import type { PlaybookEntry } from '@/lib/types/database';
-import { ChevronDown, ChevronUp, Search, AlertTriangle, Plus, Pencil, Trash2 } from 'lucide-react';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import type { PlaybookEntry, PlaybookTask } from '@/lib/types/database';
+import { ChevronDown, ChevronUp, Search, AlertTriangle, Plus, Pencil, Trash2, CheckCircle, ClipboardList } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
-/*  Accordion Item                                                      */
+/*  Types                                                               */
+/* ------------------------------------------------------------------ */
+
+interface TaskWithMeta extends PlaybookTask {
+  agency_name?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Kanban Column                                                       */
+/* ------------------------------------------------------------------ */
+
+const COLUMNS: { key: string; label: string; statusValues: PlaybookTask['status'][] }[] = [
+  { key: 'open',        label: 'Offen',          statusValues: ['pending'] },
+  { key: 'in_progress', label: 'In Bearbeitung',  statusValues: ['in_progress'] },
+  { key: 'done',        label: 'Erledigt',        statusValues: ['done', 'skipped'] },
+];
+
+function TaskCard({
+  task,
+  onStatusChange,
+}: {
+  task: TaskWithMeta;
+  onStatusChange: (id: string, status: PlaybookTask['status']) => Promise<void>;
+}) {
+  const [updating, setUpdating] = useState(false);
+
+  async function markDone() {
+    setUpdating(true);
+    await onStatusChange(task.id, 'done');
+    setUpdating(false);
+  }
+
+  async function moveToInProgress() {
+    setUpdating(true);
+    await onStatusChange(task.id, 'in_progress');
+    setUpdating(false);
+  }
+
+  const isDone    = task.status === 'done' || task.status === 'skipped';
+  const isPending = task.status === 'pending';
+
+  return (
+    <Card padding="sm" className={`space-y-3 ${isDone ? 'opacity-60' : ''}`}>
+      <p className="text-sm font-medium text-gray-900 leading-snug">{task.action_text}</p>
+      <div className="flex flex-wrap gap-1.5">
+        <Badge tone="softAccent" className="text-xs !px-2 !py-0.5 font-mono">
+          {task.playbook_key}
+        </Badge>
+        {task.agency_name && (
+          <Badge tone="neutral" className="text-xs !px-2 !py-0.5">
+            {task.agency_name}
+          </Badge>
+        )}
+        <Badge
+          tone={task.action_type === 'immediate' ? 'accent' : 'outline'}
+          className="text-xs !px-2 !py-0.5"
+        >
+          {task.action_type === 'immediate' ? 'Sofort' : 'Langfristig'}
+        </Badge>
+      </div>
+      {task.assigned_to && (
+        <p className="text-xs text-gray-400">Zugewiesen: {task.assigned_to}</p>
+      )}
+      {!isDone && (
+        <div className="flex gap-2 pt-1">
+          {isPending && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={moveToInProgress}
+              disabled={updating}
+              className="text-xs"
+            >
+              Starten
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={markDone}
+            disabled={updating}
+            className="text-xs flex items-center gap-1"
+          >
+            <CheckCircle className="w-3.5 h-3.5" />
+            Erledigt
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function KanbanBoard({ tasks, onStatusChange }: {
+  tasks: TaskWithMeta[];
+  onStatusChange: (id: string, status: PlaybookTask['status']) => Promise<void>;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {COLUMNS.map((col) => {
+        const colTasks = tasks.filter((t) => col.statusValues.includes(t.status));
+        return (
+          <div key={col.key}>
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{col.label}</h3>
+              <span className="text-xs font-semibold text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+                {colTasks.length}
+              </span>
+            </div>
+            <div className="space-y-3 min-h-[120px]">
+              {colTasks.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center">
+                  <p className="text-xs text-gray-400">Keine Aufgaben</p>
+                </div>
+              ) : (
+                colTasks.map((task) => (
+                  <TaskCard key={task.id} task={task} onStatusChange={onStatusChange} />
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Accordion Item (Wissensdatenbank)                                   */
 /* ------------------------------------------------------------------ */
 
 function AccordionItem({
@@ -29,7 +156,6 @@ function AccordionItem({
 
   return (
     <Card padding="sm" className="transition-shadow hover:shadow-md">
-      {/* Header — always visible */}
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center gap-3 text-left cursor-pointer"
@@ -82,25 +208,16 @@ function AccordionItem({
         </div>
       </button>
 
-      {/* Body — visible when expanded */}
       {open && (
         <div className="mt-5 space-y-8 border-t border-gray-200 pt-5">
-          {/* Beschreibung */}
           <div>
-            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
-              Beschreibung
-            </p>
-            <p className="text-sm text-gray-900 leading-relaxed">
-              {entry.description}
-            </p>
+            <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Beschreibung</p>
+            <p className="text-sm text-gray-900 leading-relaxed">{entry.description}</p>
           </div>
 
-          {/* Ursachen */}
           {entry.causes.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
-                Ursachen
-              </p>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Ursachen</p>
               <ul className="space-y-3">
                 {entry.causes.map((cause, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-900">
@@ -112,12 +229,9 @@ function AccordionItem({
             </div>
           )}
 
-          {/* Sofort-Maßnahmen */}
           {entry.immediate_actions.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
-                Sofort-Maßnahmen
-              </p>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Sofort-Maßnahmen</p>
               <ol className="space-y-3">
                 {entry.immediate_actions.map((action, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm text-gray-900">
@@ -131,12 +245,9 @@ function AccordionItem({
             </div>
           )}
 
-          {/* Langfristige Maßnahmen */}
           {entry.long_term_actions.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
-                Langfristig
-              </p>
+              <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Langfristig</p>
               <ul className="space-y-3">
                 {entry.long_term_actions.map((action, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-900">
@@ -148,18 +259,13 @@ function AccordionItem({
             </div>
           )}
 
-          {/* Eskalations-Trigger */}
           {entry.escalation_trigger && (
             <Card inset padding="sm" className="border-red-100 bg-red-50">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-0.5">
-                    Eskalations-Trigger
-                  </p>
-                  <p className="text-sm text-red-700 leading-relaxed">
-                    {entry.escalation_trigger}
-                  </p>
+                  <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-0.5">Eskalations-Trigger</p>
+                  <p className="text-sm text-red-700 leading-relaxed">{entry.escalation_trigger}</p>
                 </div>
               </div>
             </Card>
@@ -342,14 +448,10 @@ function PlaybookFormModal({
           />
         </div>
 
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
-            Abbrechen
-          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>Abbrechen</Button>
           <Button type="submit" size="sm" disabled={saving}>
             {saving ? 'Speichert...' : editEntry ? 'Aktualisieren' : 'Erstellen'}
           </Button>
@@ -360,36 +462,84 @@ function PlaybookFormModal({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Main Page                                                          */
+/*  Main Page                                                           */
 /* ------------------------------------------------------------------ */
 
 export default function PlaybookPage() {
+  const [tab, setTab] = useState<'aufgaben' | 'wissen'>('aufgaben');
+
+  // --- Kanban state ---
+  const [tasks, setTasks] = useState<TaskWithMeta[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+
+  // --- Wissensdatenbank state ---
   const [entries, setEntries] = useState<PlaybookEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [entriesLoading, setEntriesLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<PlaybookEntry | null>(null);
+
+  // Fetch tasks and agency names
+  const fetchTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      const [tasksRes, agenciesRes] = await Promise.all([
+        fetch('/api/playbook-tasks'),
+        fetch('/api/admin/agencies').catch(() => ({ ok: false, json: async () => [] })),
+      ]);
+      const tasksData: PlaybookTask[] = tasksRes.ok ? await tasksRes.json() : [];
+      const agenciesData: { id: string; name: string }[] = (agenciesRes as Response).ok
+        ? await (agenciesRes as Response).json()
+        : [];
+
+      const agencyMap = new Map(agenciesData.map((a) => [a.id, a.name]));
+      setTasks(
+        tasksData.map((t) => ({
+          ...t,
+          agency_name: agencyMap.get(t.agency_id) ?? undefined,
+        }))
+      );
+    } catch {
+      // ignore
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
 
   const fetchEntries = useCallback(() => {
     fetch('/api/playbook')
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setEntries(data);
-        setLoading(false);
+        setEntriesLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => setEntriesLoading(false));
   }, []);
 
   useEffect(() => {
+    fetchTasks();
     fetchEntries();
     fetch('/api/auth/me')
       .then((r) => r.json())
-      .then((data) => {
-        if (data.role === 'admin') setIsAdmin(true);
-      })
+      .then((data) => { if (data.role === 'admin') setIsAdmin(true); })
       .catch(() => {});
-  }, [fetchEntries]);
+  }, [fetchTasks, fetchEntries]);
+
+  async function handleStatusChange(id: string, status: PlaybookTask['status']) {
+    await fetch(`/api/playbook-tasks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? { ...t, status, completed_at: status === 'done' ? new Date().toISOString() : null }
+          : t
+      )
+    );
+  }
 
   function handleEdit(entry: PlaybookEntry) {
     setEditEntry(entry);
@@ -399,44 +549,25 @@ export default function PlaybookPage() {
   async function handleDelete(entry: PlaybookEntry) {
     if (!confirm(`Eintrag "${entry.title}" wirklich löschen?`)) return;
     const res = await fetch(`/api/playbook/${entry.problem_key}`, { method: 'DELETE' });
-    if (res.ok) {
-      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-    }
-  }
-
-  function handleNewEntry() {
-    setEditEntry(null);
-    setModalOpen(true);
+    if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== entry.id));
   }
 
   const filtered = entries.filter((e) => {
     const q = search.toLowerCase();
-    return (
-      !q ||
-      e.title.toLowerCase().includes(q) ||
-      e.problem_key.toLowerCase().includes(q) ||
-      e.description.toLowerCase().includes(q)
-    );
+    return !q || e.title.toLowerCase().includes(q) || e.problem_key.toLowerCase().includes(q) || e.description.toLowerCase().includes(q);
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const openCount = tasks.filter((t) => t.status === 'pending' || t.status === 'in_progress').length;
 
   return (
     <div>
       <PageHeader
         label="WERKZEUGE"
         title="Playbook"
-        description="Problemlösungen und Handlungsempfehlungen für häufige KPI-Abweichungen"
-        counter={`${filtered.length} Einträge`}
+        description="Aufgaben aus erkannten Problemen und Handlungsempfehlungen"
         action={
-          isAdmin ? (
-            <Button size="sm" onClick={handleNewEntry}>
+          tab === 'wissen' && isAdmin ? (
+            <Button size="sm" onClick={() => { setEditEntry(null); setModalOpen(true); }}>
               <Plus className="w-4 h-4" />
               Neuer Eintrag
             </Button>
@@ -444,36 +575,79 @@ export default function PlaybookPage() {
         }
       />
 
-      {/* Search */}
-      <div className="mb-8 max-w-sm">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Suchen..."
-          icon={<Search className="w-4 h-4" />}
+      {/* Tab switcher */}
+      <div className="mb-8">
+        <SegmentedControl
+          items={[
+            { value: 'aufgaben', label: `Aufgaben${openCount > 0 ? ` (${openCount})` : ''}` },
+            { value: 'wissen',   label: 'Wissensdatenbank' },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as 'aufgaben' | 'wissen')}
         />
       </div>
 
-      {/* Accordion list */}
-      <div className="space-y-4">
-        {filtered.length === 0 ? (
-          <Card padding="lg">
-            <p className="text-center text-sm text-gray-400">
-              {search ? `Keine Einträge für "${search}"` : 'Keine Playbook-Einträge vorhanden.'}
-            </p>
-          </Card>
-        ) : (
-          filtered.map((entry) => (
-            <AccordionItem
-              key={entry.id}
-              entry={entry}
-              isAdmin={isAdmin}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))
-        )}
-      </div>
+      {/* ── Aufgaben Tab ── */}
+      {tab === 'aufgaben' && (
+        <>
+          {tasksLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
+            </div>
+          ) : tasks.length === 0 ? (
+            <Card padding="lg">
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <ClipboardList className="w-10 h-10 text-gray-300" />
+                <p className="text-sm text-gray-400">Noch keine Playbook-Aufgaben vorhanden.</p>
+                <p className="text-xs text-gray-300">Aufgaben werden automatisch generiert, wenn Probleme erkannt werden.</p>
+              </div>
+            </Card>
+          ) : (
+            <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
+          )}
+        </>
+      )}
+
+      {/* ── Wissensdatenbank Tab ── */}
+      {tab === 'wissen' && (
+        <>
+          {entriesLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              <div className="mb-8 max-w-sm">
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Suchen..."
+                  icon={<Search className="w-4 h-4" />}
+                />
+              </div>
+              <div className="space-y-4">
+                {filtered.length === 0 ? (
+                  <Card padding="lg">
+                    <p className="text-center text-sm text-gray-400">
+                      {search ? `Keine Einträge für "${search}"` : 'Keine Playbook-Einträge vorhanden.'}
+                    </p>
+                  </Card>
+                ) : (
+                  filtered.map((entry) => (
+                    <AccordionItem
+                      key={entry.id}
+                      entry={entry}
+                      isAdmin={isAdmin}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </>
+      )}
 
       <PlaybookFormModal
         open={modalOpen}

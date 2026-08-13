@@ -514,6 +514,23 @@ export interface PlaybookEntry {
   updated_at: string;
 }
 
+export type PlaybookTaskStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
+export type PlaybookTaskActionType = 'immediate' | 'long_term';
+
+export interface PlaybookTask {
+  id: string;
+  agency_id: string;
+  problem_id: string;
+  playbook_key: string;
+  action_text: string;
+  action_type: PlaybookTaskActionType;
+  status: PlaybookTaskStatus;
+  assigned_to: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
 export interface SurveyScheduleItem {
   id: string;
   agency_id: string;
