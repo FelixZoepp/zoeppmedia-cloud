@@ -5,13 +5,17 @@ import { createClient } from '@/lib/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
-import { Copy, Check, User, Building2, Webhook } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Copy, Check, User, Building2, Webhook, CalendarCheck } from 'lucide-react';
 
 export default function SettingsPage() {
-  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null } | null>(null);
+  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null } | null>(null);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [calendlyLink, setCalendlyLink] = useState('');
+  const [calendlySaving, setCalendlySaving] = useState(false);
+  const [calendlySaved, setCalendlySaved] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -29,10 +33,13 @@ export default function SettingsPage() {
         setUser({ name: profile.name, email: profile.email });
         const { data: ag } = await supabase
           .from('agencies')
-          .select('id, name, email, phone, meta_ad_account_id, meta_page_id')
+          .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link')
           .eq('id', profile.agency_id)
           .single();
-        if (ag) setAgency(ag);
+        if (ag) {
+          setAgency(ag);
+          setCalendlyLink(ag.calendly_link || '');
+        }
       }
       setLoading(false);
     }
@@ -113,6 +120,59 @@ export default function SettingsPage() {
             <span className="text-sm font-medium text-gray-900 font-mono">
               {agency?.meta_page_id || <span className="text-gray-400 font-sans font-normal">Nicht konfiguriert</span>}
             </span>
+          </div>
+        </div>
+      </Card>
+
+      <Card padding="md" className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <CalendarCheck className="w-5 h-5 text-gray-600" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Calendly</h2>
+            <p className="text-sm text-gray-400">Buchungslink für Bewerber-Termine</p>
+          </div>
+        </div>
+        <div className="space-y-4 pl-12">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Calendly Booking-Link
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="url"
+                value={calendlyLink}
+                onChange={(e) => {
+                  setCalendlyLink(e.target.value);
+                  setCalendlySaved(false);
+                }}
+                placeholder="https://calendly.com/dein-name/vorstellungsgespraech"
+                className="flex-1"
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={calendlySaving}
+                onClick={async () => {
+                  if (!agency) return;
+                  setCalendlySaving(true);
+                  await supabase
+                    .from('agencies')
+                    .update({ calendly_link: calendlyLink || null })
+                    .eq('id', agency.id);
+                  setCalendlySaving(false);
+                  setCalendlySaved(true);
+                  setTimeout(() => setCalendlySaved(false), 2000);
+                }}
+              >
+                {calendlySaved ? <Check className="w-4 h-4 text-green-200" /> : null}
+                {calendlySaving ? 'Speichert...' : calendlySaved ? 'Gespeichert' : 'Speichern'}
+              </Button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Dieser Link wird Bewerbern zur Terminbuchung angezeigt.
+            </p>
           </div>
         </div>
       </Card>

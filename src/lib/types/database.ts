@@ -589,6 +589,25 @@ export interface ContentTemplate {
   updated_at: string;
 }
 
+// Calendly Integration
+
+export interface CalendlyEvent {
+  id: string;
+  agency_id: string | null;
+  candidate_id: string | null;
+  calendly_event_id: string | null;
+  event_type: string | null;
+  event_name: string | null;
+  start_time: string;
+  end_time: string | null;
+  invitee_name: string | null;
+  invitee_email: string | null;
+  invitee_phone: string | null;
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  location: string | null;
+  created_at: string;
+}
+
 export type BranchKey = 'solar' | 'glasfaser' | 'strom_gas' | 'telko' | 'versicherung';
 
 export interface BranchProfile {

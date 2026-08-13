@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle } from 'lucide-react';
-import type { PlaybookTask } from '@/lib/types/database';
+import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle, CalendarCheck } from 'lucide-react';
+import type { PlaybookTask, CalendlyEvent } from '@/lib/types/database';
 
 interface Agency {
   id: string;
@@ -60,6 +60,7 @@ export function EmployeeDashboardView() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [playbookTasks, setPlaybookTasks] = useState<PlaybookTask[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<CalendlyEvent[]>([]);
 
   useEffect(() => {
     fetch('/api/employee/dashboard')
@@ -76,6 +77,19 @@ export function EmployeeDashboardView() {
             setPlaybookTasks([...inProgress, ...pending]);
           })
           .catch(() => {});
+      })
+      .catch(() => {});
+
+    // Fetch upcoming Calendly events (today + tomorrow)
+    const now = new Date();
+    const dayAfterTomorrow = new Date(now);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    dayAfterTomorrow.setHours(0, 0, 0, 0);
+
+    fetch(`/api/calendly/events?from=${now.toISOString()}&to=${dayAfterTomorrow.toISOString()}&status=scheduled&limit=20`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((events: CalendlyEvent[]) => {
+        if (Array.isArray(events)) setUpcomingEvents(events);
       })
       .catch(() => {});
   }, []);
@@ -104,6 +118,61 @@ export function EmployeeDashboardView() {
         <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mt-2">
           {getGreeting()}, {firstName}.
         </h1>
+      </div>
+
+      {/* Anstehende Termine */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarCheck className="w-5 h-5 text-red-600" />
+          <h2 className="text-lg font-bold text-gray-900">Anstehende Termine</h2>
+          <span className="text-sm text-gray-400 ml-1">{upcomingEvents.length}</span>
+        </div>
+        {upcomingEvents.length === 0 ? (
+          <Card padding="md">
+            <p className="text-sm text-gray-400 text-center">Keine Termine heute und morgen.</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {upcomingEvents.map((evt) => {
+              const startDate = new Date(evt.start_time);
+              const endDate = evt.end_time ? new Date(evt.end_time) : null;
+              const isToday = startDate.toDateString() === new Date().toDateString();
+
+              return (
+                <Card key={evt.id} padding="sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {evt.invitee_name || evt.event_name || 'Termin'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {evt.event_name && evt.invitee_name ? evt.event_name : ''}
+                        {evt.invitee_email ? ` \u00B7 ${evt.invitee_email}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge tone={isToday ? 'softAccent' : 'neutral'}>
+                        {isToday ? 'Heute' : 'Morgen'}
+                      </Badge>
+                      <p className="text-xs font-medium text-gray-700 mt-1">
+                        {startDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                        {endDate && (
+                          <>
+                            {' '}&ndash;{' '}
+                            {endDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Meine Kunden */}

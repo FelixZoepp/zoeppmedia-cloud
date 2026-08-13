@@ -265,6 +265,17 @@ export default function FulfillmentPage() {
   function getActionButton(task: FulfillmentTask) {
     const isLoading = actionLoading === task.id;
 
+    if (task.task_type === 'perspective_funnel') {
+      return (
+        <Link href={`/clients/${id}/perspective`}>
+          <Button variant="primary" size="sm">
+            <FolderKanban className="w-3.5 h-3.5" />
+            Funnel Wizard
+          </Button>
+        </Link>
+      );
+    }
+
     if (AI_TYPES.includes(task.task_type) && task.status === 'pending') {
       return (
         <Button

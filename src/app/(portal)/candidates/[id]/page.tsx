@@ -6,8 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Mail, Phone, Megaphone, Layers, StickyNote, Clock } from 'lucide-react';
-import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem, CallRecording } from '@/lib/types/database';
+import { ArrowLeft, Mail, Phone, Megaphone, Layers, StickyNote, Clock, CalendarCheck } from 'lucide-react';
+import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLibraryItem, CallRecording, CalendlyEvent } from '@/lib/types/database';
 import { CallTracker } from '@/components/call-tracker';
 import { CallRecordingsPanel } from '@/components/call-recording';
 
@@ -31,6 +31,7 @@ export default function CandidateDetailPage() {
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [phoneScript, setPhoneScript] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<CallRecording[]>([]);
+  const [calendlyEvents, setCalendlyEvents] = useState<CalendlyEvent[]>([]);
 
   useEffect(() => {
     fetch(`/api/candidates/${id}`)
@@ -51,6 +52,12 @@ export default function CandidateDetailPage() {
         fetch(`/api/candidates/${id}/recordings`)
           .then((r) => r.json())
           .then((recs) => { if (Array.isArray(recs)) setRecordings(recs); })
+          .catch(() => {});
+
+        // Fetch Calendly events for this candidate
+        fetch(`/api/calendly/events?candidate_id=${id}`)
+          .then((r) => r.json())
+          .then((events) => { if (Array.isArray(events)) setCalendlyEvents(events); })
           .catch(() => {});
 
         // Fetch approved phone script for this agency
@@ -292,6 +299,67 @@ export default function CandidateDetailPage() {
           )}
         </div>
       </Card>
+
+      {/* Termine (Calendly) */}
+      {calendlyEvents.length > 0 && (
+        <Card padding="md" className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+              <CalendarCheck className="w-5 h-5 text-gray-600" />
+            </div>
+            <h2 className="text-sm font-semibold text-gray-900">Termine</h2>
+            <Badge tone="neutral">{calendlyEvents.length}</Badge>
+          </div>
+          <div className="space-y-3 pl-12">
+            {calendlyEvents.map((evt) => {
+              const statusBadge: Record<string, { label: string; tone: 'success' | 'neutral' | 'accent' | 'softAccent' }> = {
+                scheduled: { label: 'Geplant', tone: 'softAccent' },
+                completed: { label: 'Abgeschlossen', tone: 'success' },
+                cancelled: { label: 'Abgesagt', tone: 'accent' },
+                no_show: { label: 'No-Show', tone: 'accent' },
+              };
+              const badge = statusBadge[evt.status] || statusBadge.scheduled;
+              const startDate = new Date(evt.start_time);
+              const endDate = evt.end_time ? new Date(evt.end_time) : null;
+
+              return (
+                <div key={evt.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {evt.event_name || evt.event_type || 'Termin'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {startDate.toLocaleDateString('de-DE', {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })}{' '}
+                      {startDate.toLocaleTimeString('de-DE', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {endDate && (
+                        <>
+                          {' '}&ndash;{' '}
+                          {endDate.toLocaleTimeString('de-DE', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </>
+                      )}
+                    </p>
+                    {evt.location && (
+                      <p className="text-xs text-gray-400 mt-0.5">{evt.location}</p>
+                    )}
+                  </div>
+                  <Badge tone={badge.tone}>{badge.label}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Call Tracker */}
       <div className="mb-6">
