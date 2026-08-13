@@ -35,13 +35,13 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       <Link
         key={item.id}
         href={item.href}
-        className={`flex items-center gap-5 px-5 py-4 rounded-[14px] text-[15px] font-medium transition-all duration-300 ease-out ${
+        className={`flex items-center gap-4 px-4 py-3 rounded-[10px] text-[15px] font-medium transition-all duration-200 ${
           isActive
-            ? 'bg-red-50 text-red-600 shadow-[0_0_0_1px_rgba(224,53,75,0.1)]'
-            : 'text-[var(--text-secondary)] hover:bg-gray-50/80 hover:text-[var(--text-primary)] hover:translate-x-1 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
+            ? 'bg-red-50 text-[#C00015]'
+            : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text-primary)]'
         }`}
       >
-        <span className={`flex-shrink-0 transition-transform duration-300 ${isActive ? 'text-red-500 scale-110' : 'text-[var(--text-tertiary)] group-hover:scale-110'}`}>
+        <span className={`flex-shrink-0 ${isActive ? 'text-[#E31B23]' : 'text-[var(--text-tertiary)]'}`}>
           {item.icon}
         </span>
         <span className="flex-1 truncate">{item.label}</span>
@@ -51,18 +51,18 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
   }
 
   return (
-    <aside className="flex flex-col flex-shrink-0 h-screen w-[300px] bg-white border-r border-gray-100">
+    <aside className="flex flex-col flex-shrink-0 h-screen w-[240px] bg-white border-r border-[var(--border-default)]">
       {/* Brand Header */}
-      <div className="flex items-center gap-5 px-8 h-[88px] border-b border-gray-100">
-        <div className="w-11 h-11 rounded-[12px] bg-gradient-to-b from-[#EF5B6F] to-red-500 flex items-center justify-center text-white font-bold text-[15px] flex-shrink-0 shadow-[0_2px_8px_rgba(224,53,75,0.25)]">
+      <div className="flex items-center gap-3.5 px-6 h-[64px] border-b border-[var(--border-default)]">
+        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-b from-[#E31B23] to-[#C00015] flex items-center justify-center text-white font-bold text-[14px] flex-shrink-0 shadow-[0_2px_8px_rgba(227,27,35,0.25)]">
           {brand}
         </div>
         <div className="min-w-0">
-          <span className="text-[15px] font-bold text-[var(--text-primary)] tracking-[0.04em] uppercase block truncate">
+          <span className="text-[14px] font-bold text-[var(--text-primary)] tracking-[0.02em] uppercase block truncate">
             {brandLabel}
           </span>
           {brandSub && (
-            <span className="text-[12px] font-medium text-[var(--text-tertiary)] tracking-[0.02em] uppercase block leading-tight mt-1">
+            <span className="label-caps text-[var(--text-tertiary)] block mt-0.5">
               {brandSub}
             </span>
           )}
@@ -70,15 +70,15 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       </div>
 
       {/* Grouped Nav */}
-      <nav className="flex-1 flex flex-col px-6 pt-10 pb-8 overflow-y-auto">
+      <nav className="flex-1 flex flex-col px-4 pt-6 pb-4 overflow-y-auto">
         {groups.map((group, gi) => (
-          <div key={group.label} className={gi > 0 ? 'mt-12' : ''}>
-            <div className="px-5 mb-6">
-              <span className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.14em]">
+          <div key={group.label} className={gi > 0 ? 'mt-8' : ''}>
+            <div className="px-4 mb-3">
+              <span className="label-caps text-[var(--text-tertiary)]">
                 {group.label}
               </span>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               {group.items.map(renderItem)}
             </div>
           </div>
@@ -87,14 +87,14 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
 
       {/* Promo Slot */}
       {promo && (
-        <div className="px-6 pb-4">
+        <div className="px-4 pb-2">
           {promo}
         </div>
       )}
 
       {/* Bottom Items */}
       {bottomItems && (
-        <div className="flex flex-col gap-3 px-6 pb-8 border-t border-gray-100 pt-6">
+        <div className="flex flex-col gap-1 px-4 pb-5 border-t border-[var(--border-default)] pt-4">
           {bottomItems.map(renderItem)}
         </div>
       )}

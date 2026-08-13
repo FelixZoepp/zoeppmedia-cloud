@@ -1,29 +1,31 @@
 :root {
-  /* Red Accent Ramp */
-  --red-050: #FDF0F2;
-  --red-100: #FADEE2;
-  --red-200: #F5BFC7;
-  --red-300: #F09AA6;
-  --red-400: #EA6A7C;
-  --red-500: #E0354B;
-  --red-600: #C92B40;
-  --red-700: #A62134;
-  --red-800: #701622;
-  --red-900: #3A0D14;
+  /* ── Liquid Glass Palette ────────────────────────── */
 
-  /* Neutrals */
+  /* Primary Red */
+  --red-050: #FFF5F5;
+  --red-100: #FFDAD6;
+  --red-200: #FFB4AC;
+  --red-300: #FF897E;
+  --red-400: #E31B23;
+  --red-500: #C00015;
+  --red-600: #93000D;
+  --red-700: #690006;
+  --red-800: #410002;
+  --red-900: #2D0001;
+
+  /* Neutrals – Blue-tinted grays (Liquid Glass) */
   --gray-000: #FFFFFF;
-  --gray-025: #FAFBFC;
-  --gray-050: #F5F6F8;
-  --gray-100: #EFF1F4;
-  --gray-200: #E7E9ED;
-  --gray-300: #D6DAE0;
-  --gray-400: #AEB4BD;
-  --gray-500: #8B919B;
-  --gray-600: #5F646D;
-  --gray-700: #41454C;
-  --gray-800: #26282D;
-  --gray-900: #17181A;
+  --gray-025: #F8F9FF;
+  --gray-050: #EFF4FF;
+  --gray-100: #E5EEFF;
+  --gray-200: #DCE9FF;
+  --gray-300: #D3E4FE;
+  --gray-400: #926E6B;
+  --gray-500: #5D3F3C;
+  --gray-600: #41454C;
+  --gray-700: #213145;
+  --gray-800: #0B1C30;
+  --gray-900: #0B1C30;
 
   /* Status */
   --green-100: #E4F7EC;
@@ -31,24 +33,34 @@
   --green-700: #1E8A50;
   --amber-100: #FCF2E0;
   --amber-500: #E8A13C;
-  --danger-600: #B3261E;
+  --danger-600: #BA1A1A;
 
-  /* Surfaces */
-  --surface-app: var(--gray-050);
-  --surface-card: var(--gray-000);
-  --surface-subtle: var(--gray-025);
-  --surface-inset: var(--gray-100);
+  /* ── Semantic Surfaces ───────────────────────────── */
+  --surface-app: #F8F9FF;
+  --surface-card: rgba(255, 255, 255, 0.75);
+  --surface-card-solid: #FFFFFF;
+  --surface-subtle: #EFF4FF;
+  --surface-inset: #E5EEFF;
 
-  /* Borders */
-  --border-default: var(--gray-200);
-  --border-strong: var(--gray-300);
+  /* Borders – subtle glass edges */
+  --border-default: rgba(211, 228, 254, 0.6);
+  --border-strong: rgba(146, 110, 107, 0.2);
+  --border-glass-top: rgba(255, 255, 255, 0.8);
+  --border-glass-side: rgba(255, 255, 255, 0.4);
 
   /* Text */
-  --text-primary: var(--gray-900);
-  --text-secondary: var(--gray-600);
-  --text-tertiary: var(--gray-400);
+  --text-primary: #0B1C30;
+  --text-secondary: #5D3F3C;
+  --text-tertiary: #926E6B;
 
   /* Gradients */
-  --accent-grad: linear-gradient(180deg, #EF5B6F 0%, #E0354B 100%);
-  --accent-grad-hover: linear-gradient(180deg, #E94A60 0%, #C92B40 100%);
+  --accent-grad: linear-gradient(180deg, #E31B23 0%, #C00015 100%);
+  --accent-grad-hover: linear-gradient(180deg, #C00015 0%, #93000D 100%);
+
+  /* Glass effects */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-blur: 20px;
+  --glass-blur-raised: 40px;
+  --glass-glow: 0 4px 24px rgba(227, 27, 35, 0.1);
 }

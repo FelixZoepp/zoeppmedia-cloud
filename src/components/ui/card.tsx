@@ -4,22 +4,25 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   inset?: boolean;
   padding?: 'sm' | 'md' | 'lg';
   hover?: boolean;
+  glass?: boolean;
   children: ReactNode;
 }
 
 const paddingMap = {
-  sm: 'p-8',
-  md: 'p-12',
-  lg: 'p-16',
+  sm: 'p-6',
+  md: 'p-8',
+  lg: 'p-10',
 };
 
-export function Card({ inset = false, padding = 'md', hover = false, children, className = '', ...props }: CardProps) {
-  const base = inset
-    ? 'bg-[var(--surface-subtle)] border border-gray-100 rounded-[24px]'
-    : 'bg-white rounded-[24px] border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03)]';
+export function Card({ inset = false, padding = 'md', hover = false, glass = false, children, className = '', ...props }: CardProps) {
+  const base = glass
+    ? 'glass rounded-[16px]'
+    : inset
+      ? 'bg-[var(--surface-subtle)] border border-[var(--border-default)] rounded-[16px]'
+      : 'bg-white/75 backdrop-blur-[20px] rounded-[16px] border border-[var(--border-default)] border-t-[var(--border-glass-top)] border-l-[var(--border-glass-side)] shadow-[var(--shadow-xs)]';
 
   const hoverClass = hover
-    ? 'transition-all duration-300 ease-out hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5'
+    ? 'transition-all duration-300 ease-out hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
     : '';
 
   return (

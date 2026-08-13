@@ -1,7 +1,9 @@
 :root {
-  /* Font Stack */
-  --font-ui: "Inter Tight", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  /* ── Liquid Glass Typography ─────────────────────── */
+
+  /* Font Stacks */
+  --font-ui: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
 
   /* Weights */
   --weight-regular: 400;
@@ -11,17 +13,17 @@
   --weight-heavy: 800;
 
   /* Sizes */
-  --text-display: clamp(40px, 5vw, 64px);
+  --text-display: 48px;
   --text-h2: 32px;
   --text-lead: 18px;
-  --text-body: 15px;
-  --text-sm: 13px;
+  --text-body: 16px;
+  --text-sm: 14px;
 
   /* Line Height */
-  --leading-heading: 1.05;
+  --leading-heading: 1.2;
   --leading-body: 1.5;
 
   /* Letter Spacing */
-  --tracking-heading: -0.03em;
-  --tracking-body: -0.011em;
+  --tracking-heading: -0.01em;
+  --tracking-body: 0;
 }

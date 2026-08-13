@@ -10,16 +10,16 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ icon, inputSize = 'md', pill = false, className = '', ...props }, ref) => {
-    const height = inputSize === 'lg' ? 'h-16' : 'h-13';
+    const height = inputSize === 'lg' ? 'h-14' : 'h-12';
     const fontSize = inputSize === 'lg' ? 'text-[17px]' : 'text-[15px]';
-    const radius = pill ? 'rounded-full' : 'rounded-[14px]';
+    const radius = pill ? 'rounded-full' : 'rounded-[10px]';
 
     return (
-      <div className={`relative flex items-center bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${height} ${radius} transition-all duration-300 focus-within:border-red-300 focus-within:shadow-[0_0_0_3px_rgba(224,53,75,0.08)] ${className}`}>
-        {icon && <span className="pl-5 text-gray-400 flex-shrink-0">{icon}</span>}
+      <div className={`relative flex items-center bg-white/60 backdrop-blur-sm border border-[var(--border-default)] ${height} ${radius} transition-all duration-300 focus-within:border-[#E31B23] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(227,27,35,0.08)] ${className}`}>
+        {icon && <span className="pl-4 text-[var(--text-tertiary)] flex-shrink-0">{icon}</span>}
         <input
           ref={ref}
-          className={`w-full bg-transparent ${fontSize} text-gray-900 placeholder:text-gray-400 px-5 h-full outline-none ${icon ? 'pl-3' : ''}`}
+          className={`w-full bg-transparent ${fontSize} text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] px-4 h-full outline-none ${icon ? 'pl-3' : ''}`}
           {...props}
         />
       </div>
