@@ -447,7 +447,7 @@ export default function ClientDetailPage() {
         <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-6">
           Quellen
         </h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="text-center">
             <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-2">
               <span className="text-2xl font-extrabold text-red-600">{sourceBreakdown.meta}</span>

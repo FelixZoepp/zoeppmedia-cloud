@@ -291,7 +291,7 @@ export default function AdminMasterclassPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 bg-white outline-none resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1.5">Video URL</label>
               <Input value={lessonVideoUrl} onChange={(e) => setLessonVideoUrl(e.target.value)} icon={<Video className="w-4 h-4" />} placeholder="YouTube/Vimeo URL" />

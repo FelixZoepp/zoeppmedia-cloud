@@ -32,7 +32,7 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: Mo
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className={`bg-white rounded-xl shadow-xl p-6 w-full ${width} animate-in fade-in zoom-in-95 duration-200`}>
+      <div className={`bg-white rounded-xl shadow-xl p-6 w-full ${width} max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200`}>
         {(title) && (
           <div className="flex items-center justify-between mb-6">
             {title && <h2 className="text-lg font-bold text-gray-900">{title}</h2>}

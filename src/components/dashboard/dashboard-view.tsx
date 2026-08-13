@@ -121,7 +121,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="BEWERBER" value={String(data.totalCandidates)} sub="Gesamt" />
         <KpiCard label="NEU DIESE WOCHE" value={String(data.newThisWeek)} sub={`KW ${kw}`} />
         <KpiCard label="EINGESTELLT" value={String(data.hired)} sub="Gesamt" />
@@ -129,8 +129,8 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
-      <div className="grid grid-cols-5 gap-4">
-        <DashCard className="col-span-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <DashCard className="lg:col-span-3">
           <SectionLabel>Recruiting</SectionLabel>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
             Bewerber-Entwicklung
@@ -138,7 +138,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
           <CandidatesChart data={data.candidatesOverTime} />
         </DashCard>
 
-        <DashCard className="col-span-2">
+        <DashCard className="lg:col-span-2">
           <SectionLabel>Quellen</SectionLabel>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
             Quellen-Verteilung
@@ -148,7 +148,7 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
       </div>
 
       {/* ── Row 3: Pipeline + Source Bar ──────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <DashCard>
           <SectionLabel>Pipeline</SectionLabel>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">

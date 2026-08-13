@@ -42,7 +42,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       <div className="flex items-center justify-between">
         <div className="flex-1" />
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 w-[280px] shadow-sm">
+          <div className="hidden md:flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 w-[280px] shadow-sm">
             <Search className="w-4 h-4 text-gray-400" />
             <span className="text-sm text-gray-400">Suchen... (Kunde, Bewerber)</span>
           </div>
@@ -64,13 +64,13 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
         <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
           {dayName} &middot; KW {kw}
         </span>
-        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight mt-2">
+        <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight mt-2">
           {getGreeting()}, Felix.
         </h1>
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard icon={<Users className="w-5 h-5" />} iconBg="bg-red-50 text-red-600" label="Agenturen" value={String(data.totalAgencies)} sub={`${data.totalAgencies} aktiv`} />
         <KpiCard icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-red-50 text-red-600" label="Bewerber" value={String(data.totalCandidates)} sub="Gesamt" />
         <KpiCard icon={<BarChart3 className="w-5 h-5" />} iconBg="bg-gray-100 text-gray-600" label="Neu diese Woche" value={String(data.newCandidatesThisWeek)} sub={`KW ${kw}`} />
@@ -82,7 +82,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       <div>
         <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Schnellzugriff</span>
         <h2 className="text-xl font-bold text-gray-900 mt-1 mb-4">Deine Aktionen</h2>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <QuickAction icon={<Plus className="w-6 h-6" />} color="bg-red-50 text-red-600" title="Neue Agentur" desc="Kunden einladen" href="/invites" />
           <QuickAction icon={<Users className="w-6 h-6" />} color="bg-red-50 text-red-600" title="Kunden" desc="Alle Agenturen" href="/clients" />
           <QuickAction icon={<BarChart3 className="w-6 h-6" />} color="bg-gray-100 text-gray-600" title="Playbook" desc="Handlungsanweisungen" href="/playbook" />
@@ -92,13 +92,13 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Recruiting</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber-Entwicklung</h2>
           <CandidatesChart data={data.candidatesOverTime} />
         </div>
-        <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Quellen</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Quellen-Verteilung</h2>
           <SourceDonut data={data.sourceBreakdown} />
@@ -106,8 +106,8 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       </div>
 
       {/* Recent + Sources */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Letzte Aktivität</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1">Neue Bewerber</h2>
           {data.recentCandidates.length === 0 ? (
@@ -130,7 +130,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
             </div>
           )}
         </div>
-        <div className="col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
           <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Kanäle</span>
           <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber nach Quelle</h2>
           <SourcesChart data={data.sourceBreakdown} />
@@ -138,7 +138,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       </div>
 
       {/* Agencies Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Portfolio</span>
@@ -149,6 +149,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
         {data.topAgencies.length === 0 ? (
           <p className="text-sm text-gray-400 mt-4">Noch keine Agenturen</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full mt-4">
             <thead>
               <tr className="border-b border-gray-200">
@@ -177,11 +178,12 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {/* Status Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Monitoring</span>
@@ -197,6 +199,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
         {data.agencyStatuses.length === 0 ? (
           <p className="text-sm text-gray-400 mt-4">Noch keine Agenturen</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full mt-4">
             <thead>
               <tr className="border-b border-gray-200">
@@ -226,6 +229,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
@@ -234,7 +238,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
 
 function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; iconBg: string; label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-8 py-7">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-5 md:px-8 md:py-7">
       <div className="flex items-start justify-between mb-4">
         <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center`}>{icon}</div>
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
@@ -247,7 +251,7 @@ function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; i
 
 function QuickAction({ icon, color, title, desc, href }: { icon: React.ReactNode; color: string; title: string; desc: string; href: string }) {
   return (
-    <Link href={href} className="group bg-white p-8 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+    <Link href={href} className="group bg-white p-5 md:p-8 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div className={`w-14 h-14 rounded-xl ${color} flex items-center justify-center mb-5`}>{icon}</div>
       <h3 className="text-base font-semibold text-gray-900 mb-1">{title}</h3>
       <p className="text-sm text-gray-400">{desc}</p>

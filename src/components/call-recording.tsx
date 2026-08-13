@@ -44,7 +44,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 function AnalysisView({ analysis }: { analysis: CallRecordingAnalysis }) {
   return (
     <div className="space-y-4 mt-4">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <ScoreBar label="Skript-Treue" score={analysis.script_adherence_score} />
         <ScoreBar label="Gesprächsqualität" score={analysis.conversation_quality_score} />
         <ScoreBar label="Gesamt" score={analysis.overall_score} />

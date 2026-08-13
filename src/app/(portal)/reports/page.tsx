@@ -358,7 +358,7 @@ export default function ReportsPage() {
           <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-red-600" /> Quellen
           </h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Meta', value: data.sources.meta, color: 'bg-red-50 text-red-700' },
               { label: 'Indeed', value: data.sources.indeed, color: 'bg-green-100 text-green-700' },
