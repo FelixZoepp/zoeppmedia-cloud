@@ -1,4 +1,6 @@
-@import "tailwindcss" theme(static);
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 * {
   margin: 0;
