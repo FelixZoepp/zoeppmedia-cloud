@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -151,12 +153,15 @@ function ContentCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Main Page                                                          */
+/*  Inner component (uses useSearchParams)                             */
 /* ------------------------------------------------------------------ */
 
-export default function AIToolsPage() {
+function AIToolsInner() {
+  const searchParams = useSearchParams();
+
   const [agencies, setAgencies] = useState<{ value: string; label: string }[]>([]);
   const [selectedAgency, setSelectedAgency] = useState('');
+  const [agenciesLoaded, setAgenciesLoaded] = useState(false);
 
   const [status, setStatus] = useState<Status>('idle');
   const [selectedType, setSelectedType] = useState<ContentTypeKey | null>(null);
@@ -172,6 +177,9 @@ export default function AIToolsPage() {
   const previewRef = useRef<HTMLDivElement>(null);
   const refinementInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Track if we've already auto-triggered from URL params
+  const autoTriggeredRef = useRef(false);
+
   /* ---- Load agencies ---- */
 
   useEffect(() => {
@@ -185,14 +193,15 @@ export default function AIToolsPage() {
             { value: '', label: 'Agentur wählen...' },
             ...agencyList.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
           ]);
+          setAgenciesLoaded(true);
         } else {
-          // Fallback to admin endpoint
           return fetch('/api/admin/agencies').then(r => r.json()).then(adminData => {
             if (Array.isArray(adminData)) {
               setAgencies([
                 { value: '', label: 'Agentur wählen...' },
                 ...adminData.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
               ]);
+              setAgenciesLoaded(true);
             }
           });
         }
@@ -204,10 +213,62 @@ export default function AIToolsPage() {
               { value: '', label: 'Agentur wählen...' },
               ...data.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
             ]);
+            setAgenciesLoaded(true);
           }
         }).catch(() => {});
       });
   }, []);
+
+  /* ---- Handle URL params: auto-select agency and trigger generation ---- */
+
+  useEffect(() => {
+    if (!agenciesLoaded || autoTriggeredRef.current) return;
+
+    const agencyParam = searchParams.get('agency');
+    const typeParam = searchParams.get('type') as ContentTypeKey | null;
+
+    if (agencyParam) {
+      // Check if agency exists in list
+      const match = agencies.find((a) => a.value === agencyParam);
+      if (match) {
+        setSelectedAgency(agencyParam);
+
+        if (typeParam && CARDS.some((c) => c.key === typeParam)) {
+          autoTriggeredRef.current = true;
+          // Small delay to let state settle
+          setTimeout(() => {
+            setSelectedType(typeParam);
+            setStatus('generating');
+            setGeneratedContent('');
+            setRefinements([]);
+            setGeneratedId(null);
+
+            fetch('/api/ai/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: typeParam, agency_id: agencyParam }),
+            })
+              .then((res) => {
+                if (!res.ok) throw new Error('Generation failed');
+                return res.json();
+              })
+              .then((data) => {
+                const content: string = data.content ?? '';
+                setGeneratedContent(content);
+                setGeneratedId(data.id ?? null);
+                setStatus('preview');
+                setShowReview(true);
+                setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+              })
+              .catch(() => {
+                setStatus('idle');
+                toast.error('Generierung fehlgeschlagen. Bitte erneut versuchen.');
+              });
+          }, 100);
+        }
+      }
+    }
+  }, [agenciesLoaded, agencies, searchParams]);
 
   /* ---- Generate content ---- */
 
@@ -249,14 +310,17 @@ export default function AIToolsPage() {
           setGeneratedContent(content);
           setGeneratedId(data.id ?? null);
           setStatus('preview');
-          // Scroll preview into view
+          // Auto-open review modal after generation
+          setShowReview(true);
           setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
         }
       } catch {
         if (previousVersion && feedback) {
           setIsRefining(false);
+          toast.error('Überarbeitung fehlgeschlagen.');
         } else {
           setStatus('idle');
+          toast.error('Generierung fehlgeschlagen. Bitte erneut versuchen.');
         }
       }
     },
@@ -323,6 +387,7 @@ export default function AIToolsPage() {
                 setSelectedType(null);
                 setGeneratedContent('');
                 setRefinements([]);
+                autoTriggeredRef.current = false;
               }}
               className="w-full"
             />
@@ -525,5 +590,21 @@ export default function AIToolsPage() {
         />
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main Page (wraps inner in Suspense for useSearchParams)           */
+/* ------------------------------------------------------------------ */
+
+export default function AIToolsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
+      </div>
+    }>
+      <AIToolsInner />
+    </Suspense>
   );
 }

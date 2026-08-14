@@ -6,13 +6,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
-import { ReviewModal } from '@/components/review-modal';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
-  FolderKanban, FileText, PhoneCall, Target, MoreHorizontal,
-  Check, Clock, Play, Sparkles, Upload, Rocket, Video,
-  Briefcase, Megaphone, ChevronDown, ChevronUp, Calendar,
-  BookOpen, RefreshCw, ListTodo,
+  Sparkles, Check, Calendar, Users, ListTodo,
+  ChevronRight, Clock, AlertCircle, ArrowRight,
 } from 'lucide-react';
 
 // ---- Types ----
@@ -60,40 +58,302 @@ interface TasksData {
   agencies: Agency[];
 }
 
+// ---- Unified task shape for timeline display ----
+
+type TaskSource = 'fulfillment' | 'playbook' | 'recurring';
+type TaskBucket = 'today' | 'tomorrow' | 'thisweek';
+
+interface UnifiedTask {
+  id: string;
+  agencyId: string | null;
+  agencyName: string | null;
+  title: string;
+  taskType: string;
+  source: TaskSource;
+  bucket: TaskBucket;
+  dueDate: string | null;
+  isAiTask: boolean;
+  originalFulfillment?: FulfillmentTask;
+  originalPlaybook?: PlaybookTask;
+  originalRecurring?: RecurringTask;
+}
+
 // ---- Constants ----
 
-const AI_TYPES = ['ad_copy', 'phone_script', 'video_script', 'job_posting', 'creative_brief'];
+const AI_TASK_TYPES = ['ad_copy', 'phone_script', 'video_script', 'job_posting', 'creative_brief', 'funnel_text', 'vg_leitfaden', 'follow_up', 'absage'];
 
-const taskIcons: Record<string, React.ReactNode> = {
-  perspective_funnel: <FolderKanban className="w-4 h-4" />,
-  ad_copy: <FileText className="w-4 h-4" />,
-  phone_script: <PhoneCall className="w-4 h-4" />,
-  video_script: <Video className="w-4 h-4" />,
-  job_posting: <Briefcase className="w-4 h-4" />,
-  creative_brief: <Megaphone className="w-4 h-4" />,
-  meta_upload: <Upload className="w-4 h-4" />,
-  funnel_publish: <Rocket className="w-4 h-4" />,
-  script: <PhoneCall className="w-4 h-4" />,
-  meta_campaign: <Target className="w-4 h-4" />,
-  manual: <Clock className="w-4 h-4" />,
-};
+// ---- Helpers ----
 
-const statusConfig: Record<string, { label: string; tone: 'neutral' | 'softAccent' | 'accent' | 'success' | 'outline' }> = {
-  pending: { label: 'Ausstehend', tone: 'neutral' },
-  in_progress: { label: 'In Arbeit', tone: 'softAccent' },
-  review: { label: 'Review', tone: 'accent' },
-  done: { label: 'Erledigt', tone: 'success' },
-  skipped: { label: 'Übersprungen', tone: 'outline' },
-};
+function getTodayStr() {
+  return new Date().toISOString().split('T')[0];
+}
 
-// ---- Section wrapper ----
+function getTomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
 
-function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: string; count: number }) {
+function getWeekEndStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().split('T')[0];
+}
+
+function formatGermanDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+}
+
+function getBucket(dueDate: string | null): TaskBucket {
+  if (!dueDate) return 'thisweek';
+  const today = getTodayStr();
+  const tomorrow = getTomorrowStr();
+  if (dueDate <= today) return 'today';
+  if (dueDate <= tomorrow) return 'tomorrow';
+  return 'thisweek';
+}
+
+function buildUnifiedTasks(data: TasksData): UnifiedTask[] {
+  const tasks: UnifiedTask[] = [];
+
+  for (const t of data.fulfillment) {
+    const isAi = AI_TASK_TYPES.includes(t.task_type);
+    tasks.push({
+      id: t.id,
+      agencyId: t.agency_id,
+      agencyName: t.agency_name,
+      title: t.title,
+      taskType: t.task_type,
+      source: 'fulfillment',
+      bucket: 'today', // fulfillment tasks are always "today" if pending
+      dueDate: null,
+      isAiTask: isAi,
+      originalFulfillment: t,
+    });
+  }
+
+  for (const t of data.recurring) {
+    tasks.push({
+      id: t.id,
+      agencyId: t.agency_id,
+      agencyName: t.agency_name,
+      title: t.title,
+      taskType: t.task_key,
+      source: 'recurring',
+      bucket: getBucket(t.due_date),
+      dueDate: t.due_date,
+      isAiTask: false,
+      originalRecurring: t,
+    });
+  }
+
+  for (const t of data.playbook) {
+    tasks.push({
+      id: t.id,
+      agencyId: t.agency_id,
+      agencyName: t.agency_name,
+      title: t.action_text,
+      taskType: t.playbook_key,
+      source: 'playbook',
+      bucket: 'thisweek',
+      dueDate: null,
+      isAiTask: false,
+      originalPlaybook: t,
+    });
+  }
+
+  return tasks;
+}
+
+// ---- Stat Card ----
+
+function StatCard({ icon, label, value, tone = 'default' }: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  tone?: 'default' | 'urgent';
+}) {
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <span className="text-red-600">{icon}</span>
-      <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-      <span className="text-sm text-gray-400 ml-1">{count}</span>
+    <Card padding="sm" className="flex items-center gap-4">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+        tone === 'urgent' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+      }`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-xs text-gray-500">{label}</p>
+      </div>
+    </Card>
+  );
+}
+
+// ---- Task Row ----
+
+function TaskRow({
+  task,
+  onMarkDone,
+  onNavigate,
+}: {
+  task: UnifiedTask;
+  onMarkDone: (task: UnifiedTask) => void;
+  onNavigate: (task: UnifiedTask) => void;
+}) {
+  const isOverdue = task.dueDate && task.dueDate < getTodayStr();
+
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+      {/* Dot */}
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-0.5 ${
+        isOverdue ? 'bg-red-500' : task.isAiTask ? 'bg-purple-400' : 'bg-gray-300'
+      }`} />
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {task.agencyName && (
+          <Link
+            href={`/clients/${task.agencyId}`}
+            className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline"
+          >
+            {task.agencyName}
+          </Link>
+        )}
+        <p className="text-sm text-gray-900 font-medium leading-snug mt-0.5">{task.title}</p>
+        {task.dueDate && (
+          <p className={`text-xs mt-0.5 flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-gray-400'}`}>
+            <Clock className="w-3 h-3" />
+            {formatGermanDate(task.dueDate)}
+            {isOverdue && ' — überfällig'}
+          </p>
+        )}
+      </div>
+
+      {/* Action */}
+      <div className="flex-shrink-0">
+        {task.isAiTask ? (
+          <Button variant="primary" size="sm" onClick={() => onNavigate(task)}>
+            <Sparkles className="w-3.5 h-3.5" />
+            Generieren
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        ) : task.source === 'playbook' || task.source === 'recurring' ? (
+          <Button variant="soft" size="sm" onClick={() => onMarkDone(task)}>
+            <Check className="w-3.5 h-3.5" />
+            Erledigt
+          </Button>
+        ) : (
+          <Link href={`/clients/${task.agencyId}`}>
+            <Button variant="ghost" size="sm">
+              Zum Kunden
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- Agency Progress Card ----
+
+function AgencyProgressCard({
+  agencyId,
+  agencyName,
+  tasks,
+  onNavigate,
+}: {
+  agencyId: string;
+  agencyName: string;
+  tasks: FulfillmentTask[];
+  onNavigate: (agencyId: string, taskType: string) => void;
+}) {
+  const total = tasks.length;
+  const done = tasks.filter((t) => t.status === 'done').length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const nextTask = tasks.find((t) => t.status !== 'done');
+  const isAiNext = nextTask ? AI_TASK_TYPES.includes(nextTask.task_type) : false;
+
+  return (
+    <Card padding="sm" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Link href={`/clients/${agencyId}`} className="font-semibold text-sm text-gray-900 hover:text-red-600 transition-colors">
+          {agencyName}
+        </Link>
+        <span className="text-xs text-gray-400 font-medium">{done}/{total} erledigt</span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-red-500 rounded-full transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-xs text-gray-400">{pct}% abgeschlossen</p>
+
+      {nextTask && (
+        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400">Nächste Aufgabe</p>
+            <p className="text-sm text-gray-900 font-medium truncate">{nextTask.title}</p>
+          </div>
+          {isAiNext ? (
+            <Button variant="primary" size="sm" className="ml-3 flex-shrink-0" onClick={() => onNavigate(agencyId, nextTask.task_type)}>
+              <Sparkles className="w-3.5 h-3.5" />
+              Generieren
+            </Button>
+          ) : (
+            <Link href={`/clients/${agencyId}/fulfillment`} className="ml-3 flex-shrink-0">
+              <Button variant="ghost" size="sm">
+                Öffnen
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {!nextTask && (
+        <p className="text-xs text-green-600 font-medium flex items-center gap-1 pt-1 border-t border-gray-100">
+          <Check className="w-3 h-3" />
+          Alle Aufgaben erledigt
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// ---- Section Header ----
+
+function SectionHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <h2 className="text-base font-bold text-gray-900">{title}</h2>
+      {count > 0 && (
+        <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 font-medium">{count}</span>
+      )}
+    </div>
+  );
+}
+
+// ---- Day Group ----
+
+function DayGroup({ label, tasks, onMarkDone, onNavigate }: {
+  label: string;
+  tasks: UnifiedTask[];
+  onMarkDone: (task: UnifiedTask) => void;
+  onNavigate: (task: UnifiedTask) => void;
+}) {
+  if (tasks.length === 0) return null;
+  return (
+    <div className="mb-6">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+      <Card padding="none" className="px-4">
+        {tasks.map((task) => (
+          <TaskRow key={`${task.source}-${task.id}`} task={task} onMarkDone={onMarkDone} onNavigate={onNavigate} />
+        ))}
+      </Card>
     </div>
   );
 }
@@ -101,19 +361,10 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
 // ---- Main page ----
 
 export default function MeineAufgabenPage() {
+  const router = useRouter();
   const [data, setData] = useState<TasksData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Fulfillment AI generate state
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewContent, setReviewContent] = useState('');
-  const [reviewTask, setReviewTask] = useState<FulfillmentTask | null>(null);
-
-  // Playbook expand/edit state
-  const [expandedPlaybook, setExpandedPlaybook] = useState<string | null>(null);
-  const [playbookNotes, setPlaybookNotes] = useState<Record<string, string>>({});
-  const [playbookSaving, setPlaybookSaving] = useState<string | null>(null);
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -125,220 +376,81 @@ export default function MeineAufgabenPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ---- Fulfillment helpers ----
-
-  function updateFulfillmentStatus(taskId: string, status: string) {
-    fetch(`/api/fulfillment/${taskId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    setData((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        fulfillment: status === 'done'
-          ? prev.fulfillment.filter((t) => t.id !== taskId)
-          : prev.fulfillment.map((t) => (t.id === taskId ? { ...t, status } : t)),
-      };
-    });
-  }
-
-  async function generateContent(task: FulfillmentTask) {
-    setActionLoading(task.id);
-    updateFulfillmentStatus(task.id, 'in_progress');
-
+  // Mark a non-AI task done
+  async function handleMarkDone(task: UnifiedTask) {
+    setDoneIds((prev) => new Set([...prev, task.id]));
     try {
-      const res = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: task.task_type,
-          agency_id: task.agency_id,
-          fulfillment_task_id: task.id,
-        }),
-      });
-
-      if (res.ok) {
-        const d = await res.json();
-        setReviewTask(task);
-        setReviewContent(d.content ?? '');
-        setReviewOpen(true);
-      } else {
-        updateFulfillmentStatus(task.id, 'pending');
-        toast.error('Generierung fehlgeschlagen.');
+      if (task.source === 'recurring') {
+        await fetch(`/api/fulfillment/recurring/${task.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'done' }),
+        });
+      } else if (task.source === 'playbook') {
+        await fetch(`/api/playbook-tasks/${task.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'done' }),
+        });
+      } else if (task.source === 'fulfillment') {
+        await fetch(`/api/fulfillment/${task.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'done' }),
+        });
       }
+      toast.success('Aufgabe als erledigt markiert.');
+      // Remove from local state
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          fulfillment: prev.fulfillment.filter((t) => t.id !== task.id),
+          playbook: prev.playbook.filter((t) => t.id !== task.id),
+          recurring: prev.recurring.filter((t) => t.id !== task.id),
+        };
+      });
     } catch {
-      updateFulfillmentStatus(task.id, 'pending');
-      toast.error('Generierung fehlgeschlagen.');
-    } finally {
-      setActionLoading(null);
+      setDoneIds((prev) => { const s = new Set(prev); s.delete(task.id); return s; });
+      toast.error('Fehler beim Speichern.');
     }
   }
 
-  function handleReviewApprove() {
-    if (!reviewTask) return;
-    updateFulfillmentStatus(reviewTask.id, 'review');
-    setReviewOpen(false);
-    setReviewTask(null);
-    setReviewContent('');
+  // Navigate to AI tools with deep-link
+  function handleNavigateAI(task: UnifiedTask) {
+    if (!task.agencyId) return;
+    router.push(`/ai-tools?agency=${task.agencyId}&type=${task.taskType}`);
   }
 
-  async function handleReviewRevise(feedback: string) {
-    if (!reviewTask) return;
-    const res = await fetch('/api/ai/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: reviewTask.task_type,
-        agency_id: reviewTask.agency_id,
-        fulfillment_task_id: reviewTask.id,
-        feedback,
-      }),
-    });
-    if (res.ok) {
-      const d = await res.json();
-      setReviewContent(d.content ?? '');
-    }
-  }
-
-  function handleReviewDiscard() {
-    if (!reviewTask) return;
-    updateFulfillmentStatus(reviewTask.id, 'pending');
-    setReviewOpen(false);
-    setReviewTask(null);
-    setReviewContent('');
-  }
-
-  function getFulfillmentAction(task: FulfillmentTask) {
-    const isLoading = actionLoading === task.id;
-
-    if (task.task_type === 'perspective_funnel') {
-      return (
-        <Link href={`/clients/${task.agency_id}/perspective`}>
-          <Button variant="primary" size="sm">
-            <FolderKanban className="w-3.5 h-3.5" />
-            Funnel Wizard
-          </Button>
-        </Link>
-      );
-    }
-
-    if (AI_TYPES.includes(task.task_type) && task.status === 'pending') {
-      return (
-        <Button variant="primary" size="sm" onClick={() => generateContent(task)} disabled={isLoading}>
-          <Sparkles className="w-3.5 h-3.5" />
-          {isLoading ? 'Generiert...' : 'Generieren'}
-        </Button>
-      );
-    }
-
-    if (task.task_type === 'meta_upload' && task.status === 'pending') {
-      return (
-        <Link href={`/clients/${task.agency_id}/fulfillment`}>
-          <Button variant="primary" size="sm">
-            <Upload className="w-3.5 h-3.5" />
-            Meta Upload
-          </Button>
-        </Link>
-      );
-    }
-
-    if (task.task_type === 'funnel_publish' && task.status === 'pending') {
-      return (
-        <Link href={`/clients/${task.agency_id}/fulfillment`}>
-          <Button variant="primary" size="sm">
-            <Rocket className="w-3.5 h-3.5" />
-            Funnel veröffentlichen
-          </Button>
-        </Link>
-      );
-    }
-
-    if (task.task_type === 'manual' && task.status === 'pending') {
-      return (
-        <Button variant="soft" size="sm" onClick={() => updateFulfillmentStatus(task.id, 'done')}>
-          <Check className="w-3.5 h-3.5" />
-          Erledigt
-        </Button>
-      );
-    }
-
-    return null;
-  }
-
-  // ---- Playbook helpers ----
-
-  async function updatePlaybookStatus(taskId: string, status: string) {
-    setPlaybookSaving(taskId);
-    try {
-      await fetch(`/api/playbook-tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      setData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          playbook: status === 'done'
-            ? prev.playbook.filter((t) => t.id !== taskId)
-            : prev.playbook.map((t) => (t.id === taskId ? { ...t, status } : t)),
-        };
-      });
-    } finally {
-      setPlaybookSaving(null);
-    }
-  }
-
-  async function savePlaybookNotes(task: PlaybookTask) {
-    setPlaybookSaving(task.id);
-    try {
-      await fetch(`/api/playbook-tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: playbookNotes[task.id] ?? task.notes ?? '' }),
-      });
-      setData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          playbook: prev.playbook.map((t) =>
-            t.id === task.id ? { ...t, notes: playbookNotes[task.id] ?? t.notes } : t
-          ),
-        };
-      });
-      toast.success('Notizen gespeichert.');
-    } finally {
-      setPlaybookSaving(null);
-    }
-  }
-
-  // ---- Recurring helpers ----
-
-  async function markRecurringDone(taskId: string) {
-    await fetch(`/api/fulfillment/recurring/${taskId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'done' }),
-    });
-    setData((prev) => {
-      if (!prev) return prev;
-      return { ...prev, recurring: prev.recurring.filter((t) => t.id !== taskId) };
-    });
+  // Navigate from agency card
+  function handleAgencyNavigate(agencyId: string, taskType: string) {
+    router.push(`/ai-tools?agency=${agencyId}&type=${taskType}`);
   }
 
   // ---- Derived ----
 
-  const totalOpen = data
-    ? data.fulfillment.length + data.playbook.length + data.recurring.length
-    : 0;
+  const allTasks = data ? buildUnifiedTasks(data).filter((t) => !doneIds.has(t.id)) : [];
 
-  // Group fulfillment tasks by agency
+  const todayLabel = `Heute (${formatGermanDate(getTodayStr())})`;
+  const tomorrowLabel = `Morgen (${formatGermanDate(getTomorrowStr())})`;
+  const weekEndLabel = `Diese Woche (bis ${formatGermanDate(getWeekEndStr())})`;
+
+  const todayTasks = allTasks.filter((t) => t.bucket === 'today');
+  const tomorrowTasks = allTasks.filter((t) => t.bucket === 'tomorrow');
+  const weekTasks = allTasks.filter((t) => t.bucket === 'thisweek');
+
+  const totalOpen = allTasks.length;
+  const todayDue = todayTasks.length;
+
+  // Distinct assigned agencies (from fulfillment data for progress view)
+  const agencyIds = [...new Set((data?.agencies ?? []).map((a) => a.id))];
+
+  // Fulfillment tasks grouped by agency (all statuses for progress)
+  // We only have non-done tasks in data.fulfillment, but show progress anyway
   const fulfillmentByAgency: Record<string, FulfillmentTask[]> = {};
-  for (const task of data?.fulfillment ?? []) {
-    if (!fulfillmentByAgency[task.agency_id]) fulfillmentByAgency[task.agency_id] = [];
-    fulfillmentByAgency[task.agency_id].push(task);
+  for (const t of data?.fulfillment ?? []) {
+    if (!fulfillmentByAgency[t.agency_id]) fulfillmentByAgency[t.agency_id] = [];
+    fulfillmentByAgency[t.agency_id].push(t);
   }
 
   if (loading) {
@@ -350,225 +462,105 @@ export default function MeineAufgabenPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-10">
+    <div className="max-w-3xl space-y-8">
       <PageHeader
         label="MEINE AUFGABEN"
         title="Meine Aufgaben"
-        description="Deine offenen Aufgaben für heute"
-        counter={totalOpen > 0 ? `${totalOpen} offen` : undefined}
+        description="Deine Übersicht für heute und diese Woche"
       />
 
-      {/* ---- Section 1: Fulfillment ---- */}
+      {/* ---- Quick Stats ---- */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard
+          icon={<ListTodo className="w-5 h-5" />}
+          label="Offene Aufgaben"
+          value={totalOpen}
+        />
+        <StatCard
+          icon={<AlertCircle className="w-5 h-5" />}
+          label="Heute fällig"
+          value={todayDue}
+          tone={todayDue > 0 ? 'urgent' : 'default'}
+        />
+        <StatCard
+          icon={<Users className="w-5 h-5" />}
+          label="Kunden"
+          value={agencyIds.length}
+        />
+      </div>
+
+      {/* ---- Section 1: Timeline ---- */}
       <section>
         <SectionHeader
-          icon={<ListTodo className="w-5 h-5" />}
-          title="Fulfillment"
-          count={data?.fulfillment.length ?? 0}
+          title="Heute & Diese Woche"
+          count={todayTasks.length + tomorrowTasks.length + weekTasks.length}
         />
 
-        {(data?.fulfillment.length ?? 0) === 0 ? (
+        {allTasks.length === 0 ? (
           <Card padding="md">
-            <p className="text-sm text-gray-400 text-center">Keine offenen Fulfillment-Aufgaben.</p>
+            <div className="text-center py-4">
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center mx-auto mb-3">
+                <Check className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-sm font-semibold text-gray-900">Alles erledigt!</p>
+              <p className="text-xs text-gray-500 mt-1">Keine offenen Aufgaben diese Woche.</p>
+            </div>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <>
+            <DayGroup
+              label={todayLabel}
+              tasks={todayTasks}
+              onMarkDone={handleMarkDone}
+              onNavigate={handleNavigateAI}
+            />
+            <DayGroup
+              label={tomorrowLabel}
+              tasks={tomorrowTasks}
+              onMarkDone={handleMarkDone}
+              onNavigate={handleNavigateAI}
+            />
+            <DayGroup
+              label={weekEndLabel}
+              tasks={weekTasks}
+              onMarkDone={handleMarkDone}
+              onNavigate={handleNavigateAI}
+            />
+          </>
+        )}
+      </section>
+
+      {/* ---- Section 2: Kunden-Übersicht ---- */}
+      {Object.keys(fulfillmentByAgency).length > 0 && (
+        <section>
+          <SectionHeader title="Kunden-Übersicht" count={Object.keys(fulfillmentByAgency).length} />
+          <div className="space-y-3">
             {Object.entries(fulfillmentByAgency).map(([agencyId, tasks]) => {
               const agencyName = tasks[0]?.agency_name ?? agencyId;
               return (
-                <div key={agencyId}>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">
-                    {agencyName}
-                  </p>
-                  <div className="space-y-2">
-                    {tasks.map((task) => {
-                      const config = statusConfig[task.status] ?? statusConfig.pending;
-                      const actionBtn = getFulfillmentAction(task);
-                      return (
-                        <Card key={task.id} padding="sm" className="flex items-center gap-4">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                            task.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
-                          }`}>
-                            {taskIcons[task.task_type] ?? <MoreHorizontal className="w-4 h-4" />}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-900">{task.title}</p>
-                            {task.description && (
-                              <p className="text-xs text-gray-500 truncate">{task.description}</p>
-                            )}
-                          </div>
-
-                          <Badge tone={config.tone}>{config.label}</Badge>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            {actionBtn}
-                            {!actionBtn && task.status === 'pending' && (
-                              <Button variant="ghost" size="sm" onClick={() => updateFulfillmentStatus(task.id, 'in_progress')}>
-                                <Play className="w-3.5 h-3.5" /> Start
-                              </Button>
-                            )}
-                          </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
+                <AgencyProgressCard
+                  key={agencyId}
+                  agencyId={agencyId}
+                  agencyName={agencyName}
+                  tasks={tasks}
+                  onNavigate={handleAgencyNavigate}
+                />
               );
             })}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {/* ---- Section 2: Playbook ---- */}
+      {/* ---- Section 3: Anstehende Termine (placeholder) ---- */}
       <section>
-        <SectionHeader
-          icon={<BookOpen className="w-5 h-5" />}
-          title="Playbook"
-          count={data?.playbook.length ?? 0}
-        />
-
-        {(data?.playbook.length ?? 0) === 0 ? (
-          <Card padding="md">
-            <p className="text-sm text-gray-400 text-center">Keine offenen Playbook-Aufgaben.</p>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {data?.playbook.map((task) => {
-              const isExpanded = expandedPlaybook === task.id;
-              const isSaving = playbookSaving === task.id;
-
-              return (
-                <Card key={task.id} padding="sm">
-                  {/* Header row */}
-                  <div
-                    className="flex items-center gap-3 cursor-pointer"
-                    onClick={() => setExpandedPlaybook(isExpanded ? null : task.id)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 leading-snug">{task.action_text}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <Badge tone="softAccent" className="font-mono">
-                          {task.playbook_key}
-                        </Badge>
-                        {task.agency_name && (
-                          <Badge tone="neutral">{task.agency_name}</Badge>
-                        )}
-                        <Badge tone={task.status === 'in_progress' ? 'accent' : 'neutral'}>
-                          {task.status === 'in_progress' ? 'In Bearbeitung' : 'Offen'}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {task.status === 'pending' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); updatePlaybookStatus(task.id, 'in_progress'); }}
-                          disabled={isSaving}
-                        >
-                          <Play className="w-3.5 h-3.5" /> Start
-                        </Button>
-                      )}
-                      <Button
-                        variant="soft"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); updatePlaybookStatus(task.id, 'done'); }}
-                        disabled={isSaving}
-                      >
-                        <Check className="w-3.5 h-3.5" /> Erledigt
-                      </Button>
-                      {isExpanded
-                        ? <ChevronUp className="w-4 h-4 text-gray-400" />
-                        : <ChevronDown className="w-4 h-4 text-gray-400" />
-                      }
-                    </div>
-                  </div>
-
-                  {/* Expanded: notes */}
-                  {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                      <textarea
-                        rows={3}
-                        placeholder="Notizen..."
-                        className="w-full text-sm text-gray-900 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
-                        value={playbookNotes[task.id] ?? task.notes ?? ''}
-                        onChange={(e) =>
-                          setPlaybookNotes((prev) => ({ ...prev, [task.id]: e.target.value }))
-                        }
-                      />
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => savePlaybookNotes(task)}
-                        disabled={isSaving}
-                      >
-                        {isSaving ? 'Speichert...' : 'Speichern'}
-                      </Button>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+        <SectionHeader title="Anstehende Termine" count={0} />
+        <Card padding="sm" className="flex items-center gap-4 text-gray-400">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <Calendar className="w-4 h-4" />
           </div>
-        )}
+          <p className="text-sm">Calendly-Termine werden hier angezeigt, sobald die Integration aktiv ist.</p>
+        </Card>
       </section>
-
-      {/* ---- Section 3: Recurring ---- */}
-      <section>
-        <SectionHeader
-          icon={<RefreshCw className="w-5 h-5" />}
-          title="Recurring"
-          count={data?.recurring.length ?? 0}
-        />
-
-        {(data?.recurring.length ?? 0) === 0 ? (
-          <Card padding="md">
-            <p className="text-sm text-gray-400 text-center">Keine anstehenden Recurring-Aufgaben.</p>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {data?.recurring.map((task) => (
-              <Card key={task.id} padding="sm" className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0">
-                  <RefreshCw className="w-4 h-4" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{task.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{task.agency_name}</p>
-                </div>
-
-                <Badge tone="neutral">{task.task_key}</Badge>
-
-                {task.due_date && (
-                  <div className="flex items-center gap-1 text-xs text-gray-400 shrink-0">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(task.due_date).toLocaleDateString('de-DE')}
-                  </div>
-                )}
-
-                <Button variant="soft" size="sm" onClick={() => markRecurringDone(task.id)}>
-                  <Check className="w-3.5 h-3.5" /> Erledigt
-                </Button>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Review Modal */}
-      <ReviewModal
-        open={reviewOpen}
-        onClose={handleReviewDiscard}
-        content={reviewContent}
-        contentType={reviewTask?.task_type ?? ''}
-        agencyId={reviewTask?.agency_id ?? ''}
-        taskId={reviewTask?.id}
-        onApprove={handleReviewApprove}
-        onRevise={handleReviewRevise}
-        onDiscard={handleReviewDiscard}
-      />
     </div>
   );
 }
