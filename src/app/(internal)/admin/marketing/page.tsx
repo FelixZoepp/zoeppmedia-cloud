@@ -60,6 +60,8 @@ interface Summary {
   revenue_open: number;
   deals_won: number;
   deals_open: number;
+  total_revenue_won: number;
+  total_deals_won: number;
   roas: number;
 }
 
@@ -329,15 +331,15 @@ export default function AdminMarketingPage() {
                 iconColor={summary && summary.roas >= 1 ? 'text-green-600' : 'text-red-600'}
               />
               <KpiCard
-                label="Revenue (Geclosed)"
+                label="Revenue (Meta Ads)"
                 value={summary ? `€ ${fmtEuro(summary.revenue_won)}` : '–'}
-                sub={summary ? `${summary.deals_won} Deals gewonnen` : undefined}
+                sub={summary ? `${summary.deals_won} Deals via Meta geclosed` : undefined}
                 icon={<Trophy className="w-5 h-5" />}
                 iconBg="bg-green-50"
                 iconColor="text-green-600"
               />
               <KpiCard
-                label="Offene Angebote"
+                label="Offene Angebote (Meta)"
                 value={summary ? `€ ${fmtEuro(summary.revenue_open)}` : '–'}
                 sub={summary ? `${summary.deals_open} Deals offen` : undefined}
                 icon={<Clock className="w-5 h-5" />}
@@ -347,7 +349,7 @@ export default function AdminMarketingPage() {
               <KpiCard
                 label="Potenzial ROAS"
                 value={summary && summary.spend > 0 ? `${((summary.revenue_won + summary.revenue_open) / summary.spend).toFixed(2)}x` : '–'}
-                sub="inkl. offene Deals"
+                sub={summary ? `Gesamt geclosed: € ${fmtEuro(summary.total_revenue_won)} (${summary.total_deals_won} Deals)` : undefined}
                 icon={<Percent className="w-5 h-5" />}
                 iconBg="bg-blue-50"
                 iconColor="text-blue-600"

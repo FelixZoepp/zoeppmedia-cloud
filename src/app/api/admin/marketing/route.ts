@@ -7,34 +7,74 @@ const BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 
-async function getCloseRevenue(): Promise<{ won: number; open: number; won_count: number; open_count: number }> {
+// Leadquelle custom field ID in Close CRM
+const LEADQUELLE_FIELD = 'custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8';
+const META_SOURCES = ['instagram', 'facebook', 'meta ads', 'meta', 'fb', 'ig'];
+
+function closeAuth(): HeadersInit {
+  const apiKey = process.env.CLOSE_API_KEY ?? '';
+  return {
+    Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function getCloseRevenue(): Promise<{ won: number; open: number; won_count: number; open_count: number; meta_won: number; meta_open: number; meta_won_count: number; meta_open_count: number }> {
   const apiKey = process.env.CLOSE_API_KEY;
-  if (!apiKey) return { won: 0, open: 0, won_count: 0, open_count: 0 };
+  const empty = { won: 0, open: 0, won_count: 0, open_count: 0, meta_won: 0, meta_open: 0, meta_won_count: 0, meta_open_count: 0 };
+  if (!apiKey) return empty;
 
   try {
+    // Fetch opportunities with lead_id
     const res = await fetch(
-      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,pipeline_id`,
-      {
-        headers: {
-          Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-          'Content-Type': 'application/json',
-        },
-      }
+      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,pipeline_id,lead_id`,
+      { headers: closeAuth() }
     );
-    if (!res.ok) return { won: 0, open: 0, won_count: 0, open_count: 0 };
+    if (!res.ok) return empty;
     const data = await res.json();
-    const opps: Array<{ value: number; status_type: string; pipeline_id?: string }> =
+    const opps: Array<{ value: number; status_type: string; pipeline_id?: string; lead_id: string }> =
       (data.data ?? []).filter((o: { pipeline_id?: string }) => o.pipeline_id === CLOSE_PIPELINE_ID);
 
+    // Fetch unique leads to check Leadquelle
+    const uniqueLeadIds = [...new Set(opps.map((o) => o.lead_id))];
+    const metaLeadIds = new Set<string>();
+
+    await Promise.all(
+      uniqueLeadIds.map(async (leadId) => {
+        try {
+          const leadRes = await fetch(
+            `https://api.close.com/api/v1/lead/${leadId}/?_fields=id,${LEADQUELLE_FIELD}`,
+            { headers: closeAuth() }
+          );
+          if (!leadRes.ok) return;
+          const lead = await leadRes.json();
+          const leadquelle: string = (lead[LEADQUELLE_FIELD] ?? '').toLowerCase().trim();
+          if (leadquelle && META_SOURCES.some((s) => leadquelle.includes(s))) {
+            metaLeadIds.add(leadId);
+          }
+        } catch { /* skip */ }
+      })
+    );
+
     let won = 0, open = 0, won_count = 0, open_count = 0;
+    let meta_won = 0, meta_open = 0, meta_won_count = 0, meta_open_count = 0;
+
     for (const o of opps) {
       const val = (o.value ?? 0) / 100;
-      if (o.status_type === 'won') { won += val; won_count++; }
-      if (o.status_type === 'active') { open += val; open_count++; }
+      const isMeta = metaLeadIds.has(o.lead_id);
+
+      if (o.status_type === 'won') {
+        won += val; won_count++;
+        if (isMeta) { meta_won += val; meta_won_count++; }
+      }
+      if (o.status_type === 'active') {
+        open += val; open_count++;
+        if (isMeta) { meta_open += val; meta_open_count++; }
+      }
     }
-    return { won, open, won_count, open_count };
+    return { won, open, won_count, open_count, meta_won, meta_open, meta_won_count, meta_open_count };
   } catch {
-    return { won: 0, open: 0, won_count: 0, open_count: 0 };
+    return { won: 0, open: 0, won_count: 0, open_count: 0, meta_won: 0, meta_open: 0, meta_won_count: 0, meta_open_count: 0 };
   }
 }
 
@@ -265,9 +305,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fetch Close CRM revenue for ROAS
+  // Fetch Close CRM revenue for ROAS (only Meta Ads attributed deals)
   const closeRevenue = await getCloseRevenue();
-  const roas = totalSpend > 0 ? closeRevenue.won / totalSpend : 0;
+  const roas = totalSpend > 0 ? closeRevenue.meta_won / totalSpend : 0;
 
   const summary = {
     spend: totalSpend,
@@ -277,11 +317,14 @@ export async function GET(request: NextRequest) {
     ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
     impressions: totalImpressions,
     clicks: totalClicks,
-    // Close CRM revenue
-    revenue_won: closeRevenue.won,
-    revenue_open: closeRevenue.open,
-    deals_won: closeRevenue.won_count,
-    deals_open: closeRevenue.open_count,
+    // Close CRM revenue — only from leads with Leadquelle = Meta/Instagram/Facebook
+    revenue_won: closeRevenue.meta_won,
+    revenue_open: closeRevenue.meta_open,
+    deals_won: closeRevenue.meta_won_count,
+    deals_open: closeRevenue.meta_open_count,
+    // Total pipeline (all sources)
+    total_revenue_won: closeRevenue.won,
+    total_deals_won: closeRevenue.won_count,
     roas,
   };
 
