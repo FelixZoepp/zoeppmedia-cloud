@@ -1,13 +1,13 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
-import { isAdmin } from '@/lib/admin';
+import { isInternalUser } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { sendInviteEmail } from '@/lib/email/resend';
 import { logActivity } from '@/lib/activity/log';
 
 export async function GET() {
   const supabase = await createServerClient();
-  if (!(await isAdmin(supabase))) {
+  if (!(await isInternalUser(supabase))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
@@ -52,7 +52,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createServerClient();
-  if (!(await isAdmin(supabase))) {
+  if (!(await isInternalUser(supabase))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 

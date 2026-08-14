@@ -31,6 +31,21 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
 
   function renderItem(item: SidebarItem) {
     const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+
+    // Logout link must NOT be a Next.js Link (prefetch would log the user out)
+    if (item.href.startsWith('/api/')) {
+      return (
+        <a
+          key={item.id}
+          href={item.href}
+          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <span className="flex-shrink-0 text-gray-400">{item.icon}</span>
+          <span className="flex-1 truncate">{item.label}</span>
+        </a>
+      );
+    }
+
     return (
       <Link
         key={item.id}

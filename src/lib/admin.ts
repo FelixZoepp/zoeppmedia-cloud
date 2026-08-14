@@ -12,3 +12,16 @@ export async function isAdmin(supabase: SupabaseClient): Promise<boolean> {
 
   return data?.role === 'admin';
 }
+
+export async function isInternalUser(supabase: SupabaseClient): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  return data?.role === 'admin' || data?.role === 'employee';
+}
