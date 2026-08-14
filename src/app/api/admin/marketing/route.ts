@@ -134,17 +134,7 @@ export async function GET(request: NextRequest) {
   campaignsUrl.searchParams.set('fields', `id,name,status,insights.time_range(${timeRange}){${insightFields}}`);
   campaignsUrl.searchParams.set('limit', '50');
 
-  // Fetch account-level insights
-  const accountInsightsUrl = new URL(`${BASE_URL}/${adAccountId}/insights`);
-  accountInsightsUrl.searchParams.set('access_token', token);
-  accountInsightsUrl.searchParams.set('fields', insightFields);
-  accountInsightsUrl.searchParams.set('time_range', timeRange);
-  accountInsightsUrl.searchParams.set('level', 'account');
-
-  const [campaignsRes, accountInsightsRes] = await Promise.all([
-    fetch(campaignsUrl.toString()),
-    fetch(accountInsightsUrl.toString()),
-  ]);
+  const campaignsRes = await fetch(campaignsUrl.toString());
 
   if (!campaignsRes.ok) {
     const err = await campaignsRes.json();
@@ -155,7 +145,6 @@ export async function GET(request: NextRequest) {
   }
 
   const campaignsData = await campaignsRes.json();
-  const accountInsightsData = await accountInsightsRes.json();
 
   const campaigns: MetaCampaign[] = campaignsData.data ?? [];
 
@@ -218,17 +207,28 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  // Build summary from account-level insights
-  const accountInsight: MetaInsight = accountInsightsData.data?.[0] ?? {};
-  const summaryNorm = normaliseInsight(accountInsight);
+  // Build summary by aggregating active campaigns only
+  let totalSpend = 0;
+  let totalLeads = 0;
+  let totalImpressions = 0;
+  let totalClicks = 0;
+
+  for (const c of campaignsOut) {
+    if (c.insights) {
+      totalSpend += c.insights.spend;
+      totalLeads += c.insights.leads;
+      totalImpressions += c.insights.impressions;
+      totalClicks += c.insights.clicks;
+    }
+  }
 
   const summary = {
-    spend: summaryNorm.spend,
-    leads: summaryNorm.leads,
-    cpl: summaryNorm.cpl,
-    ctr: summaryNorm.ctr,
-    impressions: summaryNorm.impressions,
-    clicks: summaryNorm.clicks,
+    spend: totalSpend,
+    leads: totalLeads,
+    cpl: totalLeads > 0 ? totalSpend / totalLeads : 0,
+    ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+    impressions: totalImpressions,
+    clicks: totalClicks,
   };
 
   return NextResponse.json({

@@ -20,12 +20,39 @@ async function closeGet(path: string) {
   return res.json();
 }
 
-export async function GET() {
+function getDateFilter(range: string): { since: string | null; until: string | null } {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = fmt(now);
+
+  switch (range) {
+    case 'today':
+      return { since: today, until: today };
+    case 'week': {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
+      return { since: fmt(weekStart), until: today };
+    }
+    case 'month': {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { since: fmt(monthStart), until: today };
+    }
+    default: // 'all'
+      return { since: null, until: null };
+  }
+}
+
+export async function GET(req: Request) {
   const supabase = await createServerClient();
   const admin = await isAdmin(supabase);
   if (!admin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const url = new URL(req.url);
+  const range = url.searchParams.get('range') ?? 'all';
+  const { since, until } = getDateFilter(range);
 
   // 1. Fetch pipeline to get status labels
   const pipeline = await closeGet(`/pipeline/${PIPELINE_ID}/`);
@@ -35,9 +62,10 @@ export async function GET() {
   }
 
   // 2. Fetch all opportunities in pipeline (up to 200)
-  const oppData = await closeGet(
-    `/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200&_order_by=-date_updated`
-  );
+  let oppPath = `/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200&_order_by=-date_updated`;
+  if (since) oppPath += `&date_created__gte=${since}`;
+  if (until) oppPath += `&date_created__lte=${until}T23:59:59`;
+  const oppData = await closeGet(oppPath);
   const opportunities: Array<{
     id: string;
     lead_id: string;
@@ -124,8 +152,11 @@ export async function GET() {
     .filter((s) => s.count > 0 || Object.keys(statusMap).includes(s.id));
 
   return NextResponse.json({
+    range,
+    period: since && until ? { since, until } : null,
     summary: {
       total_deals: deals.length,
+      open_deals: activeDeals.length,
       total_value: totalValue,
       won_value: wonValue,
       open_value: openValue,

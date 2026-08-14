@@ -4,10 +4,19 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
-import { Handshake, TrendingUp, Trophy, XCircle, Target } from 'lucide-react';
+import { Select } from '@/components/ui/select';
+import { Handshake, TrendingUp, Trophy, XCircle, Target, Clock } from 'lucide-react';
+
+const RANGE_OPTIONS = [
+  { value: 'all', label: 'Gesamt' },
+  { value: 'month', label: 'Dieser Monat' },
+  { value: 'week', label: 'Diese Woche' },
+  { value: 'today', label: 'Heute' },
+];
 
 interface DealSummary {
   total_deals: number;
+  open_deals: number;
   total_value: number;
   won_value: number;
   open_value: number;
@@ -86,9 +95,12 @@ export default function AdminSalesPage() {
   const [data, setData] = useState<SalesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [range, setRange] = useState('all');
 
   useEffect(() => {
-    fetch('/api/admin/sales')
+    setLoading(true);
+    setError('');
+    fetch(`/api/admin/sales?range=${range}`)
       .then((r) => {
         if (!r.ok) throw new Error(`Fehler ${r.status}`);
         return r.json();
@@ -96,7 +108,7 @@ export default function AdminSalesPage() {
       .then((d: SalesData) => setData(d))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [range]);
 
   if (loading) {
     return (
@@ -143,10 +155,18 @@ export default function AdminSalesPage() {
         label="SALES"
         title="D2D Sales Pipeline"
         counter={`${summary.total_deals} Deals`}
+        action={
+          <Select
+            options={RANGE_OPTIONS}
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            className="w-44"
+          />
+        }
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <Card padding="sm">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-gray-100 rounded-lg shrink-0">
@@ -155,6 +175,18 @@ export default function AdminSalesPage() {
             <div>
               <p className="text-xs text-gray-500 font-medium">Deals gesamt</p>
               <p className="text-2xl font-bold text-gray-900 mt-0.5">{summary.total_deals}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-50 rounded-lg shrink-0">
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Offene Deals</p>
+              <p className="text-2xl font-bold text-gray-900 mt-0.5">{summary.open_deals}</p>
             </div>
           </div>
         </Card>
