@@ -1,40 +1,239 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { detectProblemsForAgency } from '@/lib/problems/detect';
 
 // Vercel Cron: GET /api/cron/daily at 08:00 UTC daily
-// Also accepts POST for manual triggers
 
 async function runDailyJobs() {
-  const supabase = await createServerClient();
+  const supabase = createAdminClient();
 
   const { data: agencies, error } = await supabase
     .from('agencies')
-    .select('id, name');
+    .select('id, name, onboarding_completed, created_at, meta_ad_account_id');
 
   if (error) {
-    console.error('[cron/daily] Failed to fetch agencies:', error.message);
     return { ok: false, error: error.message };
   }
 
-  const results: Record<string, unknown> = {};
+  const results: Record<string, string> = {};
+  let problemsDetected = 0;
+  let surveysScheduled = 0;
+  let recurringCreated = 0;
+  let remindersS = 0;
+
+  const now = new Date();
+  const cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+  const currentMonth = now.toISOString().slice(0, 7);
 
   for (const agency of agencies ?? []) {
     try {
-      await detectProblemsForAgency(supabase, agency.id);
-      results[agency.id] = { name: agency.name, status: 'ok' };
-    } catch (err) {
-      console.error(`[cron/daily] detectProblems failed for agency ${agency.id}:`, err);
-      results[agency.id] = { name: agency.name, status: 'error' };
+      // 1. Problem Detection
+      const { detected } = await detectProblemsForAgency(supabase, agency.id);
+      problemsDetected += detected;
+
+      // 2. Recurring Fulfillment Tasks
+      if (agency.onboarding_completed) {
+        // Indeed restart every 30 days
+        const { data: lastIndeed } = await supabase
+          .from('recurring_fulfillment_tasks')
+          .select('created_at')
+          .eq('agency_id', agency.id)
+          .eq('task_key', 'indeed_restart')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!lastIndeed?.[0] || new Date(lastIndeed[0].created_at) < thirtyDaysAgo) {
+          await supabase.from('recurring_fulfillment_tasks').insert({
+            agency_id: agency.id,
+            task_key: 'indeed_restart',
+            title: 'Indeed Anzeige neu starten',
+            status: 'pending',
+            due_date: now.toISOString().split('T')[0],
+            triggered_by: 'schedule',
+          });
+          recurringCreated++;
+        }
+
+        // Reels monthly
+        const { data: agencyData } = await supabase
+          .from('agencies')
+          .select('reels_per_month')
+          .eq('id', agency.id)
+          .single();
+
+        if (agencyData?.reels_per_month > 0) {
+          const { data: lastReels } = await supabase
+            .from('recurring_fulfillment_tasks')
+            .select('id')
+            .eq('agency_id', agency.id)
+            .eq('task_key', 'reels_create')
+            .gte('created_at', `${currentMonth}-01T00:00:00Z`)
+            .limit(1);
+
+          if (!lastReels?.length) {
+            await supabase.from('recurring_fulfillment_tasks').insert({
+              agency_id: agency.id,
+              task_key: 'reels_create',
+              title: `${agencyData.reels_per_month} Reels erstellen`,
+              status: 'pending',
+              due_date: `${currentMonth}-15`,
+              triggered_by: 'schedule',
+            });
+            recurringCreated++;
+          }
+        }
+      }
+
+      // 3. Survey Milestones
+      const { data: existingSchedules } = await supabase
+        .from('survey_schedule')
+        .select('trigger_key')
+        .eq('agency_id', agency.id);
+      const existingKeys = new Set((existingSchedules || []).map(e => e.trigger_key));
+
+      const agencyAge = now.getTime() - new Date(agency.created_at).getTime();
+
+      // Post-onboarding survey
+      if (agency.onboarding_completed && !existingKeys.has('post_onboarding')) {
+        const { data: templates } = await supabase
+          .from('survey_templates')
+          .select('id')
+          .eq('title', 'Onboarding-Feedback')
+          .limit(1);
+        if (templates?.[0]) {
+          await supabase.from('survey_schedule').insert({
+            agency_id: agency.id,
+            trigger_key: 'post_onboarding',
+            template_id: templates[0].id,
+            scheduled_at: now.toISOString(),
+          });
+          surveysScheduled++;
+        }
+      }
+
+      // Monthly survey (> 30 days active)
+      const monthKey = `monthly_${currentMonth}`;
+      if (agencyAge > 30 * 86400000 && !existingKeys.has(monthKey)) {
+        const { data: templates } = await supabase
+          .from('survey_templates')
+          .select('id')
+          .eq('title', 'Kundenzufriedenheit')
+          .limit(1);
+        if (templates?.[0]) {
+          await supabase.from('survey_schedule').insert({
+            agency_id: agency.id,
+            trigger_key: monthKey,
+            template_id: templates[0].id,
+            scheduled_at: now.toISOString(),
+          });
+          surveysScheduled++;
+        }
+      }
+
+      // Quarterly survey (> 90 days active)
+      const quarter = Math.floor(now.getMonth() / 3);
+      const quarterKey = `quarterly_${now.getFullYear()}_Q${quarter + 1}`;
+      if (agencyAge > 90 * 86400000 && !existingKeys.has(quarterKey)) {
+        const { data: templates } = await supabase
+          .from('survey_templates')
+          .select('id')
+          .eq('title', 'Gesamtbewertung')
+          .limit(1);
+        if (templates?.[0]) {
+          await supabase.from('survey_schedule').insert({
+            agency_id: agency.id,
+            trigger_key: quarterKey,
+            template_id: templates[0].id,
+            scheduled_at: now.toISOString(),
+          });
+          surveysScheduled++;
+        }
+      }
+
+      results[agency.id] = 'ok';
+    } catch {
+      results[agency.id] = 'error';
     }
   }
 
-  console.log(`[cron/daily] Processed ${agencies?.length ?? 0} agencies at ${new Date().toISOString()}`);
-  return { ok: true, processed: agencies?.length ?? 0, results };
+  // 4. Onboarding Reminders (48h without completing)
+  const { data: pendingAgencies } = await supabase
+    .from('agencies')
+    .select('id')
+    .eq('onboarding_completed', false)
+    .lt('created_at', cutoff48h);
+
+  if (pendingAgencies?.length) {
+    const { sendOnboardingReminder } = await import('@/lib/email/resend');
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
+
+    for (const agency of pendingAgencies) {
+      const { data: owner } = await supabase
+        .from('users')
+        .select('email, name')
+        .eq('agency_id', agency.id)
+        .eq('role', 'agency_owner')
+        .limit(1)
+        .single();
+
+      if (owner) {
+        try {
+          await sendOnboardingReminder(owner.email, owner.name, `${appUrl}/onboarding`);
+          remindersS++;
+        } catch { /* silent */ }
+      }
+    }
+  }
+
+  // 5. Meta Insights Sync
+  let metaSynced = 0;
+  const { data: metaAgencies } = await supabase
+    .from('agencies')
+    .select('id, meta_ad_account_id')
+    .not('meta_ad_account_id', 'is', null);
+
+  if (metaAgencies?.length && process.env.META_SYSTEM_USER_TOKEN) {
+    const { fetchInsights } = await import('@/lib/meta/api');
+    const since = new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0];
+    const until = now.toISOString().split('T')[0];
+
+    for (const agency of metaAgencies) {
+      try {
+        const insights = await fetchInsights(agency.meta_ad_account_id!, since, until);
+        for (const row of insights) {
+          await supabase.from('meta_ad_reports').delete()
+            .eq('agency_id', agency.id)
+            .eq('report_date', row.date);
+          await supabase.from('meta_ad_reports').insert({
+            agency_id: agency.id,
+            report_date: row.date,
+            spend: row.spend,
+            impressions: row.impressions,
+            clicks: row.clicks,
+            leads: row.leads,
+            cpl: row.cpl,
+            ctr: row.ctr,
+            fetched_at: now.toISOString(),
+          });
+        }
+        metaSynced++;
+      } catch { /* silent */ }
+    }
+  }
+
+  return {
+    ok: true,
+    processed: agencies?.length ?? 0,
+    problemsDetected,
+    recurringCreated,
+    surveysScheduled,
+    reminders: remindersS,
+    metaSynced,
+  };
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret when provided
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization');

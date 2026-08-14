@@ -70,7 +70,6 @@ const employeeGroups: SidebarGroup[] = [
       { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
-      { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
 ];
@@ -135,7 +134,7 @@ export function AppSidebar({ role, userName }: AppSidebarProps) {
     <Sidebar
       brand={initial}
       brandLabel={isInternal ? 'Zoepp Media' : userName}
-      brandSub={isInternal ? 'Admin' : undefined}
+      brandSub={role === 'admin' ? 'Admin' : role === 'employee' ? 'Mitarbeiter' : undefined}
       groups={groups}
       bottomItems={bottomItems}
     />

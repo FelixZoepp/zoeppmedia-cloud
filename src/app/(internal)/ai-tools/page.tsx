@@ -175,17 +175,38 @@ export default function AIToolsPage() {
   /* ---- Load agencies ---- */
 
   useEffect(() => {
-    fetch('/api/admin/agencies')
+    // Try employee endpoint first (returns only assigned agencies), fall back to admin
+    fetch('/api/employee/dashboard')
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) {
+        const agencyList = data.agencies || data;
+        if (Array.isArray(agencyList) && agencyList.length > 0) {
           setAgencies([
             { value: '', label: 'Agentur wählen...' },
-            ...data.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
+            ...agencyList.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
           ]);
+        } else {
+          // Fallback to admin endpoint
+          return fetch('/api/admin/agencies').then(r => r.json()).then(adminData => {
+            if (Array.isArray(adminData)) {
+              setAgencies([
+                { value: '', label: 'Agentur wählen...' },
+                ...adminData.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
+              ]);
+            }
+          });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        fetch('/api/admin/agencies').then(r => r.json()).then(data => {
+          if (Array.isArray(data)) {
+            setAgencies([
+              { value: '', label: 'Agentur wählen...' },
+              ...data.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name })),
+            ]);
+          }
+        }).catch(() => {});
+      });
   }, []);
 
   /* ---- Generate content ---- */
