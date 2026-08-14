@@ -201,8 +201,9 @@ export function KanbanBoard() {
 
       {showAddModal && (
         <AddCandidateModal
+          open={showAddModal}
           onClose={() => setShowAddModal(false)}
-          onAdded={() => {
+          onCreated={() => {
             setShowAddModal(false);
             loadData();
           }}
