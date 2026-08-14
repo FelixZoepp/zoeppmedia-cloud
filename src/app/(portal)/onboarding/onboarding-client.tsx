@@ -625,7 +625,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                         <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono border border-gray-200 select-all">
                           175192705159272
                         </code>
-                        <CopyButton text=175192705159272 />
+                        <CopyButton text="175192705159272" />
                       </div>
                     </div>
                   }
