@@ -18,11 +18,12 @@ const COLUMNS: {
   label: string;
   dot: string;
 }[] = [
-  { key: 'onboarding', label: 'Onboarding', dot: 'bg-amber-400' },
-  { key: 'kickoff', label: 'Kickoff', dot: 'bg-blue-400' },
+  { key: 'onboarding_termin', label: 'Onboarding Termin', dot: 'bg-gray-400' },
+  { key: 'onboarding_formular', label: 'Onboarding Formular', dot: 'bg-amber-400' },
   { key: 'fulfillment', label: 'Fulfillment', dot: 'bg-violet-500' },
-  { key: 'live', label: 'Kampagne Live', dot: 'bg-green-500' },
-  { key: 'betreuung', label: 'Laufende Betreuung', dot: 'bg-teal-500' },
+  { key: 'kampagne_live', label: 'Kampagne Live', dot: 'bg-green-500' },
+  { key: 'kickoff_14d', label: 'Kickoff (14 Tage)', dot: 'bg-blue-500' },
+  { key: 'bestandskunde', label: 'Bestandskunde', dot: 'bg-teal-500' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -30,14 +31,17 @@ const COLUMNS: {
 /* ------------------------------------------------------------------ */
 
 function getWarning(phase: ClientPhase, days: number): { text: string; urgent: boolean } | null {
-  if (phase === 'onboarding' && days > 3) {
-    return { text: 'Onboarding dauert zu lange', urgent: false };
+  if (phase === 'onboarding_termin' && days > 3) {
+    return { text: 'Wartet auf Onboarding-Termin', urgent: false };
   }
-  if (phase === 'kickoff' && days > 5) {
-    return { text: 'Kickoff verzögert', urgent: false };
+  if (phase === 'onboarding_formular' && days > 5) {
+    return { text: 'Formular nicht ausgefüllt', urgent: true };
   }
   if (phase === 'fulfillment' && days > 7) {
-    return { text: 'Fulfillment blockiert', urgent: true };
+    return { text: 'Fulfillment dauert zu lange', urgent: true };
+  }
+  if (phase === 'kampagne_live' && days > 14) {
+    return { text: 'Kickoff steht an', urgent: false };
   }
   return null;
 }

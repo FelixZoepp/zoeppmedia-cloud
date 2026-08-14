@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
-export type ClientPhase = 'onboarding' | 'kickoff' | 'fulfillment' | 'live' | 'betreuung';
+export type ClientPhase = 'onboarding_termin' | 'onboarding_formular' | 'fulfillment' | 'kampagne_live' | 'kickoff_14d' | 'bestandskunde';
 
 export interface PipelineClient {
   id: string;
@@ -109,29 +109,44 @@ export async function GET() {
     let phase: ClientPhase;
     let days_in_phase: number;
 
-    if (!agency.onboarding_completed) {
-      phase = 'onboarding';
-      days_in_phase = daysBetween(agency.created_at, now);
-    } else if (total === 0 || done / total < 0.5) {
-      phase = 'kickoff';
-      // days since onboarding completed — approximate with created_at since we don't store completion date separately
-      days_in_phase = daysBetween(agency.created_at, now);
-    } else if (done / total < 1.0) {
+    // Phase logic:
+    // 1. Onboarding Termin — fresh agency, not yet onboarded
+    // 2. Onboarding Formular — registered but form not completed
+    // 3. Fulfillment — onboarding done, content being created
+    // 4. Kampagne Live — all fulfillment done, campaign running (< 14 days)
+    // 5. Kickoff 14d — campaign running for 14+ days, first review
+    // 6. Bestandskunde — ongoing, bi-weekly check-ins
+
+    const daysActive = daysBetween(agency.created_at, now);
+
+    if (!agency.onboarding_completed && !last_login) {
+      // Never logged in — waiting for onboarding termin
+      phase = 'onboarding_termin';
+      days_in_phase = daysActive;
+    } else if (!agency.onboarding_completed) {
+      // Logged in but hasn't completed the form
+      phase = 'onboarding_formular';
+      days_in_phase = daysActive;
+    } else if (total === 0 || done < total) {
+      // Onboarding done, fulfillment tasks not all complete
       phase = 'fulfillment';
-      days_in_phase = daysBetween(agency.created_at, now);
-    } else if (candidate_count > 0) {
-      // live or betreuung
-      const daysLive = daysBetween(agency.created_at, now);
-      if (daysLive > 14) {
-        phase = 'betreuung';
-      } else {
-        phase = 'live';
-      }
-      days_in_phase = daysLive;
+      days_in_phase = daysActive;
+    } else if (candidate_count === 0) {
+      // All tasks done but no candidates yet — campaign just starting
+      phase = 'kampagne_live';
+      days_in_phase = 0;
+    } else if (daysActive < 14) {
+      // Campaign running, within first 14 days
+      phase = 'kampagne_live';
+      days_in_phase = daysActive;
+    } else if (daysActive < 28) {
+      // 14+ days — kickoff phase (first review)
+      phase = 'kickoff_14d';
+      days_in_phase = daysActive - 14;
     } else {
-      // All fulfillment done but no candidates yet — still show as fulfillment done
-      phase = 'fulfillment';
-      days_in_phase = daysBetween(agency.created_at, now);
+      // 28+ days — Bestandskunde, bi-weekly check-ins
+      phase = 'bestandskunde';
+      days_in_phase = daysActive;
     }
 
     return {

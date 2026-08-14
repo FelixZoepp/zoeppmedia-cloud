@@ -1,12 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
-import { isAdmin } from '@/lib/admin';
+import { isAdmin, isInternalUser } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 
 // Returns the most recent invite token per agency (for status display)
 export async function GET() {
   const supabase = await createServerClient();
-  if (!(await isAdmin(supabase))) {
+  if (!(await isInternalUser(supabase))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 

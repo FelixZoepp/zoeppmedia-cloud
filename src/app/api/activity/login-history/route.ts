@@ -1,11 +1,11 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdmin } from '@/lib/admin';
+import { isAdmin, isInternalUser } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
   const supabase = await createServerClient();
-  if (!(await isAdmin(supabase))) {
+  if (!(await isInternalUser(supabase))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
