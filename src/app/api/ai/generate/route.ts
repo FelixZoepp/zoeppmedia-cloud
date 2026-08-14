@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { generateContent as callClaude, ContentType, OnboardingContext } from '@/lib/ai/claude';
 
-const ALLOWED_TYPES = ['ad_copy', 'phone_script', 'script', 'funnel_text', 'video_script', 'job_posting', 'creative_brief'];
+const ALLOWED_TYPES = ['ad_copy', 'phone_script', 'script', 'funnel_text', 'video_script', 'job_posting', 'creative_brief', 'vg_leitfaden', 'follow_up', 'absage'];
 
 export async function POST(req: Request) {
   const supabase = await createServerClient();
@@ -80,6 +80,9 @@ export async function POST(req: Request) {
     video_script: 'video_script',
     job_posting: 'job_posting',
     creative_brief: 'creative_brief',
+    vg_leitfaden: 'vg_leitfaden',
+    follow_up: 'follow_up',
+    absage: 'absage',
   };
 
   const aiType = contentTypeMap[type] || 'ad_copy';

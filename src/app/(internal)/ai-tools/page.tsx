@@ -3,150 +3,176 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
-import type { AIConversation, AIMessage } from '@/lib/types/database';
+import { ReviewModal } from '@/components/review-modal';
 import {
-  Send, Plus, MessageSquare, Sparkles, Building2,
-  FileText, PhoneCall, Globe, Bot, User,
+  FileText, Phone, Globe, Video, Briefcase, Image,
+  ClipboardCheck, MessageCircle, XCircle, Sparkles, Send,
+  ChevronDown, RotateCcw,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
-/*  Constants                                                         */
+/*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-const CONTENT_TYPES = [
-  { value: 'ad_copy', label: 'Ad Copy' },
-  { value: 'script', label: 'Telefon-Skript' },
-  { value: 'funnel_text', label: 'Funnel-Texte' },
-  { value: 'general', label: 'Allgemein' },
+type ContentTypeKey =
+  | 'ad_copy'
+  | 'phone_script'
+  | 'funnel_text'
+  | 'video_script'
+  | 'job_posting'
+  | 'creative_brief'
+  | 'vg_leitfaden'
+  | 'follow_up'
+  | 'absage';
+
+type Status = 'idle' | 'generating' | 'preview' | 'refining';
+
+interface Refinement {
+  message: string;
+  response: string;
+}
+
+interface ContentCard {
+  key: ContentTypeKey;
+  label: string;
+  subtitle: string;
+  icon: React.ReactNode;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Content type cards config                                          */
+/* ------------------------------------------------------------------ */
+
+const CARDS: ContentCard[] = [
+  {
+    key: 'ad_copy',
+    label: 'Ad Copys',
+    subtitle: '10 Varianten in 3 Winkeln',
+    icon: <FileText className="w-6 h-6" />,
+  },
+  {
+    key: 'phone_script',
+    label: 'Telefon-Skript',
+    subtitle: 'Vorqualifizierung + Einwandbehandlung',
+    icon: <Phone className="w-6 h-6" />,
+  },
+  {
+    key: 'funnel_text',
+    label: 'Funnel-Texte',
+    subtitle: '7 Screens für Perspective',
+    icon: <Globe className="w-6 h-6" />,
+  },
+  {
+    key: 'video_script',
+    label: 'Video-Skript',
+    subtitle: '60–90 Sekunden Recruiting',
+    icon: <Video className="w-6 h-6" />,
+  },
+  {
+    key: 'job_posting',
+    label: 'Indeed-Anzeige',
+    subtitle: 'SEO-optimiert mit Benefits',
+    icon: <Briefcase className="w-6 h-6" />,
+  },
+  {
+    key: 'creative_brief',
+    label: 'Creative Brief',
+    subtitle: 'Bildkonzepte + Text-Overlays',
+    icon: <Image className="w-6 h-6" />,
+  },
+  {
+    key: 'vg_leitfaden',
+    label: 'VG-Leitfaden',
+    subtitle: 'Vorstellungsgespräch-Leitfaden',
+    icon: <ClipboardCheck className="w-6 h-6" />,
+  },
+  {
+    key: 'follow_up',
+    label: 'Follow-Up Skripte',
+    subtitle: 'Nachfass + No-Show + Entscheidung',
+    icon: <MessageCircle className="w-6 h-6" />,
+  },
+  {
+    key: 'absage',
+    label: 'Absage-Skripte',
+    subtitle: 'Telefon + VG + Schriftlich',
+    icon: <XCircle className="w-6 h-6" />,
+  },
 ];
 
-const CONTENT_ICONS: Record<string, React.ReactNode> = {
-  ad_copy: <FileText className="w-4 h-4" />,
-  script: <PhoneCall className="w-4 h-4" />,
-  funnel_text: <Globe className="w-4 h-4" />,
-  general: <MessageSquare className="w-4 h-4" />,
-};
-
 /* ------------------------------------------------------------------ */
-/*  Conversation Sidebar Item                                         */
+/*  Content Type Card                                                  */
 /* ------------------------------------------------------------------ */
 
-function ConversationItem({
-  conversation,
+function ContentCard({
+  card,
   active,
+  disabled,
   onClick,
 }: {
-  conversation: AIConversation;
+  card: ContentCard;
   active: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 rounded-lg transition-colors cursor-pointer ${
+      disabled={disabled}
+      className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer group ${
         active
-          ? 'bg-red-50 border border-red-200 text-red-700'
-          : 'text-gray-900 hover:bg-gray-50 border border-transparent'
+          ? 'bg-red-600 border-red-600 text-white shadow-md'
+          : disabled
+          ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+          : 'bg-white border-gray-200 text-gray-900 hover:border-red-300 hover:bg-red-50 hover:shadow-sm'
       }`}
     >
-      <div className="flex items-center gap-2 mb-0.5">
-        <span className={`flex-shrink-0 ${active ? 'text-red-600' : 'text-gray-400'}`}>
-          {CONTENT_ICONS[conversation.conversation_type] || <MessageSquare className="w-4 h-4" />}
-        </span>
-        <span className="text-sm font-medium truncate flex-1">
-          {conversation.title || 'Neue Unterhaltung'}
-        </span>
+      <div
+        className={`mb-2 ${
+          active ? 'text-white' : disabled ? 'text-gray-300' : 'text-red-600 group-hover:text-red-600'
+        }`}
+      >
+        {card.icon}
       </div>
-      <div className="flex items-center gap-2 pl-6">
-        <span className="text-xs text-gray-400">
-          {new Date(conversation.updated_at).toLocaleDateString('de-DE', {
-            day: '2-digit',
-            month: '2-digit',
-          })}
-        </span>
-        <Badge tone="outline" className="!text-xs !px-1.5 !py-0">
-          {CONTENT_TYPES.find((t) => t.value === conversation.conversation_type)?.label || conversation.conversation_type}
-        </Badge>
-      </div>
+      <p className={`text-sm font-semibold leading-tight ${active ? 'text-white' : ''}`}>
+        {card.label}
+      </p>
+      <p
+        className={`text-xs mt-0.5 leading-snug ${
+          active ? 'text-red-100' : disabled ? 'text-gray-300' : 'text-gray-500'
+        }`}
+      >
+        {card.subtitle}
+      </p>
     </button>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Chat Message Bubble                                               */
-/* ------------------------------------------------------------------ */
-
-function ChatBubble({ message }: { message: AIMessage }) {
-  const isUser = message.role === 'user';
-
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-5`}>
-      <div className={`flex items-start gap-2.5 max-w-[85%] ${isUser ? 'flex-row-reverse' : ''}`}>
-        {/* Avatar */}
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-            isUser
-              ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-        </div>
-
-        {/* Bubble */}
-        <div
-          className={`rounded-xl px-4 py-3 ${
-            isUser
-              ? 'bg-red-600 text-white shadow-md'
-              : 'bg-white text-gray-900 shadow-sm border border-gray-200'
-          }`}
-        >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-          <p
-            className={`text-xs mt-2 ${
-              isUser ? 'text-white/60' : 'text-gray-400'
-            }`}
-          >
-            {new Date(message.created_at).toLocaleTimeString('de-DE', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Main Page                                                         */
+/*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function AIToolsPage() {
-  const [conversations, setConversations] = useState<AIConversation[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<AIMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sending, setSending] = useState(false);
-
-  // New conversation settings
-  const [selectedAgency, setSelectedAgency] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('general');
-
-  // Message input
-  const [inputText, setInputText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Agencies for selection
   const [agencies, setAgencies] = useState<{ value: string; label: string }[]>([]);
+  const [selectedAgency, setSelectedAgency] = useState('');
 
-  /* ---- Fetch agencies ---- */
+  const [status, setStatus] = useState<Status>('idle');
+  const [selectedType, setSelectedType] = useState<ContentTypeKey | null>(null);
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [generatedId, setGeneratedId] = useState<string | null>(null);
+
+  const [refinements, setRefinements] = useState<Refinement[]>([]);
+  const [refinementInput, setRefinementInput] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
+
+  const [showReview, setShowReview] = useState(false);
+
+  const previewRef = useRef<HTMLDivElement>(null);
+  const refinementInputRef = useRef<HTMLTextAreaElement>(null);
+
+  /* ---- Load agencies ---- */
 
   useEffect(() => {
     fetch('/api/admin/agencies')
@@ -162,329 +188,321 @@ export default function AIToolsPage() {
       .catch(() => {});
   }, []);
 
-  /* ---- Fetch conversations ---- */
+  /* ---- Generate content ---- */
 
-  const fetchConversations = useCallback(() => {
-    fetch('/api/ai/chat')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setConversations(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  const generate = useCallback(
+    async (type: ContentTypeKey, previousVersion?: string, feedback?: string) => {
+      if (!selectedAgency) return;
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+      if (previousVersion && feedback) {
+        setIsRefining(true);
+      } else {
+        setStatus('generating');
+        setSelectedType(type);
+        setGeneratedContent('');
+        setRefinements([]);
+        setGeneratedId(null);
+      }
 
-  /* ---- Fetch messages for active conversation ---- */
+      try {
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type,
+            agency_id: selectedAgency,
+            context: previousVersion && feedback ? { previousVersion, feedback } : undefined,
+          }),
+        });
 
-  useEffect(() => {
-    if (!activeConvId) {
-      setMessages([]);
-      return;
-    }
+        if (!res.ok) throw new Error('Generation failed');
 
-    setLoadingMessages(true);
-    fetch(`/api/ai/chat?conversation_id=${activeConvId}`)
-      .then((r) => (r.ok ? r.json() : { messages: [] }))
-      .then((data) => {
-        if (data.messages && Array.isArray(data.messages)) {
-          setMessages(data.messages);
-        } else if (Array.isArray(data)) {
-          setMessages(data);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoadingMessages(false));
-  }, [activeConvId]);
-
-  /* ---- Scroll to bottom on new messages ---- */
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  /* ---- Send message ---- */
-
-  async function sendMessage() {
-    if (!inputText.trim() || sending) return;
-    setSending(true);
-
-    const body: Record<string, string> = {
-      message: inputText.trim(),
-      content_type: selectedType,
-    };
-    if (activeConvId) body.conversation_id = activeConvId;
-    if (selectedAgency) body.agency_id = selectedAgency;
-
-    // Optimistic user message
-    const tempUserMsg: AIMessage = {
-      id: `temp-${Date.now()}`,
-      conversation_id: activeConvId || '',
-      role: 'user',
-      content: inputText.trim(),
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, tempUserMsg]);
-    setInputText('');
-
-    // Auto-resize textarea back
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '44px';
-    }
-
-    try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
         const data = await res.json();
+        const content: string = data.content ?? '';
 
-        // If a new conversation was created, update state
-        if (data.conversation && !activeConvId) {
-          setActiveConvId(data.conversation.id);
-          setConversations((prev) => [data.conversation, ...prev]);
+        if (previousVersion && feedback) {
+          setRefinements((prev) => [...prev, { message: feedback, response: content }]);
+          setGeneratedContent(content);
+          setIsRefining(false);
+        } else {
+          setGeneratedContent(content);
+          setGeneratedId(data.id ?? null);
+          setStatus('preview');
+          // Scroll preview into view
+          setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
         }
-
-        // Add assistant response
-        if (data.message) {
-          setMessages((prev) => [
-            ...prev.filter((m) => !m.id.startsWith('temp-')),
-            ...(data.userMessage ? [data.userMessage] : [tempUserMsg]),
-            data.message,
-          ]);
+      } catch {
+        if (previousVersion && feedback) {
+          setIsRefining(false);
+        } else {
+          setStatus('idle');
         }
       }
-    } catch {
-      // Remove optimistic message on failure
-      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
-    } finally {
-      setSending(false);
-    }
+    },
+    [selectedAgency]
+  );
+
+  /* ---- Handle card click ---- */
+
+  function handleCardClick(type: ContentTypeKey) {
+    if (!selectedAgency || status === 'generating') return;
+    generate(type);
   }
 
-  /* ---- New conversation ---- */
+  /* ---- Send refinement ---- */
 
-  function startNewConversation() {
-    setActiveConvId(null);
-    setMessages([]);
-    setSelectedType('general');
+  async function sendRefinement() {
+    if (!refinementInput.trim() || isRefining || !selectedType) return;
+    const msg = refinementInput.trim();
+    setRefinementInput('');
+    if (refinementInputRef.current) refinementInputRef.current.style.height = '40px';
+    await generate(selectedType, generatedContent, msg);
   }
-
-  /* ---- Group conversations by agency ---- */
-
-  const grouped = conversations.reduce<Record<string, AIConversation[]>>((acc, conv) => {
-    const key = conv.agency_id || 'no_agency';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(conv);
-    return acc;
-  }, {});
 
   /* ---- Auto-resize textarea ---- */
 
-  function handleTextareaInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setInputText(e.target.value);
-    e.target.style.height = '44px';
-    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+  function handleRefinementInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setRefinementInput(e.target.value);
+    e.target.style.height = '40px';
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   }
 
-  /* ---- Loading state ---- */
+  const agencyName = agencies.find((a) => a.value === selectedAgency)?.label ?? '';
+  const currentCard = CARDS.find((c) => c.key === selectedType);
+  const noAgency = !selectedAgency;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  /* ---- Render ---- */
+  /* ---------------------------------------------------------------- */
+  /*  Render                                                           */
+  /* ---------------------------------------------------------------- */
 
   return (
     <div>
       <PageHeader label="FULFILLMENT" title="AI Tools" />
-    <div className="flex gap-4 h-[calc(100vh-128px)]">
-      {/* Left Sidebar: Conversations */}
-      <div className="w-[280px] flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-gray-900">Unterhaltungen</h2>
-          <Button variant="soft" size="sm" onClick={startNewConversation}>
-            <Plus className="w-3.5 h-3.5" /> Neu
-          </Button>
-        </div>
 
-        <Card padding="sm" className="flex-1 overflow-y-auto !p-2">
-          {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                <Sparkles className="w-6 h-6 text-red-600" />
-              </div>
-              <p className="text-sm text-gray-600">
-                Starte eine neue Unterhaltung
+      <div className="flex gap-6 h-[calc(100vh-128px)]">
+        {/* ============================================================
+            LEFT: Agency selector + content type cards
+        ============================================================ */}
+        <div className="w-[320px] flex-shrink-0 flex flex-col gap-4">
+          {/* Agency selector */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Agentur
+            </p>
+            <Select
+              options={
+                agencies.length > 0
+                  ? agencies
+                  : [{ value: '', label: 'Lade Agenturen...' }]
+              }
+              value={selectedAgency}
+              onChange={(e) => {
+                setSelectedAgency(e.target.value);
+                setStatus('idle');
+                setSelectedType(null);
+                setGeneratedContent('');
+                setRefinements([]);
+              }}
+              className="w-full"
+            />
+          </div>
+
+          {/* Content type grid */}
+          <div className="flex-1 overflow-y-auto">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Content-Typ
+            </p>
+            {noAgency && (
+              <p className="text-xs text-gray-400 mb-3">
+                Zuerst eine Agentur auswählen.
               </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {Object.entries(grouped).map(([agencyId, convs]) => {
-                const agencyLabel = agencies.find((a) => a.value === agencyId)?.label || (agencyId === 'no_agency' ? 'Allgemein' : agencyId.slice(0, 8));
-                return (
-                  <div key={agencyId}>
-                    <div className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      <Building2 className="w-3 h-3" />
-                      {agencyLabel}
-                    </div>
-                    {convs.map((conv) => (
-                      <ConversationItem
-                        key={conv.id}
-                        conversation={conv}
-                        active={activeConvId === conv.id}
-                        onClick={() => setActiveConvId(conv.id)}
-                      />
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Right Main: Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar: Agency + Content Type selection */}
-        <div className="flex items-center gap-4 mb-4">
-          <Select
-            options={agencies.length > 0 ? agencies : [{ value: '', label: 'Lade Agenturen...' }]}
-            value={selectedAgency}
-            onChange={(e) => setSelectedAgency(e.target.value)}
-            className="w-[220px]"
-          />
-          <Select
-            options={CONTENT_TYPES}
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="w-[180px]"
-          />
-          <div className="flex-1" />
-          {activeConvId && (
-            <Badge tone="softAccent" className="flex-shrink-0">
-              <Sparkles className="w-3 h-3 mr-1" />
-              AI Chat aktiv
-            </Badge>
-          )}
-        </div>
-
-        {/* Messages area */}
-        <Card padding="md" className="flex-1 overflow-y-auto mb-6 !p-8">
-          {!activeConvId && messages.length === 0 ? (
-            /* Empty state */
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-xl bg-red-600 flex items-center justify-center mb-5 shadow-md">
-                <Sparkles className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                AI Content Tools
-              </h3>
-              <p className="text-gray-600 text-sm max-w-sm leading-relaxed mb-6">
-                Generiere und verfeinere Ad Copys, Skripte und Funnel-Texte mit AI-Unterstützung.
-              </p>
-              <div className="grid grid-cols-2 gap-4 max-w-md w-full">
-                {CONTENT_TYPES.filter((t) => t.value !== 'general').map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => {
-                      setSelectedType(t.value);
-                      textareaRef.current?.focus();
-                    }}
-                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl text-left hover:bg-red-50 hover:text-red-600 transition-colors border border-transparent hover:border-red-200 cursor-pointer group"
-                  >
-                    <span className="text-gray-400 group-hover:text-red-500 transition-colors">
-                      {CONTENT_ICONS[t.value]}
-                    </span>
-                    <span className="text-sm font-medium">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : loadingMessages ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="w-6 h-6 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div>
-              {messages.map((msg) => (
-                <ChatBubble key={msg.id} message={msg} />
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {CARDS.map((card) => (
+                <ContentCard
+                  key={card.key}
+                  card={card}
+                  active={selectedType === card.key && status !== 'idle'}
+                  disabled={noAgency || status === 'generating'}
+                  onClick={() => handleCardClick(card.key)}
+                />
               ))}
+            </div>
+          </div>
+        </div>
 
-              {sending && (
-                <div className="flex justify-start mb-4">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Bot className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-200">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 bg-red-600/70 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-red-600/70 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-red-600/70 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        {/* ============================================================
+            RIGHT: Preview + refinement chat
+        ============================================================ */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto" ref={previewRef}>
+          {/* IDLE state */}
+          {status === 'idle' && (
+            <Card padding="md" className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-sm">
+                <div className="w-16 h-16 rounded-xl bg-red-600 flex items-center justify-center mx-auto mb-5 shadow-md">
+                  <Sparkles className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  1-Click Content Generation
+                </h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Agentur auswählen, Content-Typ klicken — fertig. Kein Prompt nötig.
+                </p>
+              </div>
+            </Card>
+          )}
+
+          {/* GENERATING state */}
+          {status === 'generating' && currentCard && (
+            <Card padding="md" className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-sm">
+                <div className="w-12 h-12 border-4 border-red-100 border-t-red-600 rounded-full animate-spin mx-auto mb-5" />
+                <p className="text-base font-semibold text-gray-900">
+                  Generiert {currentCard.label}
+                  {agencyName ? ` für ${agencyName}` : ''}...
+                </p>
+                <p className="text-sm text-gray-400 mt-1">Dauert ca. 15–30 Sekunden</p>
+              </div>
+            </Card>
+          )}
+
+          {/* PREVIEW / REFINING state */}
+          {(status === 'preview' || status === 'refining') && currentCard && (
+            <div className="flex flex-col gap-4">
+              {/* Header */}
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white flex-shrink-0">
+                  {currentCard.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900">{currentCard.label}</p>
+                  {agencyName && (
+                    <p className="text-xs text-gray-400">{agencyName}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => generate(selectedType!)}
+                    disabled={isRefining}
+                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-40"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Neu generieren
+                  </button>
+                  <Button
+                    variant="soft"
+                    size="sm"
+                    onClick={() => setShowReview(true)}
+                  >
+                    Prüfen &amp; Freigeben
+                  </Button>
+                </div>
+              </div>
+
+              {/* Generated content preview */}
+              <Card padding="md">
+                <pre className="text-sm text-gray-900 whitespace-pre-wrap font-sans leading-relaxed">
+                  {generatedContent}
+                </pre>
+              </Card>
+
+              {/* Refinement history */}
+              {refinements.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    Überarbeitungen ({refinements.length})
+                  </p>
+                  {refinements.map((r, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-end">
+                        <div className="max-w-[80%] bg-red-600 text-white rounded-xl px-4 py-2.5">
+                          <p className="text-sm">{r.message}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <div className="max-w-[90%] bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+                          <p className="text-xs text-gray-400 mb-1">Version {i + 2}</p>
+                          <pre className="text-sm text-gray-900 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-y-auto">
+                            {r.response}
+                          </pre>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
 
-              <div ref={messagesEndRef} />
+              {/* Refinement chat input */}
+              <div className="sticky bottom-0 bg-gray-50 pt-2 pb-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Verfeinern
+                </p>
+                <div className="flex items-end gap-3">
+                  <div className="flex-1 relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100 transition-all">
+                    <textarea
+                      ref={refinementInputRef}
+                      value={refinementInput}
+                      onChange={handleRefinementInput}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendRefinement();
+                        }
+                      }}
+                      placeholder="Was möchtest du ändern? z.B. &quot;Hook kürzer&quot; oder &quot;Mehr Fokus auf Quereinstieg&quot;"
+                      rows={1}
+                      disabled={isRefining}
+                      className="w-full px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent disabled:opacity-50"
+                      style={{ minHeight: '40px', maxHeight: '120px' }}
+                    />
+                  </div>
+                  <Button
+                    onClick={sendRefinement}
+                    disabled={!refinementInput.trim() || isRefining}
+                    glow={!!refinementInput.trim() && !isRefining}
+                    className="h-[40px] !px-5 flex-shrink-0"
+                  >
+                    {isRefining ? (
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
-        </Card>
-
-        {/* Chat Composer */}
-        <div className="flex items-end gap-4">
-          <div className="flex-1 relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100 transition-all">
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={handleTextareaInput}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder={
-                selectedType === 'ad_copy'
-                  ? 'Erstelle 3 Ad Copys für...'
-                  : selectedType === 'script'
-                  ? 'Erstelle ein Telefon-Skript für...'
-                  : selectedType === 'funnel_text'
-                  ? 'Schreibe Funnel-Texte für...'
-                  : 'Schreibe eine Nachricht...'
-              }
-              rows={1}
-              className="w-full px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none resize-none bg-transparent"
-              style={{ minHeight: '44px', maxHeight: '160px' }}
-            />
-          </div>
-          <Button
-            onClick={sendMessage}
-            disabled={!inputText.trim() || sending}
-            glow={!!inputText.trim()}
-            className="h-[44px] !px-6"
-          >
-            {sending ? (
-              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
         </div>
       </div>
-    </div>
+
+      {/* Review Modal */}
+      {showReview && selectedType && selectedAgency && (
+        <ReviewModal
+          open={showReview}
+          onClose={() => setShowReview(false)}
+          content={generatedContent}
+          contentType={selectedType}
+          agencyId={selectedAgency}
+          taskId={generatedId ?? undefined}
+          onApprove={() => {
+            setShowReview(false);
+          }}
+          onRevise={(feedback) => {
+            setShowReview(false);
+            if (selectedType) {
+              generate(selectedType, generatedContent, feedback);
+            }
+          }}
+          onDiscard={() => {
+            setShowReview(false);
+            setStatus('idle');
+            setSelectedType(null);
+            setGeneratedContent('');
+            setRefinements([]);
+          }}
+        />
+      )}
     </div>
   );
 }

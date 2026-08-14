@@ -800,6 +800,52 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
       break;
     }
 
+    case 'vg_leitfaden': {
+      parts.push('=== GENERATOR REGELN ===');
+      parts.push(GENERATOR_RULES);
+      parts.push('');
+      parts.push('Erstelle einen vollständigen Vorstellungsgespräch-Leitfaden. Fülle alle Platzhalter mit den konkreten Agentur-Daten aus. Der Leitfaden soll gesprächsbereit sein — kein Ablesen, sondern Führung.');
+      parts.push('');
+      parts.push(fillTemplate(VG_LEITFADEN_TEMPLATE, ctx));
+      break;
+    }
+
+    case 'follow_up': {
+      parts.push('=== GENERATOR REGELN ===');
+      parts.push(GENERATOR_RULES);
+      parts.push('');
+      parts.push('Erstelle alle Follow-Up-Skripte für den Recruiting-Prozess. Fülle alle Platzhalter mit den konkreten Agentur-Daten aus. Skripte müssen kurz, direkt und ohne Emojis sein.');
+      parts.push('');
+      parts.push(fillTemplate(FOLLOW_UP_TEMPLATES.nach_vq, ctx));
+      parts.push('');
+      parts.push('---');
+      parts.push('');
+      parts.push(fillTemplate(FOLLOW_UP_TEMPLATES.nach_vg, ctx));
+      parts.push('');
+      parts.push('---');
+      parts.push('');
+      parts.push(fillTemplate(FOLLOW_UP_TEMPLATES.nach_probetag, ctx));
+      break;
+    }
+
+    case 'absage': {
+      parts.push('=== GENERATOR REGELN ===');
+      parts.push(GENERATOR_RULES);
+      parts.push('');
+      parts.push('Erstelle alle Absage-Skripte für den Recruiting-Prozess. Fülle alle Platzhalter mit den konkreten Agentur-Daten aus. Skripte müssen freundlich, kurz und professionell sein.');
+      parts.push('');
+      parts.push(fillTemplate(ABSAGE_TEMPLATES.telefon, ctx));
+      parts.push('');
+      parts.push('---');
+      parts.push('');
+      parts.push(fillTemplate(ABSAGE_TEMPLATES.nach_vg, ctx));
+      parts.push('');
+      parts.push('---');
+      parts.push('');
+      parts.push(fillTemplate(ABSAGE_TEMPLATES.schriftlich, ctx));
+      break;
+    }
+
     default: {
       parts.push(GENERATOR_RULES);
       parts.push('');

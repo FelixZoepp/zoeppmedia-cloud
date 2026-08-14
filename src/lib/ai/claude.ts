@@ -9,7 +9,7 @@ function getAnthropic(): Anthropic {
   return _anthropic;
 }
 
-export type ContentType = 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief';
+export type ContentType = 'ad_copy' | 'phone_script' | 'video_script' | 'funnel_text' | 'job_posting' | 'creative_brief' | 'vg_leitfaden' | 'follow_up' | 'absage';
 
 export interface OnboardingContext {
   company_name: string | null;
