@@ -580,10 +580,19 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                 <ShieldCheck className="w-5 h-5 text-red-600" />
                 <h3 className="text-base font-bold text-gray-900">Meta Business Manager Zugang</h3>
               </div>
-              <p className="text-sm text-gray-500 mb-5">
+              <p className="text-sm text-gray-500 mb-4">
                 Damit wir Anzeigen in deinem Namen schalten können, brauchen wir Zugang zu deinem Meta Business Manager.
-                Dauert ca. 5 Minuten — folge einfach den Schritten.
+                Dauert ca. 10 Minuten — folge einfach den Schritten.
               </p>
+              <a
+                href="/meta-anleitung.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 mb-6 rounded-lg bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                PDF-Anleitung mit Screenshots herunterladen
+              </a>
 
               <div className="space-y-4">
                 <GuideStep
@@ -614,9 +623,9 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                       <p>Gehe zu <span className="font-medium text-gray-800">„Partner"</span> → Klicke <span className="font-medium text-gray-800">„Hinzufügen"</span> → Gib unsere Business-ID ein:</p>
                       <div className="flex items-center gap-2 mt-2">
                         <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono border border-gray-200 select-all">
-                          {process.env.NEXT_PUBLIC_META_BUSINESS_ID ?? '1234567890'}
+                          175192705159272
                         </code>
-                        <CopyButton text={process.env.NEXT_PUBLIC_META_BUSINESS_ID ?? '1234567890'} />
+                        <CopyButton text=175192705159272 />
                       </div>
                     </div>
                   }
