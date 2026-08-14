@@ -91,6 +91,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
+  // When client approves content → mark the matching fulfillment task as done
+  if (body.status === 'approved' && existing.agency_id) {
+    // Map content_type to fulfillment task_type
+    const contentToTaskType: Record<string, string> = {
+      ad_copy: 'ad_copy',
+      funnel_text: 'funnel_text',
+      job_posting: 'job_posting',
+      video_script: 'video_script',
+      creative_brief: 'creative_brief',
+      phone_script: 'phone_script',
+    };
+    const taskType = contentToTaskType[existing.content_type];
+    if (taskType) {
+      await supabase
+        .from('fulfillment_tasks')
+        .update({ status: 'done', updated_at: new Date().toISOString() })
+        .eq('agency_id', existing.agency_id)
+        .eq('task_type', taskType)
+        .neq('status', 'done');
+    }
+  }
+
   // Log all meaningful status transitions to approval_log
   const statusToAction: Record<string, string> = {
     internal_review:   'submitted',
