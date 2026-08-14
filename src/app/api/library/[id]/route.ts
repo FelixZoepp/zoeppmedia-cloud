@@ -25,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Fetch current item to validate the transition
   const { data: existing, error: fetchError } = await supabase
     .from('content_library')
-    .select('status, agency_id')
+    .select('status, agency_id, content_type')
     .eq('id', id)
     .single();
 
