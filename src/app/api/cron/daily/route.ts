@@ -112,22 +112,46 @@ async function runDailyJobs() {
         }
       }
 
-      // Monthly survey (> 30 days active)
-      const monthKey = `monthly_${currentMonth}`;
-      if (agencyAge > 30 * 86400000 && !existingKeys.has(monthKey)) {
-        const { data: templates } = await supabase
-          .from('survey_templates')
-          .select('id')
-          .eq('title', 'Kundenzufriedenheit')
-          .limit(1);
-        if (templates?.[0]) {
-          await supabase.from('survey_schedule').insert({
-            agency_id: agency.id,
-            trigger_key: monthKey,
-            template_id: templates[0].id,
-            scheduled_at: now.toISOString(),
-          });
-          surveysScheduled++;
+      // Bi-weekly survey (every 2 weeks after onboarding, not monthly)
+      if (agency.onboarding_completed && agencyAge > 14 * 86400000) {
+        // Calculate which 2-week period we're in
+        const weeksActive = Math.floor(agencyAge / (7 * 86400000));
+        const biweeklyPeriod = Math.floor(weeksActive / 2);
+        const biweeklyKey = `biweekly_${biweeklyPeriod}`;
+
+        if (!existingKeys.has(biweeklyKey)) {
+          const { data: templates } = await supabase
+            .from('survey_templates')
+            .select('id')
+            .eq('title', 'Kundenzufriedenheit')
+            .limit(1);
+          if (templates?.[0]) {
+            await supabase.from('survey_schedule').insert({
+              agency_id: agency.id,
+              trigger_key: biweeklyKey,
+              template_id: templates[0].id,
+              scheduled_at: now.toISOString(),
+            });
+
+            // Send email notification
+            const { data: owner } = await supabase
+              .from('users')
+              .select('email, name')
+              .eq('agency_id', agency.id)
+              .eq('role', 'agency_owner')
+              .limit(1)
+              .single();
+
+            if (owner) {
+              try {
+                const { sendSurveyNotification } = await import('@/lib/email/resend');
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
+                await sendSurveyNotification(owner.email, owner.name, 'Kundenzufriedenheit', `${appUrl}/reports`);
+              } catch { /* silent */ }
+            }
+
+            surveysScheduled++;
+          }
         }
       }
 
