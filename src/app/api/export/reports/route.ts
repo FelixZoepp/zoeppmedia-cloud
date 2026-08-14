@@ -39,14 +39,14 @@ export async function GET(request: NextRequest) {
 
   let callsQuery = supabase
     .from('call_logs')
-    .select('id, outcome, created_at');
+    .select('id, result, created_at');
   if (agencyId) callsQuery = callsQuery.eq('agency_id', agencyId);
   if (fromDate) callsQuery = callsQuery.gte('created_at', fromDate.toISOString());
 
   const { data: calls } = await callsQuery;
   const totalCalls = calls?.length ?? 0;
-  const reached = calls?.filter((c) => c.outcome === 'reached').length ?? 0;
-  const withTermin = calls?.filter((c) => c.outcome === 'termin').length ?? 0;
+  const reached = calls?.filter((c) => c.result !== 'nicht_erreicht').length ?? 0;
+  const withTermin = calls?.filter((c) => c.result === 'termin_vereinbart').length ?? 0;
 
   const periodLabel = { this_week: 'Diese Woche', this_month: 'Dieser Monat', last_month: 'Letzter Monat', all: 'Gesamt' }[period] ?? period;
   const hireRate = total > 0 ? Math.round((hired / total) * 100) : 0;
