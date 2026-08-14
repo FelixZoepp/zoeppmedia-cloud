@@ -56,7 +56,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Agency users: redirect to onboarding if not completed
-  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/settings')) {
+  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/settings') && !pathname.startsWith('/api/')) {
     const { data: profile } = await supabase
       .from('users')
       .select('role, agency_id')

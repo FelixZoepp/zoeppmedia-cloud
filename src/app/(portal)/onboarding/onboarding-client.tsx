@@ -763,7 +763,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         )}
 
         {/* Navigation */}
-        <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
           {step > 1 ? (
             <Button variant="ghost" onClick={() => {
               setStep(step - 1);
@@ -773,19 +773,23 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             </Button>
           ) : <div />}
 
-          {step < 5 ? (
-            <Button onClick={() => {
-              trackStepComplete(step);
-              setStep(step + 1);
-              trackStepStart(step + 1);
-            }}>
-              Weiter <ChevronRight className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={loading} glow>
-              {loading ? 'Wird gespeichert...' : 'Onboarding abschließen'}
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-green-600 font-medium">Automatisch gespeichert</span>
+
+            {step < 5 ? (
+              <Button onClick={() => {
+                trackStepComplete(step);
+                setStep(step + 1);
+                trackStepStart(step + 1);
+              }}>
+                Weiter <ChevronRight className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={loading} glow>
+                {loading ? 'Wird gespeichert...' : 'Onboarding abschließen'}
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
     </div>
