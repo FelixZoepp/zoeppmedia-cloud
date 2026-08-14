@@ -53,7 +53,7 @@ async function autoGenerateContent(agencyId: string, onboarding: Record<string, 
         // Save to content library as draft
         await admin.from('content_library').insert({
           agency_id: agencyId,
-          content_type: type === 'creative_brief' ? 'video_script' : type,
+          content_type: type,
           title: {
             ad_copy: 'Ad Copys (3 Varianten)',
             video_script: 'Video Ad Skripte (5 Varianten)',

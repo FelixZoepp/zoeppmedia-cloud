@@ -9,8 +9,8 @@ import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
 import { ReviewModal } from '@/components/review-modal';
 import {
-  FileText, Phone, Globe, Video, Briefcase, Image,
-  ClipboardCheck, MessageCircle, XCircle, Sparkles, Send,
+  FileText, Video, Briefcase, Image,
+  Sparkles, Send,
   ChevronDown, RotateCcw,
 } from 'lucide-react';
 
@@ -20,14 +20,9 @@ import {
 
 type ContentTypeKey =
   | 'ad_copy'
-  | 'phone_script'
-  | 'funnel_text'
   | 'video_script'
   | 'job_posting'
-  | 'creative_brief'
-  | 'vg_leitfaden'
-  | 'follow_up'
-  | 'absage';
+  | 'creative_brief';
 
 type Status = 'idle' | 'generating' | 'preview' | 'refining';
 
@@ -67,22 +62,10 @@ const CARDS: ContentCard[] = [
     icon: <Image className="w-6 h-6" />,
   },
   {
-    key: 'funnel_text',
-    label: 'Perspective Funnel',
-    subtitle: 'Funnel erstellen via MCP',
-    icon: <Globe className="w-6 h-6" />,
-  },
-  {
     key: 'job_posting',
     label: 'Indeed-Anzeige',
     subtitle: 'SEO-optimiert mit Benefits',
     icon: <Briefcase className="w-6 h-6" />,
-  },
-  {
-    key: 'absage',
-    label: 'Absage-Skripte',
-    subtitle: 'Telefon + VG + Schriftlich',
-    icon: <XCircle className="w-6 h-6" />,
   },
 ];
 

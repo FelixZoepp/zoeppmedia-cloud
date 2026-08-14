@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { logActivity } from '@/lib/activity/log';
 
 const validTransitions: Record<string, string[]> = {
-  draft:             ['internal_review'],
+  draft:             ['internal_review', 'approved_internal'],
   internal_review:   ['approved_internal', 'draft'],
   approved_internal: ['client_review', 'internal_review'],
   client_review:     ['approved', 'changes_requested'],
