@@ -52,6 +52,12 @@ const adminGroups: SidebarGroup[] = [
 
 const employeeGroups: SidebarGroup[] = [
   {
+    label: 'Meine Arbeit',
+    items: [
+      { id: 'meine-aufgaben', label: 'Meine Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben' },
+    ],
+  },
+  {
     label: 'Cockpit',
     items: [
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle, CalendarCheck, ExternalLink } from 'lucide-react';
+import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle, CalendarCheck, ExternalLink, Zap } from 'lucide-react';
 import type { PlaybookTask, CalendlyEvent } from '@/lib/types/database';
 
 interface Agency {
@@ -134,6 +134,29 @@ export function EmployeeDashboardView() {
             </a>
           )}
         </div>
+      </div>
+
+      {/* Quick link: Meine Aufgaben */}
+      <div>
+        <Link href="/meine-aufgaben">
+          <Card
+            padding="md"
+            className="flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-red-100 bg-red-50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">
+                <Zap className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">Aufgaben abarbeiten</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {data.fulfillmentTasks.length + playbookTasks.length} offene Aufgaben insgesamt
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-red-600 shrink-0" />
+          </Card>
+        </Link>
       </div>
 
       {/* Anstehende Termine */}
