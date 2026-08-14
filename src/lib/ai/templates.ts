@@ -692,36 +692,52 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
 
   switch (type) {
     case 'ad_copy': {
-      parts.push('=== GENERATOR REGELN ===');
+      parts.push('=== AD COPYS (CAPTION-TEXT) ===');
+      parts.push('');
+      parts.push('Du generierst den TEXT der UNTER dem Facebook/Instagram Post steht (Caption).');
+      parts.push('Das ist NICHT das Video-Skript. Das ist der Begleittext.');
+      parts.push('');
+      parts.push('STRIKTE REGELN FÜR CAPTIONS:');
+      parts.push('- KEINE konkreten Gehaltsangaben (keine Zahlen wie 3.000€, 8.000€ etc.)');
+      parts.push('- Stattdessen: "ungedeckelt", "überdurchschnittlich", "leistungsbezogen"');
+      parts.push('- KEINE Provision-pro-Stück Angaben');
+      parts.push('- Verdienst nur andeuten: "Was du verdienst, bestimmst du selbst"');
+      parts.push('- Emojis erlaubt aber sparsam (max 3-4 pro Caption)');
+      parts.push('- Kurz: max 300 Zeichen Primary Text, max 60 Zeichen Headline');
+      parts.push('');
       parts.push(GENERATOR_RULES);
       parts.push('');
       parts.push('=== AGENTUR-DATEN ===');
       parts.push(buildAgencyDataBlock(ctx));
       parts.push('');
 
-      // Branch-specific context
       const branch = ctx.product ? BRANCH_DEFAULTS[ctx.product] : undefined;
       if (branch) {
         parts.push('=== BRANCHEN-KONTEXT ===');
         parts.push(`Branche: ${branch.product_label}`);
         parts.push(`Stärkster Winkel: ${branch.strongest_angle}`);
-        parts.push(`Typischer Pitch: ${branch.typical_pitch}`);
         parts.push(`Hook-Keywords: ${branch.hook_keywords.join(', ')}`);
         parts.push('');
       }
 
-      parts.push('=== WINKEL 1: GELD (4 Varianten generieren) ===');
-      parts.push(fillTemplate(AD_TEMPLATE_WINKEL_1, ctx));
+      parts.push('=== FORMAT PRO VARIANTE ===');
+      parts.push('Headline: (max 60 Zeichen)');
+      parts.push('Primary Text: (max 300 Zeichen, der Haupttext)');
+      parts.push('Description: (max 90 Zeichen, optional)');
+      parts.push('CTA: Jetzt bewerben / Mehr erfahren');
       parts.push('');
-      parts.push('=== WINKEL 2: FREIHEIT (3 Varianten generieren) ===');
-      parts.push(fillTemplate(AD_TEMPLATE_WINKEL_2, ctx));
+      parts.push('=== WINKEL 1: DER DECKEL — "Dein Einsatz wird nicht belohnt" (4 Varianten) ===');
+      parts.push('Hook-Ideen: Deckel-Metapher, Gleichmacherei, Chef verdient mehr als du');
       parts.push('');
-      parts.push('=== WINKEL 3: KARRIERE (3 Varianten generieren) ===');
-      parts.push(fillTemplate(AD_TEMPLATE_WINKEL_3, ctx));
+      parts.push('=== WINKEL 2: DER AUFSTIEG — "Frag deinen Chef was du in 2 Jahren verdienst" (3 Varianten) ===');
+      parts.push('Hook-Ideen: Karriere auf Papier, keine Wartezeiten, eigenes Team');
       parts.push('');
-      parts.push('INSGESAMT: 10 Anzeigen-Varianten (4x Winkel 1, 3x Winkel 2, 3x Winkel 3).');
-      parts.push('Jede Variante klar nummeriert mit Winkel-Bezeichnung.');
-      parts.push(`Tonalität: ${ctx.tone === 'sie' ? 'Sie (formell)' : 'Du (informell)'}, direkt, motivierend, mit Emojis.`);
+      parts.push('=== WINKEL 3: DER QUEREINSTIEG — "3 Jahre Erfahrung gefordert" (3 Varianten) ===');
+      parts.push('Hook-Ideen: Chance ohne Erfahrung, unsere besten kamen aus dem Handwerk');
+      parts.push('');
+      parts.push('INSGESAMT: 10 Caption-Varianten (4x Winkel 1, 3x Winkel 2, 3x Winkel 3).');
+      parts.push(`Ansprache: ${ctx.tone === 'sie' ? 'Sie' : 'Du'}. Region im ersten Drittel.`);
+      parts.push('KEINE GEHALTSANGABEN IN DEN CAPTIONS.');
       break;
     }
 
@@ -746,22 +762,77 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
     }
 
     case 'video_script': {
-      parts.push('=== GENERATOR REGELN ===');
+      parts.push('=== VIDEO AD SKRIPT (30-60 Sekunden) ===');
+      parts.push('');
+      parts.push('Du generierst ein GESPROCHENES Skript für eine Video-Anzeige auf Meta (Facebook/Instagram).');
+      parts.push('Das wird von einem Mitarbeiter vor der Kamera gesprochen.');
+      parts.push('KURZ und KNACKIG — 30-60 Sekunden. Keine langen Erklärungen.');
+      parts.push('');
+      parts.push('REGELN FÜR VIDEO AD SKRIPTE:');
+      parts.push('- Hook in den ersten 3 Sekunden (Scroll-Stopper)');
+      parts.push('- KEINE konkreten Gehaltsangaben (gleiche Regel wie bei Captions)');
+      parts.push('- Direkte Ansprache, als ob man mit jemandem redet');
+      parts.push('- Kein Vorlese-Ton, sondern natürlich gesprochen');
+      parts.push('- Am Ende klarer CTA: "Link in der Bio" oder "Bewirb dich jetzt"');
+      parts.push('');
       parts.push(GENERATOR_RULES);
       parts.push('');
-      parts.push('Erstelle ein 60–90 Sekunden Video-Skript für ein Recruiting-Video. Nutze den VG-Leitfaden als inhaltliche Referenz für die Firma/Stelle.');
+      parts.push('=== AGENTUR-DATEN ===');
+      parts.push(buildAgencyDataBlock(ctx));
       parts.push('');
-      parts.push('=== REFERENZ: VG-LEITFADEN ===');
-      parts.push(fillTemplate(VG_LEITFADEN_TEMPLATE, ctx));
+      parts.push('=== STRUKTUR (3 Varianten generieren) ===');
       parts.push('');
-      parts.push('=== VIDEO-SKRIPT STRUKTUR ===');
-      parts.push('1. Hook (3 Sek.) — Problem ansprechen');
-      parts.push('2. Vorstellung (5 Sek.) — Name, Firma');
-      parts.push('3. Was macht man? (15 Sek.) — Konkrete Aufgabe');
-      parts.push('4. 3 Key Benefits (20 Sek.) — Verdienst, Karriere, Ausbildung');
-      parts.push('5. Social Proof (10 Sek.) — Team, Erfolge');
-      parts.push('6. CTA (5 Sek.) — "Jetzt bewerben"');
-      parts.push(`Tonalität: Authentisch, energisch, ${ctx.tone === 'sie' ? 'Sie' : 'Du'}-Ansprache. KEINE Emojis.`);
+      parts.push('VARIANTE 1 — Problem-Hook (30 Sek.):');
+      parts.push('[HOOK 3s] "Du stehst jeden Tag auf, weißt genau was du verdienst — und genau das ist das Problem."');
+      parts.push('[PROBLEM 10s] Altes System beschreiben');
+      parts.push('[LÖSUNG 10s] Was bei uns anders ist');
+      parts.push('[CTA 5s] "Link in der Bio"');
+      parts.push('');
+      parts.push('VARIANTE 2 — Frage-Hook (30 Sek.):');
+      parts.push('[HOOK 3s] "Wie viel verdienst du gerade?" — Stille — "Und bist du zufrieden damit?"');
+      parts.push('[STORY 15s] Kurze Story eines Quereinsteigers');
+      parts.push('[CTA 5s] "Bewirb dich, Link unten"');
+      parts.push('');
+      parts.push('VARIANTE 3 — Statement-Hook (45 Sek.):');
+      parts.push('[HOOK 3s] "Wir suchen Leute die keine Vertriebserfahrung haben."');
+      parts.push('[ERKLÄRUNG 20s] Warum Quereinsteiger, was man macht');
+      parts.push('[BENEFITS 15s] Aufstieg, Team, Firmenwagen');
+      parts.push('[CTA 5s] "Bewirb dich jetzt"');
+      parts.push('');
+      parts.push(`Ansprache: ${ctx.tone === 'sie' ? 'Sie' : 'Du'}. KEINE Emojis. KEINE Gehaltsangaben.`);
+      parts.push('Schreibe [SCHNITT] zwischen die Szenen.');
+      break;
+    }
+
+    case 'creative_brief': {
+      parts.push('=== WEBSEITEN-VIDEO SKRIPT (60-90 Sekunden) ===');
+      parts.push('');
+      parts.push('Du generierst ein LÄNGERES Video-Skript für die Karriereseite oder den Funnel.');
+      parts.push('Das ist ein Erklärvideo, kein Ad. Es baut Vertrauen auf und erklärt den Job ausführlich.');
+      parts.push('Wird professionell produziert, nicht auf dem Handy.');
+      parts.push('');
+      parts.push('REGELN:');
+      parts.push('- Verdienst-Spanne darf hier genannt werden (anders als bei Ads)');
+      parts.push('- Professioneller Ton, aber nicht steif');
+      parts.push('- Team-Atmosphäre vermitteln');
+      parts.push('- Konkreter als die Ad — hier darf man ins Detail gehen');
+      parts.push('');
+      parts.push(GENERATOR_RULES);
+      parts.push('');
+      parts.push('=== AGENTUR-DATEN ===');
+      parts.push(buildAgencyDataBlock(ctx));
+      parts.push('');
+      parts.push('=== STRUKTUR ===');
+      parts.push('');
+      parts.push('[INTRO 10s] Begrüßung + Firmenname + "Wir suchen..."');
+      parts.push('[WAS MACHT MAN 20s] Konkrete Tagesablauf-Beschreibung: Tür zu Tür, Gespräche, Leads/Abschlüsse');
+      parts.push('[FÜR WEN IST DAS 15s] Quereinsteiger willkommen, welche Eigenschaften');
+      parts.push('[VERDIENST & KARRIERE 20s] Verdienstspanne, Aufstiegsstufen, Firmenwagen');
+      parts.push('[TEAM & AUSBILDUNG 15s] Wie die Einarbeitung läuft, Teamkultur, Events');
+      parts.push('[CTA 10s] "Bewirb dich über den Link — wir melden uns innerhalb von 24 Stunden"');
+      parts.push('');
+      parts.push(`Ansprache: ${ctx.tone === 'sie' ? 'Sie' : 'Du'}. KEINE Emojis.`);
+      parts.push('Schreibe [SZENE: Beschreibung] für visuelle Anweisungen an den Videographer.');
       break;
     }
 
@@ -784,21 +855,7 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
       break;
     }
 
-    case 'creative_brief': {
-      parts.push('=== GENERATOR REGELN ===');
-      parts.push(GENERATOR_RULES);
-      parts.push('');
-      parts.push('=== AGENTUR-DATEN ===');
-      parts.push(buildAgencyDataBlock(ctx));
-      parts.push('');
-      parts.push('Erstelle ein Creative-Brief für Recruiting-Anzeigenbilder:');
-      parts.push('- 3 Bildkonzepte mit Beschreibung');
-      parts.push('- Text-Overlays pro Bild (Headline + Subline)');
-      parts.push(`- Primärfarbe: ${ctx.primary_color || '#E0354B'}`);
-      parts.push('- Format-Empfehlungen (1080x1080 Feed, 1080x1920 Story)');
-      parts.push('- Do\'s und Don\'ts für D2D-Recruiting Creatives');
-      break;
-    }
+    // Old creative_brief case removed — now handled above as "Webseiten-Video Skript"
 
     case 'vg_leitfaden': {
       parts.push('=== GENERATOR REGELN ===');
