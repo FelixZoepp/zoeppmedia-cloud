@@ -16,11 +16,23 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch(
+    // Account info
+    const accRes = await fetch(
       `https://graph.facebook.com/v21.0/${adAccountId}?fields=name,account_status,currency,timezone_name&access_token=${token}`
     );
-    const data = await res.json();
-    return NextResponse.json({ ok: res.ok, data });
+    const accData = await accRes.json();
+
+    // Active campaigns
+    const campRes = await fetch(
+      `https://graph.facebook.com/v21.0/${adAccountId}/campaigns?fields=name,status,objective,daily_budget,lifetime_budget,start_time&filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE","PAUSED"]}]&limit=50&access_token=${token}`
+    );
+    const campData = await campRes.json();
+
+    return NextResponse.json({
+      ok: accRes.ok,
+      account: accData,
+      campaigns: campData.data ?? campData,
+    });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
