@@ -68,8 +68,8 @@ const CARDS: ContentCard[] = [
   },
   {
     key: 'funnel_text',
-    label: 'Funnel-Texte',
-    subtitle: '8 Screens für Perspective',
+    label: 'Perspective Funnel',
+    subtitle: 'Funnel erstellen via MCP',
     icon: <Globe className="w-6 h-6" />,
   },
   {

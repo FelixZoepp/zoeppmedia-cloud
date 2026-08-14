@@ -88,64 +88,118 @@ export const GENERATOR_RULES = `HARTE REGELN FÜR ALLE GENERIERTEN INHALTE:
 // AD TEMPLATES — 3 Angles
 // ============================================================
 
-export const AD_TEMPLATE_WINKEL_1 = `WINKEL 1 — GELD / VERDIENST
-Zielemotion: Gier, Neid, FOMO
-Hook-Pattern: Konkreter Verdienst + Unglaube
+export const AD_TEMPLATE_WINKEL_1 = `WINKEL 1 — DER DECKEL (Spannungsbogen-Copy)
 
-Erzeuge 4 Varianten dieses Winkels. Jede Variante braucht:
-- HOOK (max 125 Zeichen): Konkreter Verdienst als Eye-Catcher
-- PRIMARY TEXT (max 250 Zeichen): Stelle + Verdienst + Aufgabe + CTA
-- HEADLINE (max 40 Zeichen): Verdienst + Jobtitel
-- CTA: "Jetzt bewerben"
+FORMAT: Langer Caption-Text unter einem Video-Post (ca. 200-300 Wörter).
+KEINE Monatsgehälter nennen. Provision pro Einheit ist OK.
+Struktur: Hook → Neugier → Reveal → Stelle + Region → Philosophie → Benefits → CTA + Link
 
-Beispiel-Hook: "{{monthly_earning_from}}–{{monthly_earning_to}} EUR/Monat als {{job_title}} in {{regions}} — {{experience_text}}? So geht's:"
+REFERENZ-COPY (diesen Stil 1:1 nachbauen, nur Inhalte anpassen):
 
-Pflichtinhalte pro Variante:
-- Realistischer Verdienst: {{earning_range}}
-- Vergütungsmodell: {{compensation_label}}
-{{task_type_rule}}
-{{experience_rule}}
-- Konkreten CTA mit [LINK]
-{{client_rule}}`;
+"Jetzt kommt was auf dich zu...
 
-export const AD_TEMPLATE_WINKEL_2 = `WINKEL 2 — FREIHEIT / LIFESTYLE
-Zielemotion: Autonomie, Unabhängigkeit, Selbstbestimmung
-Hook-Pattern: Kontrastieren mit 9-to-5 / Chef-Abhängigkeit
+Eine Chance bei der du selbst bestimmen kannst, wie viel du verdienst und das noch ungedeckelt?😎
 
-Erzeuge 3 Varianten dieses Winkels. Jede Variante braucht:
-- HOOK (max 125 Zeichen): Freiheits-Kontrast zum Bürojob
-- PRIMARY TEXT (max 250 Zeichen): Freiheit + Verdienst + Einstieg
-- HEADLINE (max 40 Zeichen): Freiheits-Statement
-- CTA: "Jetzt starten"
+Und das Beste weißt du noch gar nicht...
 
-Beispiel-Hook: "Kein Büro. Kein Chef im Nacken. Kein Deckel auf dem Gehalt."
+{{#wenn aufgabe=nur_leads}}Du bekommst Provisionen ohne Verkaufen zu müssen. Einfach nur Daten abfragen und bezahlt werden.{{/wenn}}
+{{#wenn aufgabe=abschluss}}Du berätst Kunden und verdienst an jedem Abschluss mit. Ungedeckelt.{{/wenn}}
 
-Pflichtinhalte pro Variante:
-- Verdienst: {{earning_range}}
-- Selbstbestimmung betonen (Arbeitszeit, Verdienst, Karriere)
-- Anstellungsart: {{employment_label}}
-{{task_type_rule}}
-{{experience_rule}}
-- CTA mit [LINK]`;
+Wir suchen {{stellenbezeichnung}} im Raum {{regionen}} für den Außendienst!📌
 
-export const AD_TEMPLATE_WINKEL_3 = `WINKEL 3 — KARRIERE / AUFSTIEG
-Zielemotion: Ehrgeiz, Anerkennung, Status
-Hook-Pattern: Karrierestufen als konkreter Aufstiegsplan
+Und dafür gehen wir neue Wege bei der Bezahlung. Wir halten nichts von Stunden absitzen und dafür schlecht bezahlt werden. Wir wollen Leute fördern die mehr Gas geben wollen und dafür finanziell beteiligt werden an ihrem Erfolg.
 
-Erzeuge 3 Varianten dieses Winkels. Jede Variante braucht:
-- HOOK (max 125 Zeichen): Karriereweg als Versprechen
-- PRIMARY TEXT (max 250 Zeichen): Karrierestufen + Verdienst + Einstieg
-- HEADLINE (max 40 Zeichen): Karriere-Statement
-- CTA: "Aufsteigen starten"
+{{provision_einheit}}. Das gab es noch nie im Vertrieb.
 
-Beispiel-Hook: "Vom {{job_title}} zum {{top_career_level}} — kein Studium nötig. Nur Leistung zählt."
+Und das ungedeckelt!
 
-Pflichtinhalte pro Variante:
-- Karrierestufen: {{career_levels_label}}
-{{company_car_rule}}
-- Verdienst: {{earning_range}}
-{{experience_rule}}
-- CTA mit [LINK]`;
+Viele Firmen trauen sich das nicht, weil sie dann zu viel Geld an ihre Berater zahlen müssten. Wir sehen das anders!
+
+Du verdienst aber nicht nur gutes Geld bei uns, sondern diese Vorteile erwarten dich auch:
+
+🎓 {{ausbildung_text}}, kein ins kalte Wasser schmeißen
+🔥 Ein extrem motiviertes Umfeld
+✅ Transparente & erreichbare Aufstiegschancen für jeden
+💰 Zusatz-Provisionen für Teamleiter & Ausbilder
+{{#wenn firmenwagen_ab}}🚗 Firmenwagen ab {{firmenwagen_ab}}{{/wenn}}
+🗂️ Arbeit für {{auftraggeber_text}}
+👨‍🏫 Regelmäßige Interne und Externe Coachings
+🥩 Firmenevents & Teamausflüge
+🤑 {{extras}}
+
+Also, wenn du dich jetzt angesprochen fühlst und an diesem Job interessiert bist, dann klicke jetzt auf den Button unter diesem Video und erhalte mehr Infos.
+
+Hier klicken:
+➡ {{link_karriereseite}}
+➡ {{link_karriereseite}}"
+
+Erzeuge 4 VARIANTEN in diesem Stil. Variiere den Hook und die Reihenfolge der Benefits, aber behalte die Struktur und Tonalität bei.`;
+
+export const AD_TEMPLATE_WINKEL_2 = `WINKEL 2 — STORY-HOOK (Persönliche Geschichte)
+
+FORMAT: Langer Caption-Text (200-300 Wörter). Beginnt mit einer persönlichen Geschichte.
+Struktur: Story-Hook → Chance → Reveal → Stelle + Region → Philosophie → Provision → Benefits → CTA + Link
+
+REFERENZ-COPY:
+
+"Früher habe ich in der Gastro gearbeitet mit viel Stress und wenig Lohn...
+
+Vor ein paar Monaten habe ich eine Möglichkeit bekommen und die hast du jetzt auch...
+
+Eine Chance bei der du selbst bestimmen kannst, wie viel du verdienst und das noch ungedeckelt?😎
+
+Und das Beste weißt du noch gar nicht...
+
+{{#wenn aufgabe=nur_leads}}Du bekommst Provisionen ohne Verkaufen zu müssen. Einfach nur Daten abfragen und bezahlt werden.{{/wenn}}
+{{#wenn aufgabe=abschluss}}Du berätst und schließt ab — und verdienst an jedem Vertrag mit.{{/wenn}}
+
+Wir suchen {{stellenbezeichnung}} im Raum {{regionen}} für den Außendienst!📌
+
+Und dafür gehen wir neue Wege bei der Bezahlung. Wir halten nichts von Stunden absitzen und dafür schlecht bezahlt werden. Wir wollen Leute fördern die mehr Gas geben wollen und dafür finanziell beteiligt werden an ihrem Erfolg.
+
+{{provision_einheit}}. Das gab es noch nie im Vertrieb.
+
+Und das ungedeckelt!
+
+[Rest wie Winkel 1: Philosophie → Benefits → CTA]"
+
+Erzeuge 3 VARIANTEN. Variiere die Story im Hook:
+- Variante 1: "Früher Gastro/Handwerk" Story
+- Variante 2: "Ich war skeptisch als mir ein Kumpel davon erzählt hat..." Story
+- Variante 3: "Das gab es noch nie im Vertrieb..." Statement-Hook
+Benefits-Block und CTA bleiben gleich, nur der Einstieg variiert.`;
+
+export const AD_TEMPLATE_WINKEL_3 = `WINKEL 3 — KURZ & DIREKT (Nur Stelle + Benefits + CTA)
+
+FORMAT: Kurzer Caption-Text (80-120 Wörter). Kein Spannungsbogen, direkt auf den Punkt.
+Struktur: Stelle + Region → Benefits-Block → CTA
+
+REFERENZ-COPY:
+
+"Wir suchen {{stellenbezeichnung}} im Raum {{regionen}} für den Außendienst!📌
+
+Du bekommst aber nicht nur hohe Provisionen bei uns, sondern diese Vorteile erwarten dich auch:
+
+🎓 {{ausbildung_text}}
+🔥 Ein motiviertes Umfeld aus Leuten die dich pushen
+📈 Ungedeckelte Provisionen{{#wenn garantiegehalt}} + Garantiegehalt{{/wenn}}
+✅ Schneller Aufstieg möglich
+💰 Zusatz-Provisionen für Teamleiter & Ausbilder
+{{#wenn firmenwagen_ab}}🚗 Firmenwagen ab {{firmenwagen_ab}}{{/wenn}}
+🗂️ Arbeit für {{auftraggeber_text}}
+🥩 Firmenevents & Teamausflüge
+🤑 {{extras}}
+
+Wenn sich das für dich gut anhört, dann klicke auf den Button und bewirb dich bei uns.
+
+➡ {{link_karriereseite}}
+➡ {{link_karriereseite}}"
+
+Erzeuge 3 VARIANTEN. Variiere:
+- Variante 1: Stelle zuerst, dann Benefits
+- Variante 2: "Du willst raus aus dem Büro?" + Stelle + Benefits
+- Variante 3: "Quereinsteiger willkommen!" + Stelle + Benefits
+Benefit-Block bleibt im Kern gleich, Reihenfolge variieren.`;
 
 // ============================================================
 // FUNNEL TEMPLATE — 7 Screens
