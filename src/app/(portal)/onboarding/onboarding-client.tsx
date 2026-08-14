@@ -257,27 +257,95 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     },
   });
 
-  // Restore saved draft on mount
+  // Load saved draft from DB on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const { form: savedForm, step: savedStep } = JSON.parse(saved);
-        if (savedForm) {
-          setForm((prev) => ({ ...prev, ...savedForm }));
-          if (savedStep) setStep(savedStep);
+    fetch('/api/onboarding/draft')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.status === 'in_progress') {
+          const restored: Record<string, unknown> = {};
+          // Restore all known fields
+          const fields = [
+            'company_name', 'job_title', 'product', 'task_type', 'compensation',
+            'commission_per_unit', 'employment_type', 'company_car_from', 'training_type',
+            'client_name', 'start_date', 'tone', 'logo_url', 'primary_color',
+            'contact_name', 'contact_phone', 'preferred_contact_time',
+          ];
+          fields.forEach(f => { if (data[f]) restored[f] = data[f]; });
+          // Numbers
+          if (data.radius_km) restored.radius_km = String(data.radius_km);
+          if (data.monthly_earning_from) restored.monthly_earning_from = String(data.monthly_earning_from);
+          if (data.monthly_earning_to) restored.monthly_earning_to = String(data.monthly_earning_to);
+          // Regions array → comma string
+          if (data.regions && Array.isArray(data.regions)) restored.regions = data.regions.join(', ');
+          // Arrays
+          if (data.career_levels) restored.career_levels = data.career_levels;
+          if (data.extras) restored.extras = data.extras;
+          // Booleans
+          if (data.client_nameable !== undefined) restored.client_nameable = data.client_nameable;
+          if (data.experience_needed !== undefined) restored.experience_needed = data.experience_needed;
+          if (data.drivers_license_needed !== undefined) restored.drivers_license_needed = data.drivers_license_needed;
+          // Meta steps
+          if (data.meta_access_steps) restored.meta_access_steps = data.meta_access_steps;
+
+          setForm(prev => ({ ...prev, ...restored }));
+          // Restore step from localStorage (DB doesn't store current step)
+          try {
+            const ls = localStorage.getItem(STORAGE_KEY);
+            if (ls) { const { step: s } = JSON.parse(ls); if (s) setStep(s); }
+          } catch { /* ignore */ }
           setRestored(true);
           setTimeout(() => setRestored(false), 3000);
         }
-      }
-    } catch { /* ignore */ }
+      })
+      .catch(() => {});
   }, []);
 
-  // Auto-save on every form or step change
+  // Auto-save to DB (debounced 2 seconds)
+  const saveTimer = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, step }));
-    } catch { /* ignore */ }
+    // Also save step to localStorage for step restoration
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ step })); } catch { /* ignore */ }
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const regionsArray = form.regions.split(',').map(r => r.trim()).filter(Boolean);
+      fetch('/api/onboarding/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name: form.company_name || null,
+          job_title: form.job_title || null,
+          regions: regionsArray.length > 0 ? regionsArray : null,
+          radius_km: form.radius_km ? parseInt(form.radius_km) : null,
+          product: form.product || null,
+          task_type: form.task_type || null,
+          compensation: form.compensation || null,
+          commission_per_unit: form.commission_per_unit || null,
+          monthly_earning_from: form.monthly_earning_from ? parseInt(form.monthly_earning_from) : null,
+          monthly_earning_to: form.monthly_earning_to ? parseInt(form.monthly_earning_to) : null,
+          employment_type: form.employment_type || null,
+          career_levels: form.career_levels.length > 0 ? form.career_levels : null,
+          company_car_from: form.company_car_from || null,
+          training_type: form.training_type || null,
+          client_nameable: form.client_nameable,
+          client_name: form.client_nameable ? (form.client_name || null) : null,
+          extras: form.extras.length > 0 ? form.extras : null,
+          experience_needed: form.experience_needed,
+          drivers_license_needed: form.drivers_license_needed,
+          start_date: form.start_date || null,
+          tone: form.tone,
+          logo_url: form.logo_url || null,
+          primary_color: form.primary_color || null,
+          contact_name: form.contact_name || null,
+          contact_phone: form.contact_phone || null,
+          preferred_contact_time: form.preferred_contact_time || null,
+          meta_access_steps: form.meta_access_steps,
+        }),
+      }).catch(() => {});
+    }, 2000);
+
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [form, step]);
 
   function update(field: string, value: string | boolean) {
