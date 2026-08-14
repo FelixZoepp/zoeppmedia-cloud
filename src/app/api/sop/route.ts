@@ -8,7 +8,17 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const agencyId = searchParams.get('agency_id');
+  let agencyId = searchParams.get('agency_id');
+
+  // Resolve "me" → current user's agency_id
+  if (agencyId === 'me') {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('agency_id')
+      .eq('id', user.id)
+      .single();
+    agencyId = profile?.agency_id ?? null;
+  }
 
   // Get SOP template
   const { data: phases } = await supabase
