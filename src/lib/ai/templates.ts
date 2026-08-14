@@ -982,23 +982,7 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
       break;
     }
 
-    case 'absage': {
-      parts.push('=== GENERATOR REGELN ===');
-      parts.push(GENERATOR_RULES);
-      parts.push('');
-      parts.push('Erstelle alle Absage-Skripte für den Recruiting-Prozess. Fülle alle Platzhalter mit den konkreten Agentur-Daten aus. Skripte müssen freundlich, kurz und professionell sein.');
-      parts.push('');
-      parts.push(fillTemplate(ABSAGE_TEMPLATES.telefon, ctx));
-      parts.push('');
-      parts.push('---');
-      parts.push('');
-      parts.push(fillTemplate(ABSAGE_TEMPLATES.nach_vg, ctx));
-      parts.push('');
-      parts.push('---');
-      parts.push('');
-      parts.push(fillTemplate(ABSAGE_TEMPLATES.schriftlich, ctx));
-      break;
-    }
+    // absage case removed — Absage-Skripte sind Standard-Content der Masterclass
 
     default: {
       parts.push(GENERATOR_RULES);
