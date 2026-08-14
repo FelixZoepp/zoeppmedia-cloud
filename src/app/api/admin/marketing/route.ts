@@ -13,7 +13,7 @@ async function getCloseRevenue(): Promise<{ won: number; open: number; won_count
 
   try {
     const res = await fetch(
-      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type`,
+      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,pipeline_id`,
       {
         headers: {
           Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
@@ -23,7 +23,8 @@ async function getCloseRevenue(): Promise<{ won: number; open: number; won_count
     );
     if (!res.ok) return { won: 0, open: 0, won_count: 0, open_count: 0 };
     const data = await res.json();
-    const opps: Array<{ value: number; status_type: string }> = data.data ?? [];
+    const opps: Array<{ value: number; status_type: string; pipeline_id?: string }> =
+      (data.data ?? []).filter((o: { pipeline_id?: string }) => o.pipeline_id === CLOSE_PIPELINE_ID);
 
     let won = 0, open = 0, won_count = 0, open_count = 0;
     for (const o of opps) {
