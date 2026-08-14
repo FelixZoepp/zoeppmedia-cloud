@@ -746,52 +746,48 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
 
   switch (type) {
     case 'ad_copy': {
-      parts.push('=== AD COPYS (CAPTION-TEXT) ===');
+      parts.push('=== AD COPYS (CAPTION-TEXT UNTER VIDEO) ===');
       parts.push('');
-      parts.push('Du generierst den TEXT der UNTER dem Facebook/Instagram Post steht (Caption).');
-      parts.push('Das ist NICHT das Video-Skript. Das ist der Begleittext.');
+      parts.push('Du generierst 3 LANGE Caption-Texte die unter einem Facebook/Instagram Video-Post stehen.');
+      parts.push('Jede Copy ist 200-300 Wörter lang mit einem klaren Spannungsbogen.');
+      parts.push('Das sind KEINE kurzen Snippets oder Headlines. Das sind ausführliche Texte.');
       parts.push('');
-      parts.push('STRIKTE REGELN FÜR CAPTIONS:');
-      parts.push('- KEINE konkreten Gehaltsangaben (keine Zahlen wie 3.000€, 8.000€ etc.)');
-      parts.push('- Stattdessen: "ungedeckelt", "überdurchschnittlich", "leistungsbezogen"');
-      parts.push('- KEINE Provision-pro-Stück Angaben');
-      parts.push('- Verdienst nur andeuten: "Was du verdienst, bestimmst du selbst"');
-      parts.push('- Emojis erlaubt aber sparsam (max 3-4 pro Caption)');
-      parts.push('- Kurz: max 300 Zeichen Primary Text, max 60 Zeichen Headline');
+      parts.push('REGELN:');
+      parts.push('- Provision pro Einheit DARF genannt werden (z.B. "70€ pro Kunde")');
+      parts.push('- KEINE Monatsgehälter als Zahl (kein "3.000€ im Monat")');
+      parts.push('- Stattdessen: "ungedeckelt", "selbst bestimmen wie viel du verdienst"');
+      parts.push('- Emojis NUR im Benefit-Block, NICHT im Fließtext');
+      parts.push('- Emojis: 😎 und 📌 im Text, Rest nur bei Benefits');
+      parts.push('- CTA am Ende: "klicke auf den Button unter diesem Video"');
+      parts.push('- Link DOPPELT am Ende mit ➡');
+      parts.push('- Region im ersten Drittel mit 📌');
       parts.push('');
       parts.push(GENERATOR_RULES);
       parts.push('');
       parts.push('=== AGENTUR-DATEN ===');
       parts.push(buildAgencyDataBlock(ctx));
       parts.push('');
-
-      const branch = ctx.product ? BRANCH_DEFAULTS[ctx.product] : undefined;
-      if (branch) {
-        parts.push('=== BRANCHEN-KONTEXT ===');
-        parts.push(`Branche: ${branch.product_label}`);
-        parts.push(`Stärkster Winkel: ${branch.strongest_angle}`);
-        parts.push(`Hook-Keywords: ${branch.hook_keywords.join(', ')}`);
-        parts.push('');
-      }
-
-      parts.push('=== FORMAT PRO VARIANTE ===');
-      parts.push('Headline: (max 60 Zeichen)');
-      parts.push('Primary Text: (max 300 Zeichen, der Haupttext)');
-      parts.push('Description: (max 90 Zeichen, optional)');
-      parts.push('CTA: Jetzt bewerben / Mehr erfahren');
+      parts.push('=== GENERIERE GENAU 3 COPYS ===');
       parts.push('');
-      parts.push('=== WINKEL 1: DER DECKEL — "Dein Einsatz wird nicht belohnt" (4 Varianten) ===');
-      parts.push('Hook-Ideen: Deckel-Metapher, Gleichmacherei, Chef verdient mehr als du');
+      parts.push('--- COPY 1: SPANNUNGSBOGEN ---');
+      parts.push('Nutze exakt diese Vorlage und fülle die Platzhalter:');
       parts.push('');
-      parts.push('=== WINKEL 2: DER AUFSTIEG — "Frag deinen Chef was du in 2 Jahren verdienst" (3 Varianten) ===');
-      parts.push('Hook-Ideen: Karriere auf Papier, keine Wartezeiten, eigenes Team');
+      parts.push(fillTemplate(AD_TEMPLATE_WINKEL_1, ctx));
       parts.push('');
-      parts.push('=== WINKEL 3: DER QUEREINSTIEG — "3 Jahre Erfahrung gefordert" (3 Varianten) ===');
-      parts.push('Hook-Ideen: Chance ohne Erfahrung, unsere besten kamen aus dem Handwerk');
+      parts.push('--- COPY 2: STORY-HOOK ---');
+      parts.push('Nutze exakt diese Vorlage und fülle die Platzhalter:');
       parts.push('');
-      parts.push('INSGESAMT: 10 Caption-Varianten (4x Winkel 1, 3x Winkel 2, 3x Winkel 3).');
-      parts.push(`Ansprache: ${ctx.tone === 'sie' ? 'Sie' : 'Du'}. Region im ersten Drittel.`);
-      parts.push('KEINE GEHALTSANGABEN IN DEN CAPTIONS.');
+      parts.push(fillTemplate(AD_TEMPLATE_WINKEL_2, ctx));
+      parts.push('');
+      parts.push('--- COPY 3: KURZ & DIREKT ---');
+      parts.push('Nutze exakt diese Vorlage und fülle die Platzhalter:');
+      parts.push('');
+      parts.push(fillTemplate(AD_TEMPLATE_WINKEL_3, ctx));
+      parts.push('');
+      parts.push('WICHTIG: Fülle die Vorlagen 1:1 aus. Ändere NUR die Platzhalter, nicht die Struktur oder den Stil.');
+      parts.push('Jede Copy muss den kompletten Benefit-Block mit Emojis enthalten.');
+      parts.push('Jede Copy endet mit dem doppelten Link.');
+      parts.push(`Ansprache durchgehend: ${ctx.tone === 'sie' ? 'Sie' : 'Du'}.`);
       break;
     }
 
@@ -934,21 +930,94 @@ export function buildTemplateContext(type: string, ctx: OnboardingContext): stri
     }
 
     case 'job_posting': {
-      parts.push('=== GENERATOR REGELN ===');
+      parts.push('=== INDEED-ANZEIGE ===');
+      parts.push('');
+      parts.push('Generiere eine Indeed-Stellenanzeige. Indeed rendert kaum Formatierung —');
+      parts.push('Blockstruktur mit GROSSBUCHSTABEN-Überschriften ist Absicht.');
+      parts.push('');
       parts.push(GENERATOR_RULES);
       parts.push('');
       parts.push('=== AGENTUR-DATEN ===');
       parts.push(buildAgencyDataBlock(ctx));
       parts.push('');
-      parts.push('HINWEIS: Indeed-Templates werden von Felix geliefert und sind noch in Arbeit.');
-      parts.push('Erstelle eine SEO-optimierte Indeed-Stellenanzeige mit folgender Struktur:');
-      parts.push('1. SEO-optimierter Stellentitel (mit Region und Schlagwörtern)');
-      parts.push('2. Einleitung (2 Sätze Hook)');
-      parts.push('3. Deine Aufgaben (5-6 Punkte)');
-      parts.push('4. Dein Profil (4-5 Punkte)');
-      parts.push('5. Wir bieten (6-8 Benefits mit Verdienst)');
-      parts.push('6. Vergütung (transparent)');
-      parts.push(`Tonalität: ${ctx.tone === 'sie' ? 'Sie (formell)' : 'Du (informell)'}, mit Emojis.`);
+      parts.push('=== INDEED-FORMULARFELDER ===');
+      const regionsText = ctx.regions?.join(', ') || 'Deutschland';
+      const earningRange = ctx.monthly_earning_from && ctx.monthly_earning_to
+        ? `${ctx.monthly_earning_from.toLocaleString('de-DE')}–${ctx.monthly_earning_to.toLocaleString('de-DE')} €`
+        : 'Ungedeckelte Provision';
+      const isHandelsvertreter = ctx.employment_type === 'self_employed';
+      parts.push(`Stellentitel: ${ctx.job_title || 'Vertriebsmitarbeiter (m/w/d)'} — ${earningRange}`);
+      parts.push(`Arbeitsort: Mobil / ${regionsText}`);
+      parts.push(`Beschäftigungsart: ${isHandelsvertreter ? 'Freie Mitarbeit' : 'Vollzeit'}`);
+      parts.push(`Gehalt: ${earningRange} pro Monat, ungedeckelte Provision`);
+      parts.push('Bewerbungsoption: Über Indeed bewerben, Smart Apply aktiviert');
+      parts.push('');
+      parts.push('=== ANZEIGENTEXT NACH DIESER VORLAGE GENERIEREN ===');
+      parts.push('');
+      parts.push(`Wir sind auf der Suche nach Unterstützung (m/w/d) für unseren Außendienst im Bereich`);
+      parts.push(`${ctx.product ? (({ pv: 'Energie- und insbesondere Photovoltaikanlagen', glasfaser: 'Glasfaser-Internet', strom_gas: 'Strom- und Gas-Tarife', telko: 'Telekommunikation', versicherung: 'Versicherung' } as Record<string, string>)[ctx.product] || ctx.product) : 'Vertrieb'},`);
+      parts.push('die uns bei der aktiven Leadgenerierung im Door-to-Door-Vertrieb unterstützt.');
+      parts.push('');
+      if (!ctx.experience_needed) {
+        parts.push('DU HAST BISHER KEINE ERFAHRUNG UND BIST QUEREINSTEIGER?');
+        parts.push('');
+        parts.push('Kein Problem! Während der Einarbeitung lernst du alles, was du für erfolgreiche');
+        parts.push(ctx.task_type === 'leads_only' ? 'Ergebnisse' : 'Abschlüsse');
+        parts.push('im Außendienst benötigst. Vertriebserfahrung ist von Vorteil, aber nicht notwendig.');
+        parts.push('Wichtiger sind uns Ehrgeiz, Leistungsbereitschaft und eine starke Persönlichkeit.');
+        parts.push('');
+      }
+      parts.push('DEINE AUFGABEN:');
+      parts.push('- Aktive Kaltakquise im Außendienst (Door-to-Door)');
+      parts.push(ctx.task_type === 'leads_only' ? '- Leadgenerierung' : '- Beratung und Abschluss beim Kunden');
+      parts.push('- Eigenständige Planung deiner Vertriebsgebiete');
+      parts.push('- Dokumentation deiner Ergebnisse und strukturierte Nachbereitung');
+      parts.push('- Repräsentation unseres Unternehmens beim Kunden vor Ort');
+      parts.push('');
+      parts.push('DEIN VERDIENST:');
+      parts.push(`${earningRange} ${isHandelsvertreter ? '' : 'brutto '}monatlich`);
+      parts.push('(ungedeckelte Provision). Keine Einkommensgrenze — deine Leistung bestimmt dein Einkommen.');
+      parts.push('');
+      parts.push('WIR BIETEN:');
+      const trainingText = ({ one_on_one: 'Strukturierte 1:1 Einarbeitung & Mentoring', video_course: 'Digitaler Videokurs + Praxisphase', mentor: 'Erfahrener Mentor an deiner Seite', learning_by_doing: 'Learning by doing mit Team-Support' } as Record<string, string>)[ctx.training_type || ''] || 'Hochwertige Ausbildung';
+      parts.push(`- ${trainingText}`);
+      parts.push('- Digitale Schulungsplattform & kontinuierliche Weiterbildung');
+      parts.push('- Leistungsorientiertes Vergütungsmodell mit echtem Wachstumspotenzial');
+      parts.push(`- Klare Karrierepfade (${ctx.career_levels?.join(' → ') || 'Vertriebler → Teamleiter'})`);
+      if (ctx.company_car_from && ctx.company_car_from !== 'nein') {
+        parts.push(`- Firmenwagen ab ${ctx.company_car_from}`);
+      }
+      if (ctx.client_nameable && ctx.client_name) {
+        parts.push(`- Arbeit für ${ctx.client_name}`);
+      }
+      parts.push('- Dynamisches, ehrgeiziges Team mit Gewinner-Mentalität');
+      if (ctx.extras?.length) {
+        parts.push(`- ${ctx.extras.join(', ')}`);
+      }
+      parts.push('');
+      parts.push('STELLENANFORDERUNG:');
+      parts.push('- Du bist kontaktfreudig und gehst offen auf Menschen zu');
+      parts.push('- Du besitzt eine positive, überzeugende Ausstrahlung');
+      parts.push('- Du bist ehrgeizig, zielstrebig und leistungsorientiert');
+      parts.push('- Du arbeitest strukturiert und selbstständig');
+      parts.push('- Du kannst mit Ablehnung umgehen und bleibst fokussiert');
+      parts.push('- Sehr gute Deutschkenntnisse (mind. C1)');
+      parts.push(`- Wohnort ${regionsText} oder max. 100 km Umkreis`);
+      if (ctx.drivers_license_needed) {
+        parts.push('- Führerschein Klasse B und eigener PKW');
+      }
+      if (isHandelsvertreter) {
+        parts.push('- Gewerbeschein vorhanden oder Bereitschaft, einen anzumelden');
+      }
+      parts.push('');
+      parts.push(`Art der Stelle: ${isHandelsvertreter ? 'Freie Mitarbeit' : 'Vollzeit'}`);
+      parts.push(`${isHandelsvertreter ? 'Vergütung' : 'Gehalt'}: ${earningRange} pro Monat${isHandelsvertreter ? ', ungedeckelt' : ''}`);
+      parts.push('Arbeitsort: Mobil');
+      parts.push('');
+      parts.push('WICHTIG: Führerschein ist PFLICHT (nicht "von Vorteil"). Aufgabe klar benennen (Leads ODER Abschluss, nicht beides mischen).');
+      if (isHandelsvertreter) {
+        parts.push('ACHTUNG: Handelsvertreter — KEINE Arbeitnehmer-Begriffe wie "Gehalt", "brutto", "Vollzeit", "Urlaub", "Arbeitszeit".');
+      }
       break;
     }
 
