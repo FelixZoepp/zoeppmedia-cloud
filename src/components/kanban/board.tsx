@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import { KanbanColumn } from './column';
 import { AddCandidateModal } from './add-candidate-modal';
 import { FilterBar, applyFilters, type Filters } from './filters';
@@ -87,10 +87,20 @@ export function KanbanBoard() {
         label="PIPELINE"
         title="Pipeline"
         action={
-          <Button onClick={() => setShowAddModal(true)} size="md">
-            <Plus className="w-4 h-4" />
-            Bewerber
-          </Button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/api/export/candidates"
+              download
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </a>
+            <Button onClick={() => setShowAddModal(true)} size="md">
+              <Plus className="w-4 h-4" />
+              Bewerber
+            </Button>
+          </div>
         }
       />
 

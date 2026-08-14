@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -203,7 +204,7 @@ export default function FulfillmentPage() {
       const approved = Array.isArray(contents) ? contents[0] : null;
 
       if (!approved) {
-        alert('Bitte zuerst Ad Copys generieren und freigeben lassen.');
+        toast.error('Bitte zuerst Ad Copys generieren und freigeben lassen.');
         await updateStatus(task.id, 'pending');
         return;
       }
@@ -223,7 +224,7 @@ export default function FulfillmentPage() {
         await updateStatus(task.id, 'done');
       } else {
         const err = await res.json();
-        alert(`Fehler beim Meta-Upload: ${err.error ?? 'Unbekannter Fehler'}`);
+        toast.error(`Fehler beim Meta-Upload: ${err.error ?? 'Unbekannter Fehler'}`);
         await updateStatus(task.id, 'pending');
       }
     } catch {
@@ -247,12 +248,12 @@ export default function FulfillmentPage() {
       if (res.ok) {
         const data = await res.json();
         if (!data.published) {
-          alert(data.message);
+          toast.error(data.message);
         }
         await updateStatus(task.id, 'done');
       } else {
         const err = await res.json();
-        alert(`Fehler beim Veröffentlichen: ${err.error ?? 'Unbekannter Fehler'}`);
+        toast.error(`Fehler beim Veröffentlichen: ${err.error ?? 'Unbekannter Fehler'}`);
         await updateStatus(task.id, 'pending');
       }
     } catch {

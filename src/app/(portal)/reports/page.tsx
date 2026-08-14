@@ -9,8 +9,8 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import {
   BarChart3, Users, UserCheck, TrendingUp, Percent,
-  Calendar, Star, MessageSquare, Send, Phone, Target, Clock, Euro,
-  MousePointer, Eye, Megaphone,
+  Calendar, Star, Send, Phone, Target, Clock, Euro,
+  MousePointer, Eye, Megaphone, Download,
 } from 'lucide-react';
 
 interface FunnelStage {
@@ -144,9 +144,19 @@ export default function ReportsPage() {
         title="Reports"
         description="Deine Recruiting-Performance auf einen Blick"
         action={
-          <Button variant="soft" onClick={() => setShowSurvey(true)}>
-            <Star className="w-4 h-4" /> Feedback geben
-          </Button>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/export/reports?period=${period}`}
+              download
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </a>
+            <Button variant="soft" onClick={() => setShowSurvey(true)}>
+              <Star className="w-4 h-4" /> Feedback geben
+            </Button>
+          </div>
         }
       />
 

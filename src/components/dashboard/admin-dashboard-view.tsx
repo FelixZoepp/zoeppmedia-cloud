@@ -4,7 +4,8 @@ import type { AdminDashboardData } from '@/lib/admin-dashboard';
 import { CandidatesChart } from './candidates-chart';
 import { SourcesChart } from './sources-chart';
 import { SourceDonut } from './source-donut';
-import { User, Search, Bell, Settings, Users, TrendingUp, BarChart3, Award, Target, Plus, UserCircle } from 'lucide-react';
+import { GlobalSearch } from '@/components/global-search';
+import { User, Bell, Settings, Users, TrendingUp, BarChart3, Award, Target, Plus, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 
 function timeAgo(dateStr: string): string {
@@ -42,10 +43,7 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
       <div className="flex items-center justify-between">
         <div className="flex-1" />
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 w-[280px] shadow-sm">
-            <Search className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-400">Suchen... (Kunde, Bewerber)</span>
-          </div>
+          <GlobalSearch />
           <button className="relative w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 shadow-sm">
             <Bell className="w-4 h-4 text-gray-500" />
             <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" />

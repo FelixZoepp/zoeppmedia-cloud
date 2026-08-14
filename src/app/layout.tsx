@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter_Tight } from 'next/font/google';
+import { Toaster } from 'sonner';
 import './globals.css';
 
 const interTight = Inter_Tight({
@@ -17,7 +18,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de" className={interTight.variable}>
-      <body className={interTight.className}>{children}</body>
+      <body className={interTight.className}>
+        {children}
+        <Toaster position="bottom-right" richColors />
+      </body>
     </html>
   );
 }

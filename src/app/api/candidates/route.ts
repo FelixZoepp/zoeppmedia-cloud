@@ -1,18 +1,29 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createServerClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: candidates } = await supabase
-    .from('candidates')
-    .select('*, current_stage:pipeline_stages(*)')
-    .order('created_at', { ascending: false });
+  const { searchParams } = request.nextUrl;
+  const limit = parseInt(searchParams.get('limit') ?? '50', 10);
+  const offset = parseInt(searchParams.get('offset') ?? '0', 10);
 
+  const { data: candidates, count } = await supabase
+    .from('candidates')
+    .select('*, current_stage:pipeline_stages(*)', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  // If pagination params were explicitly provided, return paginated shape
+  if (searchParams.has('limit') || searchParams.has('offset')) {
+    return NextResponse.json({ data: candidates, total: count ?? 0 });
+  }
+
+  // Backward-compatible: return plain array when no pagination params
   return NextResponse.json(candidates);
 }
 

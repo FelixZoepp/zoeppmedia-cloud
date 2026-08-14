@@ -13,23 +13,31 @@ export async function GET(req: NextRequest) {
   const problemId  = searchParams.get('problem_id');
   const assignedTo = searchParams.get('assigned_to');
   const status     = searchParams.get('status');
+  const limit      = parseInt(searchParams.get('limit') ?? '50', 10);
+  const offset     = parseInt(searchParams.get('offset') ?? '0', 10);
 
   const supabase = await createServerClient();
 
   let query = supabase
     .from('playbook_tasks')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (agencyId)   query = query.eq('agency_id', agencyId);
   if (problemId)  query = query.eq('problem_id', problemId);
   if (assignedTo) query = query.eq('assigned_to', assignedTo);
   if (status)     query = query.eq('status', status);
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // If pagination params were explicitly provided, return paginated shape
+  if (searchParams.has('limit') || searchParams.has('offset')) {
+    return NextResponse.json({ data: data ?? [], total: count ?? 0 });
   }
 
   return NextResponse.json(data ?? []);
