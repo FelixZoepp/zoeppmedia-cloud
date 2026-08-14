@@ -12,6 +12,9 @@ import {
   MousePointerClick,
   Eye,
   Target,
+  Trophy,
+  Percent,
+  Clock,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -49,9 +52,15 @@ interface Summary {
   spend: number;
   leads: number;
   cpl: number;
+  cpc: number;
   ctr: number;
   impressions: number;
   clicks: number;
+  revenue_won: number;
+  revenue_open: number;
+  deals_won: number;
+  deals_open: number;
+  roas: number;
 }
 
 interface MarketingData {
@@ -76,10 +85,12 @@ function fmtCount(value: number): string {
 }
 
 function fmtPct(value: number): string {
-  return value.toLocaleString('de-DE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }) + '%';
+  return (
+    value.toLocaleString('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + '%'
+  );
 }
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
@@ -87,13 +98,16 @@ function fmtPct(value: number): string {
 interface KpiCardProps {
   label: string;
   value: string;
+  sub?: string;
   icon: React.ReactNode;
+  iconBg?: string;
+  iconColor?: string;
 }
 
-function KpiCard({ label, value, icon }: KpiCardProps) {
+function KpiCard({ label, value, sub, icon, iconBg = 'bg-red-50', iconColor = 'text-red-600' }: KpiCardProps) {
   return (
     <Card padding="sm" className="flex items-start gap-4">
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+      <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center ${iconColor}`}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -103,6 +117,7 @@ function KpiCard({ label, value, icon }: KpiCardProps) {
         <p className="text-xl font-bold text-gray-900 mt-0.5 tabular-nums">
           {value}
         </p>
+        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
       </div>
     </Card>
   );
@@ -114,6 +129,7 @@ function InsightCells({ insights }: { insights: Insight | null }) {
   if (!insights) {
     return (
       <>
+        <td className="px-4 py-3 text-sm text-gray-400">–</td>
         <td className="px-4 py-3 text-sm text-gray-400">–</td>
         <td className="px-4 py-3 text-sm text-gray-400">–</td>
         <td className="px-4 py-3 text-sm text-gray-400">–</td>
@@ -132,6 +148,9 @@ function InsightCells({ insights }: { insights: Insight | null }) {
       </td>
       <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
         {insights.cpl > 0 ? `€ ${fmtEuro(insights.cpl)}` : '–'}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+        {insights.cpc > 0 ? `€ ${fmtEuro(insights.cpc)}` : '–'}
       </td>
       <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
         {fmtPct(insights.ctr)}
@@ -170,6 +189,9 @@ function TableHeader({ withCampaign = false }: { withCampaign?: boolean }) {
           CPL
         </th>
         <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          CPC
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
           CTR
         </th>
         <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -195,6 +217,19 @@ function statusLabel(status: string): string {
   };
   return map[status] ?? status;
 }
+
+// ── Funnel Steps (Perspective: Recruiting Aufbau Funnel) ─────────────────────
+
+const FUNNEL_STEPS = [
+  { name: 'Landing', visitors: 455, nextRate: 16 },
+  { name: 'Wie Vertriebler', visitors: 75, nextRate: 68 },
+  { name: 'Wie viele Einstellungen', visitors: 51, nextRate: 98 },
+  { name: 'Größtes Problem?', visitors: 50, nextRate: 96 },
+  { name: 'Wie lange bleibt?', visitors: 48, nextRate: 94 },
+  { name: 'Lade-Animation', visitors: 45, nextRate: 100 },
+  { name: 'Terminbuchung', visitors: 47, nextRate: 45 },
+  { name: 'Mehr Termine', visitors: 21, nextRate: null },
+];
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -243,7 +278,7 @@ export default function AdminMarketingPage() {
     <div className="max-w-7xl">
       <PageHeader
         label="MARKETING"
-        title="Meta Ads"
+        title="Meta Ads Performance"
         description={
           data
             ? `${data.period.since} – ${data.period.until}`
@@ -278,45 +313,134 @@ export default function AdminMarketingPage() {
       {/* Content */}
       {!loading && !error && data && (
         <div className="space-y-8">
-          {/* KPI Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <KpiCard
-              label="Ad Spend"
-              value={summary ? `€ ${fmtEuro(summary.spend)}` : '–'}
-              icon={<DollarSign className="w-5 h-5" />}
-            />
-            <KpiCard
-              label="Leads"
-              value={summary ? fmtCount(summary.leads) : '–'}
-              icon={<Users className="w-5 h-5" />}
-            />
-            <KpiCard
-              label="CPL"
-              value={
-                summary && summary.cpl > 0
-                  ? `€ ${fmtEuro(summary.cpl)}`
-                  : '–'
-              }
-              icon={<Target className="w-5 h-5" />}
-            />
-            <KpiCard
-              label="CTR"
-              value={summary ? fmtPct(summary.ctr) : '–'}
-              icon={<TrendingUp className="w-5 h-5" />}
-            />
-            <KpiCard
-              label="Impressions"
-              value={summary ? fmtCount(summary.impressions) : '–'}
-              icon={<Eye className="w-5 h-5" />}
-            />
-            <KpiCard
-              label="Klicks"
-              value={summary ? fmtCount(summary.clicks) : '–'}
-              icon={<MousePointerClick className="w-5 h-5" />}
-            />
+
+          {/* ─── ROAS & Revenue Row ─── */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Return on Ad Spend
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard
+                label="ROAS"
+                value={summary && summary.roas > 0 ? `${summary.roas.toFixed(2)}x` : '–'}
+                sub={summary && summary.spend > 0 ? `€ ${fmtEuro(summary.revenue_won)} / € ${fmtEuro(summary.spend)}` : undefined}
+                icon={<TrendingUp className="w-5 h-5" />}
+                iconBg={summary && summary.roas >= 1 ? 'bg-green-50' : 'bg-red-50'}
+                iconColor={summary && summary.roas >= 1 ? 'text-green-600' : 'text-red-600'}
+              />
+              <KpiCard
+                label="Revenue (Geclosed)"
+                value={summary ? `€ ${fmtEuro(summary.revenue_won)}` : '–'}
+                sub={summary ? `${summary.deals_won} Deals gewonnen` : undefined}
+                icon={<Trophy className="w-5 h-5" />}
+                iconBg="bg-green-50"
+                iconColor="text-green-600"
+              />
+              <KpiCard
+                label="Offene Angebote"
+                value={summary ? `€ ${fmtEuro(summary.revenue_open)}` : '–'}
+                sub={summary ? `${summary.deals_open} Deals offen` : undefined}
+                icon={<Clock className="w-5 h-5" />}
+                iconBg="bg-amber-50"
+                iconColor="text-amber-600"
+              />
+              <KpiCard
+                label="Potenzial ROAS"
+                value={summary && summary.spend > 0 ? `${((summary.revenue_won + summary.revenue_open) / summary.spend).toFixed(2)}x` : '–'}
+                sub="inkl. offene Deals"
+                icon={<Percent className="w-5 h-5" />}
+                iconBg="bg-blue-50"
+                iconColor="text-blue-600"
+              />
+            </div>
           </div>
 
-          {/* Campaigns Table */}
+          {/* ─── Meta Ad KPIs ─── */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Anzeigen-Performance
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+              <KpiCard
+                label="Ad Spend"
+                value={summary ? `€ ${fmtEuro(summary.spend)}` : '–'}
+                icon={<DollarSign className="w-5 h-5" />}
+              />
+              <KpiCard
+                label="Leads"
+                value={summary ? fmtCount(summary.leads) : '–'}
+                icon={<Users className="w-5 h-5" />}
+              />
+              <KpiCard
+                label="CPL"
+                value={summary && summary.cpl > 0 ? `€ ${fmtEuro(summary.cpl)}` : '–'}
+                icon={<Target className="w-5 h-5" />}
+              />
+              <KpiCard
+                label="CPC"
+                value={summary && summary.cpc > 0 ? `€ ${fmtEuro(summary.cpc)}` : '–'}
+                icon={<MousePointerClick className="w-5 h-5" />}
+              />
+              <KpiCard
+                label="CTR"
+                value={summary ? fmtPct(summary.ctr) : '–'}
+                icon={<TrendingUp className="w-5 h-5" />}
+              />
+              <KpiCard
+                label="Impressions"
+                value={summary ? fmtCount(summary.impressions) : '–'}
+                icon={<Eye className="w-5 h-5" />}
+              />
+              <KpiCard
+                label="Klicks"
+                value={summary ? fmtCount(summary.clicks) : '–'}
+                icon={<MousePointerClick className="w-5 h-5" />}
+              />
+            </div>
+          </div>
+
+          {/* ─── Funnel Drop-Off ─── */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Funnel Drop-Off (Recruiting Aufbau)
+            </h2>
+            <Card padding="md">
+              <div className="space-y-3">
+                {FUNNEL_STEPS.map((step, i) => {
+                  const maxVisitors = FUNNEL_STEPS[0].visitors;
+                  const widthPct = Math.max((step.visitors / maxVisitors) * 100, 4);
+                  const isDropOff = step.nextRate !== null && step.nextRate < 50;
+
+                  return (
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-700">{step.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-gray-900 tabular-nums">{step.visitors}</span>
+                          {step.nextRate !== null && (
+                            <span className={`text-xs font-semibold tabular-nums ${isDropOff ? 'text-red-600' : 'text-green-600'}`}>
+                              → {step.nextRate}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2.5">
+                        <div
+                          className={`h-2.5 rounded-full transition-all ${isDropOff ? 'bg-red-500' : 'bg-red-600'}`}
+                          style={{ width: `${widthPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400 mt-4">
+                Daten: Perspective Funnel &quot;Recruiting Aufbau&quot; · 1.–14. Aug 2026
+              </p>
+            </Card>
+          </div>
+
+          {/* ─── Campaigns Table ─── */}
           <div>
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
               Kampagnen
@@ -354,7 +478,7 @@ export default function AdminMarketingPage() {
             </Card>
           </div>
 
-          {/* Ad Sets Table */}
+          {/* ─── Ad Sets Table ─── */}
           <div>
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
               Ad Sets

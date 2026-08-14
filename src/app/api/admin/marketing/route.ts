@@ -5,6 +5,38 @@ import { NextRequest, NextResponse } from 'next/server';
 const META_API_VERSION = 'v21.0';
 const BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
+const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
+
+async function getCloseRevenue(): Promise<{ won: number; open: number; won_count: number; open_count: number }> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return { won: 0, open: 0, won_count: 0, open_count: 0 };
+
+  try {
+    const res = await fetch(
+      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type`,
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    if (!res.ok) return { won: 0, open: 0, won_count: 0, open_count: 0 };
+    const data = await res.json();
+    const opps: Array<{ value: number; status_type: string }> = data.data ?? [];
+
+    let won = 0, open = 0, won_count = 0, open_count = 0;
+    for (const o of opps) {
+      const val = (o.value ?? 0) / 100;
+      if (o.status_type === 'won') { won += val; won_count++; }
+      if (o.status_type === 'active') { open += val; open_count++; }
+    }
+    return { won, open, won_count, open_count };
+  } catch {
+    return { won: 0, open: 0, won_count: 0, open_count: 0 };
+  }
+}
+
 type Range = 'today' | '7d' | '30d' | 'all';
 
 function getDateRange(range: Range): { since: string; until: string } {
@@ -222,13 +254,34 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Aggregate CPC from campaigns
+  let totalCpc = 0;
+  let cpcCount = 0;
+  for (const c of campaignsOut) {
+    if (c.insights && c.insights.cpc > 0) {
+      totalCpc += c.insights.cpc;
+      cpcCount++;
+    }
+  }
+
+  // Fetch Close CRM revenue for ROAS
+  const closeRevenue = await getCloseRevenue();
+  const roas = totalSpend > 0 ? closeRevenue.won / totalSpend : 0;
+
   const summary = {
     spend: totalSpend,
     leads: totalLeads,
     cpl: totalLeads > 0 ? totalSpend / totalLeads : 0,
+    cpc: cpcCount > 0 ? totalCpc / cpcCount : 0,
     ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
     impressions: totalImpressions,
     clicks: totalClicks,
+    // Close CRM revenue
+    revenue_won: closeRevenue.won,
+    revenue_open: closeRevenue.open,
+    deals_won: closeRevenue.won_count,
+    deals_open: closeRevenue.open_count,
+    roas,
   };
 
   return NextResponse.json({
