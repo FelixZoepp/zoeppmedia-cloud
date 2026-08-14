@@ -101,13 +101,11 @@ export async function POST(request: Request) {
   if (user) {
     const { data: creator } = await admin.from('users').select('role').eq('id', user.id).single();
     if (creator?.role === 'employee') {
-      // Assign employee to this agency
       await admin.from('employee_assignments').insert({
         employee_id: user.id,
         agency_id: agency.id,
-      }).catch(() => {}); // ignore if already assigned
+      });
     }
-    // If admin, assign to the first available employee (if any)
     if (creator?.role === 'admin') {
       const { data: employees } = await admin
         .from('team_members')
@@ -117,7 +115,7 @@ export async function POST(request: Request) {
         await admin.from('employee_assignments').insert({
           employee_id: employees[0].user_id,
           agency_id: agency.id,
-        }).catch(() => {});
+        });
       }
     }
   }
