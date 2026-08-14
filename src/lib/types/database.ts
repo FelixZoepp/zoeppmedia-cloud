@@ -665,6 +665,17 @@ export interface LoginHistoryEntry {
   created_at: string;
 }
 
+export interface OnboardingProgress {
+  id: string;
+  agency_id: string;
+  user_id: string;
+  step_number: number;
+  step_name: string;
+  started_at: string;
+  completed_at: string | null;
+  time_spent_seconds: number | null;
+}
+
 export interface BranchProfile {
   id: string;
   branch: BranchKey;

@@ -11,8 +11,9 @@ import { PageHeader } from '@/components/ui/page-header';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
   BookOpen, CheckCircle, ChevronRight, Target, Activity, ExternalLink,
+  ListChecks, Clock, AlertCircle,
 } from 'lucide-react';
-import type { Agency, AgencyProblem, PlaybookEntry, ActivityLogEntry, PerspectiveFunnel } from '@/lib/types/database';
+import type { Agency, AgencyProblem, PlaybookEntry, ActivityLogEntry, PerspectiveFunnel, OnboardingProgress } from '@/lib/types/database';
 import { ActivityFeed } from '@/components/activity-feed';
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -48,6 +49,159 @@ type AgencyDetail = {
   problems: AgencyProblem[];
   playbooks: PlaybookEntry[];
 };
+
+/* ── Onboarding Progress ─────────────────────────────────── */
+
+const TOTAL_STEPS = 5;
+const SLOW_THRESHOLD_SECONDS = 300; // 5 min — flag as unusually long
+
+function OnboardingProgressSection({ agencyId }: { agencyId: string }) {
+  const [progress, setProgress] = useState<OnboardingProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/onboarding/progress?agency_id=${agencyId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProgress(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [agencyId]);
+
+  const stepMap = new Map(progress.map((p) => [p.step_number, p]));
+
+  function formatDuration(seconds: number | null): string {
+    if (seconds === null) return '—';
+    if (seconds < 60) return `${seconds}s`;
+    return `${Math.round(seconds / 60)}m`;
+  }
+
+  function formatDate(iso: string | null): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  const completedCount = progress.filter((p) => p.completed_at !== null).length;
+  const allDone = completedCount === TOTAL_STEPS;
+
+  return (
+    <Card padding="lg" className="mb-6">
+      <div className="flex items-center gap-2 mb-5">
+        <ListChecks size={16} className="text-red-600" />
+        <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+          Onboarding Fortschritt
+        </h2>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-gray-400">{completedCount}/{TOTAL_STEPS} Schritte</span>
+          {allDone && (
+            <Badge tone="success">Abgeschlossen</Badge>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-6">
+          <div className="w-6 h-6 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
+        </div>
+      ) : progress.length === 0 ? (
+        <p className="text-sm text-gray-400">Noch kein Onboarding gestartet.</p>
+      ) : (
+        <div className="space-y-3">
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((stepNum) => {
+            const entry = stepMap.get(stepNum);
+            const isDone = entry?.completed_at != null;
+            const isStarted = entry != null;
+            const isSlow =
+              entry?.time_spent_seconds != null &&
+              entry.time_spent_seconds > SLOW_THRESHOLD_SECONDS;
+            const isNeverCompleted = isStarted && !isDone;
+
+            return (
+              <div
+                key={stepNum}
+                className={`flex items-start gap-4 p-4 rounded-xl border ${
+                  isDone
+                    ? 'bg-green-50 border-green-200'
+                    : isStarted
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                {/* Status icon */}
+                <div className={`mt-0.5 shrink-0 ${
+                  isDone ? 'text-green-600' : isStarted ? 'text-amber-500' : 'text-gray-300'
+                }`}>
+                  {isDone ? (
+                    <CheckCircle size={16} />
+                  ) : isStarted ? (
+                    <Clock size={16} />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-gray-400">Schritt {stepNum}</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {entry?.step_name ?? `Schritt ${stepNum}`}
+                    </span>
+                    {isSlow && (
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-medium">
+                        <AlertCircle size={11} />
+                        Lange gedauert
+                      </span>
+                    )}
+                    {isNeverCompleted && (
+                      <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium">
+                        <AlertCircle size={11} />
+                        Nicht abgeschlossen
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                    {entry?.started_at && (
+                      <span className="text-xs text-gray-500">
+                        Gestartet: {formatDate(entry.started_at)}
+                      </span>
+                    )}
+                    {entry?.completed_at && (
+                      <span className="text-xs text-gray-500">
+                        Abgeschlossen: {formatDate(entry.completed_at)}
+                      </span>
+                    )}
+                    {entry?.time_spent_seconds != null && (
+                      <span className={`text-xs font-medium ${isSlow ? 'text-amber-600' : 'text-gray-500'}`}>
+                        Dauer: {formatDuration(entry.time_spent_seconds)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Badge */}
+                <div className="shrink-0">
+                  {isDone ? (
+                    <Badge tone="success">Fertig</Badge>
+                  ) : isStarted ? (
+                    <Badge tone="neutral" className="!bg-amber-100 !text-amber-700">Gestartet</Badge>
+                  ) : (
+                    <Badge tone="neutral">Ausstehend</Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 /* ── KPI Progress Bar ────────────────────────────────────── */
 
@@ -623,6 +777,9 @@ export default function ClientDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* ── Onboarding Fortschritt ────────────────────────── */}
+      <OnboardingProgressSection agencyId={id} />
 
       {/* Upsell Signals */}
       {upsellSignals.length > 0 && (

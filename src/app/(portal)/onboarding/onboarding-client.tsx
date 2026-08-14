@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { FileUpload } from '@/components/file-upload';
 import {
   Briefcase, MapPin, Palette, Phone, User, ChevronRight, ChevronLeft, Check,
   ShieldCheck, DollarSign, Building2, Sparkles,
+  Globe, Settings, UserPlus, CreditCard, Code, FileText, Bell, Mail, Copy,
 } from 'lucide-react';
 
 const steps = [
@@ -86,6 +87,70 @@ const extrasOptions = [
   { value: 'tankkarte', label: 'Tankkarte' },
 ];
 
+/* ── Guide step card ────────────────────────────────────────── */
+
+interface GuideStepProps {
+  stepNum: number;
+  title: string;
+  description: React.ReactNode;
+  Icon: React.ComponentType<{ className?: string }>;
+  visualLabel: string;
+  checked: boolean;
+  onCheck: (checked: boolean) => void;
+}
+
+function GuideStep({ stepNum, title, description, Icon, visualLabel, checked, onCheck }: GuideStepProps) {
+  return (
+    <div className="flex gap-6 p-6 bg-white rounded-xl border border-gray-200">
+      <div className="flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-lg">
+          {stepNum}
+        </div>
+      </div>
+      <div className="flex-1">
+        <h4 className="font-semibold text-gray-900 text-base mb-1">{title}</h4>
+        <div className="text-sm text-gray-600 mb-4">{description}</div>
+        <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 flex items-center justify-center mb-4">
+          <Icon className="w-12 h-12 text-gray-300" />
+          <span className="ml-3 text-sm text-gray-400">{visualLabel}</span>
+        </div>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onCheck(e.target.checked)}
+            className="w-5 h-5 rounded accent-red-600"
+          />
+          <span className="text-sm font-medium text-gray-700">Erledigt</span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+/* ── Copy button ────────────────────────────────────────────── */
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg transition-colors bg-white"
+    >
+      <Copy className="w-3.5 h-3.5" />
+      {copied ? 'Kopiert!' : 'Kopieren'}
+    </button>
+  );
+}
+
+/* ── Main component ─────────────────────────────────────────── */
+
 interface OnboardingClientProps {
   agencyId: string | null;
 }
@@ -95,6 +160,57 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Track when the current step started (for time_spent_seconds)
+  const stepStartedAt = useRef<string>(new Date().toISOString());
+
+  const stepNames: Record<number, string> = {
+    1: 'Stelle & Produkt',
+    2: 'Vergütung & Karriere',
+    3: 'Unternehmen & Extras',
+    4: 'Kontakt',
+    5: 'Meta & Indeed Zugang',
+  };
+
+  const trackStepStart = useCallback((stepNum: number) => {
+    const now = new Date().toISOString();
+    stepStartedAt.current = now;
+    fetch('/api/onboarding/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        step_number: stepNum,
+        step_name: stepNames[stepNum] ?? `Schritt ${stepNum}`,
+        started_at: now,
+      }),
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fire step 1 start on mount
+  const hasTrackedMount = useRef(false);
+  if (!hasTrackedMount.current) {
+    hasTrackedMount.current = true;
+    // defer so it runs after hydration
+    setTimeout(() => trackStepStart(1), 0);
+  }
+
+  const trackStepComplete = useCallback((stepNum: number) => {
+    const now = new Date().toISOString();
+    const started = stepStartedAt.current;
+    const timeSpent = started
+      ? Math.round((new Date(now).getTime() - new Date(started).getTime()) / 1000)
+      : null;
+    fetch('/api/onboarding/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        step_number: stepNum,
+        step_name: stepNames[stepNum] ?? `Schritt ${stepNum}`,
+        completed_at: now,
+        ...(timeSpent !== null && { time_spent_seconds: timeSpent }),
+      }),
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [form, setForm] = useState({
     // Step 1 — Stelle & Produkt
@@ -455,108 +571,144 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
           </div>
         )}
 
-        {/* Step 5: Meta & Indeed Zugang */}
+        {/* Step 5: Meta & Indeed Zugang — interactive guide */}
         {step === 5 && (
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-              <p className="text-sm text-blue-800 font-medium">
+          <div className="space-y-6">
+            {/* Meta section */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheck className="w-5 h-5 text-red-600" />
+                <h3 className="text-base font-bold text-gray-900">Meta Business Manager Zugang</h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-5">
                 Damit wir Anzeigen in deinem Namen schalten können, brauchen wir Zugang zu deinem Meta Business Manager.
-                Folge den Schritten unten — dauert ca. 5 Minuten.
+                Dauert ca. 5 Minuten — folge einfach den Schritten.
               </p>
+
+              <div className="space-y-4">
+                <GuideStep
+                  stepNum={1}
+                  title="Business Manager öffnen"
+                  description={<>Gehe zu <span className="font-medium text-gray-800">business.facebook.com</span> und logge dich ein.</>}
+                  Icon={Globe}
+                  visualLabel="business.facebook.com im Browser öffnen"
+                  checked={form.meta_access_steps.business_manager}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, business_manager: v } }))}
+                />
+
+                <GuideStep
+                  stepNum={2}
+                  title="Unternehmenseinstellungen öffnen"
+                  description={<>Klicke links unten auf <span className="font-medium text-gray-800">„Unternehmenseinstellungen"</span> (Zahnrad-Symbol).</>}
+                  Icon={Settings}
+                  visualLabel="Zahnrad-Symbol in der linken Sidebar"
+                  checked={form.meta_access_steps.partner_added}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, partner_added: v } }))}
+                />
+
+                <GuideStep
+                  stepNum={3}
+                  title="Partner hinzufügen"
+                  description={
+                    <div className="space-y-2">
+                      <p>Gehe zu <span className="font-medium text-gray-800">„Partner"</span> → Klicke <span className="font-medium text-gray-800">„Hinzufügen"</span> → Gib unsere Business-ID ein:</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono border border-gray-200 select-all">
+                          {process.env.NEXT_PUBLIC_META_BUSINESS_ID ?? '1234567890'}
+                        </code>
+                        <CopyButton text={process.env.NEXT_PUBLIC_META_BUSINESS_ID ?? '1234567890'} />
+                      </div>
+                    </div>
+                  }
+                  Icon={UserPlus}
+                  visualLabel="Partner-Bereich in den Unternehmenseinstellungen"
+                  checked={form.meta_access_steps.ad_account_shared}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, ad_account_shared: v } }))}
+                />
+
+                <GuideStep
+                  stepNum={4}
+                  title="Werbekonto freigeben"
+                  description={<>Wähle dein Werbekonto aus → Berechtigung: <span className="font-medium text-gray-800">„Anzeigen verwalten"</span> aktivieren.</>}
+                  Icon={CreditCard}
+                  visualLabel="Werbekonto auswählen und Berechtigung setzen"
+                  checked={form.meta_access_steps.pixel_shared}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, pixel_shared: v } }))}
+                />
+
+                <GuideStep
+                  stepNum={5}
+                  title="Pixel teilen (optional)"
+                  description={<>Falls vorhanden: Gehe zu <span className="font-medium text-gray-800">„Datenquellen"</span> → Pixel auswählen → mit uns teilen.</>}
+                  Icon={Code}
+                  visualLabel="Datenquellen → Pixel-Bereich"
+                  checked={form.meta_access_steps.page_shared}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, page_shared: v } }))}
+                />
+
+                <GuideStep
+                  stepNum={6}
+                  title="Facebook-Seite freigeben"
+                  description={<>Gehe zu <span className="font-medium text-gray-800">„Seiten"</span> → Wähle deine Seite → Berechtigung: <span className="font-medium text-gray-800">„Inhalte erstellen"</span>.</>}
+                  Icon={FileText}
+                  visualLabel="Seiten-Bereich → Seite auswählen"
+                  checked={form.meta_access_steps.indeed_forwarding}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_forwarding: v } }))}
+                />
+              </div>
             </div>
 
-            {[
-              {
-                key: 'business_manager',
-                title: '1. Business Manager öffnen',
-                desc: 'Gehe zu business.facebook.com und logge dich ein.',
-              },
-              {
-                key: 'partner_added',
-                title: '2. Partner hinzufügen',
-                desc: 'Unter Einstellungen → Geschäftspartner → "Hinzufügen" klicken. Unsere Business-ID: XXXXXXXXXX',
-              },
-              {
-                key: 'ad_account_shared',
-                title: '3. Werbekonto freigeben',
-                desc: 'Wähle dein Werbekonto aus und gib uns die Berechtigung "Anzeigen verwalten".',
-              },
-              {
-                key: 'pixel_shared',
-                title: '4. Pixel teilen (falls vorhanden)',
-                desc: 'Falls du einen Meta Pixel hast, teile ihn ebenfalls mit uns.',
-              },
-              {
-                key: 'page_shared',
-                title: '5. Facebook-Seite freigeben',
-                desc: 'Damit wir Anzeigen im Namen deiner Seite schalten können.',
-              },
-            ].map((item) => (
-              <label
-                key={item.key}
-                className="flex items-start gap-3 p-4 rounded-xl border border-gray-200 hover:border-red-200 transition cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={form.meta_access_steps[item.key as keyof typeof form.meta_access_steps]}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      meta_access_steps: { ...f.meta_access_steps, [item.key]: e.target.checked },
-                    }))
-                  }
-                  className="mt-0.5 w-5 h-5 rounded accent-red-500 shrink-0"
-                />
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">{item.title}</p>
-                  <p className="text-sm text-gray-600 mt-0.5">{item.desc}</p>
-                </div>
-              </label>
-            ))}
-
-            {/* Indeed Integration */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Indeed-Bewerbungen automatisch importieren</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Damit neue Indeed-Bewerbungen automatisch in deiner Cloud erscheinen, leite die Email-Benachrichtigungen weiter.
+            {/* Indeed section */}
+            <div className="pt-6 border-t border-gray-200">
+              <div className="flex items-center gap-2 mb-1">
+                <Briefcase className="w-5 h-5 text-red-600" />
+                <h3 className="text-base font-bold text-gray-900">Indeed Weiterleitung einrichten</h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-5">
+                Damit neue Indeed-Bewerbungen automatisch in deiner Cloud erscheinen, leite die E-Mail-Benachrichtigungen weiter.
               </p>
 
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 mb-4">
-                <p className="text-sm text-blue-800 font-medium mb-2">Deine Indeed-Weiterleitungsadresse:</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-white rounded-lg text-sm font-mono border border-blue-200 select-all">
-                    {indeedEmail}
-                  </code>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => navigator.clipboard.writeText(indeedEmail)}
-                  >
-                    Kopieren
-                  </Button>
-                </div>
-              </div>
-
-              <ol className="space-y-2 text-sm text-gray-600">
-                <li className="flex gap-2"><span className="font-semibold text-gray-900">1.</span> Öffne Indeed → Konto → Benachrichtigungen</li>
-                <li className="flex gap-2"><span className="font-semibold text-gray-900">2.</span> Aktiviere Email-Weiterleitung für neue Bewerbungen</li>
-                <li className="flex gap-2"><span className="font-semibold text-gray-900">3.</span> Trage die obige Adresse als Weiterleitungsziel ein</li>
-              </ol>
-
-              <label className="flex items-center gap-3 mt-4 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.meta_access_steps.indeed_forwarding}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      meta_access_steps: { ...f.meta_access_steps, indeed_forwarding: e.target.checked },
-                    }))
-                  }
-                  className="w-5 h-5 rounded accent-red-600"
+              <div className="space-y-4">
+                <GuideStep
+                  stepNum={1}
+                  title="Indeed Konto öffnen"
+                  description={<>Gehe zu <span className="font-medium text-gray-800">de.indeed.com</span> → Logge dich als Arbeitgeber ein.</>}
+                  Icon={Briefcase}
+                  visualLabel="de.indeed.com — Arbeitgeber-Login"
+                  checked={false}
+                  onCheck={() => {}}
                 />
-                <span className="text-sm font-medium text-gray-900">Indeed-Weiterleitung eingerichtet</span>
-              </label>
+
+                <GuideStep
+                  stepNum={2}
+                  title="Benachrichtigungen öffnen"
+                  description={<>Gehe zu <span className="font-medium text-gray-800">Konto → Benachrichtigungen → E-Mail-Einstellungen</span>.</>}
+                  Icon={Bell}
+                  visualLabel="Konto-Bereich → E-Mail-Einstellungen"
+                  checked={false}
+                  onCheck={() => {}}
+                />
+
+                <GuideStep
+                  stepNum={3}
+                  title="Weiterleitung aktivieren"
+                  description={
+                    <div className="space-y-2">
+                      <p>Trage diese Adresse als Weiterleitungsziel ein:</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono border border-gray-200 select-all">
+                          {indeedEmail}
+                        </code>
+                        <CopyButton text={indeedEmail} />
+                      </div>
+                    </div>
+                  }
+                  Icon={Mail}
+                  visualLabel="Weiterleitungsadresse eintragen"
+                  checked={false}
+                  onCheck={() => {}}
+                />
+              </div>
             </div>
 
             {error && (
@@ -568,13 +720,20 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {/* Navigation */}
         <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
           {step > 1 ? (
-            <Button variant="ghost" onClick={() => setStep(step - 1)}>
+            <Button variant="ghost" onClick={() => {
+              setStep(step - 1);
+              trackStepStart(step - 1);
+            }}>
               <ChevronLeft className="w-4 h-4" /> Zurück
             </Button>
           ) : <div />}
 
           {step < 5 ? (
-            <Button onClick={() => setStep(step + 1)}>
+            <Button onClick={() => {
+              trackStepComplete(step);
+              setStep(step + 1);
+              trackStepStart(step + 1);
+            }}>
               Weiter <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
