@@ -1,0 +1,401 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
+import { PageHeader } from '@/components/ui/page-header';
+import {
+  TrendingUp,
+  DollarSign,
+  Users,
+  MousePointerClick,
+  Eye,
+  Target,
+} from 'lucide-react';
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type Range = 'today' | '7d' | '30d' | 'all';
+
+interface Insight {
+  spend: number;
+  impressions: number;
+  clicks: number;
+  cpc: number;
+  cpm: number;
+  ctr: number;
+  leads: number;
+  cpl: number;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+  insights: Insight | null;
+}
+
+interface AdSet {
+  id: string;
+  name: string;
+  campaign_id: string;
+  campaign_name: string;
+  status: string;
+  insights: Insight | null;
+}
+
+interface Summary {
+  spend: number;
+  leads: number;
+  cpl: number;
+  ctr: number;
+  impressions: number;
+  clicks: number;
+}
+
+interface MarketingData {
+  range: Range;
+  period: { since: string; until: string };
+  summary: Summary;
+  campaigns: Campaign[];
+  adsets: AdSet[];
+}
+
+// ── Formatters ───────────────────────────────────────────────────────────────
+
+function fmtEuro(value: number): string {
+  return value.toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function fmtCount(value: number): string {
+  return value.toLocaleString('de-DE');
+}
+
+function fmtPct(value: number): string {
+  return value.toLocaleString('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }) + '%';
+}
+
+// ── KPI Card ─────────────────────────────────────────────────────────────────
+
+interface KpiCardProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}
+
+function KpiCard({ label, value, icon }: KpiCardProps) {
+  return (
+    <Card padding="sm" className="flex items-start gap-4">
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+          {label}
+        </p>
+        <p className="text-xl font-bold text-gray-900 mt-0.5 tabular-nums">
+          {value}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+// ── Insights Row Helper ───────────────────────────────────────────────────────
+
+function InsightCells({ insights }: { insights: Insight | null }) {
+  if (!insights) {
+    return (
+      <>
+        <td className="px-4 py-3 text-sm text-gray-400">–</td>
+        <td className="px-4 py-3 text-sm text-gray-400">–</td>
+        <td className="px-4 py-3 text-sm text-gray-400">–</td>
+        <td className="px-4 py-3 text-sm text-gray-400">–</td>
+        <td className="px-4 py-3 text-sm text-gray-400">–</td>
+      </>
+    );
+  }
+  return (
+    <>
+      <td className="px-4 py-3 text-sm font-medium text-gray-900 tabular-nums">
+        € {fmtEuro(insights.spend)}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+        {fmtCount(insights.leads)}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+        {insights.cpl > 0 ? `€ ${fmtEuro(insights.cpl)}` : '–'}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+        {fmtPct(insights.ctr)}
+      </td>
+      <td className="px-4 py-3 text-sm text-gray-500 tabular-nums">
+        {fmtCount(insights.impressions)}
+      </td>
+    </>
+  );
+}
+
+// ── Table Header ─────────────────────────────────────────────────────────────
+
+function TableHeader({ withCampaign = false }: { withCampaign?: boolean }) {
+  return (
+    <thead>
+      <tr className="bg-gray-50 border-b border-gray-200">
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          Name
+        </th>
+        {withCampaign && (
+          <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+            Kampagne
+          </th>
+        )}
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          Status
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          Ausgaben
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          Leads
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          CPL
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          CTR
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+          Impressions
+        </th>
+      </tr>
+    </thead>
+  );
+}
+
+function statusBadgeTone(status: string): 'success' | 'neutral' | 'softAccent' {
+  if (status === 'ACTIVE') return 'success';
+  if (status === 'PAUSED') return 'neutral';
+  return 'softAccent';
+}
+
+function statusLabel(status: string): string {
+  const map: Record<string, string> = {
+    ACTIVE: 'Aktiv',
+    PAUSED: 'Pausiert',
+    ARCHIVED: 'Archiviert',
+    DELETED: 'Gelöscht',
+  };
+  return map[status] ?? status;
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+const RANGE_OPTIONS = [
+  { value: 'today', label: 'Heute' },
+  { value: '7d', label: '7 Tage' },
+  { value: '30d', label: '30 Tage' },
+  { value: 'all', label: 'Gesamt' },
+];
+
+export default function AdminMarketingPage() {
+  const [range, setRange] = useState<Range>('30d');
+  const [data, setData] = useState<MarketingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/admin/marketing?range=${range}`);
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error ?? `HTTP ${res.status}`);
+        }
+        const json: MarketingData = await res.json();
+        if (!cancelled) setData(json);
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [range]);
+
+  const summary = data?.summary;
+
+  return (
+    <div className="max-w-7xl">
+      <PageHeader
+        label="MARKETING"
+        title="Meta Ads"
+        description={
+          data
+            ? `${data.period.since} – ${data.period.until}`
+            : undefined
+        }
+        action={
+          <Select
+            options={RANGE_OPTIONS}
+            value={range}
+            onChange={(e) => setRange(e.target.value as Range)}
+            className="w-36"
+          />
+        }
+      />
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Error */}
+      {!loading && error && (
+        <Card padding="md" className="border-red-200 bg-red-50">
+          <p className="text-sm text-red-700 font-medium">
+            Fehler beim Laden der Meta-Daten: {error}
+          </p>
+        </Card>
+      )}
+
+      {/* Content */}
+      {!loading && !error && data && (
+        <div className="space-y-8">
+          {/* KPI Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <KpiCard
+              label="Ad Spend"
+              value={summary ? `€ ${fmtEuro(summary.spend)}` : '–'}
+              icon={<DollarSign className="w-5 h-5" />}
+            />
+            <KpiCard
+              label="Leads"
+              value={summary ? fmtCount(summary.leads) : '–'}
+              icon={<Users className="w-5 h-5" />}
+            />
+            <KpiCard
+              label="CPL"
+              value={
+                summary && summary.cpl > 0
+                  ? `€ ${fmtEuro(summary.cpl)}`
+                  : '–'
+              }
+              icon={<Target className="w-5 h-5" />}
+            />
+            <KpiCard
+              label="CTR"
+              value={summary ? fmtPct(summary.ctr) : '–'}
+              icon={<TrendingUp className="w-5 h-5" />}
+            />
+            <KpiCard
+              label="Impressions"
+              value={summary ? fmtCount(summary.impressions) : '–'}
+              icon={<Eye className="w-5 h-5" />}
+            />
+            <KpiCard
+              label="Klicks"
+              value={summary ? fmtCount(summary.clicks) : '–'}
+              icon={<MousePointerClick className="w-5 h-5" />}
+            />
+          </div>
+
+          {/* Campaigns Table */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Kampagnen
+            </h2>
+            <Card padding="none" className="overflow-hidden">
+              {data.campaigns.length === 0 ? (
+                <p className="text-sm text-gray-400 px-4 py-6">
+                  Keine aktiven Kampagnen gefunden.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <TableHeader />
+                    <tbody className="divide-y divide-gray-100">
+                      {data.campaigns.map((c) => (
+                        <tr
+                          key={c.id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-xs truncate">
+                            {c.name}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge tone={statusBadgeTone(c.status)}>
+                              {statusLabel(c.status)}
+                            </Badge>
+                          </td>
+                          <InsightCells insights={c.insights} />
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Ad Sets Table */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Ad Sets
+            </h2>
+            <Card padding="none" className="overflow-hidden">
+              {data.adsets.length === 0 ? (
+                <p className="text-sm text-gray-400 px-4 py-6">
+                  Keine Ad Sets gefunden.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <TableHeader withCampaign />
+                    <tbody className="divide-y divide-gray-100">
+                      {data.adsets.map((a) => (
+                        <tr
+                          key={a.id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate">
+                            {a.name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500 max-w-[160px] truncate">
+                            {a.campaign_name}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge tone={statusBadgeTone(a.status)}>
+                              {statusLabel(a.status)}
+                            </Badge>
+                          </td>
+                          <InsightCells insights={a.insights} />
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

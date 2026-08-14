@@ -20,6 +20,8 @@ import {
   FileText,
   UserCircle,
   LogOut,
+  Megaphone,
+  Handshake,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -38,6 +40,13 @@ const adminGroups: SidebarGroup[] = [
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
+    ],
+  },
+  {
+    label: 'Marketing & Sales',
+    items: [
+      { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
+      { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
     ],
   },
   {
