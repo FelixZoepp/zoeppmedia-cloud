@@ -66,9 +66,11 @@ export async function GET(req: Request) {
   if (since) oppPath += `&date_created__gte=${since}`;
   if (until) oppPath += `&date_created__lte=${until}T23:59:59`;
   const oppData = await closeGet(oppPath);
+  // Double-filter: only keep opportunities that belong to the D2D pipeline
   const opportunities: Array<{
     id: string;
     lead_id: string;
+    pipeline_id: string;
     status_id: string;
     status_label: string;
     status_type: string;
@@ -79,7 +81,9 @@ export async function GET(req: Request) {
     date_updated: string;
     contact_name: string;
     lead_name: string;
-  }> = oppData.data ?? [];
+  }> = (oppData.data ?? []).filter(
+    (o: { pipeline_id?: string }) => o.pipeline_id === PIPELINE_ID
+  );
 
   // 3. Fetch lead names for unique lead_ids
   const uniqueLeadIds = [...new Set(opportunities.map((o: { lead_id: string }) => o.lead_id))];
