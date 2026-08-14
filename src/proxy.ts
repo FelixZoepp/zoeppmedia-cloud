@@ -55,8 +55,33 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Agency users: redirect to onboarding if not completed
+  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/settings')) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role, agency_id')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role as string;
+
+    if ((role === 'agency_owner' || role === 'agency_member') && profile?.agency_id) {
+      const { data: agency } = await supabase
+        .from('agencies')
+        .select('onboarding_completed')
+        .eq('id', profile.agency_id)
+        .single();
+
+      if (agency && !agency.onboarding_completed) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/onboarding';
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   // Admin/internal routes → check role
-  if (pathname.startsWith('/admin') || pathname.startsWith('/clients') || pathname.startsWith('/tasks') || pathname.startsWith('/ai-tools') || pathname.startsWith('/invites') || pathname.startsWith('/funnels') || pathname.startsWith('/team')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/clients') || pathname.startsWith('/tasks') || pathname.startsWith('/ai-tools') || pathname.startsWith('/invites') || pathname.startsWith('/funnels') || pathname.startsWith('/team') || pathname.startsWith('/meine-aufgaben') || pathname.startsWith('/playbook') || pathname.startsWith('/profile')) {
     const { data: profile } = await supabase
       .from('users')
       .select('role')
