@@ -59,11 +59,18 @@ interface ReportData {
   metaKpis: MetaKpis | null;
 }
 
+interface SurveyQuestion {
+  id: string;
+  type: 'rating' | 'choice' | 'text' | 'nps';
+  label: string;
+  options?: string[];
+}
+
 interface SurveyTemplate {
   id: string;
   title: string;
   description: string | null;
-  questions: { id: string; type: string; label: string }[];
+  questions: SurveyQuestion[];
 }
 
 const PERIOD_OPTIONS = [
@@ -80,7 +87,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState('all');
   const [showSurvey, setShowSurvey] = useState(false);
   const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
-  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [comment, setComment] = useState('');
   const [surveySubmitted, setSurveySubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -107,8 +114,9 @@ export default function ReportsPage() {
   async function submitSurvey() {
     if (!templates[0]) return;
     setSubmitting(true);
-    const avgRating = Object.values(ratings).length > 0
-      ? Math.round(Object.values(ratings).reduce((a, b) => a + b, 0) / Object.values(ratings).length)
+    const numericValues = Object.values(answers).filter((v): v is number => typeof v === 'number');
+    const avgRating = numericValues.length > 0
+      ? Math.round(numericValues.reduce((a, b) => a + b, 0) / numericValues.length)
       : null;
 
     await fetch('/api/surveys', {
@@ -117,7 +125,7 @@ export default function ReportsPage() {
       body: JSON.stringify({
         template_id: templates[0].id,
         rating: avgRating,
-        answers: ratings,
+        answers,
         comment,
       }),
     });
@@ -405,23 +413,83 @@ export default function ReportsPage() {
             {templates[0]?.questions.map((q) => (
               <div key={q.id}>
                 <label className="block text-sm font-medium text-gray-900 mb-2">{q.label}</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setRatings((prev) => ({ ...prev, [q.id]: star }))}
-                      className="cursor-pointer transition-transform hover:scale-110"
-                    >
-                      <Star
-                        className={`w-8 h-8 ${
-                          (ratings[q.id] || 0) >= star
-                            ? 'text-amber-500 fill-amber-500'
-                            : 'text-gray-200'
+
+                {/* rating: 1–5 stars */}
+                {q.type === 'rating' && (
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: star }))}
+                        className="cursor-pointer transition-transform hover:scale-110"
+                      >
+                        <Star
+                          className={`w-8 h-8 ${
+                            ((answers[q.id] as number) || 0) >= star
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'text-gray-200'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* choice: pill buttons */}
+                {q.type === 'choice' && q.options && (
+                  <div className="flex flex-wrap gap-2">
+                    {q.options.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                          answers[q.id] === opt
+                            ? 'bg-red-600 text-white border-red-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                         }`}
-                      />
-                    </button>
-                  ))}
-                </div>
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* text: textarea */}
+                {q.type === 'text' && (
+                  <textarea
+                    value={(answers[q.id] as string) || ''}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 bg-white outline-none resize-none focus:border-red-400 transition-colors"
+                    placeholder="Deine Antwort..."
+                  />
+                )}
+
+                {/* nps: 0–10 scale */}
+                {q.type === 'nps' && (
+                  <div className="flex gap-1 flex-wrap">
+                    {Array.from({ length: 11 }, (_, i) => i).map((n) => {
+                      const color =
+                        n <= 6
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200'
+                          : n <= 8
+                          ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-200'
+                          : 'bg-green-100 text-green-700 hover:bg-green-200 border-green-200';
+                      const selected = answers[q.id] === n;
+                      return (
+                        <button
+                          key={n}
+                          onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: n }))}
+                          className={`w-9 h-9 rounded-lg text-sm font-semibold border transition-colors ${color} ${
+                            selected ? 'ring-2 ring-offset-1 ring-gray-400' : ''
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
 

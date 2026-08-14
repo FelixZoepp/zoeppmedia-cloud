@@ -19,6 +19,7 @@ import {
   BookOpen,
   FileText,
   UserCircle,
+  LogOut,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -106,6 +107,13 @@ const profileItem: SidebarItem = {
   href: '/profile',
 };
 
+const logoutItem: SidebarItem = {
+  id: 'logout',
+  label: 'Logout',
+  icon: <LogOut className="w-5 h-5" />,
+  href: '/api/auth/logout',
+};
+
 function getGroupsForRole(role: UserRole): SidebarGroup[] {
   switch (role) {
     case 'admin': return adminGroups;
@@ -127,8 +135,8 @@ export function AppSidebar({ role, userName }: AppSidebarProps) {
   const isInternal = role === 'admin' || role === 'employee';
 
   const bottomItems = isInternal
-    ? [profileItem, settingsItem]
-    : [settingsItem];
+    ? [profileItem, settingsItem, logoutItem]
+    : [settingsItem, logoutItem];
 
   return (
     <Sidebar
