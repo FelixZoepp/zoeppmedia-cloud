@@ -155,11 +155,14 @@ interface OnboardingClientProps {
   agencyId: string | null;
 }
 
+const STORAGE_KEY = 'onboarding_draft';
+
 export function OnboardingClient({ agencyId }: OnboardingClientProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [restored, setRestored] = useState(false);
 
   // Track when the current step started (for time_spent_seconds)
   const stepStartedAt = useRef<string>(new Date().toISOString());
@@ -254,6 +257,29 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     },
   });
 
+  // Restore saved draft on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const { form: savedForm, step: savedStep } = JSON.parse(saved);
+        if (savedForm) {
+          setForm((prev) => ({ ...prev, ...savedForm }));
+          if (savedStep) setStep(savedStep);
+          setRestored(true);
+          setTimeout(() => setRestored(false), 3000);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Auto-save on every form or step change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, step }));
+    } catch { /* ignore */ }
+  }, [form, step]);
+
   function update(field: string, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -318,6 +344,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
       return;
     }
 
+    // Clear saved draft after successful submission
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
     router.push('/dashboard');
     router.refresh();
   }
@@ -331,6 +359,13 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         title="Onboarding"
         description="Erzähle uns von deiner Stelle, damit wir Anzeigen, Skripte und Funnel für dich erstellen können."
       />
+
+      {/* Restored banner */}
+      {restored && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm font-medium">
+          Dein Fortschritt wurde wiederhergestellt. Du kannst da weitermachen, wo du aufgehört hast.
+        </div>
+      )}
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8 flex-wrap">
