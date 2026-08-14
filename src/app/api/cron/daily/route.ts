@@ -62,7 +62,7 @@ async function runDailyJobs() {
           .eq('id', agency.id)
           .single();
 
-        if (agencyData?.reels_per_month > 0) {
+        if (agencyData && agencyData.reels_per_month > 0) {
           const { data: lastReels } = await supabase
             .from('recurring_fulfillment_tasks')
             .select('id')
