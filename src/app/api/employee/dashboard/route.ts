@@ -75,8 +75,20 @@ export async function GET() {
     }));
   }
 
+  // Get position and calendly_link from users table
+  const { data: userProfile } = await supabase
+    .from('users')
+    .select('position, calendly_link')
+    .eq('id', user.id)
+    .single();
+
   return NextResponse.json({
-    user: { name: user.name, role: user.role },
+    user: {
+      name: user.name,
+      role: user.role,
+      position: userProfile?.position ?? null,
+      calendly_link: userProfile?.calendly_link ?? null,
+    },
     agencies,
     tasks: tasksWithAgency,
     fulfillmentTasks,

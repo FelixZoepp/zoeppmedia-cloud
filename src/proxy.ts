@@ -33,6 +33,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
+    pathname.startsWith('/register-employee') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/')

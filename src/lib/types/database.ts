@@ -30,9 +30,25 @@ export type User = {
   email: string;
   name: string;
   role: UserRole;
+  position: string | null;
+  avatar_url: string | null;
+  calendly_link: string | null;
+  phone: string | null;
   last_login: string | null;
   created_at: string;
 };
+
+export interface EmployeeInvite {
+  id: string;
+  email: string;
+  name: string;
+  position: string | null;
+  token: string;
+  expires_at: string;
+  redeemed: boolean;
+  created_by: string | null;
+  created_at: string;
+}
 
 export type PipelineStage = {
   id: string;

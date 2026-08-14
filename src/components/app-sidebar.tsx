@@ -18,6 +18,7 @@ import {
   Target,
   BookOpen,
   FileText,
+  UserCircle,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -93,6 +94,13 @@ const settingsItem: SidebarItem = {
   href: '/settings',
 };
 
+const profileItem: SidebarItem = {
+  id: 'profile',
+  label: 'Profil',
+  icon: <UserCircle className="w-5 h-5" />,
+  href: '/profile',
+};
+
 function getGroupsForRole(role: UserRole): SidebarGroup[] {
   switch (role) {
     case 'admin': return adminGroups;
@@ -113,13 +121,17 @@ export function AppSidebar({ role, userName }: AppSidebarProps) {
   const initial = userName.charAt(0).toUpperCase();
   const isInternal = role === 'admin' || role === 'employee';
 
+  const bottomItems = isInternal
+    ? [profileItem, settingsItem]
+    : [settingsItem];
+
   return (
     <Sidebar
       brand={initial}
       brandLabel={isInternal ? 'Zoepp Media' : userName}
       brandSub={isInternal ? 'Admin' : undefined}
       groups={groups}
-      bottomItems={[settingsItem]}
+      bottomItems={bottomItems}
     />
   );
 }

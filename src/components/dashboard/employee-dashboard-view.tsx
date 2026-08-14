@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle, CalendarCheck } from 'lucide-react';
+import { Users, ClipboardList, RefreshCw, Calendar, ArrowRight, BookOpen, CheckCircle, CalendarCheck, ExternalLink } from 'lucide-react';
 import type { PlaybookTask, CalendlyEvent } from '@/lib/types/database';
 
 interface Agency {
@@ -36,7 +36,7 @@ interface FulfillmentTask {
 }
 
 interface DashboardData {
-  user: { name: string; role: string };
+  user: { name: string; role: string; position: string | null; calendly_link: string | null };
   agencies: Agency[];
   tasks: Task[];
   fulfillmentTasks: FulfillmentTask[];
@@ -118,6 +118,22 @@ export function EmployeeDashboardView() {
         <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mt-2">
           {getGreeting()}, {firstName}.
         </h1>
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          {data.user.position && (
+            <span className="text-sm text-gray-500">{data.user.position}</span>
+          )}
+          {data.user.calendly_link && (
+            <a
+              href={data.user.calendly_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Calendly
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Anstehende Termine */}
