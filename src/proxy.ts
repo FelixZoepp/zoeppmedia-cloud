@@ -81,7 +81,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Admin/internal routes → check role
-  if (pathname.startsWith('/admin') || pathname.startsWith('/clients') || pathname.startsWith('/tasks') || pathname.startsWith('/ai-tools') || pathname.startsWith('/invites') || pathname.startsWith('/funnels') || pathname.startsWith('/team') || pathname.startsWith('/meine-aufgaben') || pathname.startsWith('/playbook') || pathname.startsWith('/profile')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/clients') || pathname.startsWith('/tasks') || pathname.startsWith('/ai-tools') || pathname.startsWith('/invites') || pathname.startsWith('/funnels') || pathname.startsWith('/team') || pathname.startsWith('/meine-aufgaben') || pathname.startsWith('/playbook') || pathname.startsWith('/profile') || pathname.startsWith('/employee-reports')) {
     const { data: profile } = await supabase
       .from('users')
       .select('role')

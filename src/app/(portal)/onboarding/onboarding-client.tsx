@@ -610,8 +610,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             </label>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Startdatum</label>
-              <Input value={form.start_date} onChange={(e) => update('start_date', e.target.value)} placeholder="z.B. Ab sofort, 01.09.2026" />
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Wann sollen wir starten?</label>
+              <Input type="date" value={form.start_date} onChange={(e) => update('start_date', e.target.value)} />
             </div>
 
             <div>

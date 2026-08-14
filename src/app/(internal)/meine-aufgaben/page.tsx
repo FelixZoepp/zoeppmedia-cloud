@@ -208,11 +208,11 @@ function TaskCard({ task, contentItem, onTaskUpdated, onContentSaved }: TaskCard
     if (!localContent) return;
     setApproving(true);
     try {
-      // Approve content in library (draft → internal_review)
+      // Approve content in library (draft → approved_internal so client can see it)
       const res = await fetch(`/api/library/${localContent.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'internal_review' }),
+        body: JSON.stringify({ status: 'approved_internal' }),
       });
       if (!res.ok) {
         const err = await res.json();
