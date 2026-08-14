@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -346,8 +346,9 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
 
     // Clear saved draft after successful submission
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-    router.push('/dashboard');
-    router.refresh();
+    // Small delay to let the DB update onboarding_completed before the proxy checks
+    await new Promise(r => setTimeout(r, 500));
+    window.location.href = '/dashboard';
   }
 
   const indeedEmail = `bewerber+${agencyId}@zoeppmedia.de`;
