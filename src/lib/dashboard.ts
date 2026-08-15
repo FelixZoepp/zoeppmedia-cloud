@@ -11,6 +11,7 @@ export interface DashboardData {
   sourceBreakdown: { name: string; count: number }[];
   stageBreakdown: { name: string; count: number; color: string }[];
   recentCandidates: { id: string; name: string; source: string; created_at: string }[];
+  indeedDailyBudget: number | null;
 }
 
 export async function getDashboardData(agencyId: string): Promise<DashboardData> {
@@ -139,6 +140,19 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
     .order('created_at', { ascending: false })
     .limit(5);
 
+  // Indeed daily budget from onboarding
+  const { data: onboarding } = await supabase
+    .from('onboarding_submissions')
+    .select('indeed_daily_budget')
+    .eq('agency_id', agencyId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  const indeedDailyBudget = onboarding?.indeed_daily_budget
+    ? parseFloat(onboarding.indeed_daily_budget)
+    : null;
+
   return {
     totalCandidates: totalCandidates ?? 0,
     newThisWeek: newThisWeek ?? 0,
@@ -155,5 +169,6 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
       source: c.source,
       created_at: c.created_at,
     })),
+    indeedDailyBudget,
   };
 }

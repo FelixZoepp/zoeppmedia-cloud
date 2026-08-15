@@ -247,6 +247,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     contact_phone: '',
     preferred_contact_time: '',
     // Step 5 — Meta & Indeed
+    indeed_daily_budget: '',
     meta_access_steps: {
       business_manager: false,
       partner_added: false,
@@ -780,6 +781,20 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               <p className="text-sm text-gray-500 mb-5">
                 Damit neue Indeed-Bewerbungen automatisch in deiner Cloud erscheinen, leite die E-Mail-Benachrichtigungen weiter.
               </p>
+
+              <div className="mb-5">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Indeed Tagesbudget (€)</label>
+                <Input
+                  type="number"
+                  value={form.indeed_daily_budget}
+                  onChange={(e) => update('indeed_daily_budget', e.target.value)}
+                  icon={<CreditCard className="w-4 h-4" />}
+                  placeholder="z.B. 20"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Dein tägliches Indeed-Budget — wir berechnen daraus automatisch CPL und Monatskosten.
+                </p>
+              </div>
 
               <div className="space-y-4">
                 <GuideStep

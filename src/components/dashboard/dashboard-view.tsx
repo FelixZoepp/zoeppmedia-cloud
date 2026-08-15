@@ -128,6 +128,38 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
         <KpiCard label="HIRE RATE" value={`${hireRate}%`} sub="Conversion" />
       </div>
 
+      {/* ── Indeed Kosten ─────────────────────────────────── */}
+      {data.indeedDailyBudget != null && data.indeedDailyBudget > 0 && (() => {
+        const daily = data.indeedDailyBudget!;
+        const monthly = daily * 30;
+        const indeedCandidates = data.sourceBreakdown.find((s) => s.name === 'Indeed')?.count ?? 0;
+        const cpl = indeedCandidates > 0 ? monthly / indeedCandidates : 0;
+        return (
+          <DashCard>
+            <SectionLabel>Indeed Kosten</SectionLabel>
+            <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Kostenübersicht</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs text-gray-400 uppercase font-semibold">Tagesbudget</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">€ {daily.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase font-semibold">Monatskosten</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">€ {monthly.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase font-semibold">Indeed Bewerber</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{indeedCandidates}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 uppercase font-semibold">CPL (Indeed)</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{cpl > 0 ? `€ ${cpl.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '–'}</p>
+              </div>
+            </div>
+          </DashCard>
+        );
+      })()}
+
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <DashCard className="lg:col-span-3">
