@@ -20,6 +20,7 @@ async function runDailyJobs() {
   let surveysScheduled = 0;
   let recurringCreated = 0;
   let remindersS = 0;
+  let backupAdAccountTasksCreated = 0;
 
   const now = new Date();
   const cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
@@ -175,13 +176,34 @@ async function runDailyJobs() {
         }
       }
 
+      // 4. Backup Ad Account Task (30+ days after onboarding)
+      if (agency.onboarding_completed && new Date(agency.created_at) < thirtyDaysAgo) {
+        const { data: existingBackupTask } = await supabase
+          .from('fulfillment_tasks')
+          .select('id')
+          .eq('agency_id', agency.id)
+          .eq('task_type', 'backup_ad_account')
+          .limit(1);
+
+        if (!existingBackupTask?.length) {
+          await supabase.from('fulfillment_tasks').insert({
+            agency_id: agency.id,
+            title: 'Backup-Werbekonto anlegen',
+            task_type: 'backup_ad_account',
+            status: 'pending',
+            sort_order: 11,
+          });
+          backupAdAccountTasksCreated++;
+        }
+      }
+
       results[agency.id] = 'ok';
     } catch {
       results[agency.id] = 'error';
     }
   }
 
-  // 4. Onboarding Reminders (48h without completing)
+  // 5. Onboarding Reminders (48h without completing)
   const { data: pendingAgencies } = await supabase
     .from('agencies')
     .select('id')
@@ -210,7 +232,7 @@ async function runDailyJobs() {
     }
   }
 
-  // 5. Meta Insights Sync
+  // 6. Meta Insights Sync
   let metaSynced = 0;
   const { data: metaAgencies } = await supabase
     .from('agencies')
@@ -254,6 +276,7 @@ async function runDailyJobs() {
     surveysScheduled,
     reminders: remindersS,
     metaSynced,
+    backupAdAccountTasksCreated,
   };
 }
 
