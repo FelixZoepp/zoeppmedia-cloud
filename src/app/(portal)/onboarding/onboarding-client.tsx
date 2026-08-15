@@ -247,6 +247,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     contact_phone: '',
     preferred_contact_time: '',
     // Step 5 — Meta & Indeed
+    meta_daily_budget: '',
     indeed_daily_budget: '',
     meta_access_steps: {
       business_manager: false,
@@ -689,6 +690,20 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                 Damit wir Anzeigen in deinem Namen schalten können, brauchen wir Zugang zu deinem Meta Business Manager.
                 Dauert ca. 10 Minuten — folge einfach den Schritten.
               </p>
+              <div className="mb-5">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Meta Ads Tagesbudget (€)</label>
+                <Input
+                  type="number"
+                  value={form.meta_daily_budget}
+                  onChange={(e) => update('meta_daily_budget', e.target.value)}
+                  icon={<CreditCard className="w-4 h-4" />}
+                  placeholder="z.B. 30"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Dein tägliches Meta-Budget — wir berechnen daraus automatisch deine Monatskosten und CPL.
+                </p>
+              </div>
+
               <a
                 href="/meta-anleitung.pdf"
                 target="_blank"
