@@ -1,6 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
+import { checkBlacklist } from '@/lib/candidates/blacklist-check';
+import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 
 export async function GET(request: NextRequest) {
   const supabase = await createServerClient();
@@ -47,12 +49,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Name ist erforderlich.' }, { status: 400 });
   }
 
-  // Get "Eingang" stage
-  const { data: stage } = await supabase
-    .from('pipeline_stages')
-    .select('id')
-    .eq('sort_order', 1)
-    .single();
+  // Check if candidate is blacklisted
+  const blacklistResult = await checkBlacklist(supabase, profile.agency_id, email, phone);
+
+  // Get first stage for this agency
+  const stages = await getStagesForAgency(supabase, profile.agency_id);
+  const firstStage = stages[0];
+  if (!firstStage) {
+    return NextResponse.json({ error: 'Keine Pipeline-Phasen konfiguriert.' }, { status: 500 });
+  }
 
   const { data: candidate, error } = await supabase
     .from('candidates')
@@ -62,7 +67,7 @@ export async function POST(request: Request) {
       email: email || null,
       phone: phone || null,
       source: source || 'manual',
-      current_stage_id: stage!.id,
+      current_stage_id: firstStage.id,
     })
     .select()
     .single();
@@ -74,7 +79,7 @@ export async function POST(request: Request) {
   // Log initial stage
   await supabase.from('candidate_stages').insert({
     candidate_id: candidate.id,
-    stage_id: stage!.id,
+    stage_id: firstStage.id,
     changed_by: user.id,
   });
 
@@ -86,6 +91,22 @@ export async function POST(request: Request) {
     action_type: 'candidate_created',
     metadata: { source: candidate.source },
   });
+
+  if (blacklistResult.is_blacklisted) {
+    await logActivity(supabase, {
+      agency_id: profile.agency_id,
+      user_id: user.id,
+      candidate_id: candidate.id,
+      action: `Blacklist-Warnung: Bewerber ${candidate.name} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
+      action_type: 'other',
+      metadata: { blacklist_match: blacklistResult.matching_candidate },
+    });
+
+    return NextResponse.json(
+      { ...candidate, blacklist_warning: blacklistResult.matching_candidate },
+      { status: 201 }
+    );
+  }
 
   return NextResponse.json(candidate, { status: 201 });
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { logActivity } from '@/lib/activity/log';
 
+const CONTACT_RESULTS = ['termin_vereinbart', 'kein_interesse', 'rueckruf', 'sonstiges'];
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,10 +36,10 @@ export async function POST(
 
   const body = await request.json();
 
-  // Get candidate to verify it exists and retrieve agency_id
+  // Get candidate to verify it exists and retrieve agency_id + TTFC fields
   const { data: candidate } = await supabase
     .from('candidates')
-    .select('agency_id')
+    .select('agency_id, first_dial_at, first_contact_at, created_at')
     .eq('id', id)
     .single();
 
@@ -59,6 +61,28 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Update TTFC tracking fields
+  const now = new Date().toISOString();
+  const ttfcUpdate: Record<string, string | number> = {};
+
+  if (!candidate.first_dial_at) {
+    ttfcUpdate.first_dial_at = now;
+  }
+
+  if (!candidate.first_contact_at && CONTACT_RESULTS.includes(body.result)) {
+    ttfcUpdate.first_contact_at = now;
+    const createdAt = new Date(candidate.created_at).getTime();
+    const nowMs = new Date(now).getTime();
+    ttfcUpdate.ttfc_seconds = Math.round((nowMs - createdAt) / 1000);
+  }
+
+  if (Object.keys(ttfcUpdate).length > 0) {
+    await supabase
+      .from('candidates')
+      .update(ttfcUpdate)
+      .eq('id', id);
+  }
 
   await logActivity(supabase, {
     agency_id: candidate.agency_id,

@@ -1,5 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { checkBlacklist } from '@/lib/candidates/blacklist-check';
+import { logActivity } from '@/lib/activity/log';
+import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'zoepp-media-cloud';
 
@@ -38,12 +41,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
   }
 
-  // Get "Eingang" stage
-  const { data: stage } = await supabase
-    .from('pipeline_stages')
-    .select('id')
-    .eq('sort_order', 1)
-    .single();
+  // Get first pipeline stage for this agency
+  const stages = await getStagesForAgency(supabase, agencyId);
+  const firstStage = stages[0];
+  if (!firstStage) {
+    return NextResponse.json({ error: 'No pipeline stages configured' }, { status: 500 });
+  }
 
   // Process Meta lead entries
   const entries = body?.entry || [];
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
           meta_campaign: leadData.campaign_name || null,
           meta_adset: leadData.adset_name || null,
           meta_form: leadData.form_name || null,
-          current_stage_id: stage!.id,
+          current_stage_id: firstStage.id,
         })
         .select()
         .single();
@@ -76,9 +79,21 @@ export async function POST(request: NextRequest) {
       if (candidate) {
         await supabase.from('candidate_stages').insert({
           candidate_id: candidate.id,
-          stage_id: stage!.id,
+          stage_id: firstStage.id,
           changed_by: null,
         });
+
+        // Check blacklist
+        const blacklistResult = await checkBlacklist(supabase, agencyId, email, phone);
+        if (blacklistResult.is_blacklisted) {
+          await logActivity(supabase, {
+            agency_id: agencyId,
+            candidate_id: candidate.id,
+            action: `Blacklist-Warnung (Meta): Bewerber ${name} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
+            action_type: 'other',
+            metadata: { source: 'meta', blacklist_match: blacklistResult.matching_candidate },
+          });
+        }
       }
     }
   }

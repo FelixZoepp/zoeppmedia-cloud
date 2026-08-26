@@ -61,13 +61,9 @@ export async function GET(req: Request) {
     statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
   }
 
-  // 2. Fetch all opportunities in pipeline (up to 200)
-  let oppPath = `/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200&_order_by=-date_updated`;
-  if (since) oppPath += `&date_created__gte=${since}`;
-  if (until) oppPath += `&date_created__lte=${until}T23:59:59`;
-  const oppData = await closeGet(oppPath);
-  // Double-filter: only keep opportunities that belong to the D2D pipeline
-  const opportunities: Array<{
+  // 2. Fetch ALL opportunities in pipeline (no date filter) for correct neukunde/bestandskunde classification
+  const allOppData = await closeGet(`/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200&_order_by=date_created`);
+  type RawOpp = {
     id: string;
     lead_id: string;
     pipeline_id: string;
@@ -81,9 +77,26 @@ export async function GET(req: Request) {
     date_updated: string;
     contact_name: string;
     lead_name: string;
-  }> = (oppData.data ?? []).filter(
-    (o: { pipeline_id?: string }) => o.pipeline_id === PIPELINE_ID
-  );
+  };
+  // Close API already filters by pipeline_id server-side, no need to double-filter
+  // (some responses omit pipeline_id field which would incorrectly drop deals)
+  const allOpportunities: RawOpp[] = allOppData.data ?? [];
+
+  // Build lookup: first opportunity id per lead (sorted by date_created asc)
+  const firstOppPerLead = new Map<string, string>();
+  for (const opp of allOpportunities) {
+    if (!firstOppPerLead.has(opp.lead_id)) {
+      firstOppPerLead.set(opp.lead_id, opp.id);
+    }
+  }
+
+  // Apply date filter for display
+  const opportunities = since
+    ? allOpportunities.filter((o) => {
+        const created = o.date_created?.slice(0, 10) ?? '';
+        return created >= since && (!until || created <= until);
+      })
+    : allOpportunities;
 
   // 3. Fetch lead names for unique lead_ids
   const uniqueLeadIds = [...new Set(opportunities.map((o: { lead_id: string }) => o.lead_id))];
@@ -101,7 +114,7 @@ export async function GET(req: Request) {
   );
 
   // 4. Build enriched deals array
-  const deals = opportunities.map((opp) => {
+  const dealsRaw = opportunities.map((opp) => {
     const statusInfo = statusMap[opp.status_id] ?? { label: opp.status_label ?? 'Unbekannt', type: 'active' };
     return {
       id: opp.id,
@@ -116,8 +129,12 @@ export async function GET(req: Request) {
       note: opp.note ?? '',
       date_created: opp.date_created,
       date_updated: opp.date_updated,
+      // First deal per lead = neukunde, any subsequent = bestandskunde (upsell)
+      deal_type: (firstOppPerLead.get(opp.lead_id) === opp.id ? 'neukunde' : 'bestandskunde') as 'neukunde' | 'bestandskunde',
     };
   });
+
+  const deals = dealsRaw;
 
   // 5. Compute summary
   const wonDeals = deals.filter((d) => d.status_type === 'won');
@@ -132,6 +149,14 @@ export async function GET(req: Request) {
   const wonCount = wonDeals.length;
   const lostCount = lostDeals.length;
   const winRate = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0;
+
+  // 5b. Neukunde vs Bestandskunde breakdown
+  const neukundeDeals = deals.filter((d) => d.deal_type === 'neukunde');
+  const bestandskundeDeals = deals.filter((d) => d.deal_type === 'bestandskunde');
+  const neukundeWon = neukundeDeals.filter((d) => d.status_type === 'won');
+  const bestandskundeWon = bestandskundeDeals.filter((d) => d.status_type === 'won');
+  const neukundeOpen = neukundeDeals.filter((d) => d.status_type === 'active');
+  const bestandskundeOpen = bestandskundeDeals.filter((d) => d.status_type === 'active');
 
   // 6. Build statuses breakdown
   const statusBreakdown: Record<string, { label: string; type: string; count: number; total_value: number }> = {};
@@ -166,6 +191,16 @@ export async function GET(req: Request) {
       open_value: openValue,
       lost_value: lostValue,
       win_rate: Math.round(winRate * 10) / 10,
+      neukunde: {
+        deals: neukundeDeals.length,
+        won_value: neukundeWon.reduce((s, d) => s + d.value, 0),
+        open_value: neukundeOpen.reduce((s, d) => s + d.value, 0),
+      },
+      bestandskunde: {
+        deals: bestandskundeDeals.length,
+        won_value: bestandskundeWon.reduce((s, d) => s + d.value, 0),
+        open_value: bestandskundeOpen.reduce((s, d) => s + d.value, 0),
+      },
     },
     statuses,
     deals,

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseIndeedEmail, extractAgencyIdFromAddress } from '@/lib/indeed/parse-email';
 import { extractTextFromPdf, extractCvData, type CvData } from '@/lib/indeed/extract-cv';
+import { checkBlacklist } from '@/lib/candidates/blacklist-check';
+import { logActivity } from '@/lib/activity/log';
+import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
@@ -93,14 +96,9 @@ export async function POST(request: NextRequest) {
     const finalEmail = cvData.email || parsed.email || null;
     const finalPhone = cvData.phone || parsed.phone || null;
 
-    // 6. Get first pipeline stage
-    const { data: firstStage } = await supabase
-      .from('pipeline_stages')
-      .select('id')
-      .order('sort_order', { ascending: true })
-      .limit(1)
-      .single();
-
+    // 6. Get first pipeline stage for this agency
+    const stages = await getStagesForAgency(supabase, agencyId);
+    const firstStage = stages[0];
     if (!firstStage) {
       throw new Error('No pipeline stages configured');
     }
@@ -125,6 +123,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (candidateError) throw candidateError;
+
+    // 7b. Check blacklist
+    const blacklistResult = await checkBlacklist(supabase, agencyId, finalEmail, finalPhone);
+    if (blacklistResult.is_blacklisted) {
+      await logActivity(supabase, {
+        agency_id: agencyId,
+        candidate_id: candidate.id,
+        action: `Blacklist-Warnung (Indeed): Bewerber ${candidate.name} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
+        action_type: 'other',
+        metadata: { source: 'indeed', blacklist_match: blacklistResult.matching_candidate },
+      });
+    }
 
     // 8. Log initial stage
     await supabase.from('candidate_stages').insert({

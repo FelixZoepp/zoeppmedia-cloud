@@ -22,6 +22,8 @@ import {
   LogOut,
   Megaphone,
   Handshake,
+  BarChart3 as ChartBar,
+  CalendarDays,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -47,6 +49,8 @@ const adminGroups: SidebarGroup[] = [
     items: [
       { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
       { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
+      { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
+      { id: 'wochenbericht', label: 'Wochenbericht', icon: <CalendarDays className="w-5 h-5" />, href: '/admin/wochenbericht' },
     ],
   },
   {

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 export function LayoutShell({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -21,7 +22,12 @@ export function LayoutShell({ sidebar, children }: { sidebar: React.ReactNode; c
           <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
-          <span className="text-sm font-bold text-gray-900 uppercase">Zoepp Media</span>
+          <span className="text-sm font-bold text-gray-900 uppercase flex-1">Zoepp Media</span>
+          <NotificationBell />
+        </div>
+        {/* Desktop header */}
+        <div className="hidden md:flex items-center justify-end px-8 py-3 border-b border-gray-200 bg-white sticky top-0 z-40">
+          <NotificationBell />
         </div>
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
           {children}

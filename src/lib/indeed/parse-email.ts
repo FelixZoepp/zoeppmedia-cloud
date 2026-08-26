@@ -37,7 +37,7 @@ export function parseIndeedEmail(body: string, subject: string): ParsedEmail {
 }
 
 export function extractAgencyIdFromAddress(to: string): string | null {
-  // bewerber+abc123@zoeppmedia.de → abc123
+  // bewerber+abc123@zoepp-gruppe.de → abc123
   const match = to.match(/bewerber\+([^@]+)@/i);
   return match ? match[1] : null;
 }

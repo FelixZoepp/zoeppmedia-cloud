@@ -108,18 +108,18 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, sub, icon, iconBg = 'bg-red-50', iconColor = 'text-red-600' }: KpiCardProps) {
   return (
-    <Card padding="sm" className="flex items-start gap-4">
-      <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center ${iconColor}`}>
+    <Card padding="md" className="flex items-start gap-4">
+      <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center ${iconColor}`}>
         {icon}
       </div>
       <div className="min-w-0">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
           {label}
         </p>
-        <p className="text-xl font-bold text-gray-900 mt-0.5 tabular-nums">
+        <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums leading-tight">
           {value}
         </p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
       </div>
     </Card>
   );
@@ -362,41 +362,57 @@ export default function AdminMarketingPage() {
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
               Anzeigen-Performance
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <KpiCard
                 label="Ad Spend"
                 value={summary ? `€ ${fmtEuro(summary.spend)}` : '–'}
                 icon={<DollarSign className="w-5 h-5" />}
+                iconBg="bg-gray-100"
+                iconColor="text-gray-600"
               />
               <KpiCard
                 label="Leads"
                 value={summary ? fmtCount(summary.leads) : '–'}
                 icon={<Users className="w-5 h-5" />}
+                iconBg="bg-blue-50"
+                iconColor="text-blue-600"
               />
               <KpiCard
                 label="CPL"
                 value={summary && summary.cpl > 0 ? `€ ${fmtEuro(summary.cpl)}` : '–'}
                 icon={<Target className="w-5 h-5" />}
+                iconBg="bg-red-50"
+                iconColor="text-red-600"
               />
               <KpiCard
                 label="CPC"
                 value={summary && summary.cpc > 0 ? `€ ${fmtEuro(summary.cpc)}` : '–'}
                 icon={<MousePointerClick className="w-5 h-5" />}
+                iconBg="bg-orange-50"
+                iconColor="text-orange-600"
               />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <KpiCard
                 label="CTR"
                 value={summary ? fmtPct(summary.ctr) : '–'}
                 icon={<TrendingUp className="w-5 h-5" />}
+                iconBg="bg-green-50"
+                iconColor="text-green-600"
               />
               <KpiCard
                 label="Impressions"
                 value={summary ? fmtCount(summary.impressions) : '–'}
                 icon={<Eye className="w-5 h-5" />}
+                iconBg="bg-purple-50"
+                iconColor="text-purple-600"
               />
               <KpiCard
                 label="Klicks"
                 value={summary ? fmtCount(summary.clicks) : '–'}
                 icon={<MousePointerClick className="w-5 h-5" />}
+                iconBg="bg-indigo-50"
+                iconColor="text-indigo-600"
               />
             </div>
           </div>

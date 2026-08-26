@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { Select } from '@/components/ui/select';
-import { Handshake, TrendingUp, Trophy, XCircle, Target, Clock } from 'lucide-react';
+import { Handshake, TrendingUp, Trophy, XCircle, Target, Clock, UserPlus, RefreshCw } from 'lucide-react';
 
 const RANGE_OPTIONS = [
   { value: 'all', label: 'Gesamt' },
@@ -13,6 +13,12 @@ const RANGE_OPTIONS = [
   { value: 'week', label: 'Diese Woche' },
   { value: 'today', label: 'Heute' },
 ];
+
+interface DealTypeSummary {
+  deals: number;
+  won_value: number;
+  open_value: number;
+}
 
 interface DealSummary {
   total_deals: number;
@@ -22,6 +28,8 @@ interface DealSummary {
   open_value: number;
   lost_value: number;
   win_rate: number;
+  neukunde: DealTypeSummary;
+  bestandskunde: DealTypeSummary;
 }
 
 interface PipelineStatus {
@@ -42,6 +50,7 @@ interface Deal {
   note: string;
   date_created: string;
   date_updated: string;
+  deal_type: 'neukunde' | 'bestandskunde';
 }
 
 interface SalesData {
@@ -166,7 +175,7 @@ export default function AdminSalesPage() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Card padding="sm">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-gray-100 rounded-lg shrink-0">
@@ -193,21 +202,6 @@ export default function AdminSalesPage() {
 
         <Card padding="sm">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg shrink-0">
-              <TrendingUp className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium">Pipeline-Wert</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5 leading-tight">
-                {formatEur(summary.open_value)}
-              </p>
-              <p className="text-xs text-gray-400 mt-0.5">offen</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="sm">
-          <div className="flex items-start gap-3">
             <div className="p-2 bg-green-50 rounded-lg shrink-0">
               <Trophy className="w-4 h-4 text-green-600" />
             </div>
@@ -217,20 +211,6 @@ export default function AdminSalesPage() {
                 {formatEur(summary.won_value)}
               </p>
               <Badge tone="success" className="mt-1">Won</Badge>
-            </div>
-          </div>
-        </Card>
-
-        <Card padding="sm">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-red-50 rounded-lg shrink-0">
-              <XCircle className="w-4 h-4 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 font-medium">Verloren</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5 leading-tight">
-                {formatEur(summary.lost_value)}
-              </p>
             </div>
           </div>
         </Card>
@@ -248,6 +228,53 @@ export default function AdminSalesPage() {
               <Badge tone={winRateTone} className="mt-1">
                 {summary.win_rate >= 50 ? 'Gut' : summary.win_rate < 30 ? 'Niedrig' : 'Mittel'}
               </Badge>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Neukunde vs Bestandskunde */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <Card padding="md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+              <UserPlus className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Neukunden-Umsatz</p>
+              <p className="text-xs text-gray-500">{summary.neukunde.deals} Deals (Erstbuchung)</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Gewonnen</p>
+              <p className="text-xl font-bold text-green-600">{formatEur(summary.neukunde.won_value)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Offen</p>
+              <p className="text-xl font-bold text-blue-600">{formatEur(summary.neukunde.open_value)}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-purple-50 rounded-lg shrink-0">
+              <RefreshCw className="w-4 h-4 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Bestandskunden-Umsatz</p>
+              <p className="text-xs text-gray-500">{summary.bestandskunde.deals} Deals (Upsell)</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Gewonnen</p>
+              <p className="text-xl font-bold text-green-600">{formatEur(summary.bestandskunde.won_value)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Offen</p>
+              <p className="text-xl font-bold text-purple-600">{formatEur(summary.bestandskunde.open_value)}</p>
             </div>
           </div>
         </Card>
@@ -299,13 +326,13 @@ export default function AdminSalesPage() {
 
         <div className="divide-y divide-gray-100">
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_160px_100px_80px_100px_100px] gap-4 px-6 py-3 bg-gray-50">
+          <div className="grid grid-cols-[1fr_120px_100px_100px_80px_100px] gap-4 px-6 py-3 bg-gray-50">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Unternehmen</span>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</span>
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Typ</span>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Wert (€)</span>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Conf. %</span>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Erstellt</span>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Aktualisiert</span>
           </div>
 
           {deals.length === 0 && (
@@ -317,7 +344,7 @@ export default function AdminSalesPage() {
           {deals.map((deal) => (
             <div
               key={deal.id}
-              className="grid grid-cols-[1fr_160px_100px_80px_100px_100px] gap-4 items-center px-6 py-3.5 hover:bg-gray-50 transition-colors"
+              className="grid grid-cols-[1fr_120px_100px_100px_80px_100px] gap-4 items-center px-6 py-3.5 hover:bg-gray-50 transition-colors"
             >
               <div>
                 <p className="text-sm font-medium text-gray-900 truncate">{deal.lead_name}</p>
@@ -329,6 +356,12 @@ export default function AdminSalesPage() {
               <div>
                 <Badge tone={statusBadgeTone(deal.status_type)}>
                   {deal.status_label}
+                </Badge>
+              </div>
+
+              <div>
+                <Badge tone={deal.deal_type === 'neukunde' ? 'accent' : 'success'}>
+                  {deal.deal_type === 'neukunde' ? 'Neukunde' : 'Upsell'}
                 </Badge>
               </div>
 
@@ -345,7 +378,6 @@ export default function AdminSalesPage() {
               </div>
 
               <span className="text-xs text-gray-500">{formatDate(deal.date_created)}</span>
-              <span className="text-xs text-gray-500">{formatDate(deal.date_updated)}</span>
             </div>
           ))}
         </div>

@@ -13,7 +13,7 @@ function getResend(): Resend {
   }
   return _resend;
 }
-const FROM = 'Zoepp Media Cloud <noreply@zoeppmedia.de>';
+const FROM = 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>';
 
 export async function sendInviteEmail(
   to: string,

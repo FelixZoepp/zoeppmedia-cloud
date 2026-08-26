@@ -255,6 +255,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
       ad_account_shared: false,
       pixel_shared: false,
       page_shared: false,
+      indeed_account: false,
+      indeed_notifications: false,
       indeed_forwarding: false,
     },
   });
@@ -421,7 +423,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     window.location.href = '/dashboard';
   }
 
-  const indeedEmail = `bewerber+${agencyId}@zoeppmedia.de`;
+  const indeedEmail = `bewerber+${agencyId}@zoepp-gruppe.de`;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -818,8 +820,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   description={<>Gehe zu <span className="font-medium text-gray-800">de.indeed.com</span> → Logge dich als Arbeitgeber ein.</>}
                   Icon={Briefcase}
                   visualLabel="de.indeed.com — Arbeitgeber-Login"
-                  checked={false}
-                  onCheck={() => {}}
+                  checked={form.meta_access_steps.indeed_account}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_account: v } }))}
                 />
 
                 <GuideStep
@@ -828,8 +830,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   description={<>Gehe zu <span className="font-medium text-gray-800">Konto → Benachrichtigungen → E-Mail-Einstellungen</span>.</>}
                   Icon={Bell}
                   visualLabel="Konto-Bereich → E-Mail-Einstellungen"
-                  checked={false}
-                  onCheck={() => {}}
+                  checked={form.meta_access_steps.indeed_notifications}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_notifications: v } }))}
                 />
 
                 <GuideStep
@@ -848,8 +850,8 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   }
                   Icon={Mail}
                   visualLabel="Weiterleitungsadresse eintragen"
-                  checked={false}
-                  onCheck={() => {}}
+                  checked={form.meta_access_steps.indeed_forwarding}
+                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_forwarding: v } }))}
                 />
               </div>
             </div>
