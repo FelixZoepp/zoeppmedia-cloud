@@ -24,12 +24,16 @@ import {
   Handshake,
   BarChart3 as ChartBar,
   CalendarDays,
+  CalendarCheck,
+  Timer,
+  Shield,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
   {
     label: 'Cockpit',
     items: [
+      { id: 'heute', label: 'Heute', icon: <CalendarCheck className="w-5 h-5" />, href: '/heute' },
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
@@ -50,6 +54,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
       { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
       { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
+      { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },
       { id: 'wochenbericht', label: 'Wochenbericht', icon: <CalendarDays className="w-5 h-5" />, href: '/admin/wochenbericht' },
     ],
   },
@@ -60,6 +65,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'kpi', label: 'KPI Einstellungen', icon: <Target className="w-5 h-5" />, href: '/admin/kpi' },
       { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },
       { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
+      { id: 'audit', label: 'Audit Log', icon: <Shield className="w-5 h-5" />, href: '/admin/audit' },
     ],
   },
 ];

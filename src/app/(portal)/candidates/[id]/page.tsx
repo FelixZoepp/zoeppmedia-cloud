@@ -11,6 +11,7 @@ import type { Candidate, CandidateStage, Note, PipelineStage, CallLog, ContentLi
 import { CallTracker } from '@/components/call-tracker';
 import { CallRecordingsPanel } from '@/components/call-recording';
 import { ActivityFeed } from '@/components/activity-feed';
+import { CandidateInfoCards } from '@/components/candidates/candidate-info-cards';
 
 type StageHistoryEntry = CandidateStage & { stage: PipelineStage; user: { name: string } | null };
 type NoteWithUser = Note & { user: { name: string } };
@@ -142,6 +143,9 @@ export default function CandidateDetailPage() {
         </div>
         <Badge tone={source.tone}>{source.label}</Badge>
       </div>
+
+      {/* Status Cards (Consent, No-Show, Kadenz, TTFC) */}
+      <CandidateInfoCards candidateId={id} />
 
       {/* Contact Info */}
       <Card padding="md" className="mb-6">
