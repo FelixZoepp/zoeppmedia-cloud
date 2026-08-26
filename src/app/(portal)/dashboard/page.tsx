@@ -24,6 +24,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       data={data}
+      agencyId={user.agency_id}
       agencyName={user.name}
       pendingSurveys={pendingSurveys ?? 0}
     />

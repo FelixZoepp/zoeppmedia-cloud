@@ -60,3 +60,12 @@ export async function sendSurveyNotification(
     html: surveyNotificationTemplate(name, surveyTitle, portalUrl),
   });
 }
+
+export async function sendWeeklyReportEmail(to: string, kw: number, html: string) {
+  return getResend().emails.send({
+    from: FROM,
+    to,
+    subject: `Dein Wochenbericht — KW ${kw}`,
+    html,
+  });
+}

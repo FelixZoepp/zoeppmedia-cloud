@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { detectProblemsForAgency } from '@/lib/problems/detect';
+import { sendWeeklyReports, WeeklyReportResult } from '@/lib/email/weekly-report-send';
 
 // Vercel Cron: GET /api/cron/daily at 08:00 UTC daily
 
@@ -268,6 +269,16 @@ async function runDailyJobs() {
     }
   }
 
+  // 7. Weekly report — only on Mondays
+  let weeklyReport: WeeklyReportResult | null = null;
+  if (now.getDay() === 1) {
+    try {
+      weeklyReport = await sendWeeklyReports(supabase);
+    } catch {
+      weeklyReport = { ok: false, sent: 0, skipped: 0, errors: 1, details: [] };
+    }
+  }
+
   return {
     ok: true,
     processed: agencies?.length ?? 0,
@@ -277,6 +288,7 @@ async function runDailyJobs() {
     reminders: remindersS,
     metaSynced,
     backupAdAccountTasksCreated,
+    weeklyReport,
   };
 }
 

@@ -5,6 +5,8 @@ import { CandidatesChart } from './candidates-chart';
 import { SourcesChart } from './sources-chart';
 import { PipelineChart } from './pipeline-chart';
 import { SourceDonut } from './source-donut';
+import { SlaAmpel } from './sla-ampel';
+import { MasterclassProgress } from './masterclass-progress';
 import { User } from 'lucide-react';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -74,11 +76,12 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub: str
 
 interface DashboardViewProps {
   data: DashboardData;
+  agencyId: string;
   agencyName: string;
   pendingSurveys?: number;
 }
 
-export function DashboardView({ data, agencyName, pendingSurveys = 0 }: DashboardViewProps) {
+export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }: DashboardViewProps) {
   const now = new Date();
   const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' }).toUpperCase();
   const kw = getISOWeek(now);
@@ -119,6 +122,9 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
           Dashboard
         </h1>
       </div>
+
+      {/* ── SLA Ampel ────────────────────────────────────── */}
+      <SlaAmpel agencyId={agencyId} />
 
       {/* ── KPI Row ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -252,6 +258,9 @@ export function DashboardView({ data, agencyName, pendingSurveys = 0 }: Dashboar
           </div>
         )}
       </DashCard>
+
+      {/* ── Masterclass Progress ─────────────────────────── */}
+      <MasterclassProgress agencyId={agencyId} />
     </div>
   );
 }
