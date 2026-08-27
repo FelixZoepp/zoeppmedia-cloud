@@ -44,7 +44,7 @@ interface CloseRevenue {
   win_rate: number;     // overall won/total
 }
 
-async function getCloseRevenue(): Promise<CloseRevenue> {
+async function getCloseRevenue(since?: string, until?: string): Promise<CloseRevenue> {
   const apiKey = process.env.CLOSE_API_KEY;
   const empty: CloseRevenue = {
     total_leads: 0, setting_count: 0, closing_count: 0, won_count: 0, lost_count: 0,
@@ -68,11 +68,11 @@ async function getCloseRevenue(): Promise<CloseRevenue> {
       statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
     }
 
-    // Fetch all opportunities
-    const res = await fetch(
-      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,status_id,lead_id`,
-      { headers: closeAuth() }
-    );
+    // Fetch opportunities, filtered by date if provided
+    let oppUrl = `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,status_id,lead_id,date_created`;
+    if (since) oppUrl += `&date_created__gte=${since}`;
+    if (until) oppUrl += `&date_created__lte=${until}T23:59:59`;
+    const res = await fetch(oppUrl, { headers: closeAuth() });
     if (!res.ok) return empty;
     const data = await res.json();
     const opps: Array<{ value: number; status_type: string; status_id: string; lead_id: string }> =
@@ -388,8 +388,8 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fetch Close CRM pipeline data for real leads + ROAS
-  const closeRevenue = await getCloseRevenue();
+  // Fetch Close CRM pipeline data for real leads + ROAS (date-filtered)
+  const closeRevenue = await getCloseRevenue(since, until);
 
   // Use real pipeline leads, not Meta Pixel count
   const realLeads = closeRevenue.total_leads;
