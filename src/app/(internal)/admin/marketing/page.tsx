@@ -86,10 +86,10 @@ interface MarketingData {
 // ── Formatters ───────────────────────────────────────────────────────────────
 
 function fmtEuro(value: number): string {
-  return value.toLocaleString('de-DE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  if (value >= 1000) {
+    return value.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+  return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtCount(value: number): string {
@@ -118,19 +118,19 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, sub, icon, iconBg = 'bg-red-50', iconColor = 'text-red-600' }: KpiCardProps) {
   return (
-    <Card padding="md" className="flex items-start gap-4">
-      <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center ${iconColor}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
+    <Card padding="sm" className="overflow-hidden">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center ${iconColor}`}>
+          {icon}
+        </div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
           {label}
         </p>
-        <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums leading-tight">
-          {value}
-        </p>
-        {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
       </div>
+      <p className="text-xl font-bold text-gray-900 tabular-nums leading-tight truncate">
+        {value}
+      </p>
+      {sub && <p className="text-xs text-gray-500 mt-1 truncate">{sub}</p>}
     </Card>
   );
 }
