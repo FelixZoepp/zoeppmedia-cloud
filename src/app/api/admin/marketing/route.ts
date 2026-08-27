@@ -7,9 +7,11 @@ const BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 
-// Leadquelle custom field ID in Close CRM
+// Custom field IDs in Close CRM
 const LEADQUELLE_FIELD = 'custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8';
-const META_SOURCES = ['instagram', 'facebook', 'meta ads', 'meta', 'fb', 'ig'];
+const UTM_SOURCE_FIELD = 'custom.cf_HDeEGCeYwUNaYFw1HEYlndsGXBJ8fqcssd1shBPy8xJ';
+const UTM_MEDIUM_FIELD = 'custom.cf_YHPoQshsVKzMo15WXQPFdFGBwza89ZQjsLMXz4vgOwE';
+const META_SOURCES = ['instagram', 'facebook', 'meta ads', 'meta', 'fb', 'ig', 'paid'];
 
 function closeAuth(): HeadersInit {
   const apiKey = process.env.CLOSE_API_KEY ?? '';
@@ -32,8 +34,9 @@ async function getCloseRevenue(): Promise<{ won: number; open: number; won_count
     );
     if (!res.ok) return empty;
     const data = await res.json();
+    // Close API already filters by pipeline_id server-side
     const opps: Array<{ value: number; status_type: string; pipeline_id?: string; lead_id: string }> =
-      (data.data ?? []).filter((o: { pipeline_id?: string }) => o.pipeline_id === CLOSE_PIPELINE_ID);
+      data.data ?? [];
 
     // Fetch unique leads to check Leadquelle
     const uniqueLeadIds = [...new Set(opps.map((o) => o.lead_id))];
@@ -43,13 +46,20 @@ async function getCloseRevenue(): Promise<{ won: number; open: number; won_count
       uniqueLeadIds.map(async (leadId) => {
         try {
           const leadRes = await fetch(
-            `https://api.close.com/api/v1/lead/${leadId}/?_fields=id,${LEADQUELLE_FIELD}`,
+            `https://api.close.com/api/v1/lead/${leadId}/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD},${UTM_MEDIUM_FIELD}`,
             { headers: closeAuth() }
           );
           if (!leadRes.ok) return;
           const lead = await leadRes.json();
           const leadquelle: string = (lead[LEADQUELLE_FIELD] ?? '').toLowerCase().trim();
-          if (leadquelle && META_SOURCES.some((s) => leadquelle.includes(s))) {
+          const utmSource: string = (lead[UTM_SOURCE_FIELD] ?? '').toLowerCase().trim();
+          const utmMedium: string = (lead[UTM_MEDIUM_FIELD] ?? '').toLowerCase().trim();
+
+          // Check Leadquelle field OR utm_source/utm_medium for Meta attribution
+          const isMetaByLeadquelle = leadquelle && META_SOURCES.some((s) => leadquelle.includes(s));
+          const isMetaByUtm = META_SOURCES.some((s) => utmSource.includes(s)) || utmMedium === 'paid';
+
+          if (isMetaByLeadquelle || isMetaByUtm) {
             metaLeadIds.add(leadId);
           }
         } catch { /* skip */ }

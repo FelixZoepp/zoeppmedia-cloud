@@ -220,18 +220,7 @@ function statusLabel(status: string): string {
   return map[status] ?? status;
 }
 
-// ── Funnel Steps (Perspective: Recruiting Aufbau Funnel) ─────────────────────
-
-const FUNNEL_STEPS = [
-  { name: 'Landing', visitors: 455, nextRate: 16 },
-  { name: 'Wie Vertriebler', visitors: 75, nextRate: 68 },
-  { name: 'Wie viele Einstellungen', visitors: 51, nextRate: 98 },
-  { name: 'Größtes Problem?', visitors: 50, nextRate: 96 },
-  { name: 'Wie lange bleibt?', visitors: 48, nextRate: 94 },
-  { name: 'Lade-Animation', visitors: 45, nextRate: 100 },
-  { name: 'Terminbuchung', visitors: 47, nextRate: 45 },
-  { name: 'Mehr Termine', visitors: 21, nextRate: null },
-];
+// Funnel steps removed — use /admin/report for live funnel data
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
@@ -415,47 +404,6 @@ export default function AdminMarketingPage() {
                 iconColor="text-indigo-600"
               />
             </div>
-          </div>
-
-          {/* ─── Funnel Drop-Off ─── */}
-          <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
-              Funnel Drop-Off (Recruiting Aufbau)
-            </h2>
-            <Card padding="md">
-              <div className="space-y-3">
-                {FUNNEL_STEPS.map((step, i) => {
-                  const maxVisitors = FUNNEL_STEPS[0].visitors;
-                  const widthPct = Math.max((step.visitors / maxVisitors) * 100, 4);
-                  const isDropOff = step.nextRate !== null && step.nextRate < 50;
-
-                  return (
-                    <div key={i}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700">{step.name}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-gray-900 tabular-nums">{step.visitors}</span>
-                          {step.nextRate !== null && (
-                            <span className={`text-xs font-semibold tabular-nums ${isDropOff ? 'text-red-600' : 'text-green-600'}`}>
-                              → {step.nextRate}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full transition-all ${isDropOff ? 'bg-red-500' : 'bg-red-600'}`}
-                          style={{ width: `${widthPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-400 mt-4">
-                Daten: Perspective Funnel &quot;Recruiting Aufbau&quot; · 1.–14. Aug 2026
-              </p>
-            </Card>
           </div>
 
           {/* ─── Campaigns Table ─── */}
