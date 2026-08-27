@@ -15,6 +15,8 @@ import {
   Trophy,
   Percent,
   Clock,
+  Filter,
+  CheckCircle,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -50,12 +52,20 @@ interface AdSet {
 
 interface Summary {
   spend: number;
+  pixel_leads: number;
   leads: number;
   cpl: number;
   cpc: number;
   ctr: number;
   impressions: number;
   clicks: number;
+  setting_count: number;
+  closing_count: number;
+  won_count: number;
+  lost_count: number;
+  quali_rate: number;
+  closing_rate: number;
+  win_rate: number;
   revenue_won: number;
   revenue_open: number;
   deals_won: number;
@@ -305,7 +315,7 @@ export default function AdminMarketingPage() {
       {!loading && !error && data && (
         <div className="space-y-8">
 
-          {/* ─── ROAS & Revenue Row ─── */}
+          {/* ─── ROAS & Revenue ─── */}
           <div>
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
               Return on Ad Spend
@@ -313,11 +323,11 @@ export default function AdminMarketingPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiCard
                 label="ROAS"
-                value={summary && summary.roas > 0 ? `${summary.roas.toFixed(2)}x` : '–'}
+                value={summary && summary.roas > 0 ? `${summary.roas.toFixed(1)}x` : '–'}
                 sub={summary && summary.spend > 0 ? `€ ${fmtEuro(summary.revenue_won)} / € ${fmtEuro(summary.spend)}` : undefined}
                 icon={<TrendingUp className="w-5 h-5" />}
-                iconBg={summary && summary.roas >= 1 ? 'bg-green-50' : 'bg-red-50'}
-                iconColor={summary && summary.roas >= 1 ? 'text-green-600' : 'text-red-600'}
+                iconBg={summary && summary.roas >= 5 ? 'bg-green-50' : 'bg-red-50'}
+                iconColor={summary && summary.roas >= 5 ? 'text-green-600' : 'text-red-600'}
               />
               <KpiCard
                 label="Revenue (Meta Ads)"
@@ -328,7 +338,7 @@ export default function AdminMarketingPage() {
                 iconColor="text-green-600"
               />
               <KpiCard
-                label="Offene Angebote (Meta)"
+                label="Offene Deals (Meta)"
                 value={summary ? `€ ${fmtEuro(summary.revenue_open)}` : '–'}
                 sub={summary ? `${summary.deals_open} Deals offen` : undefined}
                 icon={<Clock className="w-5 h-5" />}
@@ -336,9 +346,9 @@ export default function AdminMarketingPage() {
                 iconColor="text-amber-600"
               />
               <KpiCard
-                label="Potenzial ROAS"
-                value={summary && summary.spend > 0 ? `${((summary.revenue_won + summary.revenue_open) / summary.spend).toFixed(2)}x` : '–'}
-                sub={summary ? `Gesamt geclosed: € ${fmtEuro(summary.total_revenue_won)} (${summary.total_deals_won} Deals)` : undefined}
+                label="Gesamt Revenue"
+                value={summary ? `€ ${fmtEuro(summary.total_revenue_won)}` : '–'}
+                sub={summary ? `${summary.total_deals_won} Deals alle Quellen` : undefined}
                 icon={<Percent className="w-5 h-5" />}
                 iconBg="bg-blue-50"
                 iconColor="text-blue-600"
@@ -346,7 +356,48 @@ export default function AdminMarketingPage() {
             </div>
           </div>
 
-          {/* ─── Meta Ad KPIs ─── */}
+          {/* ─── Pipeline & Quoten ─── */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Pipeline & Quoten
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard
+                label="Leads (Pipeline)"
+                value={summary ? String(summary.leads) : '–'}
+                sub={summary && summary.pixel_leads > 0 ? `Meta Pixel: ${summary.pixel_leads}` : undefined}
+                icon={<Users className="w-5 h-5" />}
+                iconBg="bg-blue-50"
+                iconColor="text-blue-600"
+              />
+              <KpiCard
+                label="Quali-Rate"
+                value={summary ? `${summary.quali_rate}%` : '–'}
+                sub={summary ? `${summary.closing_count} im Closing` : undefined}
+                icon={<Filter className="w-5 h-5" />}
+                iconBg={summary && summary.quali_rate >= 40 ? 'bg-green-50' : 'bg-amber-50'}
+                iconColor={summary && summary.quali_rate >= 40 ? 'text-green-600' : 'text-amber-600'}
+              />
+              <KpiCard
+                label="Closing-Rate"
+                value={summary ? `${summary.closing_rate}%` : '–'}
+                sub={summary ? `${summary.won_count} Won von ${summary.closing_count} Closing` : undefined}
+                icon={<CheckCircle className="w-5 h-5" />}
+                iconBg={summary && summary.closing_rate >= 30 ? 'bg-green-50' : 'bg-amber-50'}
+                iconColor={summary && summary.closing_rate >= 30 ? 'text-green-600' : 'text-amber-600'}
+              />
+              <KpiCard
+                label="Win-Rate"
+                value={summary ? `${summary.win_rate}%` : '–'}
+                sub={summary ? `${summary.won_count} Won, ${summary.lost_count} Lost` : undefined}
+                icon={<Target className="w-5 h-5" />}
+                iconBg={summary && summary.win_rate >= 15 ? 'bg-green-50' : 'bg-red-50'}
+                iconColor={summary && summary.win_rate >= 15 ? 'text-green-600' : 'text-red-600'}
+              />
+            </div>
+          </div>
+
+          {/* ─── Ad Performance ─── */}
           <div>
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
               Anzeigen-Performance
@@ -360,18 +411,20 @@ export default function AdminMarketingPage() {
                 iconColor="text-gray-600"
               />
               <KpiCard
-                label="Leads"
-                value={summary ? fmtCount(summary.leads) : '–'}
-                icon={<Users className="w-5 h-5" />}
-                iconBg="bg-blue-50"
-                iconColor="text-blue-600"
-              />
-              <KpiCard
-                label="CPL"
+                label="CPL (Pipeline)"
                 value={summary && summary.cpl > 0 ? `€ ${fmtEuro(summary.cpl)}` : '–'}
+                sub={summary ? `${summary.leads} Leads` : undefined}
                 icon={<Target className="w-5 h-5" />}
                 iconBg="bg-red-50"
                 iconColor="text-red-600"
+              />
+              <KpiCard
+                label="Cost / Kunde"
+                value={summary && summary.won_count > 0 ? `€ ${fmtEuro(summary.spend / summary.won_count)}` : '–'}
+                sub={summary ? `${summary.won_count} Kunden` : undefined}
+                icon={<Trophy className="w-5 h-5" />}
+                iconBg="bg-green-50"
+                iconColor="text-green-600"
               />
               <KpiCard
                 label="CPC"

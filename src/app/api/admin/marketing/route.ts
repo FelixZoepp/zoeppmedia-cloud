@@ -21,24 +21,64 @@ function closeAuth(): HeadersInit {
   };
 }
 
-async function getCloseRevenue(): Promise<{ won: number; open: number; won_count: number; open_count: number; meta_won: number; meta_open: number; meta_won_count: number; meta_open_count: number }> {
+interface CloseRevenue {
+  // Pipeline totals
+  total_leads: number;
+  setting_count: number;
+  closing_count: number;
+  won_count: number;
+  lost_count: number;
+  won_value: number;
+  open_value: number;
+  // Meta-attributed
+  meta_leads: number;
+  meta_setting: number;
+  meta_closing: number;
+  meta_won_count: number;
+  meta_won_value: number;
+  meta_open_count: number;
+  meta_open_value: number;
+  // Quoten
+  quali_rate: number;   // leads that made it to closing+
+  closing_rate: number; // closing that converted to won
+  win_rate: number;     // overall won/total
+}
+
+async function getCloseRevenue(): Promise<CloseRevenue> {
   const apiKey = process.env.CLOSE_API_KEY;
-  const empty = { won: 0, open: 0, won_count: 0, open_count: 0, meta_won: 0, meta_open: 0, meta_won_count: 0, meta_open_count: 0 };
+  const empty: CloseRevenue = {
+    total_leads: 0, setting_count: 0, closing_count: 0, won_count: 0, lost_count: 0,
+    won_value: 0, open_value: 0,
+    meta_leads: 0, meta_setting: 0, meta_closing: 0,
+    meta_won_count: 0, meta_won_value: 0, meta_open_count: 0, meta_open_value: 0,
+    quali_rate: 0, closing_rate: 0, win_rate: 0,
+  };
   if (!apiKey) return empty;
 
   try {
-    // Fetch opportunities with lead_id
+    // Fetch pipeline statuses to classify stages
+    const pipelineRes = await fetch(
+      `https://api.close.com/api/v1/pipeline/${CLOSE_PIPELINE_ID}/`,
+      { headers: closeAuth() }
+    );
+    if (!pipelineRes.ok) return empty;
+    const pipeline = await pipelineRes.json();
+    const statusMap: Record<string, { label: string; type: string }> = {};
+    for (const s of pipeline.statuses ?? []) {
+      statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
+    }
+
+    // Fetch all opportunities
     const res = await fetch(
-      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,pipeline_id,lead_id`,
+      `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,status_id,lead_id`,
       { headers: closeAuth() }
     );
     if (!res.ok) return empty;
     const data = await res.json();
-    // Close API already filters by pipeline_id server-side
-    const opps: Array<{ value: number; status_type: string; pipeline_id?: string; lead_id: string }> =
+    const opps: Array<{ value: number; status_type: string; status_id: string; lead_id: string }> =
       data.data ?? [];
 
-    // Fetch unique leads to check Leadquelle
+    // Fetch unique leads to check attribution
     const uniqueLeadIds = [...new Set(opps.map((o) => o.lead_id))];
     const metaLeadIds = new Set<string>();
 
@@ -55,7 +95,6 @@ async function getCloseRevenue(): Promise<{ won: number; open: number; won_count
           const utmSource: string = (lead[UTM_SOURCE_FIELD] ?? '').toLowerCase().trim();
           const utmMedium: string = (lead[UTM_MEDIUM_FIELD] ?? '').toLowerCase().trim();
 
-          // Check Leadquelle field OR utm_source/utm_medium for Meta attribution
           const isMetaByLeadquelle = leadquelle && META_SOURCES.some((s) => leadquelle.includes(s));
           const isMetaByUtm = META_SOURCES.some((s) => utmSource.includes(s)) || utmMedium === 'paid';
 
@@ -66,25 +105,59 @@ async function getCloseRevenue(): Promise<{ won: number; open: number; won_count
       })
     );
 
-    let won = 0, open = 0, won_count = 0, open_count = 0;
-    let meta_won = 0, meta_open = 0, meta_won_count = 0, meta_open_count = 0;
+    // Classify each opportunity by funnel stage
+    let setting = 0, closing = 0, won = 0, lost = 0;
+    let wonValue = 0, openValue = 0;
+    let metaSetting = 0, metaClosing = 0;
+    let metaWon = 0, metaWonValue = 0, metaOpen = 0, metaOpenValue = 0;
 
     for (const o of opps) {
       const val = (o.value ?? 0) / 100;
+      const statusInfo = statusMap[o.status_id] ?? { label: '', type: 'active' };
+      const label = statusInfo.label.toLowerCase();
       const isMeta = metaLeadIds.has(o.lead_id);
 
-      if (o.status_type === 'won') {
-        won += val; won_count++;
-        if (isMeta) { meta_won += val; meta_won_count++; }
-      }
-      if (o.status_type === 'active') {
-        open += val; open_count++;
-        if (isMeta) { meta_open += val; meta_open_count++; }
+      if (statusInfo.type === 'won') {
+        won++; wonValue += val;
+        closing++; // won implies went through closing
+        if (isMeta) { metaWon++; metaWonValue += val; metaClosing++; }
+      } else if (statusInfo.type === 'lost') {
+        lost++;
+      } else if (label.includes('closing') || label.includes('angebot') || label.includes('cc2')) {
+        closing++; openValue += val;
+        if (isMeta) { metaClosing++; metaOpen++; metaOpenValue += val; }
+      } else {
+        // Setting stage
+        setting++;
+        if (isMeta) { metaSetting++; }
       }
     }
-    return { won, open, won_count, open_count, meta_won, meta_open, meta_won_count, meta_open_count };
+
+    const totalLeads = opps.length;
+    const closingPlus = closing + won; // closing includes won already counted
+    const metaLeads = metaSetting + metaClosing + metaWon;
+
+    return {
+      total_leads: totalLeads,
+      setting_count: setting,
+      closing_count: closingPlus,
+      won_count: won,
+      lost_count: lost,
+      won_value: wonValue,
+      open_value: openValue,
+      meta_leads: metaLeads,
+      meta_setting: metaSetting,
+      meta_closing: metaClosing,
+      meta_won_count: metaWon,
+      meta_won_value: metaWonValue,
+      meta_open_count: metaOpen,
+      meta_open_value: metaOpenValue,
+      quali_rate: totalLeads > 0 ? Math.round((closingPlus / totalLeads) * 1000) / 10 : 0,
+      closing_rate: closingPlus > 0 ? Math.round((won / closingPlus) * 1000) / 10 : 0,
+      win_rate: totalLeads > 0 ? Math.round((won / totalLeads) * 1000) / 10 : 0,
+    };
   } catch {
-    return { won: 0, open: 0, won_count: 0, open_count: 0, meta_won: 0, meta_open: 0, meta_won_count: 0, meta_open_count: 0 };
+    return empty;
   }
 }
 
@@ -315,25 +388,40 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fetch Close CRM revenue for ROAS (only Meta Ads attributed deals)
+  // Fetch Close CRM pipeline data for real leads + ROAS
   const closeRevenue = await getCloseRevenue();
-  const roas = totalSpend > 0 ? closeRevenue.meta_won / totalSpend : 0;
+
+  // Use real pipeline leads, not Meta Pixel count
+  const realLeads = closeRevenue.total_leads;
+  const roas = totalSpend > 0 ? closeRevenue.meta_won_value / totalSpend : 0;
 
   const summary = {
     spend: totalSpend,
-    leads: totalLeads,
-    cpl: totalLeads > 0 ? totalSpend / totalLeads : 0,
+    // Meta Pixel leads (for reference)
+    pixel_leads: totalLeads,
+    // Real pipeline leads from Close CRM
+    leads: realLeads,
+    cpl: realLeads > 0 ? totalSpend / realLeads : 0,
     cpc: cpcCount > 0 ? totalCpc / cpcCount : 0,
     ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
     impressions: totalImpressions,
     clicks: totalClicks,
-    // Close CRM revenue — only from leads with Leadquelle = Meta/Instagram/Facebook
-    revenue_won: closeRevenue.meta_won,
-    revenue_open: closeRevenue.meta_open,
+    // Pipeline funnel
+    setting_count: closeRevenue.setting_count,
+    closing_count: closeRevenue.closing_count,
+    won_count: closeRevenue.won_count,
+    lost_count: closeRevenue.lost_count,
+    // Quoten
+    quali_rate: closeRevenue.quali_rate,
+    closing_rate: closeRevenue.closing_rate,
+    win_rate: closeRevenue.win_rate,
+    // Revenue — Meta-attributed
+    revenue_won: closeRevenue.meta_won_value,
+    revenue_open: closeRevenue.meta_open_value,
     deals_won: closeRevenue.meta_won_count,
     deals_open: closeRevenue.meta_open_count,
     // Total pipeline (all sources)
-    total_revenue_won: closeRevenue.won,
+    total_revenue_won: closeRevenue.won_value,
     total_deals_won: closeRevenue.won_count,
     roas,
   };
