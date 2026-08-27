@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
+import { fireEvent } from '@/lib/automations/fire';
 
 const VALID_CHANNELS = ['whatsapp', 'email', 'sms', 'phone_recording'] as const;
 const VALID_EVENT_TYPES = ['opt_in', 'opt_out', 'recording_consent', 'recording_decline'] as const;
@@ -154,6 +155,10 @@ export async function POST(
     action_type: 'consent_event',
     metadata: { channel, event_type, source, evidence: evidence || null },
   });
+
+  if (event_type === 'opt_out') {
+    fireEvent('opt_out', candidate.agency_id, { candidate_id: id, extra: { channel } }).catch(() => {});
+  }
 
   return NextResponse.json(event, { status: 201 });
 }

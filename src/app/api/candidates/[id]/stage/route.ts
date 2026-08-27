@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { fireEvent } from '@/lib/automations/fire';
 
 export async function PATCH(
   request: NextRequest,
@@ -33,6 +34,17 @@ export async function PATCH(
     stage_id,
     changed_by: user.id,
   });
+
+  // Get candidate's agency_id for automation
+  const { data: candidate } = await supabase
+    .from('candidates')
+    .select('agency_id')
+    .eq('id', id)
+    .single();
+
+  if (candidate) {
+    fireEvent('stage_changed', candidate.agency_id, { candidate_id: id, extra: { new_stage_id: stage_id } }).catch(() => {});
+  }
 
   return NextResponse.json({ success: true });
 }

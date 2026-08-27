@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
+import { fireEvent } from '@/lib/automations/fire';
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'zoepp-media-cloud';
 
@@ -82,6 +83,8 @@ export async function POST(request: NextRequest) {
           stage_id: firstStage.id,
           changed_by: null,
         });
+
+        fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
 
         // Check blacklist
         const blacklistResult = await checkBlacklist(supabase, agencyId, email, phone);

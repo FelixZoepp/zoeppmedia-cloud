@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { FileUpload } from '@/components/file-upload';
 import {
   Briefcase, MapPin, Palette, Phone, User, ChevronRight, ChevronLeft, Check,
-  ShieldCheck, DollarSign, Building2, Sparkles,
+  ShieldCheck, DollarSign, Building2, Sparkles, Video,
   Globe, Settings, UserPlus, CreditCard, Code, FileText, Bell, Mail, Copy,
 } from 'lucide-react';
 
@@ -242,6 +242,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     tone: 'du',
     logo_url: '',
     primary_color: '#E0354B',
+    dankevideo_url: '',
     // Step 4 — Kontakt
     contact_name: '',
     contact_phone: '',
@@ -273,7 +274,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             'company_name', 'job_title', 'product', 'task_type', 'compensation',
             'commission_per_unit', 'employment_type', 'company_car_from', 'training_type',
             'client_name', 'start_date', 'tone', 'logo_url', 'primary_color',
-            'contact_name', 'contact_phone', 'preferred_contact_time',
+            'contact_name', 'contact_phone', 'preferred_contact_time', 'dankevideo_url',
           ];
           fields.forEach(f => { if (data[f]) restored[f] = data[f]; });
           // Numbers
@@ -341,6 +342,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
           tone: form.tone,
           logo_url: form.logo_url || null,
           primary_color: form.primary_color || null,
+          dankevideo_url: form.dankevideo_url || null,
           contact_name: form.contact_name || null,
           contact_phone: form.contact_phone || null,
           preferred_contact_time: form.preferred_contact_time || null,
@@ -402,6 +404,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         tone: form.tone,
         logo_url: form.logo_url || null,
         primary_color: form.primary_color || null,
+        dankevideo_url: form.dankevideo_url || null,
         contact_name: form.contact_name || null,
         contact_phone: form.contact_phone || null,
         preferred_contact_time: form.preferred_contact_time || null,
@@ -621,6 +624,19 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Ansprache in Texten</label>
               <Select value={form.tone} onChange={(e) => update('tone', e.target.value)} options={toneOptions} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Dankevideo-URL (optional)</label>
+              <Input
+                value={form.dankevideo_url}
+                onChange={(e) => update('dankevideo_url', e.target.value)}
+                icon={<Video className="w-4 h-4" />}
+                placeholder="https://youtube.com/watch?v=... oder Vimeo-Link"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Link zu eurem Willkommensvideo für neue Bewerber (YouTube, Vimeo, etc.)
+              </p>
             </div>
 
             <div className="pt-4 border-t border-gray-200">

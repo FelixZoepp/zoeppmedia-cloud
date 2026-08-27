@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
+import { fireEvent } from '@/lib/automations/fire';
 
 export async function GET(request: NextRequest) {
   const supabase = await createServerClient();
@@ -91,6 +92,8 @@ export async function POST(request: Request) {
     action_type: 'candidate_created',
     metadata: { source: candidate.source },
   });
+
+  fireEvent('candidate_created', profile.agency_id, { candidate_id: candidate.id, candidate }).catch(() => {});
 
   if (blacklistResult.is_blacklisted) {
     await logActivity(supabase, {

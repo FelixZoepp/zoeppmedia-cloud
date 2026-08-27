@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { logActivity } from '@/lib/activity/log';
 import { handleCallResultForCadence } from '@/lib/cadence/on-call-result';
+import { fireEvent } from '@/lib/automations/fire';
 
 const CONTACT_RESULTS = ['termin_vereinbart', 'kein_interesse', 'rueckruf', 'sonstiges'];
 
@@ -96,6 +97,8 @@ export async function POST(
 
   // Handle cadence logic based on call result
   await handleCallResultForCadence(supabase, id, candidate.agency_id, body.result);
+
+  fireEvent('call_logged', candidate.agency_id, { candidate_id: id, extra: { result: body.result } }).catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
 }

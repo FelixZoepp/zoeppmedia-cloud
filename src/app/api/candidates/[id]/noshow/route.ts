@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
+import { fireEvent } from '@/lib/automations/fire';
 
 const POINT_VALUES: Record<string, number> = {
   no_show: 1.0,
@@ -159,6 +160,8 @@ export async function POST(
     action_type: 'other',
     metadata: { event_type, points, totalPoints, appointment_type, reason },
   });
+
+  fireEvent('noshow_recorded', candidate.agency_id, { candidate_id: id }).catch(() => {});
 
   return NextResponse.json({
     noshow_points: totalPoints,

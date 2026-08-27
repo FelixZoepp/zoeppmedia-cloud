@@ -5,6 +5,7 @@ import { extractTextFromPdf, extractCvData, type CvData } from '@/lib/indeed/ext
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
+import { fireEvent } from '@/lib/automations/fire';
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
@@ -141,6 +142,8 @@ export async function POST(request: NextRequest) {
       candidate_id: candidate.id,
       stage_id: firstStage.id,
     });
+
+    fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
 
     // 9. Log success
     await supabase.from('inbound_email_log').insert({

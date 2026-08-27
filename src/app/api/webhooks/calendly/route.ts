@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { fireEvent } from '@/lib/automations/fire';
 
 /**
  * Calendly Webhook Handler
@@ -96,10 +97,21 @@ export async function POST(request: NextRequest) {
   // Handle cancellation
   if (event === 'invitee.canceled') {
     if (calendlyEventId) {
+      // Try to find the candidate linked to this event for the automation
+      const { data: existingEvent } = await supabase
+        .from('calendly_events')
+        .select('candidate_id, agency_id')
+        .eq('calendly_event_id', calendlyEventId)
+        .maybeSingle();
+
       await supabase
         .from('calendly_events')
         .update({ status: 'cancelled' })
         .eq('calendly_event_id', calendlyEventId);
+
+      if (existingEvent?.agency_id && existingEvent?.candidate_id) {
+        fireEvent('appointment_cancelled', existingEvent.agency_id, { candidate_id: existingEvent.candidate_id }).catch(() => {});
+      }
     }
     return NextResponse.json({ ok: true, action: 'cancelled' });
   }
@@ -168,6 +180,10 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('Calendly webhook insert error:', insertError);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    if (agencyId && candidateId) {
+      fireEvent('appointment_created', agencyId, { candidate_id: candidateId, extra: { event_type: eventType?.name || null } }).catch(() => {});
     }
 
     return NextResponse.json({
