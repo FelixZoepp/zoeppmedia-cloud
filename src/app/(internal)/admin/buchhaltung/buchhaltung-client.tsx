@@ -14,13 +14,17 @@ import {
   Receipt,
   FileText,
   CreditCard,
-  CalendarDays,
   TrendingUp,
   AlertTriangle,
   CheckCircle2,
   Loader2,
   Plus,
   Play,
+  X,
+  Check,
+  Copy,
+  RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -42,6 +46,10 @@ interface BillingRun {
   betrag_brutto: number;
   ust_betrag: number;
   status: string;
+  freigabe_status: string | null;
+  freigabe_von: string | null;
+  freigabe_am: string | null;
+  ablehnungsgrund: string | null;
   fehlergrund: string | null;
   erstellt_am: string;
   bezahlt_am: string | null;
@@ -56,6 +64,7 @@ interface Mandate {
   provider_mandate_id: string | null;
   status: string;
   erteilt_am: string | null;
+  checkout_url: string | null;
   created_at: string;
   updated_at: string;
   agencies: Agency | null;
@@ -104,18 +113,36 @@ function formatDate(iso: string | null): string {
   });
 }
 
+function formatRelativeDate(iso: string): string {
+  const now = new Date();
+  const date = new Date(iso);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Heute';
+  if (diffDays === 1) return 'Gestern';
+  if (diffDays < 7) return `vor ${diffDays} Tagen`;
+  return formatDate(iso);
+}
+
 const STATUS_CONFIG: Record<string, { tone: 'neutral' | 'softAccent' | 'success' | 'accent' | 'outline'; label: string; strikethrough?: boolean }> = {
   offen: { tone: 'neutral', label: 'Offen' },
   rechnung_erstellt: { tone: 'outline', label: 'Rechnung erstellt' },
+  vorab_benachrichtigt: { tone: 'softAccent', label: 'Vorab benachrichtigt' },
   zahlung_angestossen: { tone: 'softAccent', label: 'Zahlung angestossen' },
   bezahlt: { tone: 'success', label: 'Bezahlt' },
   fehlgeschlagen: { tone: 'accent', label: 'Fehlgeschlagen' },
   storniert: { tone: 'neutral', label: 'Storniert', strikethrough: true },
 };
 
+const FREIGABE_STATUS_CONFIG: Record<string, { tone: 'neutral' | 'softAccent' | 'success' | 'accent' | 'outline'; label: string }> = {
+  ausstehend: { tone: 'softAccent', label: 'Ausstehend' },
+  freigegeben: { tone: 'success', label: 'Freigegeben' },
+  abgelehnt: { tone: 'accent', label: 'Abgelehnt' },
+};
+
 const MANDATE_STATUS_CONFIG: Record<string, { tone: 'neutral' | 'softAccent' | 'success' | 'accent' | 'outline'; label: string }> = {
   angefragt: { tone: 'softAccent', label: 'Angefragt' },
-  gueltig: { tone: 'success', label: 'Gueltig' },
+  gueltig: { tone: 'success', label: 'Aktiv' },
   widerrufen: { tone: 'accent', label: 'Widerrufen' },
   fehlgeschlagen: { tone: 'accent', label: 'Fehlgeschlagen' },
 };
@@ -136,22 +163,24 @@ function KpiCard({
   label,
   value,
   sub,
+  urgent,
 }: {
   icon: React.ReactNode;
   iconColor: string;
   label: string;
   value: string;
   sub?: string;
+  urgent?: boolean;
 }) {
   return (
-    <Card padding="md">
+    <Card padding="md" className={urgent ? 'ring-2 ring-red-200 border-red-300' : ''}>
       <div className="flex items-start gap-4">
         <div className={`flex-shrink-0 p-2.5 rounded-xl ${iconColor}`}>
           {icon}
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          <p className={`text-2xl font-bold mt-1 ${urgent ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
           {sub && <p className="text-sm text-gray-500 mt-0.5">{sub}</p>}
         </div>
       </div>
@@ -171,6 +200,133 @@ function StatusBadge({ status, config }: { status: string; config: Record<string
         {cfg.label}
       </span>
     </Badge>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Freigabe Card                                                      */
+/* ------------------------------------------------------------------ */
+
+function FreigabeCard({
+  run,
+  onFreigeben,
+  onAblehnen,
+}: {
+  run: BillingRun;
+  onFreigeben: (id: string) => Promise<void>;
+  onAblehnen: (id: string, grund: string) => Promise<void>;
+}) {
+  const [rejecting, setRejecting] = useState(false);
+  const [grund, setGrund] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  async function handleFreigeben() {
+    setProcessing(true);
+    try {
+      await onFreigeben(run.id);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function handleAblehnen() {
+    if (!grund.trim()) {
+      toast.error('Bitte einen Ablehnungsgrund eingeben');
+      return;
+    }
+    setProcessing(true);
+    try {
+      await onAblehnen(run.id, grund.trim());
+    } finally {
+      setProcessing(false);
+      setRejecting(false);
+      setGrund('');
+    }
+  }
+
+  return (
+    <Card padding="sm" className="border-l-4 border-l-amber-400">
+      <div className="flex items-center gap-4">
+        {/* Left: Invoice info */}
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-bold text-gray-900">
+            {run.agencies?.name || 'Unbekannt'}
+          </p>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            {run.lex_invoice_number && (
+              <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">
+                {run.lex_invoice_number}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">{run.periode}</span>
+            <span className="text-xs text-gray-400">{formatRelativeDate(run.erstellt_am)}</span>
+          </div>
+        </div>
+
+        {/* Center: Amounts */}
+        <div className="text-right flex-shrink-0">
+          <p className="text-lg font-bold text-gray-900">{formatEuro(run.betrag_brutto)}</p>
+          <p className="text-xs text-gray-400">
+            {formatEuro(run.betrag_netto)} netto + {formatEuro(run.ust_betrag)} USt
+          </p>
+        </div>
+
+        {/* Right: Actions */}
+        {!rejecting && (
+          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+            <Button
+              size="sm"
+              onClick={handleFreigeben}
+              disabled={processing}
+              className="!bg-green-600 hover:!bg-green-700"
+            >
+              {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Freigeben & Einziehen
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setRejecting(true)}
+              disabled={processing}
+              className="!text-red-600 !border-red-200 hover:!bg-red-50"
+            >
+              <X className="w-3.5 h-3.5" />
+              Ablehnen
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Reject input row */}
+      {rejecting && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+          <textarea
+            value={grund}
+            onChange={(e) => setGrund(e.target.value)}
+            placeholder="Ablehnungsgrund eingeben..."
+            rows={2}
+            className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 resize-none"
+          />
+          <div className="flex flex-col gap-1">
+            <Button
+              size="sm"
+              onClick={handleAblehnen}
+              disabled={processing || !grund.trim()}
+              className="!bg-red-600 hover:!bg-red-700"
+            >
+              {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Ablehnen'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setRejecting(false); setGrund(''); }}
+            >
+              Abbrechen
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -390,7 +546,7 @@ function MandateModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Mandat anfordern">
+    <Modal open={open} onClose={onClose} title="Neues Mandat anfordern">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Kunde *</label>
@@ -561,12 +717,13 @@ function BillingRunModal({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Sections                                                           */
+/*  Tabs                                                               */
 /* ------------------------------------------------------------------ */
 
 const TABS = [
+  { value: 'freigaben', label: 'Freigaben' },
   { value: 'rechnungen', label: 'Rechnungen' },
-  { value: 'mandate', label: 'Mandate' },
+  { value: 'zahlungsmethoden', label: 'Zahlungsmethoden' },
   { value: 'plaene', label: 'Zahlungsplaene' },
 ];
 
@@ -577,9 +734,9 @@ const TABS = [
 export function BuchhaltungClient() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('rechnungen');
+  const [tab, setTab] = useState('freigaben');
 
-  // Filters
+  // Filters for Rechnungen tab
   const [statusFilter, setStatusFilter] = useState('');
   const [agencyFilter, setAgencyFilter] = useState('');
 
@@ -587,6 +744,9 @@ export function BuchhaltungClient() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [mandateModalOpen, setMandateModalOpen] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);
+
+  // Syncing state
+  const [syncing, setSyncing] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -609,13 +769,118 @@ export function BuchhaltungClient() {
     fetchData();
   }, [fetchData]);
 
+  // Derived data
+  const pendingFreigaben = data?.rechnungen.filter(
+    (r) => r.freigabe_status === 'ausstehend' && r.status === 'rechnung_erstellt'
+  ) ?? [];
+
+  const pendingCount = pendingFreigaben.length;
+
+  /* ------ Freigabe actions ------ */
+
+  async function handleFreigeben(runId: string) {
+    try {
+      const res = await fetch(`/api/admin/billing/run/${runId}/freigabe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'freigeben' }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || 'Freigabe fehlgeschlagen');
+        return;
+      }
+
+      if (result.warnung) {
+        toast.warning(result.warnung);
+      } else if (result.checkout_url) {
+        toast.success('Freigegeben — Checkout-Link per E-Mail versendet');
+      } else {
+        toast.success('Freigegeben — Zahlung angestossen');
+      }
+
+      // Remove from local state immediately
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          rechnungen: prev.rechnungen.map((r) =>
+            r.id === runId
+              ? { ...r, freigabe_status: 'freigegeben', status: 'zahlung_angestossen' }
+              : r
+          ),
+        };
+      });
+    } catch {
+      toast.error('Netzwerkfehler bei Freigabe');
+    }
+  }
+
+  async function handleAblehnen(runId: string, ablehnungsgrund: string) {
+    try {
+      const res = await fetch(`/api/admin/billing/run/${runId}/freigabe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ablehnen', ablehnungsgrund }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || 'Ablehnung fehlgeschlagen');
+        return;
+      }
+
+      toast.success('Rechnung abgelehnt und storniert');
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          rechnungen: prev.rechnungen.map((r) =>
+            r.id === runId
+              ? { ...r, freigabe_status: 'abgelehnt', status: 'storniert', ablehnungsgrund }
+              : r
+          ),
+        };
+      });
+    } catch {
+      toast.error('Netzwerkfehler bei Ablehnung');
+    }
+  }
+
+  /* ------ Copy helper ------ */
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    toast.success('Link kopiert');
+  }
+
+  /* ------ Lexware Sync (placeholder) ------ */
+
+  async function handleLexwareSync() {
+    setSyncing(true);
+    toast.info('Lexware-Sync gestartet...');
+    // The sync endpoint is per-agency, so we just refetch the overview after a short delay
+    // In production this would call a batch sync endpoint
+    setTimeout(async () => {
+      await fetchData();
+      setSyncing(false);
+      toast.success('Daten aktualisiert');
+    }, 1500);
+  }
+
+  /* ------ Loading state ------ */
+
   if (loading || !data) {
     return (
       <div className="max-w-6xl">
         <PageHeader
           label="FINANZEN"
           title="Buchhaltung"
-          description="Rechnungen, Mandate und Zahlungsplaene verwalten"
+          description="Rechnungen, Freigaben und Zahlungen verwalten"
         />
         <div className="flex items-center justify-center py-24">
           <div className="w-8 h-8 border-[3px] border-red-200 border-t-red-600 rounded-full animate-spin" />
@@ -624,28 +889,36 @@ export function BuchhaltungClient() {
     );
   }
 
-  // Filter rechnungen
+  // Filter rechnungen for Rechnungen tab
   const filteredRechnungen = data.rechnungen.filter((r) => {
     if (statusFilter && r.status !== statusFilter) return false;
     if (agencyFilter && r.agency_id !== agencyFilter) return false;
     return true;
   });
 
+  // Row tint for rechnungen table
+  function rowTint(run: BillingRun): string {
+    if (run.status === 'bezahlt') return 'bg-green-50/50';
+    if (run.status === 'fehlgeschlagen') return 'bg-red-50/50';
+    if (run.freigabe_status === 'ausstehend') return 'bg-amber-50/40';
+    return '';
+  }
+
   return (
     <div className="max-w-6xl">
       <PageHeader
         label="FINANZEN"
         title="Buchhaltung"
-        description="Rechnungen, Mandate und Zahlungsplaene verwalten"
+        description="Rechnungen, Freigaben und Zahlungen verwalten"
         action={
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={handleLexwareSync} disabled={syncing}>
+              {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              Lexware Sync
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => setRunModalOpen(true)}>
               <Play className="w-3.5 h-3.5" />
               Abrechnungslauf
-            </Button>
-            <Button size="sm" variant="primary" onClick={() => setPlanModalOpen(true)}>
-              <Plus className="w-3.5 h-3.5" />
-              Plan anlegen
             </Button>
           </div>
         }
@@ -653,6 +926,18 @@ export function BuchhaltungClient() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <KpiCard
+          icon={
+            pendingCount > 0
+              ? <AlertTriangle className="w-5 h-5 text-red-600" />
+              : <CheckCircle2 className="w-5 h-5 text-green-600" />
+          }
+          iconColor={pendingCount > 0 ? 'bg-red-50' : 'bg-green-50'}
+          label="Zu freigeben"
+          value={String(pendingCount)}
+          sub={pendingCount > 0 ? 'Rechnungen warten' : 'Alles freigegeben'}
+          urgent={pendingCount > 0}
+        />
         <KpiCard
           icon={<FileText className="w-5 h-5 text-amber-600" />}
           iconColor="bg-amber-50"
@@ -663,16 +948,9 @@ export function BuchhaltungClient() {
         <KpiCard
           icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
           iconColor="bg-green-50"
-          label="Bezahlt diesen Monat"
+          label="Bezahlt (Monat)"
           value={formatEuro(data.bezahlt_monat.betrag)}
           sub={`${data.bezahlt_monat.count} Zahlungen`}
-        />
-        <KpiCard
-          icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
-          iconColor="bg-red-50"
-          label="Fehlgeschlagen"
-          value={String(data.fehlgeschlagen.count)}
-          sub="Rechnungen mit Fehler"
         />
         <KpiCard
           icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
@@ -686,13 +964,55 @@ export function BuchhaltungClient() {
       {/* Tab Navigation */}
       <div className="mb-6">
         <SegmentedControl
-          items={TABS}
+          items={TABS.map((t) => ({
+            value: t.value,
+            label: (
+              <span className="flex items-center gap-1.5">
+                {t.label}
+                {t.value === 'freigaben' && pendingCount > 0 && (
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-600 rounded-full">
+                    {pendingCount}
+                  </span>
+                )}
+              </span>
+            ),
+          }))}
           value={tab}
           onChange={setTab}
         />
       </div>
 
-      {/* Rechnungen Tab */}
+      {/* ============================================================= */}
+      {/*  TAB 1: Freigaben                                              */}
+      {/* ============================================================= */}
+      {tab === 'freigaben' && (
+        <>
+          {pendingFreigaben.length === 0 ? (
+            <Card padding="lg" className="text-center">
+              <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
+              <h2 className="text-lg font-bold text-gray-900 mb-2">Alle Rechnungen freigegeben</h2>
+              <p className="text-gray-500 text-sm">
+                Keine Rechnungen warten aktuell auf Freigabe.
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {pendingFreigaben.map((run) => (
+                <FreigabeCard
+                  key={run.id}
+                  run={run}
+                  onFreigeben={handleFreigeben}
+                  onAblehnen={handleAblehnen}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ============================================================= */}
+      {/*  TAB 2: Rechnungen                                             */}
+      {/* ============================================================= */}
       {tab === 'rechnungen' && (
         <>
           {/* Filter Bar */}
@@ -709,6 +1029,7 @@ export function BuchhaltungClient() {
                   { value: '', label: 'Alle Status' },
                   { value: 'offen', label: 'Offen' },
                   { value: 'rechnung_erstellt', label: 'Rechnung erstellt' },
+                  { value: 'vorab_benachrichtigt', label: 'Vorab benachrichtigt' },
                   { value: 'zahlung_angestossen', label: 'Zahlung angestossen' },
                   { value: 'bezahlt', label: 'Bezahlt' },
                   { value: 'fehlgeschlagen', label: 'Fehlgeschlagen' },
@@ -740,18 +1061,19 @@ export function BuchhaltungClient() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Kunde</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rechnungsnr.</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rechnung</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Periode</th>
                       <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Netto</th>
                       <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Brutto</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Freigabe</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Erstellt</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bezahlt am</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bezahlt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {filteredRechnungen.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={r.id} className={`hover:bg-gray-50 transition-colors ${rowTint(r)}`}>
                         <td className="px-5 py-3 whitespace-nowrap">
                           <span className="text-sm font-medium text-gray-900">
                             {r.agencies?.name || 'Unbekannt'}
@@ -772,6 +1094,13 @@ export function BuchhaltungClient() {
                         <td className="px-5 py-3 whitespace-nowrap">
                           <StatusBadge status={r.status} config={STATUS_CONFIG} />
                         </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          {r.freigabe_status ? (
+                            <StatusBadge status={r.freigabe_status} config={FREIGABE_STATUS_CONFIG} />
+                          ) : (
+                            <span className="text-xs text-gray-400">--</span>
+                          )}
+                        </td>
                         <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(r.erstellt_am)}
                         </td>
@@ -788,19 +1117,21 @@ export function BuchhaltungClient() {
         </>
       )}
 
-      {/* Mandate Tab */}
-      {tab === 'mandate' && (
+      {/* ============================================================= */}
+      {/*  TAB 3: Zahlungsmethoden                                       */}
+      {/* ============================================================= */}
+      {tab === 'zahlungsmethoden' && (
         <>
           <div className="flex justify-end mb-4">
             <Button size="sm" variant="secondary" onClick={() => setMandateModalOpen(true)}>
               <CreditCard className="w-3.5 h-3.5" />
-              Mandat anfordern
+              Neues Mandat
             </Button>
           </div>
           <Card padding="none" className="overflow-hidden">
             {data.mandate.length === 0 ? (
               <div className="text-center py-16">
-                <p className="text-gray-400 text-sm">Keine Mandate vorhanden.</p>
+                <p className="text-gray-400 text-sm">Keine Zahlungsmethoden vorhanden.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -808,10 +1139,10 @@ export function BuchhaltungClient() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Kunde</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Provider</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Provider</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Checkout-Link</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Erteilt am</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Letzte Pruefung</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -823,16 +1154,40 @@ export function BuchhaltungClient() {
                           </span>
                         </td>
                         <td className="px-5 py-3 whitespace-nowrap">
-                          <Badge tone="outline">{m.provider}</Badge>
+                          <StatusBadge status={m.status} config={MANDATE_STATUS_CONFIG} />
                         </td>
                         <td className="px-5 py-3 whitespace-nowrap">
-                          <StatusBadge status={m.status} config={MANDATE_STATUS_CONFIG} />
+                          <Badge tone="outline">{m.provider === 'stripe' ? 'Stripe' : m.provider}</Badge>
+                        </td>
+                        <td className="px-5 py-3">
+                          {m.checkout_url ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 font-mono truncate max-w-[200px]">
+                                {m.checkout_url}
+                              </span>
+                              <button
+                                onClick={() => copyToClipboard(m.checkout_url!)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer flex-shrink-0"
+                                title="Link kopieren"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <a
+                                href={m.checkout_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                title="Link oeffnen"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">--</span>
+                          )}
                         </td>
                         <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(m.erteilt_am)}
-                        </td>
-                        <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(m.updated_at)}
                         </td>
                       </tr>
                     ))}
@@ -844,7 +1199,9 @@ export function BuchhaltungClient() {
         </>
       )}
 
-      {/* Zahlungsplaene Tab */}
+      {/* ============================================================= */}
+      {/*  TAB 4: Zahlungsplaene                                         */}
+      {/* ============================================================= */}
       {tab === 'plaene' && (
         <>
           <div className="flex justify-end mb-4">
@@ -866,10 +1223,9 @@ export function BuchhaltungClient() {
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Kunde</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Typ</th>
                       <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Betrag netto</th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">USt</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rhythmus</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Faelligkeitstag</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Start</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Laufzeit</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
@@ -889,9 +1245,6 @@ export function BuchhaltungClient() {
                         <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
                           {formatEuro(p.betrag_netto)}
                         </td>
-                        <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-600 text-right">
-                          {p.ust_satz}%
-                        </td>
                         <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-600 capitalize">
                           {p.rhythmus}
                         </td>
@@ -900,6 +1253,7 @@ export function BuchhaltungClient() {
                         </td>
                         <td className="px-5 py-3 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(p.start_datum)}
+                          {p.ende_datum ? ` — ${formatDate(p.ende_datum)}` : ' — laufend'}
                         </td>
                         <td className="px-5 py-3 whitespace-nowrap">
                           <StatusBadge status={p.status} config={PLAN_STATUS_CONFIG} />

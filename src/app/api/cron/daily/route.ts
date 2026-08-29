@@ -322,6 +322,13 @@ async function runDailyJobs() {
     await checkSlaEscalations(supabase);
   } catch { /* silent */ }
 
+  // 14. Billing: überfällige Rechnungen + fehlgeschlagene Zahlungen → Aufgaben
+  let overdueTasksCreated = 0;
+  try {
+    const { checkOverdueBillingRuns } = await import('@/lib/billing/overdue-check');
+    overdueTasksCreated = await checkOverdueBillingRuns(supabase);
+  } catch { /* silent */ }
+
   return {
     ok: true,
     processed: agencies?.length ?? 0,
@@ -336,6 +343,7 @@ async function runDailyJobs() {
     accessReminders,
     reportsGenerated,
     healthChecksRun,
+    overdueTasksCreated,
   };
 }
 
