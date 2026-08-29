@@ -211,10 +211,12 @@ function FreigabeCard({
   run,
   onFreigeben,
   onAblehnen,
+  hatMandat,
 }: {
   run: BillingRun;
   onFreigeben: (id: string) => Promise<void>;
   onAblehnen: (id: string, grund: string) => Promise<void>;
+  hatMandat: boolean;
 }) {
   const [rejecting, setRejecting] = useState(false);
   const [grund, setGrund] = useState('');
@@ -274,6 +276,12 @@ function FreigabeCard({
         {/* Right: Actions */}
         {!rejecting && (
           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+            {!hatMandat ? (
+              <div className="text-right">
+                <p className="text-xs font-medium text-red-600">Kein SEPA-Mandat</p>
+                <p className="text-xs text-gray-400">Kunde muss erst Checkout ausfüllen</p>
+              </div>
+            ) : (
             <Button
               size="sm"
               onClick={handleFreigeben}
@@ -283,6 +291,7 @@ function FreigabeCard({
               {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               Freigeben & Einziehen
             </Button>
+            )}
             <Button
               size="sm"
               variant="secondary"
@@ -997,14 +1006,20 @@ export function BuchhaltungClient() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {pendingFreigaben.map((run) => (
+              {pendingFreigaben.map((run) => {
+                const agencyMandate = data?.mandate.find(
+                  (m) => m.agency_id === run.agency_id && m.status === 'gueltig'
+                );
+                return (
                 <FreigabeCard
                   key={run.id}
                   run={run}
                   onFreigeben={handleFreigeben}
                   onAblehnen={handleAblehnen}
+                  hatMandat={!!agencyMandate}
                 />
-              ))}
+                );
+              })}
             </div>
           )}
         </>

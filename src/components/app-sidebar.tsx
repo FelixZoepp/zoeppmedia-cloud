@@ -31,6 +31,7 @@ import {
   FileBarChart,
   Activity,
   Receipt,
+  PlusCircle,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -64,9 +65,17 @@ const adminGroups: SidebarGroup[] = [
     ],
   },
   {
+    label: 'Buchhaltung',
+    items: [
+      { id: 'buchhaltung', label: 'Übersicht & Freigaben', icon: <Receipt className="w-5 h-5" />, href: '/admin/buchhaltung' },
+      { id: 'finanzen-kunden', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/admin/finanzen/kunden' },
+    ],
+  },
+  {
     label: 'Verwaltung',
     items: [
-      { id: 'freigaben', label: 'Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
+      { id: 'freigaben', label: 'Aufgaben-Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
+      { id: 'after-close', label: 'After-Close', icon: <PlusCircle className="w-5 h-5" />, href: '/admin/after-close' },
       { id: 'admin-reports', label: 'Reports', icon: <FileBarChart className="w-5 h-5" />, href: '/admin/reports' },
       { id: 'health', label: 'Health', icon: <Activity className="w-5 h-5" />, href: '/admin/health' },
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
@@ -74,7 +83,6 @@ const adminGroups: SidebarGroup[] = [
       { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },
       { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
       { id: 'audit', label: 'Audit Log', icon: <Shield className="w-5 h-5" />, href: '/admin/audit' },
-      { id: 'buchhaltung', label: 'Buchhaltung', icon: <Receipt className="w-5 h-5" />, href: '/admin/buchhaltung' },
     ],
   },
 ];
