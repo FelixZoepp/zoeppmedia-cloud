@@ -329,6 +329,12 @@ async function runDailyJobs() {
     overdueTasksCreated = await checkOverdueBillingRuns(supabase);
   } catch { /* silent */ }
 
+  // 15. Slack Daily Reports (Marketing + Sales)
+  try {
+    const { sendDailySlackReports } = await import('@/lib/slack/daily-reports');
+    await sendDailySlackReports(supabase);
+  } catch { /* silent */ }
+
   return {
     ok: true,
     processed: agencies?.length ?? 0,
