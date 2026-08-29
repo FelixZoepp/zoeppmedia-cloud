@@ -105,7 +105,7 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
       })
     );
 
-    // Classify each opportunity by funnel stage
+    // Classify each opportunity by funnel stage (mutually exclusive)
     let setting = 0, closing = 0, won = 0, lost = 0;
     let wonValue = 0, openValue = 0;
     let metaSetting = 0, metaClosing = 0;
@@ -119,22 +119,21 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
 
       if (statusInfo.type === 'won') {
         won++; wonValue += val;
-        closing++; // won implies went through closing
-        if (isMeta) { metaWon++; metaWonValue += val; metaClosing++; }
+        if (isMeta) { metaWon++; metaWonValue += val; }
       } else if (statusInfo.type === 'lost') {
         lost++;
       } else if (label.includes('closing') || label.includes('angebot') || label.includes('cc2')) {
         closing++; openValue += val;
         if (isMeta) { metaClosing++; metaOpen++; metaOpenValue += val; }
       } else {
-        // Setting stage
         setting++;
         if (isMeta) { metaSetting++; }
       }
     }
 
     const totalLeads = opps.length;
-    const closingPlus = closing + won; // closing includes won already counted
+    // closing_count = currently in closing + already won (passed through closing)
+    const closingPlus = closing + won;
     const metaLeads = metaSetting + metaClosing + metaWon;
 
     return {

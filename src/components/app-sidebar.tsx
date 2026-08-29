@@ -27,6 +27,7 @@ import {
   CalendarCheck,
   Timer,
   Shield,
+  CheckSquare,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -42,7 +43,8 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
-      { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
+      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/aufgaben' },
+      { id: 'tasks', label: 'Interne Tasks', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
@@ -61,6 +63,7 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Verwaltung',
     items: [
+      { id: 'freigaben', label: 'Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
       { id: 'kpi', label: 'KPI Einstellungen', icon: <Target className="w-5 h-5" />, href: '/admin/kpi' },
       { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },
@@ -74,7 +77,8 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Meine Arbeit',
     items: [
-      { id: 'meine-aufgaben', label: 'Meine Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben' },
+      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/aufgaben' },
+      { id: 'meine-aufgaben', label: 'Meine Aufgaben (alt)', icon: <ListTodo className="w-5 h-5" />, href: '/meine-aufgaben' },
     ],
   },
   {
@@ -89,7 +93,7 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
-      { id: 'tasks', label: 'Aufgaben', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
+      { id: 'tasks', label: 'Interne Tasks', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
     ],

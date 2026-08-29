@@ -688,3 +688,86 @@ export interface BranchProfile {
   created_at: string;
   updated_at: string;
 }
+
+// Phase 3b: Project Tasks / Fulfillment System
+
+export type ProjectTaskStatus = 'blockiert' | 'offen' | 'in_arbeit' | 'zur_freigabe' | 'erledigt' | 'nicht_noetig';
+
+export interface ProjectTask {
+  id: string;
+  agency_id: string;
+  template_id: string | null;
+  titel: string;
+  beschreibung: string | null;
+  owner_user_id: string | null;
+  owner_funktion: string | null;
+  status: ProjectTaskStatus;
+  faellig_am: string | null;
+  gestartet_am: string | null;
+  erledigt_am: string | null;
+  ergebnis_url: string | null;
+  ergebnis_text: string | null;
+  notiz: string | null;
+  blockiert_durch: string[] | null;
+  freigabe_noetig: boolean;
+  reihenfolge: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskCheckitem {
+  id: string;
+  task_id: string;
+  text: string;
+  reihenfolge: number;
+  erledigt: boolean;
+  erledigt_von: string | null;
+  erledigt_am: string | null;
+}
+
+export type TaskTemplateAbgabeTyp = 'link' | 'datei' | 'text' | 'checkitem';
+
+export interface TaskTemplate {
+  id: string;
+  titel: string;
+  prozess: string | null;
+  beschreibung: string | null;
+  owner_funktion: string | null;
+  ausloeser: string | null;
+  sla_tage: number | null;
+  checkliste: string[] | null;
+  benoetigte_zugaenge: string[] | null;
+  vorlagen_links: string[] | null;
+  definition_of_done: string | null;
+  abgabe_typ: TaskTemplateAbgabeTyp | null;
+  freigabe_noetig: boolean;
+  aktiv: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AccessItemStatus = 'ausstehend' | 'angefragt' | 'erfuellt' | 'nicht_noetig';
+
+export interface AccessItem {
+  id: string;
+  agency_id: string;
+  typ: string;
+  label: string;
+  pflicht: boolean;
+  status: AccessItemStatus;
+  hinweis_fuer_kunden: string | null;
+  anleitung_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientProfile {
+  id: string;
+  agency_id: string;
+  provisionsmodell: string | null;
+  verdienstspanne: string | null;
+  alleinstellung: string | null;
+  verbotene_claims: string | null;
+  created_at: string;
+  updated_at: string;
+}
