@@ -171,7 +171,7 @@ export function ProjectOverview({ agencyId }: { agencyId: string }) {
               return (
                 <Link
                   key={task.id}
-                  href={`/aufgaben/${task.id}`}
+                  href={`/meine-aufgaben-portal/${task.id}`}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   <StatusIcon

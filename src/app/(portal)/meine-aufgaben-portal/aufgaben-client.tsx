@@ -69,7 +69,7 @@ function TaskRow({ task }: { task: ProjectTaskWithCheckitems }) {
   const overdue = isTaskOverdue(task);
 
   return (
-    <Link href={`/aufgaben/${task.id}`}>
+    <Link href={`/meine-aufgaben-portal/${task.id}`}>
       <div
         className={`flex items-center gap-4 px-4 py-3 rounded-xl border bg-white hover:shadow-md transition-shadow cursor-pointer ${
           overdue ? 'border-red-300 bg-red-50/50' : 'border-gray-200'

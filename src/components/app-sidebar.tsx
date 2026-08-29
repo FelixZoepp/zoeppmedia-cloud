@@ -45,7 +45,7 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
-      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/aufgaben' },
+      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
       { id: 'tasks', label: 'Interne Tasks', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
@@ -81,7 +81,7 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Meine Arbeit',
     items: [
-      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/aufgaben' },
+      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
       { id: 'meine-aufgaben', label: 'Meine Aufgaben (alt)', icon: <ListTodo className="w-5 h-5" />, href: '/meine-aufgaben' },
     ],
   },
