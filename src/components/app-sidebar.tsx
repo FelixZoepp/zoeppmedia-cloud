@@ -30,6 +30,7 @@ import {
   CheckSquare,
   FileBarChart,
   Activity,
+  Receipt,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -73,6 +74,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },
       { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
       { id: 'audit', label: 'Audit Log', icon: <Shield className="w-5 h-5" />, href: '/admin/audit' },
+      { id: 'buchhaltung', label: 'Buchhaltung', icon: <Receipt className="w-5 h-5" />, href: '/admin/buchhaltung' },
     ],
   },
 ];
