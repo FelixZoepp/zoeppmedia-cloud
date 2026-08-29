@@ -123,6 +123,92 @@ export async function POST(request: Request) {
       produkt
     );
 
+    // --- 4b. Create billing plan from paket ---
+    let billingPlanId: string | null = null;
+    let checkoutUrl: string | null = null;
+
+    // Look up paket definition for pricing
+    const { data: paketDef } = await admin
+      .from('paket_definitionen')
+      .select('*')
+      .eq('key', body.paket)
+      .single();
+
+    const retainerNetto = body.mrr ?? paketDef?.retainer_netto ?? 0;
+    const setupNetto = body.setup_betrag ?? paketDef?.setup_netto ?? 0;
+    const laufzeit = body.laufzeit_monate ?? paketDef?.laufzeit_monate ?? 12;
+
+    if (retainerNetto > 0) {
+      // Create retainer billing plan
+      const { data: plan } = await admin.from('billing_plans').insert({
+        agency_id: agencyId,
+        typ: 'retainer',
+        betrag_netto: retainerNetto,
+        ust_satz: 19.00,
+        rhythmus: 'monatlich',
+        faelligkeitstag: 1,
+        start_datum: guaranteeStart,
+        ende_datum: guaranteeEnd,
+        status: 'aktiv',
+      }).select().single();
+
+      if (plan) billingPlanId = plan.id;
+    }
+
+    if (setupNetto > 0) {
+      // Create setup billing plan
+      await admin.from('billing_plans').insert({
+        agency_id: agencyId,
+        typ: 'setup',
+        betrag_netto: setupNetto,
+        ust_satz: 19.00,
+        rhythmus: 'einmalig',
+        faelligkeitstag: 1,
+        start_datum: guaranteeStart,
+        status: 'aktiv',
+      });
+    }
+
+    // --- 4c. Create Lexware contact ---
+    let lexContactId: string | null = null;
+    try {
+      const { createContact } = await import('@/lib/billing/lexoffice');
+      lexContactId = await createContact(admin, agency);
+      if (lexContactId) {
+        await admin.from('agencies').update({ lex_contact_id: lexContactId }).eq('id', agencyId);
+      }
+    } catch { /* Lexware optional — don't block */ }
+
+    // --- 4d. Create Stripe customer + checkout link ---
+    try {
+      const { createCustomer, createCheckoutSession } = await import('@/lib/billing/stripe');
+      const stripeCustomerId = await createCustomer(admin, {
+        name: body.firma,
+        email: body.rechnungsmail || body.email,
+        agency_id: agencyId,
+      });
+
+      if (stripeCustomerId) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
+        const session = await createCheckoutSession(admin, {
+          customerId: stripeCustomerId,
+          agency_id: agencyId,
+          successUrl: `${baseUrl}/dashboard?zahlung=success`,
+          cancelUrl: `${baseUrl}/dashboard?zahlung=abgebrochen`,
+        });
+
+        checkoutUrl = session.checkoutUrl;
+
+        await admin.from('mandates').insert({
+          agency_id: agencyId,
+          provider: 'stripe',
+          provider_customer_id: stripeCustomerId,
+          status: 'angefragt',
+          checkout_url: checkoutUrl,
+        });
+      }
+    } catch { /* Stripe optional — don't block */ }
+
     // --- 6. Notification ---
     await createNotificationForInternals(admin, {
       title: `Neuer Kunde: ${body.firma}`,
@@ -151,6 +237,9 @@ export async function POST(request: Request) {
       tasks_created,
       access_items_created,
       invite_url: inviteUrl,
+      billing_plan_id: billingPlanId,
+      lex_contact_id: lexContactId,
+      checkout_url: checkoutUrl,
     });
   } catch (err: unknown) {
     // Something after agency creation failed — mark as setup_fehler

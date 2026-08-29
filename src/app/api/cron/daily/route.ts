@@ -279,6 +279,49 @@ async function runDailyJobs() {
     }
   }
 
+  // 8. SEPA Pre-Debit Notifications (1 day before debit)
+  let preDebitSent = 0;
+  try {
+    const { checkPreDebitNotifications } = await import('@/lib/billing/pre-debit-notification');
+    preDebitSent = await checkPreDebitNotifications(supabase);
+  } catch { /* silent */ }
+
+  // 9. Access item reminders (escalating: day 1/3/5/7)
+  let accessReminders = 0;
+  try {
+    const { checkAccessReminders } = await import('@/lib/fulfillment/access-reminders');
+    await checkAccessReminders(supabase);
+    accessReminders = 1;
+  } catch { /* silent */ }
+
+  // 10. Masterclass nudges
+  try {
+    const { checkMasterclassNudges } = await import('@/lib/masterclass/nudge-checker');
+    await checkMasterclassNudges(supabase);
+  } catch { /* silent */ }
+
+  // 11. Tag-7/14 Report generation
+  let reportsGenerated = 0;
+  try {
+    const { checkAndGenerateReports } = await import('@/lib/reports/check-reports');
+    const reportResult = await checkAndGenerateReports(supabase);
+    reportsGenerated = typeof reportResult === 'number' ? reportResult : 1;
+  } catch { /* silent */ }
+
+  // 12. Health checks
+  let healthChecksRun = 0;
+  try {
+    const { runHealthChecks } = await import('@/lib/health/run-checks');
+    const healthResult = await runHealthChecks(supabase);
+    healthChecksRun = typeof healthResult === 'number' ? healthResult : 1;
+  } catch { /* silent */ }
+
+  // 13. SLA escalation check
+  try {
+    const { checkSlaEscalations } = await import('@/lib/tasks/sla-escalation');
+    await checkSlaEscalations(supabase);
+  } catch { /* silent */ }
+
   return {
     ok: true,
     processed: agencies?.length ?? 0,
@@ -289,6 +332,10 @@ async function runDailyJobs() {
     metaSynced,
     backupAdAccountTasksCreated,
     weeklyReport,
+    preDebitSent,
+    accessReminders,
+    reportsGenerated,
+    healthChecksRun,
   };
 }
 
