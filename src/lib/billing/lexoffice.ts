@@ -28,7 +28,7 @@ function truncateResponse(data: unknown): string {
 // ---------------------------------------------------------------------------
 export async function logApiCall(
   supabase: SupabaseClient,
-  system: 'lexoffice' | 'mollie',
+  system: 'lexoffice' | 'mollie' | 'stripe',
   richtung: 'request' | 'response' | 'webhook',
   endpunkt: string,
   methode: string | null,

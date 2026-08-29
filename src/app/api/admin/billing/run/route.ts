@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { createInvoice, logApiCall } from '@/lib/billing/lexoffice';
-import { createRecurringPayment } from '@/lib/billing/mollie';
+import { createPaymentIntent } from '@/lib/billing/stripe';
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient();
@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
   const results: Array<{ agency_id: string; status: string; billing_run_id?: string; error?: string }> = [];
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   for (const agencyId of agency_ids) {
     try {
@@ -186,7 +185,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Step 2: If mandate exists and is valid, trigger Mollie payment
+      // Step 2: If mandate exists and is valid, trigger Stripe payment
       const { data: mandate } = await admin
         .from('mandates')
         .select('*')
@@ -198,32 +197,38 @@ export async function POST(request: NextRequest) {
 
       if (mandate?.provider_customer_id && mandate?.provider_mandate_id) {
         try {
-          const molliePaymentId = await createRecurringPayment(admin, {
+          // Stripe amounts are in cents
+          const amountCents = Math.round(betragBrutto * 100);
+
+          const { paymentIntentId, status: piStatus } = await createPaymentIntent(admin, {
             customerId: mandate.provider_customer_id,
-            mandateId: mandate.provider_mandate_id,
-            amount: betragBrutto,
+            paymentMethodId: mandate.provider_mandate_id,
+            amount: amountCents,
             description: `${beschreibung} (${lexInvoiceNumber || billingRun.id})`,
-            webhookUrl: `${baseUrl}/api/webhooks/mollie`,
             agency_id: agencyId,
             idempotency_key: idempotenzSchluessel,
+            metadata: {
+              billing_run_id: billingRun.id,
+              lex_invoice_id: lexInvoiceId || '',
+            },
           });
 
           await admin
             .from('billing_runs')
             .update({
-              mollie_payment_id: molliePaymentId,
+              stripe_payment_id: paymentIntentId,
               status: 'zahlung_angestossen',
             })
             .eq('id', billingRun.id);
 
-          results.push({ agency_id: agencyId, status: 'zahlung_angestossen', billing_run_id: billingRun.id });
+          results.push({ agency_id: agencyId, status: piStatus === 'succeeded' ? 'bezahlt' : 'zahlung_angestossen', billing_run_id: billingRun.id });
         } catch (error) {
           // Invoice was created but payment failed
           await logApiCall(
             admin,
-            'mollie',
+            'stripe',
             'response',
-            '/payments',
+            '/payment_intents',
             'POST',
             null,
             { error: error instanceof Error ? error.message : 'Unbekannt' },
@@ -235,7 +240,7 @@ export async function POST(request: NextRequest) {
             agency_id: agencyId,
             status: 'rechnung_erstellt',
             billing_run_id: billingRun.id,
-            error: `Rechnung erstellt, aber Mollie-Zahlung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannt'}`,
+            error: `Rechnung erstellt, aber Stripe-Zahlung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannt'}`,
           });
         }
       } else {

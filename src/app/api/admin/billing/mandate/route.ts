@@ -2,9 +2,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { createCustomer, createFirstPayment } from '@/lib/billing/mollie';
+import { createCustomer, createCheckoutSession } from '@/lib/billing/stripe';
 
-// POST — initiate first payment for mandate creation
+// POST — initiate Stripe Checkout Session for SEPA mandate setup
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient();
   if (!(await isAdmin(supabase))) {
@@ -50,13 +50,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create or reuse Mollie customer
-    let mollieCustomerId: string;
+    // Create or reuse Stripe customer
+    let stripeCustomerId: string;
 
     if (existingMandate?.provider_customer_id) {
-      mollieCustomerId = existingMandate.provider_customer_id;
+      stripeCustomerId = existingMandate.provider_customer_id;
     } else {
-      mollieCustomerId = await createCustomer(admin, {
+      stripeCustomerId = await createCustomer(admin, {
         name: agency.name,
         email: agency.email || '',
         agency_id,
@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
       .from('mandates')
       .insert({
         agency_id,
-        provider: 'mollie',
-        provider_customer_id: mollieCustomerId,
+        provider: 'stripe',
+        provider_customer_id: stripeCustomerId,
         status: 'angefragt',
       })
       .select()
@@ -82,28 +82,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create first payment (this creates the mandate via checkout)
-    const { paymentId, checkoutUrl } = await createFirstPayment(admin, {
-      customerId: mollieCustomerId,
-      amount: 0.01, // Minimal first payment to establish mandate
-      description: `SEPA-Mandat Einrichtung — ${agency.name}`,
-      redirectUrl: `${baseUrl}/admin/billing?agency_id=${agency_id}&mandate=success`,
-      webhookUrl: `${baseUrl}/api/webhooks/mollie`,
+    // Create Checkout Session for SEPA mandate setup (no payment, just setup)
+    const { sessionId, checkoutUrl } = await createCheckoutSession(admin, {
+      customerId: stripeCustomerId,
       agency_id,
+      successUrl: `${baseUrl}/admin/billing?agency_id=${agency_id}&mandate=success`,
+      cancelUrl: `${baseUrl}/admin/billing?agency_id=${agency_id}&mandate=cancelled`,
     });
 
-    // Store the payment ID for tracking
+    // Store the session ID for tracking
     await admin
       .from('mandates')
       .update({
-        provider_mandate_id: paymentId, // Will be replaced with actual mandate ID via webhook
+        provider_mandate_id: sessionId, // Will be replaced with actual payment method ID via webhook
       })
       .eq('id', mandate.id);
 
     return NextResponse.json({
       mandate_id: mandate.id,
       checkout_url: checkoutUrl,
-      mollie_customer_id: mollieCustomerId,
+      stripe_customer_id: stripeCustomerId,
     });
   } catch (error) {
     return NextResponse.json(
