@@ -56,6 +56,31 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // SICHERHEIT: Laufzeit prüfen — nicht über das Ende hinaus einziehen
+      if (plan.ende_datum) {
+        const [pYear, pMonth] = periode.split('-').map(Number);
+        const periodeDate = new Date(pYear, pMonth - 1, 1);
+        const endeDate = new Date(plan.ende_datum);
+        if (periodeDate > endeDate) {
+          results.push({ agency_id: agencyId, status: 'fehler', error: `Laufzeit abgelaufen (Ende: ${plan.ende_datum}). Keine weitere Abbuchung.` });
+          continue;
+        }
+      }
+
+      // SICHERHEIT: Einmalige Pläne dürfen nur einmal laufen
+      if (plan.rhythmus === 'einmalig') {
+        const { data: existingRuns } = await admin
+          .from('billing_runs')
+          .select('id')
+          .eq('plan_id', plan_id)
+          .eq('agency_id', agencyId)
+          .in('status', ['rechnung_erstellt', 'zahlung_angestossen', 'bezahlt']);
+        if (existingRuns && existingRuns.length > 0) {
+          results.push({ agency_id: agencyId, status: 'fehler', error: 'Einmaliger Plan wurde bereits abgerechnet.' });
+          continue;
+        }
+      }
+
       // Build idempotency key
       const idempotenzSchluessel = `${agencyId}_${plan_id}_${periode}_${plan.typ}`;
 
@@ -185,73 +210,17 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Step 2: If mandate exists and is valid, trigger Stripe payment
-      const { data: mandate } = await admin
-        .from('mandates')
-        .select('*')
-        .eq('agency_id', agencyId)
-        .eq('status', 'gueltig')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      // Step 2: Rechnung erstellt — STOPP, warte auf Freigabe
+      // Zahlung wird erst angestoßen wenn Admin freigibt über /api/admin/billing/run/[id]/freigabe
+      results.push({
+        agency_id: agencyId,
+        status: 'rechnung_erstellt',
+        billing_run_id: billingRun.id,
+        error: 'Rechnung erstellt — wartet auf Freigabe vor Zahlungseinzug.',
+      });
+      continue;
 
-      if (mandate?.provider_customer_id && mandate?.provider_mandate_id) {
-        try {
-          // Stripe amounts are in cents
-          const amountCents = Math.round(betragBrutto * 100);
-
-          const { paymentIntentId, status: piStatus } = await createPaymentIntent(admin, {
-            customerId: mandate.provider_customer_id,
-            paymentMethodId: mandate.provider_mandate_id,
-            amount: amountCents,
-            description: `${beschreibung} (${lexInvoiceNumber || billingRun.id})`,
-            agency_id: agencyId,
-            idempotency_key: idempotenzSchluessel,
-            metadata: {
-              billing_run_id: billingRun.id,
-              lex_invoice_id: lexInvoiceId || '',
-            },
-          });
-
-          await admin
-            .from('billing_runs')
-            .update({
-              stripe_payment_id: paymentIntentId,
-              status: 'zahlung_angestossen',
-            })
-            .eq('id', billingRun.id);
-
-          results.push({ agency_id: agencyId, status: piStatus === 'succeeded' ? 'bezahlt' : 'zahlung_angestossen', billing_run_id: billingRun.id });
-        } catch (error) {
-          // Invoice was created but payment failed
-          await logApiCall(
-            admin,
-            'stripe',
-            'response',
-            '/payment_intents',
-            'POST',
-            null,
-            { error: error instanceof Error ? error.message : 'Unbekannt' },
-            agencyId,
-            true
-          );
-
-          results.push({
-            agency_id: agencyId,
-            status: 'rechnung_erstellt',
-            billing_run_id: billingRun.id,
-            error: `Rechnung erstellt, aber Stripe-Zahlung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannt'}`,
-          });
-        }
-      } else {
-        // No valid mandate — invoice created, payment must be handled manually
-        results.push({
-          agency_id: agencyId,
-          status: 'rechnung_erstellt',
-          billing_run_id: billingRun.id,
-          error: 'Kein gültiges SEPA-Mandat. Zahlung muss manuell erfolgen.',
-        });
-      }
+      // Zahlung wird über /api/admin/billing/run/[id]/freigabe angestoßen
     } catch (error) {
       results.push({
         agency_id: agencyId,
