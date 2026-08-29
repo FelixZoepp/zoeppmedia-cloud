@@ -28,6 +28,8 @@ import {
   Timer,
   Shield,
   CheckSquare,
+  FileBarChart,
+  Activity,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -64,6 +66,8 @@ const adminGroups: SidebarGroup[] = [
     label: 'Verwaltung',
     items: [
       { id: 'freigaben', label: 'Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
+      { id: 'admin-reports', label: 'Reports', icon: <FileBarChart className="w-5 h-5" />, href: '/admin/reports' },
+      { id: 'health', label: 'Health', icon: <Activity className="w-5 h-5" />, href: '/admin/health' },
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
       { id: 'kpi', label: 'KPI Einstellungen', icon: <Target className="w-5 h-5" />, href: '/admin/kpi' },
       { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },

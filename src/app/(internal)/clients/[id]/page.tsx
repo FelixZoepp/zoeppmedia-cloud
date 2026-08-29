@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
   BookOpen, CheckCircle, ChevronRight, Target, Activity, ExternalLink,
-  ListChecks, Clock, AlertCircle, Map as MapIcon,
+  ListChecks, Clock, AlertCircle, Map as MapIcon, FileText,
 } from 'lucide-react';
 import type { Agency, AgencyProblem, PlaybookEntry, ActivityLogEntry, PerspectiveFunnel, OnboardingProgress } from '@/lib/types/database';
 import { ActivityFeed } from '@/components/activity-feed';
@@ -524,13 +524,22 @@ export default function ClientDetailPage() {
         title={agency.name}
         description={`${agency.contact_name} \u00B7 ${agency.email}`}
         action={
-          <Link
-            href={`/clients/${id}/fahrplan`}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
-          >
-            <MapIcon size={14} />
-            Fahrplan generieren
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/clients/${id}/transkript`}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 shadow-sm transition-colors"
+            >
+              <FileText size={14} />
+              Transkript
+            </Link>
+            <Link
+              href={`/clients/${id}/fahrplan`}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+            >
+              <MapIcon size={14} />
+              Fahrplan generieren
+            </Link>
+          </div>
         }
       />
 

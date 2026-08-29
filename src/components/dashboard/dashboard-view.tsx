@@ -6,6 +6,8 @@ import { SourcesChart } from './sources-chart';
 import { PipelineChart } from './pipeline-chart';
 import { SourceDonut } from './source-donut';
 import { SlaAmpel } from './sla-ampel';
+import { AccessItemsView } from './access-items-view';
+import { ProjectOverview } from './project-overview';
 import { MasterclassProgress } from './masterclass-progress';
 import { User } from 'lucide-react';
 
@@ -125,6 +127,9 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
 
       {/* ── SLA Ampel ────────────────────────────────────── */}
       <SlaAmpel agencyId={agencyId} />
+
+      {/* ── Access Items ────────────────────────────────── */}
+      <AccessItemsView agencyId={agencyId} />
 
       {/* ── KPI Row ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -258,6 +263,9 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
           </div>
         )}
       </DashCard>
+
+      {/* ── Project Overview ───────────────────────────── */}
+      <ProjectOverview agencyId={agencyId} />
 
       {/* ── Masterclass Progress ─────────────────────────── */}
       <MasterclassProgress agencyId={agencyId} />

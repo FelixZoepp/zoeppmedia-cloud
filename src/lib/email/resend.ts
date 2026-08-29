@@ -5,6 +5,7 @@ import {
   onboardingReminderTemplate,
   surveyNotificationTemplate,
 } from './templates';
+import { reportTemplate } from './report-template';
 
 let _resend: Resend | null = null;
 function getResend(): Resend {
@@ -67,5 +68,21 @@ export async function sendWeeklyReportEmail(to: string, kw: number, html: string
     to,
     subject: `Dein Wochenbericht — KW ${kw}`,
     html,
+  });
+}
+
+export async function sendReportEmail(
+  to: string,
+  typ: 'tag_7' | 'tag_14',
+  daten: Record<string, unknown>,
+  agencyName: string,
+  dashboardUrl: string,
+) {
+  const label = typ === 'tag_7' ? 'Tag-7' : 'Tag-14';
+  return getResend().emails.send({
+    from: FROM,
+    to,
+    subject: `${label} Report — ${agencyName}`,
+    html: reportTemplate(typ, daten, agencyName, dashboardUrl),
   });
 }
