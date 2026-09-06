@@ -1,11 +1,23 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { fireEvent } from '@/lib/automations/fire';
 
-const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'zoepp-media-cloud';
+const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
+
+// Verifies Meta's X-Hub-Signature-256 header (HMAC-SHA256 over raw body with App Secret)
+function verifyMetaSignature(rawBody: string, sigHeader: string | null, appSecret: string): boolean {
+  if (!sigHeader || !sigHeader.startsWith('sha256=')) return false;
+  const received = sigHeader.slice('sha256='.length);
+  const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  const receivedBuf = Buffer.from(received);
+  const expectedBuf = Buffer.from(expected);
+  return receivedBuf.length === expectedBuf.length && timingSafeEqual(receivedBuf, expectedBuf);
+}
 
 // Meta webhook verification
 export async function GET(request: NextRequest) {
@@ -13,7 +25,7 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('hub.verify_token');
   const challenge = request.nextUrl.searchParams.get('hub.challenge');
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+  if (mode === 'subscribe' && VERIFY_TOKEN && token === VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 });
   }
 
@@ -24,11 +36,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const agencyId = request.nextUrl.searchParams.get('agency');
 
-  if (!agencyId) {
+  if (!agencyId || !isUuid(agencyId)) {
     return NextResponse.json({ error: 'agency parameter required' }, { status: 400 });
   }
 
-  const body = await request.json();
+  const rawBody = await request.text();
+
+  // Signaturprüfung: Meta signiert jeden Webhook mit dem App Secret (fail-closed)
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appSecret) {
+    return NextResponse.json({ error: 'Webhook nicht konfiguriert' }, { status: 500 });
+  }
+  if (!verifyMetaSignature(rawBody, request.headers.get('x-hub-signature-256'), appSecret)) {
+    return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 401 });
+  }
+
+  const body = JSON.parse(rawBody);
   const supabase = createAdminClient();
 
   // Verify agency exists

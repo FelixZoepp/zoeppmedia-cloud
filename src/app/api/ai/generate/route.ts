@@ -25,6 +25,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid content type' }, { status: 400 });
   }
 
+  // Size-Limits gegen Kosten-Missbrauch der Claude-API
+  if (
+    (context?.previousVersion && String(context.previousVersion).length > 50_000) ||
+    (context?.feedback && String(context.feedback).length > 10_000)
+  ) {
+    return NextResponse.json({ error: 'Kontext zu lang' }, { status: 413 });
+  }
+
   // Fetch onboarding data for context
   const { data: onboarding } = await supabase
     .from('onboarding_submissions')

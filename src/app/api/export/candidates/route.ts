@@ -46,8 +46,14 @@ export async function GET() {
 }
 
 function csvEscape(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Formel-Injection-Schutz: Excel führt Zellen aus, die mit = + - @ oder Tab/CR beginnen.
+  // Name/E-Mail/Telefon kommen aus Webhooks (Meta/Indeed) und sind angreiferkontrolliert.
+  let v = value;
+  if (/^[=+\-@\t\r]/.test(v)) {
+    v = `'${v}`;
   }
-  return value;
+  if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+    return `"${v.replace(/"/g, '""')}"`;
+  }
+  return v;
 }

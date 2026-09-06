@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -21,6 +22,9 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false });
 
   if (agencyId) {
+    if (!isUuid(agencyId)) {
+      return NextResponse.json({ error: 'Ungültige agency_id' }, { status: 400 });
+    }
     query = query.or(`agency_id.eq.${agencyId},agency_id.is.null`);
   }
 

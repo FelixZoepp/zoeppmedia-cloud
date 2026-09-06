@@ -233,41 +233,25 @@ async function runDailyJobs() {
     }
   }
 
-  // 6. Meta Insights Sync
+  // 5b. Betreuungsstufen A/B: fällige Fahrplan-Call-Aufgaben anlegen
+  let fahrplanCalls = 0;
+  try {
+    const { ensureFahrplanCallTasks } = await import('@/lib/fulfillment/betreuung');
+    fahrplanCalls = await ensureFahrplanCallTasks(supabase);
+  } catch { /* silent */ }
+
+  // 6. Meta Insights Sync + KPI-Snapshots (standardisierte 7-Tage-Zahlen pro Agentur)
   let metaSynced = 0;
-  const { data: metaAgencies } = await supabase
-    .from('agencies')
-    .select('id, meta_ad_account_id')
-    .not('meta_ad_account_id', 'is', null);
-
-  if (metaAgencies?.length && process.env.META_SYSTEM_USER_TOKEN) {
-    const { fetchInsights } = await import('@/lib/meta/api');
-    const since = new Date(now.getTime() - 7 * 86400000).toISOString().split('T')[0];
-    const until = now.toISOString().split('T')[0];
-
-    for (const agency of metaAgencies) {
-      try {
-        const insights = await fetchInsights(agency.meta_ad_account_id!, since, until);
-        for (const row of insights) {
-          await supabase.from('meta_ad_reports').delete()
-            .eq('agency_id', agency.id)
-            .eq('report_date', row.date);
-          await supabase.from('meta_ad_reports').insert({
-            agency_id: agency.id,
-            report_date: row.date,
-            spend: row.spend,
-            impressions: row.impressions,
-            clicks: row.clicks,
-            leads: row.leads,
-            cpl: row.cpl,
-            ctr: row.ctr,
-            fetched_at: now.toISOString(),
-          });
-        }
-        metaSynced++;
-      } catch { /* silent */ }
+  let kpiSnapshots = 0;
+  try {
+    const { syncMetaInsights, writeKpiSnapshots } = await import('@/lib/meta/sync');
+    if (process.env.META_SYSTEM_USER_TOKEN) {
+      const syncResult = await syncMetaInsights(supabase);
+      metaSynced = syncResult.synced;
     }
-  }
+    // Snapshot auch ohne Meta-Token: Call-/Kandidaten-KPIs sind unabhängig davon
+    kpiSnapshots = await writeKpiSnapshots(supabase);
+  } catch { /* silent */ }
 
   // 7. Weekly report — only on Mondays
   let weeklyReport: WeeklyReportResult | null = null;
@@ -342,7 +326,9 @@ async function runDailyJobs() {
     recurringCreated,
     surveysScheduled,
     reminders: remindersS,
+    fahrplanCalls,
     metaSynced,
+    kpiSnapshots,
     backupAdAccountTasksCreated,
     weeklyReport,
     preDebitSent,
@@ -355,11 +341,11 @@ async function runDailyJobs() {
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET nicht konfiguriert' }, { status: 500 });
+  }
+  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const result = await runDailyJobs();
@@ -368,11 +354,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET nicht konfiguriert' }, { status: 500 });
+  }
+  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const result = await runDailyJobs();

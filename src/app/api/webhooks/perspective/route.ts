@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-// No auth required — this is called by Perspective's system.
+// Called by Perspective's system. Agency-Zuordnung nur über bekannte
+// perspective_funnel_id. Zusätzlich Shared-Secret-Prüfung, sobald
+// PERSPECTIVE_WEBHOOK_SECRET gesetzt ist (Header x-webhook-secret oder ?secret=).
 // Use admin client to bypass RLS for webhook writes.
 
 export async function POST(request: NextRequest) {
+  const webhookSecret = process.env.PERSPECTIVE_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const provided =
+      request.headers.get('x-webhook-secret') ||
+      request.nextUrl.searchParams.get('secret');
+    if (provided !== webhookSecret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();

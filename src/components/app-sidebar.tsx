@@ -30,6 +30,7 @@ import {
   CheckSquare,
   FileBarChart,
   Activity,
+  Gauge,
   Receipt,
   PlusCircle,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'heute', label: 'Heute', icon: <CalendarCheck className="w-5 h-5" />, href: '/heute' },
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
+      { id: 'kapazitaet', label: 'Kapazität', icon: <Gauge className="w-5 h-5" />, href: '/admin/kapazitaet' },
       { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
     ],
   },

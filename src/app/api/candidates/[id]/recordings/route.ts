@@ -33,6 +33,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (!file) return NextResponse.json({ error: 'No file' }, { status: 400 });
 
+  if (file.size > 200 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Datei zu groß (max. 200 MB)' }, { status: 413 });
+  }
+
   // Get candidate for agency_id
   const { data: candidate } = await supabase
     .from('candidates')

@@ -71,14 +71,71 @@ export async function GET() {
     callbacksQuery = callbacksQuery.eq('agency_id', user.agency_id);
   }
 
+  // --- Heutige Calendly-Termine (Kunden-Calls → Fahrplan, Bewerber-Termine) ---
+  let callsQuery = supabase
+    .from('calendly_events')
+    .select('id, agency_id, candidate_id, event_name, invitee_name, start_time')
+    .gte('start_time', `${todayStr}T00:00:00.000Z`)
+    .lte('start_time', `${todayStr}T23:59:59.999Z`)
+    .eq('status', 'scheduled')
+    .order('start_time', { ascending: true })
+    .limit(50);
+
+  if (!internal && user.agency_id) {
+    callsQuery = callsQuery.eq('agency_id', user.agency_id);
+  }
+
+  // --- Active problems (alert inbox) ---
+  let problemsQuery = supabase
+    .from('agency_problems')
+    .select('id, agency_id, problem_key, severity, current_value, target_value, detected_at')
+    .is('resolved_at', null)
+    .order('detected_at', { ascending: false })
+    .limit(50);
+
+  if (!internal && user.agency_id) {
+    problemsQuery = problemsQuery.eq('agency_id', user.agency_id);
+  }
+
   // Run all queries in parallel
-  const [overdueResult, dueTodayResult, newCandidatesResult, callbacksResult] =
+  const [overdueResult, dueTodayResult, newCandidatesResult, callbacksResult, problemsResult, callsResult] =
     await Promise.all([
       overdueQuery,
       dueTodayQuery,
       newCandidatesQuery,
       callbacksQuery,
+      problemsQuery,
+      callsQuery,
     ]);
+
+  // Kritische Probleme zuerst
+  const problems = (problemsResult.data ?? []).sort((a, b) =>
+    a.severity === b.severity ? 0 : a.severity === 'critical' ? -1 : 1
+  );
+
+  // --- Namen auflösen (Agenturen + Rückruf-Kandidaten) statt UUID-Präfixe ---
+  const agencyIds = new Set<string>();
+  for (const list of [overdueResult.data, dueTodayResult.data, newCandidatesResult.data, callbacksResult.data, problems, callsResult.data]) {
+    for (const item of list ?? []) {
+      if (item.agency_id) agencyIds.add(item.agency_id);
+    }
+  }
+  const callbackCandidateIds = [...new Set((callbacksResult.data ?? []).map((c) => c.candidate_id))];
+
+  const [agenciesResult, callbackCandidatesResult] = await Promise.all([
+    agencyIds.size > 0
+      ? supabase.from('agencies').select('id, name').in('id', [...agencyIds])
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    callbackCandidateIds.length > 0
+      ? supabase.from('candidates').select('id, name, phone').in('id', callbackCandidateIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; phone: string | null }[] }),
+  ]);
+
+  const agencyNames: Record<string, string> = {};
+  for (const a of agenciesResult.data ?? []) agencyNames[a.id] = a.name;
+
+  const candidateNames: Record<string, { name: string; phone: string | null }> = {};
+  for (const c of callbackCandidatesResult.data ?? []) candidateNames[c.id] = { name: c.name, phone: c.phone };
 
   // --- SLA stats for today ---
   const startOfDay = `${todayStr}T00:00:00.000Z`;
@@ -135,10 +192,15 @@ export async function GET() {
     due_today: dueTodayResult.data ?? [],
     new_candidates_15min: newCandidatesResult.data ?? [],
     callbacks: callbacksResult.data ?? [],
+    calls_today: callsResult.data ?? [],
+    problems,
+    agency_names: agencyNames,
+    candidate_names: candidateNames,
     stats: {
       open_tasks: openTasksResult.count ?? 0,
       sla_met_today: slaMet,
       sla_breached_today: slaBreachedResult.count ?? 0,
+      active_problems: problems.length,
     },
   });
 }

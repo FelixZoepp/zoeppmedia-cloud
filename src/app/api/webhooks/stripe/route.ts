@@ -2,6 +2,41 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { recordPayment, logApiCall } from '@/lib/billing/lexoffice';
 import { getCheckoutSession } from '@/lib/billing/stripe';
+import { createHmac, timingSafeEqual } from 'crypto';
+
+/**
+ * Verify Stripe webhook signature (stripe-signature header).
+ * Format: t=<timestamp>,v1=<hmac>,v1=<hmac>...
+ * signed_payload = `${timestamp}.${rawBody}`, HMAC-SHA256 with webhook secret.
+ */
+function verifyStripeSignature(payload: string, sigHeader: string | null, secret: string): boolean {
+  if (!sigHeader) return false;
+
+  const parts: Record<string, string[]> = {};
+  for (const part of sigHeader.split(',')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    (parts[key] ??= []).push(value);
+  }
+
+  const timestamp = parts.t?.[0];
+  const signatures = parts.v1 ?? [];
+  if (!timestamp || signatures.length === 0) return false;
+
+  // Replay-Schutz: Event darf max. 5 Minuten alt sein
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
+
+  const expected = createHmac('sha256', secret).update(`${timestamp}.${payload}`).digest('hex');
+  const expectedBuf = Buffer.from(expected);
+
+  return signatures.some((sig) => {
+    const sigBuf = Buffer.from(sig);
+    return sigBuf.length === expectedBuf.length && timingSafeEqual(sigBuf, expectedBuf);
+  });
+}
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
@@ -9,7 +44,20 @@ export async function POST(request: NextRequest) {
   let eventType: string | null = null;
 
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      await logApiCall(supabase, 'stripe', 'webhook', '/webhooks/stripe', 'POST', 500, { error: 'STRIPE_WEBHOOK_SECRET nicht konfiguriert — Webhook abgelehnt' }, null, true);
+      return NextResponse.json({ error: 'Webhook nicht konfiguriert' }, { status: 500 });
+    }
+
+    if (!verifyStripeSignature(rawBody, request.headers.get('stripe-signature'), webhookSecret)) {
+      await logApiCall(supabase, 'stripe', 'webhook', '/webhooks/stripe', 'POST', 400, { error: 'Ungültige Webhook-Signatur' }, null, true);
+      return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 400 });
+    }
+
+    const body = JSON.parse(rawBody);
     eventType = (body.type as string) ?? null;
     const eventData = body.data?.object as Record<string, unknown> | undefined;
 

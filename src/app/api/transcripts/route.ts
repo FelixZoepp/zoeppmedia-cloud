@@ -52,6 +52,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'agency_id und typ sind erforderlich' }, { status: 400 });
     }
 
+    if (typeof volltext === 'string' && volltext.length > 500_000) {
+      return NextResponse.json({ error: 'Text zu lang (max. 500.000 Zeichen)' }, { status: 413 });
+    }
+
     const { data: transcript, error } = await supabase
       .from('transcripts')
       .insert({
@@ -91,6 +95,10 @@ export async function POST(req: Request) {
 
     if (!file) {
       return NextResponse.json({ error: 'Datei ist erforderlich' }, { status: 400 });
+    }
+
+    if (file.size > 200 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Datei zu groß (max. 200 MB)' }, { status: 413 });
     }
 
     // Determine quelle based on file type

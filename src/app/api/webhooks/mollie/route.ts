@@ -13,9 +13,12 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     paymentId = formData.get('id') as string | null;
 
-    if (!paymentId) {
-      await logApiCall(supabase, 'mollie', 'webhook', '/webhooks/mollie', 'POST', 400, { error: 'Keine Payment-ID erhalten' }, null, true);
-      return NextResponse.json({ error: 'Keine Payment-ID erhalten' }, { status: 400 });
+    // Sicherheitsmodell: Der Webhook-Body wird NICHT als Datenquelle verwendet —
+    // der Zahlungsstatus wird immer direkt von der Mollie-API geladen (getPayment).
+    // Ein Angreifer kann damit höchstens die Verarbeitung echter Zahlungen anstoßen.
+    if (!paymentId || !/^tr_[a-zA-Z0-9]+$/.test(paymentId)) {
+      await logApiCall(supabase, 'mollie', 'webhook', '/webhooks/mollie', 'POST', 400, { error: 'Keine gültige Payment-ID erhalten', paymentId }, null, true);
+      return NextResponse.json({ error: 'Keine gültige Payment-ID erhalten' }, { status: 400 });
     }
 
     // Log incoming webhook

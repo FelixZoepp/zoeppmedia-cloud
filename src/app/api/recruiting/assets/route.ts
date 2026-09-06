@@ -1,5 +1,6 @@
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -24,6 +25,9 @@ export async function GET(request: NextRequest) {
 
   let agencyId: string | null;
   if (isInternal(user.role) && agencyIdParam) {
+    if (!isUuid(agencyIdParam)) {
+      return NextResponse.json({ error: 'Ungültige agency_id' }, { status: 400 });
+    }
     agencyId = agencyIdParam;
   } else {
     agencyId = user.agency_id;

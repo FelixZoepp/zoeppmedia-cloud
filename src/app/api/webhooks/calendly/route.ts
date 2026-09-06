@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fireEvent } from '@/lib/automations/fire';
 
@@ -9,8 +10,29 @@ import { fireEvent } from '@/lib/automations/fire';
  * - invitee.created: New booking
  * - invitee.canceled: Cancellation
  *
- * No auth required — this is called by Calendly's system.
+ * Signaturprüfung via CALENDLY_WEBHOOK_SIGNING_KEY (Header: Calendly-Webhook-Signature,
+ * Format: t=timestamp,v1=hmac, signiert wird `${t}.${rawBody}`). Wird nur geprüft,
+ * wenn der Key gesetzt ist — sonst läuft der Webhook wie bisher weiter.
  */
+
+function verifyCalendlySignature(rawBody: string, sigHeader: string | null, signingKey: string): boolean {
+  if (!sigHeader) return false;
+  const parts: Record<string, string> = {};
+  for (const part of sigHeader.split(',')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    parts[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
+  }
+  const timestamp = parts.t;
+  const signature = parts.v1;
+  if (!timestamp || !signature) return false;
+  const ageSeconds = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
+  const expected = createHmac('sha256', signingKey).update(`${timestamp}.${rawBody}`).digest('hex');
+  const sigBuf = Buffer.from(signature);
+  const expectedBuf = Buffer.from(expected);
+  return sigBuf.length === expectedBuf.length && timingSafeEqual(sigBuf, expectedBuf);
+}
 
 interface CalendlyWebhookPayload {
   event: string;
@@ -52,9 +74,19 @@ function normalizePhone(phone: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const rawBody = await request.text();
+
+  const signingKey = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
+  if (signingKey) {
+    const sigHeader = request.headers.get('calendly-webhook-signature');
+    if (!verifyCalendlySignature(rawBody, sigHeader, signingKey)) {
+      return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 401 });
+    }
+  }
+
   let body: CalendlyWebhookPayload;
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }

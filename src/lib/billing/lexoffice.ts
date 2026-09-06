@@ -324,6 +324,18 @@ export async function recordPayment(
 }
 
 // ---------------------------------------------------------------------------
+// Get invoice (used by webhook to verify status server-side instead of
+// trusting the webhook payload)
+// ---------------------------------------------------------------------------
+export async function getInvoice(
+  supabase: SupabaseClient,
+  invoiceId: string
+): Promise<Record<string, unknown>> {
+  const { data } = await lexFetch(supabase, 'GET', `/invoices/${invoiceId}`, null, null);
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Get invoice PDF
 // ---------------------------------------------------------------------------
 export async function getInvoicePdf(

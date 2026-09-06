@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { sanitizeFilterValue } from '@/lib/supabase/filters';
 
 export interface BlacklistMatch {
   id: string;
@@ -29,7 +30,9 @@ export async function checkBlacklist(
     .eq('blacklisted', true);
 
   if (email && phone) {
-    query = query.or(`email.ilike.${email},phone.eq.${phone}`);
+    // E-Mail/Telefon kommen u.a. aus Webhooks (Meta, Indeed) — sanitizen,
+    // damit keine zusätzlichen Filter-Bedingungen eingeschleust werden können
+    query = query.or(`email.ilike.${sanitizeFilterValue(email)},phone.eq.${sanitizeFilterValue(phone)}`);
   } else if (email) {
     query = query.ilike('email', email);
   } else if (phone) {

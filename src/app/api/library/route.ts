@@ -12,7 +12,10 @@ export async function GET(req: Request) {
   const contentType = searchParams.get('content_type');
   const status = searchParams.get('status');
 
-  let query = supabase.from('content_library').select('*').order('created_at', { ascending: false });
+  let query = supabase
+    .from('content_library')
+    .select('*, agencies(id, name)')
+    .order('created_at', { ascending: false });
   if (agencyId) query = query.eq('agency_id', agencyId);
   if (contentType) query = query.eq('content_type', contentType);
   if (status) {

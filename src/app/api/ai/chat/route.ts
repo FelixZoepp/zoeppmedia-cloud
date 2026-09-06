@@ -14,6 +14,13 @@ export async function POST(req: Request) {
 
   const { conversation_id, message, agency_id, conversation_type } = await req.json();
 
+  if (typeof message !== 'string' || !message.trim()) {
+    return NextResponse.json({ error: 'message ist erforderlich' }, { status: 400 });
+  }
+  if (message.length > 10_000) {
+    return NextResponse.json({ error: 'Nachricht zu lang (max. 10.000 Zeichen)' }, { status: 413 });
+  }
+
   let convId = conversation_id;
 
   // Create new conversation if needed

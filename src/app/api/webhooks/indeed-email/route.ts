@@ -8,6 +8,18 @@ import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { fireEvent } from '@/lib/automations/fire';
 
 export async function POST(request: NextRequest) {
+  // Shared-Secret-Prüfung: aktiv sobald INDEED_WEBHOOK_SECRET gesetzt ist.
+  // Der E-Mail-Forwarder muss das Secret als Header x-webhook-secret oder ?secret= mitschicken.
+  const webhookSecret = process.env.INDEED_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const provided =
+      request.headers.get('x-webhook-secret') ||
+      request.nextUrl.searchParams.get('secret');
+    if (provided !== webhookSecret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   const supabase = createAdminClient();
   let agencyId: string | null = null;
 

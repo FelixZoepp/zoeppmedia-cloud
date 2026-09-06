@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { isInternalUser } from '@/lib/admin';
+import { isUuid } from '@/lib/supabase/filters';
+import { computeBetreuungsstufe } from '@/lib/fulfillment/betreuung';
 import { NextRequest, NextResponse } from 'next/server';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -49,6 +51,9 @@ export async function GET(
   { params }: { params: Promise<{ agencyId: string }> }
 ) {
   const { agencyId } = await params;
+  if (!isUuid(agencyId)) {
+    return NextResponse.json({ error: 'Ungültige agencyId' }, { status: 400 });
+  }
   const supabase = await createServerClient();
   if (!(await isInternalUser(supabase))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
@@ -494,7 +499,8 @@ export async function GET(
   const daysActive = Math.floor(
     (now.getTime() - new Date(agency.created_at).getTime()) / 86400000
   );
-  const betreuungsstufe = daysActive <= 90 ? 'A' : 'B';
+  // Stufe A auch bei aktiven Problemen (Health gelb/rot), nicht nur in den ersten 90 Tagen
+  const betreuungsstufe = computeBetreuungsstufe(daysActive, (problems || []).length);
 
   // ── Response ─────────────────────────────────────────────────────────────
 

@@ -180,6 +180,30 @@ const problemChecks: ProblemCheck[] = [
       return { triggered: (count || 0) < target, currentValue: count || 0 };
     },
   },
+  {
+    key: 'assets_leer',
+    kpiKey: 'min_assets_ready',
+    severity: 'warning',
+    check: async (supabase, agencyId, target) => {
+      // Asset-Halde: freigegebene, noch nicht aktivierte Inhalte (status = approved).
+      // Nur für Agenturen, die bereits live sind (mind. 1 aktiviertes Asset).
+      // Fallback-Ziel 2, falls kein KPI-Default konfiguriert ist.
+      const effectiveTarget = target > 0 ? target : 2;
+      const { count: deployedCount } = await supabase
+        .from('content_library')
+        .select('*', { count: 'exact', head: true })
+        .eq('agency_id', agencyId)
+        .eq('status', 'deployed');
+      if (!deployedCount || deployedCount === 0) return { triggered: false, currentValue: 0 };
+
+      const { count } = await supabase
+        .from('content_library')
+        .select('*', { count: 'exact', head: true })
+        .eq('agency_id', agencyId)
+        .eq('status', 'approved');
+      return { triggered: (count || 0) < effectiveTarget, currentValue: count || 0 };
+    },
+  },
 ];
 
 export async function detectProblemsForAgency(

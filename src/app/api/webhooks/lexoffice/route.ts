@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
-import { logApiCall } from '@/lib/billing/lexoffice';
+import { logApiCall, getInvoice } from '@/lib/billing/lexoffice';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
@@ -25,9 +27,8 @@ export async function POST(request: NextRequest) {
 
     if (eventType === 'invoice.status.changed') {
       const resourceId = body?.resourceId as string | undefined;
-      const newStatus = body?.status as string | undefined;
 
-      if (resourceId) {
+      if (resourceId && UUID_RE.test(resourceId)) {
         // Find billing run with this Lexware invoice ID
         const { data: billingRun } = await supabase
           .from('billing_runs')
@@ -36,6 +37,13 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (billingRun) {
+          // SECURITY: Status niemals aus dem Webhook-Body übernehmen —
+          // der Webhook ist unsigniert und fälschbar. Stattdessen wird die
+          // Rechnung direkt über die Lexware-API (mit unserem API-Key)
+          // nachgeladen und deren voucherStatus verwendet.
+          const invoice = await getInvoice(supabase, resourceId);
+          const verifiedStatus = invoice.voucherStatus as string | undefined;
+
           await logApiCall(
             supabase,
             'lexoffice',
@@ -44,9 +52,9 @@ export async function POST(request: NextRequest) {
             'POST',
             null,
             {
-              info: 'Rechnungsstatus geändert',
+              info: 'Rechnungsstatus geändert (API-verifiziert)',
               invoice_id: resourceId,
-              new_status: newStatus,
+              verified_status: verifiedStatus,
               billing_run_id: billingRun.id,
             },
             billingRun.agency_id,
@@ -54,7 +62,7 @@ export async function POST(request: NextRequest) {
           );
 
           // If Lexware reports the invoice as paid (e.g. via manual booking)
-          if (newStatus === 'paid' && billingRun.status !== 'bezahlt') {
+          if (verifiedStatus === 'paid' && billingRun.status !== 'bezahlt') {
             await supabase
               .from('billing_runs')
               .update({
@@ -65,12 +73,12 @@ export async function POST(request: NextRequest) {
           }
 
           // If Lexware reports cancellation
-          if (newStatus === 'voided' || newStatus === 'cancelled') {
+          if (verifiedStatus === 'voided') {
             await supabase
               .from('billing_runs')
               .update({
                 status: 'storniert',
-                fehlergrund: `Lexware Status: ${newStatus}`,
+                fehlergrund: `Lexware Status: ${verifiedStatus}`,
               })
               .eq('id', billingRun.id);
           }

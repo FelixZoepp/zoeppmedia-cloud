@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
+import { sanitizeFilterValue } from '@/lib/supabase/filters';
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const q = request.nextUrl.searchParams.get('q') ?? '';
+  const q = sanitizeFilterValue(request.nextUrl.searchParams.get('q') ?? '');
   if (!q.trim()) {
     return NextResponse.json({ agencies: [], candidates: [], users: [] });
   }
