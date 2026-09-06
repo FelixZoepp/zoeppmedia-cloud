@@ -83,7 +83,8 @@ export async function createProjectFromClose(
     .order('reihenfolge', { ascending: true });
 
   if (!templates || templates.length === 0) {
-    return { tasks_created: 0, access_items_created: accessItemsCreated };
+    const appointmentTasks = await createAppointmentTasks(supabase, agencyId);
+    return { tasks_created: appointmentTasks, access_items_created: accessItemsCreated };
   }
 
   const typedTemplates = templates as TaskTemplate[];
@@ -180,5 +181,69 @@ export async function createProjectFromClose(
     }
   }
 
+  // --- 6. Feste Termin-Aufgaben (Onboarding-Call + Kickoff) ---
+  tasksCreated += await createAppointmentTasks(supabase, agencyId);
+
   return { tasks_created: tasksCreated, access_items_created: accessItemsCreated };
+}
+
+/**
+ * Legt die beiden festen Termin-Aufgaben nach dem Close an:
+ * Onboarding-Call (Tag 1-2) und Kickoff-Call (Tag 5-7).
+ * Der Calendly-Webhook hakt sie automatisch ab, sobald der Kunde bucht
+ * (Matching über notiz-Marker 'termin:onboarding_call' / 'termin:kickoff_call').
+ */
+async function createAppointmentTasks(
+  supabase: SupabaseClient,
+  agencyId: string
+): Promise<number> {
+  // Dedupe: schon vorhanden?
+  const { data: existing } = await supabase
+    .from('project_tasks')
+    .select('id')
+    .eq('agency_id', agencyId)
+    .in('notiz', ['termin:onboarding_call', 'termin:kickoff_call'])
+    .limit(1);
+  if (existing?.length) return 0;
+
+  const { data: csmUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('funktion', 'csm')
+    .in('role', ['admin', 'employee'])
+    .limit(1)
+    .maybeSingle();
+
+  const now = Date.now();
+  const rows = [
+    {
+      agency_id: agencyId,
+      titel: 'Onboarding-Call terminieren & durchführen',
+      beschreibung:
+        'Termin mit dem Kunden vereinbaren (Calendly-Link senden) und Onboarding-Gespräch nach Skript führen. Gespräch aufnehmen — das Transkript wird danach hochgeladen und geprüft. Wird automatisch abgehakt, sobald der Kunde einen Onboarding-Termin bucht.',
+      owner_user_id: csmUser?.id ?? null,
+      owner_funktion: 'csm',
+      status: 'offen',
+      faellig_am: new Date(now + 2 * 86400000).toISOString().slice(0, 10),
+      freigabe_noetig: false,
+      reihenfolge: 900,
+      notiz: 'termin:onboarding_call',
+    },
+    {
+      agency_id: agencyId,
+      titel: 'Kickoff-Call durchführen',
+      beschreibung:
+        'Kickoff mit dem Kunden: Setup gemeinsam durchgehen (Funnel, Ads, CRM), offene Punkte aus dem Onboarding klären und Start freigeben. Voraussetzung: Transkript geprüft und Setup-Aufgaben erledigt. Wird automatisch abgehakt, sobald der Kunde einen Kickoff-Termin bucht.',
+      owner_user_id: csmUser?.id ?? null,
+      owner_funktion: 'csm',
+      status: 'offen',
+      faellig_am: new Date(now + 7 * 86400000).toISOString().slice(0, 10),
+      freigabe_noetig: false,
+      reihenfolge: 901,
+      notiz: 'termin:kickoff_call',
+    },
+  ];
+
+  const { error } = await supabase.from('project_tasks').insert(rows);
+  return error ? 0 : rows.length;
 }

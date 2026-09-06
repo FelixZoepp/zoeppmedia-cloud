@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import type { Candidate, PipelineStage } from '@/lib/types/database';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
 const REJECTION_REASONS = [
@@ -46,26 +45,26 @@ export function KanbanBoard() {
   const [customReason, setCustomReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
 
-  const supabase = createClient();
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const loadData = useCallback(async () => {
+    // Stages über die Agentur-Logik laden (Custom-Stages vor globalen),
+    // nicht roh aus der Tabelle — sonst erscheinen fremde/gemischte Spalten.
     const [stagesRes, candidatesRes] = await Promise.all([
-      supabase.from('pipeline_stages').select('*').order('sort_order'),
+      fetch('/api/pipeline-stages').then((r) => (r.ok ? r.json() : [])),
       fetch('/api/candidates').then((r) => r.json()),
     ]);
 
-    if (stagesRes.data) setStages(stagesRes.data);
+    if (Array.isArray(stagesRes)) setStages(stagesRes);
     if (Array.isArray(candidatesRes)) {
       setCandidates(candidatesRes);
     } else if (candidatesRes.data) {
       setCandidates(candidatesRes.data);
     }
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -125,7 +124,8 @@ export function KanbanBoard() {
       setCandidates((prev) =>
         prev.map((c) => (c.id === candidateId ? { ...c, current_stage_id: previousStageId } : c))
       );
-      toast.error('Phase konnte nicht geändert werden');
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error ?? 'Phase konnte nicht geändert werden');
     } else if (rejectionReason) {
       toast.success('Bewerber abgesagt');
     }

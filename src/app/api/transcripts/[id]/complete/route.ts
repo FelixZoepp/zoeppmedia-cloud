@@ -1,4 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { generateTasksFromTranscript } from '@/lib/transcripts/generate-tasks';
 import { NextResponse } from 'next/server';
 
 /**
@@ -146,5 +147,14 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ success: true });
+  // Setup-Aufgaben aus den bestätigten Antworten ableiten (Claude).
+  // Nicht kritisch — bei Fehler bleibt die Prüfung trotzdem abgeschlossen.
+  let generatedTasks = 0;
+  try {
+    generatedTasks = await generateTasksFromTranscript(supabase, transcriptId);
+  } catch (err) {
+    console.error('[complete] Task-Generierung fehlgeschlagen:', err);
+  }
+
+  return NextResponse.json({ success: true, generated_tasks: generatedTasks });
 }

@@ -73,6 +73,42 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[\s\-\(\)]/g, '');
 }
 
+/**
+ * Bucht ein Kunde (Client-User) einen Onboarding- oder Kickoff-Termin,
+ * wird die zugehörige Projekt-Aufgabe automatisch erledigt.
+ * Matching: Invitee-E-Mail → users.agency_id, Event-Name → notiz-Marker.
+ */
+async function completeAppointmentTask(
+  supabase: ReturnType<typeof createAdminClient>,
+  inviteeEmail: string | null,
+  eventName: string
+): Promise<void> {
+  if (!inviteeEmail || !eventName) return;
+
+  const name = eventName.toLowerCase();
+  let marker: string | null = null;
+  if (name.includes('onboarding')) marker = 'termin:onboarding_call';
+  else if (name.includes('kickoff') || name.includes('kick-off') || name.includes('kick off')) marker = 'termin:kickoff_call';
+  if (!marker) return;
+
+  const { data: clientUser } = await supabase
+    .from('users')
+    .select('agency_id')
+    .ilike('email', inviteeEmail)
+    .in('role', ['agency_owner', 'agency_member'])
+    .limit(1)
+    .maybeSingle();
+
+  if (!clientUser?.agency_id) return;
+
+  await supabase
+    .from('project_tasks')
+    .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
+    .eq('agency_id', clientUser.agency_id)
+    .eq('notiz', marker)
+    .neq('status', 'erledigt');
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
 
@@ -217,6 +253,10 @@ export async function POST(request: NextRequest) {
     if (agencyId && candidateId) {
       fireEvent('appointment_created', agencyId, { candidate_id: candidateId, extra: { event_type: eventType?.name || null } }).catch(() => {});
     }
+
+    // Fulfillment: Onboarding-/Kickoff-Termin des Kunden hakt die passende
+    // Projekt-Aufgabe automatisch ab (Marker termin:onboarding_call / termin:kickoff_call).
+    await completeAppointmentTask(supabase, invitee.email, eventType?.name || scheduledEvent.name || '');
 
     return NextResponse.json({
       ok: true,

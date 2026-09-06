@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 
 // Called by Perspective's system. Agency-Zuordnung nur über bekannte
 // perspective_funnel_id. Zusätzlich Shared-Secret-Prüfung, sobald
@@ -60,13 +61,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Fetch the first pipeline stage (sort_order = 1 = "Eingang")
-  const { data: firstStage } = await supabase
-    .from('pipeline_stages')
-    .select('id')
-    .order('sort_order', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Erste Pipeline-Stufe der Agentur (Custom-Stages vor globalen)
+  const stages = await getStagesForAgency(supabase, funnel.agency_id);
+  const firstStage = stages[0];
 
   if (!firstStage) {
     return NextResponse.json(
