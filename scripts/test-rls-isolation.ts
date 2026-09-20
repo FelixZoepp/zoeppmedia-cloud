@@ -26,7 +26,14 @@ function loadEnvLocal(): Record<string, string> {
     const eqIdx = trimmed.indexOf('=');
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
-    const val = trimmed.slice(eqIdx + 1).trim();
+    let val = trimmed.slice(eqIdx + 1).trim();
+    // Strip surrounding quotes if present
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
     result[key] = val;
   }
   return result;
@@ -88,6 +95,7 @@ async function main(): Promise<void> {
     candidateBId: null as string | null,
     jobAId: null as string | null,
     jobBId: null as string | null,
+    viewerInsertedJobId: null as string | null,
     agencyAId: null as string | null,
     agencyBId: null as string | null,
     authUserAId: null as string | null,
@@ -381,6 +389,11 @@ async function main(): Promise<void> {
       .select('id')
       .single();
 
+    // Track the inserted row if insert unexpectedly succeeds (for cleanup)
+    if (insertResult && insertResult.id) {
+      created.viewerInsertedJobId = insertResult.id;
+    }
+
     assert(
       insertErr !== null,
       `Viewer-Insert in jobs muss scheitern — bekam stattdessen: ${JSON.stringify(insertResult)}`
@@ -444,6 +457,12 @@ async function main(): Promise<void> {
     if (created.jobBId) {
       await cleanup(`job B (${created.jobBId})`, async () => {
         const { error } = await svc.from('jobs').delete().eq('id', created.jobBId!);
+        if (error) throw error;
+      });
+    }
+    if (created.viewerInsertedJobId) {
+      await cleanup(`viewer-inserted job (${created.viewerInsertedJobId})`, async () => {
+        const { error } = await svc.from('jobs').delete().eq('id', created.viewerInsertedJobId!);
         if (error) throw error;
       });
     }
