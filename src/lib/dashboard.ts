@@ -27,83 +27,66 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
   startOfPrevWeek.setDate(startOfPrevWeek.getDate() - 7);
   const endOfPrevWeek = new Date(startOfWeek);
 
-  // All candidates
-  const { count: totalCandidates } = await supabase
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .eq('agency_id', agencyId);
+  const monthDefs = Array.from({ length: 6 }, (_, idx) => {
+    const i = 5 - idx;
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    return { start: d, end: nextMonth, label: d.toLocaleDateString('de-DE', { month: 'short' }) };
+  });
 
-  // New this week
-  const { count: newThisWeek } = await supabase
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .eq('agency_id', agencyId)
-    .gte('created_at', startOfWeek.toISOString());
-
-  // New prev week
-  const { count: newPrevWeek } = await supabase
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .eq('agency_id', agencyId)
-    .gte('created_at', startOfPrevWeek.toISOString())
-    .lt('created_at', endOfPrevWeek.toISOString());
-
-  // Hired (stage "Eingestellt")
-  const { data: hiredStage } = await supabase
-    .from('pipeline_stages')
-    .select('id')
-    .eq('name', 'Eingestellt')
-    .single();
+  // Phase 1: everything without dependencies, in parallel
+  const [
+    { count: totalCandidates },
+    { count: newThisWeek },
+    { count: newPrevWeek },
+    { data: hiredStage },
+    { count: totalPrevWeekEnd },
+    monthCounts,
+    { data: allCandidates },
+    { data: stages },
+    { data: recent },
+    { data: onboarding },
+  ] = await Promise.all([
+    supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId),
+    supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
+      .gte('created_at', startOfWeek.toISOString()),
+    supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
+      .gte('created_at', startOfPrevWeek.toISOString()).lt('created_at', endOfPrevWeek.toISOString()),
+    supabase.from('pipeline_stages').select('id').eq('name', 'Eingestellt').single(),
+    supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
+      .lt('created_at', endOfPrevWeek.toISOString()),
+    Promise.all(monthDefs.map((m) =>
+      supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
+        .gte('created_at', m.start.toISOString()).lt('created_at', m.end.toISOString())
+    )),
+    supabase.from('candidates').select('source').eq('agency_id', agencyId),
+    supabase.from('pipeline_stages').select('id, name, color, sort_order').order('sort_order'),
+    supabase.from('candidates').select('id, name, source, created_at').eq('agency_id', agencyId)
+      .order('created_at', { ascending: false }).limit(5),
+    supabase.from('onboarding_submissions').select('indeed_daily_budget, meta_daily_budget')
+      .eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(1).single(),
+  ]);
 
   const hiredStageId = hiredStage?.id;
 
-  const { count: hired } = hiredStageId
-    ? await supabase
-        .from('candidates')
-        .select('*', { count: 'exact', head: true })
-        .eq('agency_id', agencyId)
-        .eq('current_stage_id', hiredStageId)
-    : { count: 0 };
+  // Phase 2: queries depending on hiredStageId / stages, in parallel
+  const [{ count: hired }, { count: hiredPrevWeekCount }, stageCounts] = await Promise.all([
+    hiredStageId
+      ? supabase.from('candidates').select('*', { count: 'exact', head: true })
+          .eq('agency_id', agencyId).eq('current_stage_id', hiredStageId)
+      : Promise.resolve({ count: 0 }),
+    hiredStageId
+      ? supabase.from('candidate_stages').select('*', { count: 'exact', head: true })
+          .eq('stage_id', hiredStageId)
+          .gte('changed_at', startOfPrevWeek.toISOString()).lt('changed_at', endOfPrevWeek.toISOString())
+      : Promise.resolve({ count: 0 }),
+    Promise.all((stages ?? []).map((stage) =>
+      supabase.from('candidates').select('*', { count: 'exact', head: true })
+        .eq('agency_id', agencyId).eq('current_stage_id', stage.id)
+    )),
+  ]);
 
-  // Hired prev week (approximation: total hired before this week minus total hired before prev week)
-  const { count: hiredPrevWeekCount } = hiredStageId
-    ? await supabase
-        .from('candidate_stages')
-        .select('*', { count: 'exact', head: true })
-        .eq('stage_id', hiredStageId)
-        .gte('changed_at', startOfPrevWeek.toISOString())
-        .lt('changed_at', endOfPrevWeek.toISOString())
-    : { count: 0 };
-
-  // Candidates before prev week for total comparison
-  const { count: totalPrevWeekEnd } = await supabase
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .eq('agency_id', agencyId)
-    .lt('created_at', endOfPrevWeek.toISOString());
-
-  // Candidates over time (last 6 months)
-  const months: { month: string; count: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-    const label = d.toLocaleDateString('de-DE', { month: 'short' });
-
-    const { count } = await supabase
-      .from('candidates')
-      .select('*', { count: 'exact', head: true })
-      .eq('agency_id', agencyId)
-      .gte('created_at', d.toISOString())
-      .lt('created_at', nextMonth.toISOString());
-
-    months.push({ month: label, count: count ?? 0 });
-  }
-
-  // Source breakdown
-  const { data: allCandidates } = await supabase
-    .from('candidates')
-    .select('source')
-    .eq('agency_id', agencyId);
+  const months = monthDefs.map((m, i) => ({ month: m.label, count: monthCounts[i].count ?? 0 }));
 
   const sourceCounts: Record<string, number> = { meta: 0, indeed: 0, manual: 0 };
   (allCandidates ?? []).forEach((c) => {
@@ -116,39 +99,11 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
     count,
   }));
 
-  // Stage breakdown
-  const { data: stages } = await supabase
-    .from('pipeline_stages')
-    .select('id, name, color, sort_order')
-    .order('sort_order');
-
-  const stageBreakdown: { name: string; count: number; color: string }[] = [];
-  for (const stage of stages ?? []) {
-    const { count } = await supabase
-      .from('candidates')
-      .select('*', { count: 'exact', head: true })
-      .eq('agency_id', agencyId)
-      .eq('current_stage_id', stage.id);
-
-    stageBreakdown.push({ name: stage.name, count: count ?? 0, color: stage.color });
-  }
-
-  // Recent candidates
-  const { data: recent } = await supabase
-    .from('candidates')
-    .select('id, name, source, created_at')
-    .eq('agency_id', agencyId)
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  // Indeed daily budget from onboarding
-  const { data: onboarding } = await supabase
-    .from('onboarding_submissions')
-    .select('indeed_daily_budget, meta_daily_budget')
-    .eq('agency_id', agencyId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  const stageBreakdown = (stages ?? []).map((stage, i) => ({
+    name: stage.name,
+    count: stageCounts[i].count ?? 0,
+    color: stage.color,
+  }));
 
   const indeedDailyBudget = onboarding?.indeed_daily_budget
     ? parseFloat(onboarding.indeed_daily_budget)

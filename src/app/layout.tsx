@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter_Tight } from 'next/font/google';
 import { Toaster } from 'sonner';
+import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import './globals.css';
 
 const interTight = Inter_Tight({
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
     title: 'Zoepp Cloud',
   },
   icons: {
-    icon: '/icons/icon.svg',
+    icon: '/icons/icon-192.png',
     apple: '/icons/apple-touch-icon.png',
   },
 };
@@ -31,6 +32,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={interTight.className}>
         {children}
         <Toaster position="bottom-right" richColors />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

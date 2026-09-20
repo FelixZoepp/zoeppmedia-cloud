@@ -6,15 +6,16 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
-import { Copy, Check, User, Building2, Webhook, CalendarCheck, Pencil, Lock } from 'lucide-react';
+import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pencil, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null } | null>(null);
+  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null; calendar_feed_token: string | null } | null>(null);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [isAgencyUser, setIsAgencyUser] = useState(false);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [calCopied, setCalCopied] = useState(false);
   const [calendlyLink, setCalendlyLink] = useState('');
   const [calendlySaving, setCalendlySaving] = useState(false);
   const [calendlySaved, setCalendlySaved] = useState(false);
@@ -62,7 +63,7 @@ export default function SettingsPage() {
         if (agencyUser && profile.agency_id) {
           const { data: ag } = await supabase
             .from('agencies')
-            .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link')
+            .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link, calendar_feed_token')
             .eq('id', profile.agency_id)
             .single();
           if (ag) {
@@ -347,6 +348,52 @@ export default function SettingsPage() {
           </Button>
         </form>
       </Card>
+
+      {/* Kalender verbinden — agency users only */}
+      {isAgencyUser && agency?.calendar_feed_token && (
+        <Card padding="md" className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center">
+              <CalendarClock className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Kalender verbinden</h2>
+              <p className="text-sm text-gray-400">VG- & Probetag-Termine automatisch in deinem Kalender</p>
+            </div>
+          </div>
+          <div className="space-y-4 pl-12">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+              <code className="text-xs text-gray-900 font-mono break-all flex-1">
+                {`${window.location.origin}/api/calendar/${agency.calendar_feed_token}`}
+              </code>
+              <Button
+                variant="secondary"
+                size="sm"
+                pill
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/api/calendar/${agency.calendar_feed_token}`);
+                  setCalCopied(true);
+                  toast.success('Kalender-URL kopiert');
+                  setTimeout(() => setCalCopied(false), 2000);
+                }}
+              >
+                {calCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                {calCopied ? 'Kopiert' : 'Kopieren'}
+              </Button>
+            </div>
+            <div className="text-xs text-gray-500 space-y-1.5">
+              <p className="font-medium text-gray-700">So verbindest du deinen Kalender (einmalig):</p>
+              <p><strong>Google Kalender:</strong> Einstellungen → Kalender hinzufügen → „Per URL" → Link einfügen</p>
+              <p><strong>Outlook:</strong> Kalender hinzufügen → „Aus dem Web abonnieren" → Link einfügen</p>
+              <p><strong>Apple Kalender:</strong> Ablage → „Neues Kalenderabonnement" → Link einfügen</p>
+              <p className="text-gray-400 pt-1">
+                Danach erscheinen alle Vorstellungsgespräche und Probetage automatisch in deinem Kalender.
+                Hinweis: Google aktualisiert abonnierte Kalender teils erst nach einigen Stunden.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Calendly — agency users only */}
       {isAgencyUser && (

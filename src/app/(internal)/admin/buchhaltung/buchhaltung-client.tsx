@@ -416,7 +416,7 @@ function PlanModal({
             ]}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Typ *</label>
             <Select
@@ -440,7 +440,7 @@ function PlanModal({
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Betrag netto *</label>
             <Input
@@ -464,7 +464,7 @@ function PlanModal({
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Faelligkeitstag</label>
             <Input
@@ -665,7 +665,7 @@ function BillingRunModal({
   return (
     <Modal open={open} onClose={onClose} title="Abrechnungslauf starten" width="max-w-xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Plan *</label>
             <Select

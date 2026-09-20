@@ -63,6 +63,10 @@ interface Summary {
   closing_count: number;
   won_count: number;
   lost_count: number;
+  cost_per_click: number;
+  cost_per_setting: number;
+  cost_per_closing: number;
+  cost_per_customer: number;
   quali_rate: number;
   closing_rate: number;
   win_rate: number;
@@ -75,12 +79,23 @@ interface Summary {
   roas: number;
 }
 
+interface CreativeStat {
+  creative: string;
+  leads: number;
+  setting: number;
+  closing: number;
+  won: number;
+  won_value: number;
+  open_value: number;
+}
+
 interface MarketingData {
   range: Range;
   period: { since: string; until: string };
   summary: Summary;
   campaigns: Campaign[];
   adsets: AdSet[];
+  creatives: CreativeStat[];
 }
 
 // ── Formatters ───────────────────────────────────────────────────────────────
@@ -397,6 +412,47 @@ export default function AdminMarketingPage() {
             </div>
           </div>
 
+          {/* ─── Kosten pro Ergebnis ─── */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Kosten pro Ergebnis
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <KpiCard
+                label="Kosten / LP-Klick"
+                value={summary && summary.cost_per_click > 0 ? `€ ${fmtEuro(summary.cost_per_click)}` : '–'}
+                sub={summary ? `${fmtCount(summary.clicks)} Klicks` : undefined}
+                icon={<MousePointerClick className="w-5 h-5" />}
+                iconBg="bg-orange-50"
+                iconColor="text-orange-600"
+              />
+              <KpiCard
+                label="Kosten / Setting"
+                value={summary && summary.cost_per_setting > 0 ? `€ ${fmtEuro(summary.cost_per_setting)}` : '–'}
+                sub={summary ? `${summary.leads} Settings` : undefined}
+                icon={<Users className="w-5 h-5" />}
+                iconBg="bg-blue-50"
+                iconColor="text-blue-600"
+              />
+              <KpiCard
+                label="Kosten / Closing"
+                value={summary && summary.cost_per_closing > 0 ? `€ ${fmtEuro(summary.cost_per_closing)}` : '–'}
+                sub={summary ? `${summary.closing_count} Closings` : undefined}
+                icon={<CheckCircle className="w-5 h-5" />}
+                iconBg="bg-amber-50"
+                iconColor="text-amber-600"
+              />
+              <KpiCard
+                label="Kosten / Kunde"
+                value={summary && summary.cost_per_customer > 0 ? `€ ${fmtEuro(summary.cost_per_customer)}` : '–'}
+                sub={summary ? `${summary.won_count} Kunden` : undefined}
+                icon={<Trophy className="w-5 h-5" />}
+                iconBg="bg-green-50"
+                iconColor="text-green-600"
+              />
+            </div>
+          </div>
+
           {/* ─── Ad Performance ─── */}
           <div>
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
@@ -406,6 +462,7 @@ export default function AdminMarketingPage() {
               <KpiCard
                 label="Ad Spend"
                 value={summary ? `€ ${fmtEuro(summary.spend)}` : '–'}
+                sub="Alle Kampagnen im Zeitraum"
                 icon={<DollarSign className="w-5 h-5" />}
                 iconBg="bg-gray-100"
                 iconColor="text-gray-600"
@@ -418,23 +475,6 @@ export default function AdminMarketingPage() {
                 iconBg="bg-red-50"
                 iconColor="text-red-600"
               />
-              <KpiCard
-                label="Cost / Kunde"
-                value={summary && summary.won_count > 0 ? `€ ${fmtEuro(summary.spend / summary.won_count)}` : '–'}
-                sub={summary ? `${summary.won_count} Kunden` : undefined}
-                icon={<Trophy className="w-5 h-5" />}
-                iconBg="bg-green-50"
-                iconColor="text-green-600"
-              />
-              <KpiCard
-                label="CPC"
-                value={summary && summary.cpc > 0 ? `€ ${fmtEuro(summary.cpc)}` : '–'}
-                icon={<MousePointerClick className="w-5 h-5" />}
-                iconBg="bg-orange-50"
-                iconColor="text-orange-600"
-              />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <KpiCard
                 label="CTR"
                 value={summary ? fmtPct(summary.ctr) : '–'}
@@ -449,14 +489,78 @@ export default function AdminMarketingPage() {
                 iconBg="bg-purple-50"
                 iconColor="text-purple-600"
               />
-              <KpiCard
-                label="Klicks"
-                value={summary ? fmtCount(summary.clicks) : '–'}
-                icon={<MousePointerClick className="w-5 h-5" />}
-                iconBg="bg-indigo-50"
-                iconColor="text-indigo-600"
-              />
             </div>
+          </div>
+
+          {/* ─── Umsatz pro Creative ─── */}
+          <div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Umsatz pro Creative (utm_content)
+            </h2>
+            <Card padding="none" className="overflow-hidden">
+              {(data.creatives ?? []).length === 0 ? (
+                <p className="text-sm text-gray-400 px-4 py-6">
+                  Keine Leads mit utm_content im Zeitraum gefunden.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Creative
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Leads
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Setting
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Closing
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Kunden
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Umsatz
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          Offen
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {data.creatives.map((cr) => (
+                        <tr key={cr.creative} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-xs truncate">
+                            {cr.creative}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+                            {fmtCount(cr.leads)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+                            {fmtCount(cr.setting)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+                            {fmtCount(cr.closing + cr.won)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 tabular-nums">
+                            {fmtCount(cr.won)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-green-700 tabular-nums">
+                            {cr.won_value > 0 ? `€ ${fmtEuro(cr.won_value)}` : '–'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-amber-700 tabular-nums">
+                            {cr.open_value > 0 ? `€ ${fmtEuro(cr.open_value)}` : '–'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
           </div>
 
           {/* ─── Campaigns Table ─── */}
@@ -467,7 +571,7 @@ export default function AdminMarketingPage() {
             <Card padding="none" className="overflow-hidden">
               {data.campaigns.length === 0 ? (
                 <p className="text-sm text-gray-400 px-4 py-6">
-                  Keine aktiven Kampagnen gefunden.
+                  Keine Kampagnen mit Ausgaben im Zeitraum gefunden.
                 </p>
               ) : (
                 <div className="overflow-x-auto">

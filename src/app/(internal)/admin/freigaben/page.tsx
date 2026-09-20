@@ -1,11 +1,11 @@
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, isInternal } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { FreigabenClient } from './freigaben-client';
 
 export default async function FreigabenPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  if (user.role !== 'admin') redirect('/aufgaben');
+  if (!isInternal(user.role)) redirect('/aufgaben');
 
   return <FreigabenClient />;
 }

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createServerClient } from '@/lib/supabase/server';
 
 export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member';
@@ -10,7 +11,8 @@ export interface CurrentUser {
   agency_id: string | null;
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+// cache(): dedupes within one request (layout + page both call this)
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -23,7 +25,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   if (!data) return null;
   return data as CurrentUser;
-}
+});
 
 export function isInternal(role: UserRole): boolean {
   return role === 'admin' || role === 'employee';

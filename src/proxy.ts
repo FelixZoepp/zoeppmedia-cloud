@@ -36,7 +36,11 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/register-employee') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/api/')
+    pathname.startsWith('/api/') ||
+    // PWA-Assets müssen ohne Login erreichbar sein (Manifest, Service Worker, Offline-Seite)
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/offline'
   ) {
     return supabaseResponse;
   }

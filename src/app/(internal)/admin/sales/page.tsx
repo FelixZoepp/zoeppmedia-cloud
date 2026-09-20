@@ -324,7 +324,8 @@ export default function AdminSalesPage() {
           <h2 className="text-sm font-semibold text-gray-900">Alle Deals</h2>
         </div>
 
-        <div className="divide-y divide-gray-100">
+        <div className="overflow-x-auto">
+        <div className="divide-y divide-gray-100 min-w-[720px]">
           {/* Table header */}
           <div className="grid grid-cols-[1fr_120px_100px_100px_80px_100px] gap-4 px-6 py-3 bg-gray-50">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Unternehmen</span>
@@ -380,6 +381,7 @@ export default function AdminSalesPage() {
               <span className="text-xs text-gray-500">{formatDate(deal.date_created)}</span>
             </div>
           ))}
+        </div>
         </div>
       </Card>
     </div>

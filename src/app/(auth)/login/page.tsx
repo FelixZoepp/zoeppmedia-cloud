@@ -21,41 +21,30 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (signInError) {
+    if (signInError || !signInData.user) {
       setError('E-Mail oder Passwort falsch.');
       setLoading(false);
       return;
     }
 
-    // Update last_login (ignore errors — non-critical)
-    try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        await supabase
-          .from('users')
-          .update({ last_login: new Date().toISOString() })
-          .eq('id', authUser.id);
-      }
-    } catch {
-      // non-critical
-    }
+    const userId = signInData.user.id;
 
-    // Check user role to redirect correctly
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser) {
-      const { data: profile } = await supabase
+    // last_login update (fire-and-forget) + role check in parallel
+    const [, { data: profile }] = await Promise.all([
+      supabase
         .from('users')
-        .select('role')
-        .eq('id', currentUser.id)
-        .single();
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', userId)
+        .then(() => undefined, () => undefined),
+      supabase.from('users').select('role').eq('id', userId).single(),
+    ]);
 
-      const role = profile?.role as string;
-      if (role === 'admin' || role === 'employee') {
-        window.location.href = '/admin';
-        return;
-      }
+    const role = profile?.role as string;
+    if (role === 'admin' || role === 'employee') {
+      window.location.href = '/admin';
+      return;
     }
 
     window.location.href = '/dashboard';

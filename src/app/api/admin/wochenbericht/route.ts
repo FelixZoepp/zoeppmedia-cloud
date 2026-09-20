@@ -4,6 +4,9 @@ import { isAdmin } from '@/lib/admin';
 
 const META_API_VERSION = 'v21.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
+const INSIGHTS_CAMPAIGN_FILTER = encodeURIComponent(
+  JSON.stringify([{ field: 'campaign.name', operator: 'NOT_CONTAIN', value: 'KI Outreach Vorlage' }])
+);
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 
@@ -68,7 +71,7 @@ async function fetchMetaWeekly(token: string, adAccountId: string, weeks: { sinc
   await Promise.all(
     weeks.map(async (w) => {
       const timeRange = JSON.stringify({ since: w.since, until: w.until });
-      const url = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${fields}&level=account`;
+      const url = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${fields}&level=account&filtering=${INSIGHTS_CAMPAIGN_FILTER}`;
       try {
         const res = await fetch(url);
         const data = await res.json();

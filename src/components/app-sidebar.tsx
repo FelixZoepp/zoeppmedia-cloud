@@ -33,6 +33,7 @@ import {
   Gauge,
   Receipt,
   PlusCircle,
+  PhoneCall,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -50,9 +51,6 @@ const adminGroups: SidebarGroup[] = [
     label: 'Fulfillment',
     items: [
       { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
-      { id: 'tasks', label: 'Interne Tasks', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
-      { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
-      { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
@@ -62,7 +60,6 @@ const adminGroups: SidebarGroup[] = [
       { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
       { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
       { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
-      { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },
       { id: 'wochenbericht', label: 'Wochenbericht', icon: <CalendarDays className="w-5 h-5" />, href: '/admin/wochenbericht' },
     ],
   },
@@ -94,6 +91,8 @@ const employeeGroups: SidebarGroup[] = [
     label: 'Meine Arbeit',
     items: [
       { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
+      { id: 'dialer', label: 'Dialer', icon: <PhoneCall className="w-5 h-5" />, href: '/dialer' },
+      { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },
       { id: 'meine-aufgaben', label: 'Meine Aufgaben (alt)', icon: <ListTodo className="w-5 h-5" />, href: '/meine-aufgaben' },
     ],
   },
@@ -109,9 +108,11 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
+      { id: 'freigaben', label: 'Aufgaben-Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
       { id: 'tasks', label: 'Interne Tasks', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
+      { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
 ];

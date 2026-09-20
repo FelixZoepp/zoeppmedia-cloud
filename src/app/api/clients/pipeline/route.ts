@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
-export type ClientPhase = 'onboarding_termin' | 'onboarding_formular' | 'fulfillment' | 'kampagne_live' | 'kickoff_14d' | 'bestandskunde';
+export type ClientPhase = 'onboarding_termin' | 'fulfillment' | 'warten_zugaenge' | 'warten_starttermin' | 'kampagne_live' | 'kickoff_14d' | 'bestandskunde';
 
 export interface PipelineClient {
   id: string;
@@ -49,7 +49,7 @@ export async function GET() {
   // Fetch agencies
   let agencyQuery = admin
     .from('agencies')
-    .select('id, name, contact_name, created_at, onboarding_completed')
+    .select('id, name, contact_name, created_at, onboarding_completed, phase_override, phase_override_at')
     .order('created_at', { ascending: false });
 
   if (agencyIds !== null) {
@@ -109,23 +109,24 @@ export async function GET() {
     let phase: ClientPhase;
     let days_in_phase: number;
 
+    // Manual override (drag & drop) wins over computed phase
+    const override = agency.phase_override as ClientPhase | null;
+
     // Phase logic:
-    // 1. Onboarding Termin — fresh agency, not yet onboarded
-    // 2. Onboarding Formular — registered but form not completed
-    // 3. Fulfillment — onboarding done, content being created
-    // 4. Kampagne Live — all fulfillment done, campaign running (< 14 days)
-    // 5. Kickoff 14d — campaign running for 14+ days, first review
-    // 6. Bestandskunde — ongoing, bi-weekly check-ins
+    // 1. Onboarding Termin — fresh agency, onboarding (inkl. Formular) not yet completed
+    // 2. Einrichtung (fulfillment) — onboarding done, content being created
+    // 3. Kampagne Live — all fulfillment done, campaign running (< 14 days)
+    // 4. Kickoff 14d — campaign running for 14+ days, first review
+    // 5. Bestandskunde — ongoing, bi-weekly check-ins
 
     const daysActive = daysBetween(agency.created_at, now);
 
-    if (!agency.onboarding_completed && !last_login) {
-      // Never logged in — waiting for onboarding termin
-      phase = 'onboarding_termin';
-      days_in_phase = daysActive;
+    if (override) {
+      phase = override;
+      days_in_phase = daysBetween((agency.phase_override_at as string) ?? agency.created_at, now);
     } else if (!agency.onboarding_completed) {
-      // Logged in but hasn't completed the form
-      phase = 'onboarding_formular';
+      // Onboarding (Termin + Formular) not yet completed
+      phase = 'onboarding_termin';
       days_in_phase = daysActive;
     } else if (total === 0 || done < total) {
       // Onboarding done, fulfillment tasks not all complete

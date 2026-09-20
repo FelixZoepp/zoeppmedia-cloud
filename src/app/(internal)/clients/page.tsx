@@ -19,8 +19,9 @@ const COLUMNS: {
   dot: string;
 }[] = [
   { key: 'onboarding_termin', label: 'Onboarding Termin', dot: 'bg-gray-400' },
-  { key: 'onboarding_formular', label: 'Onboarding Formular', dot: 'bg-amber-400' },
-  { key: 'fulfillment', label: 'Fulfillment', dot: 'bg-violet-500' },
+  { key: 'fulfillment', label: 'Einrichtung', dot: 'bg-violet-500' },
+  { key: 'warten_zugaenge', label: 'Warten auf Zugänge', dot: 'bg-orange-500' },
+  { key: 'warten_starttermin', label: 'Warten auf Starttermin', dot: 'bg-sky-500' },
   { key: 'kampagne_live', label: 'Kampagne Live', dot: 'bg-green-500' },
   { key: 'kickoff_14d', label: 'Kickoff (14 Tage)', dot: 'bg-blue-500' },
   { key: 'bestandskunde', label: 'Bestandskunde', dot: 'bg-teal-500' },
@@ -34,11 +35,8 @@ function getWarning(phase: ClientPhase, days: number): { text: string; urgent: b
   if (phase === 'onboarding_termin' && days > 3) {
     return { text: 'Wartet auf Onboarding-Termin', urgent: false };
   }
-  if (phase === 'onboarding_formular' && days > 5) {
-    return { text: 'Formular nicht ausgefüllt', urgent: true };
-  }
   if (phase === 'fulfillment' && days > 7) {
-    return { text: 'Fulfillment dauert zu lange', urgent: true };
+    return { text: 'Einrichtung dauert zu lange', urgent: true };
   }
   if (phase === 'kampagne_live' && days > 14) {
     return { text: 'Kickoff steht an', urgent: false };
@@ -69,7 +67,7 @@ function formatLastLogin(iso: string | null): string {
 /*  Client Card                                                        */
 /* ------------------------------------------------------------------ */
 
-function ClientCard({ client }: { client: PipelineClient }) {
+function ClientCard({ client, onDragStart }: { client: PipelineClient; onDragStart?: (id: string) => void }) {
   const warning = getWarning(client.phase, client.days_in_phase);
   const pct =
     client.fulfillment_total > 0
@@ -77,7 +75,15 @@ function ClientCard({ client }: { client: PipelineClient }) {
       : 0;
 
   return (
-    <Link href={`/clients/${client.id}`}>
+    <Link
+      href={`/clients/${client.id}`}
+      draggable={!!onDragStart}
+      onDragStart={(e) => {
+        if (!onDragStart) return;
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart(client.id);
+      }}
+    >
       <Card
         padding="sm"
         className="hover:shadow-md transition-shadow cursor-pointer group space-y-3"
@@ -113,7 +119,7 @@ function ClientCard({ client }: { client: PipelineClient }) {
         {client.fulfillment_total > 0 && (
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-500">Fulfillment</span>
+              <span className="text-xs text-gray-500">Einrichtung</span>
               <span className="text-xs font-medium text-gray-700">
                 {client.fulfillment_done}/{client.fulfillment_total}
               </span>
@@ -157,7 +163,16 @@ function ClientCard({ client }: { client: PipelineClient }) {
 /*  Pipeline Kanban                                                    */
 /* ------------------------------------------------------------------ */
 
-function PipelineView({ clients }: { clients: PipelineClient[] }) {
+function PipelineView({
+  clients,
+  onMove,
+}: {
+  clients: PipelineClient[];
+  onMove: (agencyId: string, phase: ClientPhase) => void;
+}) {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<ClientPhase | null>(null);
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
       {COLUMNS.map((col) => {
@@ -186,9 +201,27 @@ function PipelineView({ clients }: { clients: PipelineClient[] }) {
             </div>
 
             {/* Column body */}
-            <div className="space-y-3 min-h-[120px] bg-gray-50 rounded-xl p-3 border border-gray-200 border-dashed">
+            <div
+              className={`space-y-3 min-h-[120px] rounded-xl p-3 border border-dashed transition-colors ${
+                dragOverCol === col.key
+                  ? 'bg-red-50 border-red-300'
+                  : 'bg-gray-50 border-gray-200'
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDragOverCol(col.key);
+              }}
+              onDragLeave={() => setDragOverCol(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverCol(null);
+                if (draggingId) onMove(draggingId, col.key);
+                setDraggingId(null);
+              }}
+            >
               {colClients.map((c) => (
-                <ClientCard key={c.id} client={c} />
+                <ClientCard key={c.id} client={c} onDragStart={setDraggingId} />
               ))}
               {colClients.length === 0 && (
                 <div className="flex items-center justify-center h-20 text-xs text-gray-400">
@@ -296,7 +329,20 @@ export default function ClientsIndexPage() {
           </p>
         </Card>
       ) : view === 'pipeline' ? (
-        <PipelineView clients={clients} />
+        <PipelineView
+          clients={clients}
+          onMove={(agencyId, phase) => {
+            // Optimistic update
+            setClients((prev) =>
+              prev.map((c) => (c.id === agencyId ? { ...c, phase, days_in_phase: 0 } : c))
+            );
+            fetch('/api/clients/pipeline/phase', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ agency_id: agencyId, phase }),
+            }).catch(() => {});
+          }}
+        />
       ) : (
         <ListView clients={clients} />
       )}

@@ -215,7 +215,7 @@ export function KundenDetailClient({ agencyId }: { agencyId: string }) {
         <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <FileText className="w-4 h-4" /> Stammdaten
         </h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { label: 'Firma', key: 'name' },
             { label: 'Rechtsform', key: 'rechtsform' },
@@ -353,7 +353,8 @@ export function KundenDetailClient({ agencyId }: { agencyId: string }) {
         {runs.length === 0 ? (
           <p className="text-sm text-gray-400 px-6 py-8">Keine Rechnungen vorhanden</p>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="overflow-x-auto">
+          <div className="divide-y divide-gray-100 min-w-[760px]">
             <div className="grid grid-cols-[100px_80px_100px_100px_120px_120px_100px] gap-3 px-6 py-3 bg-gray-50">
               <span className="text-xs font-bold text-gray-400 uppercase">Rechnung</span>
               <span className="text-xs font-bold text-gray-400 uppercase">Periode</span>
@@ -386,6 +387,7 @@ export function KundenDetailClient({ agencyId }: { agencyId: string }) {
                 </div>
               </div>
             ))}
+          </div>
           </div>
         )}
       </Card>

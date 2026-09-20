@@ -110,13 +110,13 @@ export async function PATCH(
       }
       update.erledigt_am = new Date().toISOString();
     } else if (oldStatus === 'zur_freigabe' && newStatus === 'erledigt') {
-      if (user.role !== 'admin') {
-        return NextResponse.json({ error: 'Nur Admins koennen Aufgaben freigeben' }, { status: 403 });
+      if (!isInternal(user.role)) {
+        return NextResponse.json({ error: 'Nur interne Nutzer koennen Aufgaben freigeben' }, { status: 403 });
       }
       update.erledigt_am = new Date().toISOString();
     } else if (oldStatus === 'zur_freigabe' && newStatus === 'in_arbeit') {
-      if (user.role !== 'admin') {
-        return NextResponse.json({ error: 'Nur Admins koennen Aufgaben zurueckweisen' }, { status: 403 });
+      if (!isInternal(user.role)) {
+        return NextResponse.json({ error: 'Nur interne Nutzer koennen Aufgaben zurueckweisen' }, { status: 403 });
       }
       // Notify owner about rejection
       if (task.owner_user_id) {
@@ -131,8 +131,8 @@ export async function PATCH(
         });
       }
     } else if (newStatus === 'nicht_noetig') {
-      if (user.role !== 'admin') {
-        return NextResponse.json({ error: 'Nur Admins koennen Aufgaben als nicht noetig markieren' }, { status: 403 });
+      if (!isInternal(user.role)) {
+        return NextResponse.json({ error: 'Nur interne Nutzer koennen Aufgaben als nicht noetig markieren' }, { status: 403 });
       }
       if (!body.notiz) {
         return NextResponse.json({ error: 'Eine Notiz ist erforderlich wenn als nicht noetig markiert wird' }, { status: 400 });

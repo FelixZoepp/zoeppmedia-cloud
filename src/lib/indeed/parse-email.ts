@@ -8,15 +8,21 @@ export interface ParsedEmail {
 export function parseIndeedEmail(body: string, subject: string): ParsedEmail {
   const text = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Name from subject: "Neue Bewerbung: [Titel] — [Name]" or "New application: [Title] — [Name]"
+  // Echtes Indeed-Format: "[Wichtig] Neue Bewerbung für die Stelle als [Titel]"
+  // → kein Name im Betreff, der komplette Rest ist der Stellentitel (kann Bindestriche enthalten)
+  const indeedSubject = subject.match(/Neue Bewerbung f(?:ü|u)r die Stelle als\s+(.+)$/i);
+
   let candidateName: string | null = null;
-  const subjectMatch = subject.match(/[—–-]\s*(.+)$/);
-  if (subjectMatch) {
-    candidateName = subjectMatch[1].trim();
+  if (!indeedSubject) {
+    // Altes Format: "Neue Bewerbung: [Titel] — [Name]"
+    const subjectMatch = subject.match(/[—–-]\s*(.+)$/);
+    if (subjectMatch) {
+      candidateName = subjectMatch[1].trim();
+    }
   }
-  // Fallback: first line of body often contains the name
+  // Fallback: Body enthält oft "[Name] hat sich ... beworben"
   if (!candidateName) {
-    const nameMatch = text.match(/^(.+?)\s+hat sich/);
+    const nameMatch = text.match(/([A-ZÄÖÜ][\wäöüß-]+(?:\s+[A-ZÄÖÜ][\wäöüß-]+){1,3})\s+hat sich/);
     if (nameMatch) candidateName = nameMatch[1].trim();
   }
 
@@ -30,8 +36,12 @@ export function parseIndeedEmail(body: string, subject: string): ParsedEmail {
 
   // Job title from subject
   let jobTitle: string | null = null;
-  const titleMatch = subject.match(/(?:Bewerbung|application)[:\s]+(.+?)\s*[—–-]/i);
-  if (titleMatch) jobTitle = titleMatch[1].trim();
+  if (indeedSubject) {
+    jobTitle = indeedSubject[1].trim();
+  } else {
+    const titleMatch = subject.match(/(?:Bewerbung|application)[:\s]+(.+?)\s*[—–-]/i);
+    if (titleMatch) jobTitle = titleMatch[1].trim();
+  }
 
   return { candidateName, email: realEmail, phone, jobTitle };
 }

@@ -213,7 +213,7 @@ export default function PerspectiveFunnelPage() {
                 {brandInfo && (
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Agentur-Daten</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-gray-500">Firma:</span>{' '}
                         <span className="font-medium text-gray-900">{brandInfo.company_name}</span>

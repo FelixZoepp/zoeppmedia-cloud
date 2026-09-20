@@ -329,11 +329,11 @@ function AIToolsInner() {
     <div>
       <PageHeader label="FULFILLMENT" title="AI Tools" />
 
-      <div className="flex gap-6 h-[calc(100vh-128px)]">
+      <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-128px)]">
         {/* ============================================================
             LEFT: Agency selector + content type cards
         ============================================================ */}
-        <div className="w-[320px] flex-shrink-0 flex flex-col gap-4">
+        <div className="w-full lg:w-[320px] flex-shrink-0 flex flex-col gap-4">
           {/* Agency selector */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -368,7 +368,7 @@ function AIToolsInner() {
                 Zuerst eine Agentur auswählen.
               </p>
             )}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {CARDS.map((card) => (
                 <ContentCard
                   key={card.key}

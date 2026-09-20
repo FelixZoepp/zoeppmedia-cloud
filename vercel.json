@@ -1,8 +1,13 @@
 {
+  "regions": ["dub1"],
   "crons": [
     {
       "path": "/api/cron/daily",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/cadence",
+      "schedule": "0 6 * * *"
     }
   ]
 }

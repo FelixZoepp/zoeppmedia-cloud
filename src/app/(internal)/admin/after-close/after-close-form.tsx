@@ -185,7 +185,7 @@ export function AfterCloseForm() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-2xl font-bold text-gray-900">{result.tasks_created}</p>
               <p className="text-sm text-gray-500">Aufgaben erstellt</p>
@@ -240,7 +240,7 @@ export function AfterCloseForm() {
         <Card padding="md">
           <SectionTitle>Kundendaten</SectionTitle>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>Firma</FieldLabel>
                 <Input
@@ -269,7 +269,7 @@ export function AfterCloseForm() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>Ansprechpartner</FieldLabel>
                 <Input
@@ -291,7 +291,7 @@ export function AfterCloseForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>E-Mail</FieldLabel>
                 <Input
@@ -328,7 +328,7 @@ export function AfterCloseForm() {
         <Card padding="md">
           <SectionTitle>Vertrag</SectionTitle>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>Paket</FieldLabel>
                 <Select
@@ -348,7 +348,7 @@ export function AfterCloseForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <FieldLabel>Retainer (MRR)</FieldLabel>
                 <Input
@@ -393,7 +393,7 @@ export function AfterCloseForm() {
         <Card padding="md">
           <SectionTitle>Leistung</SectionTitle>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel>Branche</FieldLabel>
                 <Select
@@ -421,7 +421,7 @@ export function AfterCloseForm() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel>Gesuchte Rolle</FieldLabel>
                 <Input

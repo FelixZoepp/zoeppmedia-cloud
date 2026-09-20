@@ -32,9 +32,11 @@ const COLUMNS: { key: string; label: string; statusValues: PlaybookTask['status'
 function TaskCard({
   task,
   onStatusChange,
+  onEdit,
 }: {
   task: TaskWithMeta;
   onStatusChange: (id: string, status: PlaybookTask['status']) => Promise<void>;
+  onEdit: (task: TaskWithMeta) => void;
 }) {
   const [updating, setUpdating] = useState(false);
 
@@ -55,7 +57,18 @@ function TaskCard({
 
   return (
     <Card padding="sm" className={`space-y-3 ${isDone ? 'opacity-60' : ''}`}>
-      <p className="text-sm font-medium text-gray-900 leading-snug">{task.action_text}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-gray-900 leading-snug">{task.action_text}</p>
+        {!isDone && (
+          <button
+            onClick={() => onEdit(task)}
+            className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+            title="Bearbeiten"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         <Badge tone="softAccent" className="text-xs !px-2 !py-0.5 font-mono">
           {task.playbook_key}
@@ -74,6 +87,9 @@ function TaskCard({
       </div>
       {task.assigned_to && (
         <p className="text-xs text-gray-400">Zugewiesen: {task.assigned_to}</p>
+      )}
+      {task.notes && (
+        <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-2.5 py-1.5 whitespace-pre-wrap">{task.notes}</p>
       )}
       {!isDone && (
         <div className="flex gap-2 pt-1">
@@ -103,9 +119,100 @@ function TaskCard({
   );
 }
 
-function KanbanBoard({ tasks, onStatusChange }: {
+/* ------------------------------------------------------------------ */
+/*  Task Edit Modal                                                     */
+/* ------------------------------------------------------------------ */
+
+function TaskEditModal({
+  task,
+  onClose,
+  onSaved,
+}: {
+  task: TaskWithMeta | null;
+  onClose: () => void;
+  onSaved: (id: string, assigned_to: string | null, notes: string | null) => void;
+}) {
+  const [assignedTo, setAssignedTo] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (task) {
+      setAssignedTo(task.assigned_to ?? '');
+      setNotes(task.notes ?? '');
+      setError('');
+    }
+  }, [task]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!task) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/playbook-tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assigned_to: assignedTo.trim() || null,
+          notes: notes.trim() || null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Fehler beim Speichern');
+        setSaving(false);
+        return;
+      }
+      onSaved(task.id, assignedTo.trim() || null, notes.trim() || null);
+      onClose();
+    } catch {
+      setError('Netzwerkfehler');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={!!task} onClose={onClose} title="Aufgabe bearbeiten" width="max-w-md">
+      {task && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-sm text-gray-700 leading-snug">{task.action_text}</p>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-1">Zugewiesen an <span className="font-normal text-gray-400">(optional)</span></label>
+            <Input
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+              placeholder="z.B. Taha"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-1">Notizen <span className="font-normal text-gray-400">(optional)</span></label>
+            <textarea
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 min-h-[100px] resize-y"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Was ist geplant / vereinbart?"
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>Abbrechen</Button>
+            <Button type="submit" size="sm" disabled={saving}>
+              {saving ? 'Speichert...' : 'Speichern'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
+function KanbanBoard({ tasks, onStatusChange, onEdit }: {
   tasks: TaskWithMeta[];
   onStatusChange: (id: string, status: PlaybookTask['status']) => Promise<void>;
+  onEdit: (task: TaskWithMeta) => void;
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -126,7 +233,7 @@ function KanbanBoard({ tasks, onStatusChange }: {
                 </div>
               ) : (
                 colTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onStatusChange={onStatusChange} />
+                  <TaskCard key={task.id} task={task} onStatusChange={onStatusChange} onEdit={onEdit} />
                 ))
               )}
             </div>
@@ -376,7 +483,7 @@ function PlaybookFormModal({
   return (
     <Modal open={open} onClose={onClose} title={editEntry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'} width="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-900 mb-1">Problem-Key</label>
             <Input
@@ -479,6 +586,7 @@ export default function PlaybookPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<PlaybookEntry | null>(null);
+  const [editTask, setEditTask] = useState<TaskWithMeta | null>(null);
 
   // Fetch tasks and agency names
   const fetchTasks = useCallback(async () => {
@@ -603,7 +711,7 @@ export default function PlaybookPage() {
               </div>
             </Card>
           ) : (
-            <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
+            <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} onEdit={setEditTask} />
           )}
         </>
       )}
@@ -654,6 +762,14 @@ export default function PlaybookPage() {
         onClose={() => { setModalOpen(false); setEditEntry(null); }}
         onSaved={fetchEntries}
         editEntry={editEntry}
+      />
+
+      <TaskEditModal
+        task={editTask}
+        onClose={() => setEditTask(null)}
+        onSaved={(id, assigned_to, notes) =>
+          setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, assigned_to, notes } : t)))
+        }
       />
     </div>
   );

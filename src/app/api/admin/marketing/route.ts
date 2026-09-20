@@ -5,12 +5,19 @@ import { NextRequest, NextResponse } from 'next/server';
 const META_API_VERSION = 'v21.0';
 const BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
+// Kampagnen für andere Produkte (KI Outreach Vorlage) komplett ausblenden
+const EXCLUDED_CAMPAIGN_KEYWORD = 'KI Outreach Vorlage';
+const INSIGHTS_CAMPAIGN_FILTER = JSON.stringify([
+  { field: 'campaign.name', operator: 'NOT_CONTAIN', value: EXCLUDED_CAMPAIGN_KEYWORD },
+]);
+
 const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 
 // Custom field IDs in Close CRM
 const LEADQUELLE_FIELD = 'custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8';
 const UTM_SOURCE_FIELD = 'custom.cf_HDeEGCeYwUNaYFw1HEYlndsGXBJ8fqcssd1shBPy8xJ';
 const UTM_MEDIUM_FIELD = 'custom.cf_YHPoQshsVKzMo15WXQPFdFGBwza89ZQjsLMXz4vgOwE';
+const UTM_CONTENT_FIELD = 'custom.cf_mCdWHLOQT8lnsH9uQokTM0DdbVkR1IuD3uUJhwyAs4z';
 const META_SOURCES = ['instagram', 'facebook', 'meta ads', 'meta', 'fb', 'ig', 'paid'];
 
 function closeAuth(): HeadersInit {
@@ -42,6 +49,18 @@ interface CloseRevenue {
   quali_rate: number;   // leads that made it to closing+
   closing_rate: number; // closing that converted to won
   win_rate: number;     // overall won/total
+  // Revenue per creative (utm_content)
+  creatives: CreativeStat[];
+}
+
+interface CreativeStat {
+  creative: string;
+  leads: number;
+  setting: number;
+  closing: number;
+  won: number;
+  won_value: number;
+  open_value: number;
 }
 
 async function getCloseRevenue(since?: string, until?: string): Promise<CloseRevenue> {
@@ -52,6 +71,7 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
     meta_leads: 0, meta_setting: 0, meta_closing: 0,
     meta_won_count: 0, meta_won_value: 0, meta_open_count: 0, meta_open_value: 0,
     quali_rate: 0, closing_rate: 0, win_rate: 0,
+    creatives: [],
   };
   if (!apiKey) return empty;
 
@@ -81,12 +101,13 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
     // Fetch unique leads to check attribution
     const uniqueLeadIds = [...new Set(opps.map((o) => o.lead_id))];
     const metaLeadIds = new Set<string>();
+    const leadCreative = new Map<string, string>();
 
     await Promise.all(
       uniqueLeadIds.map(async (leadId) => {
         try {
           const leadRes = await fetch(
-            `https://api.close.com/api/v1/lead/${leadId}/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD},${UTM_MEDIUM_FIELD}`,
+            `https://api.close.com/api/v1/lead/${leadId}/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD},${UTM_MEDIUM_FIELD},${UTM_CONTENT_FIELD}`,
             { headers: closeAuth() }
           );
           if (!leadRes.ok) return;
@@ -94,12 +115,16 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
           const leadquelle: string = (lead[LEADQUELLE_FIELD] ?? '').toLowerCase().trim();
           const utmSource: string = (lead[UTM_SOURCE_FIELD] ?? '').toLowerCase().trim();
           const utmMedium: string = (lead[UTM_MEDIUM_FIELD] ?? '').toLowerCase().trim();
+          const utmContent: string = (lead[UTM_CONTENT_FIELD] ?? '').trim();
 
           const isMetaByLeadquelle = leadquelle && META_SOURCES.some((s) => leadquelle.includes(s));
           const isMetaByUtm = META_SOURCES.some((s) => utmSource.includes(s)) || utmMedium === 'paid';
 
           if (isMetaByLeadquelle || isMetaByUtm) {
             metaLeadIds.add(leadId);
+          }
+          if (utmContent) {
+            leadCreative.set(leadId, utmContent);
           }
         } catch { /* skip */ }
       })
@@ -111,25 +136,46 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
     let metaSetting = 0, metaClosing = 0;
     let metaWon = 0, metaWonValue = 0, metaOpen = 0, metaOpenValue = 0;
 
+    const creativeMap = new Map<string, CreativeStat>();
+    const creativeFor = (leadId: string): CreativeStat | null => {
+      const name = leadCreative.get(leadId);
+      if (!name) return null;
+      let stat = creativeMap.get(name);
+      if (!stat) {
+        stat = { creative: name, leads: 0, setting: 0, closing: 0, won: 0, won_value: 0, open_value: 0 };
+        creativeMap.set(name, stat);
+      }
+      return stat;
+    };
+
     for (const o of opps) {
       const val = (o.value ?? 0) / 100;
       const statusInfo = statusMap[o.status_id] ?? { label: '', type: 'active' };
       const label = statusInfo.label.toLowerCase();
       const isMeta = metaLeadIds.has(o.lead_id);
+      const creative = creativeFor(o.lead_id);
+      if (creative) creative.leads++;
 
       if (statusInfo.type === 'won') {
         won++; wonValue += val;
         if (isMeta) { metaWon++; metaWonValue += val; }
+        if (creative) { creative.won++; creative.won_value += val; }
       } else if (statusInfo.type === 'lost') {
         lost++;
       } else if (label.includes('closing') || label.includes('angebot') || label.includes('cc2')) {
         closing++; openValue += val;
         if (isMeta) { metaClosing++; metaOpen++; metaOpenValue += val; }
+        if (creative) { creative.closing++; creative.open_value += val; }
       } else {
         setting++;
         if (isMeta) { metaSetting++; }
+        if (creative) { creative.setting++; }
       }
     }
+
+    const creatives = [...creativeMap.values()].sort(
+      (a, b) => b.won_value - a.won_value || b.open_value - a.open_value || b.leads - a.leads
+    );
 
     const totalLeads = opps.length;
     // closing_count = currently in closing + already won (passed through closing)
@@ -154,6 +200,7 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
       quali_rate: totalLeads > 0 ? Math.round((closingPlus / totalLeads) * 1000) / 10 : 0,
       closing_rate: closingPlus > 0 ? Math.round((won / closingPlus) * 1000) / 10 : 0,
       win_rate: totalLeads > 0 ? Math.round((won / totalLeads) * 1000) / 10 : 0,
+      creatives,
     };
   } catch {
     return empty;
@@ -282,14 +329,27 @@ export async function GET(request: NextRequest) {
   const timeRange = JSON.stringify({ since, until });
   const insightFields = buildInsightFields();
 
-  // Fetch active campaigns with insights
+  // Fetch ALL campaigns (incl. paused/archived) — spend in the period counts
+  // regardless of current status
   const campaignsUrl = new URL(`${BASE_URL}/${adAccountId}/campaigns`);
   campaignsUrl.searchParams.set('access_token', token);
-  campaignsUrl.searchParams.set('effective_status', '["ACTIVE"]');
+  campaignsUrl.searchParams.set('effective_status', '["ACTIVE","PAUSED","ARCHIVED"]');
   campaignsUrl.searchParams.set('fields', `id,name,status,insights.time_range(${timeRange}){${insightFields}}`);
-  campaignsUrl.searchParams.set('limit', '50');
+  campaignsUrl.searchParams.set('limit', '100');
 
-  const campaignsRes = await fetch(campaignsUrl.toString());
+  // Account-level insights: authoritative totals for the period (covers every
+  // campaign, even deleted ones)
+  const accountInsightsUrl = new URL(`${BASE_URL}/${adAccountId}/insights`);
+  accountInsightsUrl.searchParams.set('access_token', token);
+  accountInsightsUrl.searchParams.set('time_range', timeRange);
+  accountInsightsUrl.searchParams.set('level', 'account');
+  accountInsightsUrl.searchParams.set('fields', insightFields);
+  accountInsightsUrl.searchParams.set('filtering', INSIGHTS_CAMPAIGN_FILTER);
+
+  const [campaignsRes, accountInsightsRes] = await Promise.all([
+    fetch(campaignsUrl.toString()),
+    fetch(accountInsightsUrl.toString()),
+  ]);
 
   if (!campaignsRes.ok) {
     const err = await campaignsRes.json();
@@ -303,6 +363,14 @@ export async function GET(request: NextRequest) {
 
   const campaigns: MetaCampaign[] = campaignsData.data ?? [];
 
+  // Account-level totals (fallback: aggregate campaigns)
+  let accountInsight: ReturnType<typeof normaliseInsight> | null = null;
+  if (accountInsightsRes.ok) {
+    const accountData = await accountInsightsRes.json();
+    const raw = accountData.data?.[0] as MetaInsight | undefined;
+    if (raw) accountInsight = normaliseInsight(raw);
+  }
+
   // Fetch ad sets for active campaigns
   let adsets: Array<{
     id: string;
@@ -313,8 +381,16 @@ export async function GET(request: NextRequest) {
     insights: ReturnType<typeof normaliseInsight> | null;
   }> = [];
 
-  if (campaigns.length > 0) {
-    const campaignIds = campaigns.map((c) => c.id);
+  // Only drill into campaigns that are active or had spend in the period;
+  // exclude other-product campaigns
+  const relevantCampaigns = campaigns.filter(
+    (c) =>
+      !c.name.includes(EXCLUDED_CAMPAIGN_KEYWORD) &&
+      (c.status === 'ACTIVE' || (c.insights?.data?.[0]?.spend && parseFloat(c.insights.data[0].spend!) > 0))
+  );
+
+  if (relevantCampaigns.length > 0) {
+    const campaignIds = relevantCampaigns.map((c) => c.id);
 
     // Fetch adsets for all active campaigns in parallel
     const adsetResponses = await Promise.all(
@@ -334,7 +410,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    const campaignMap = new Map(campaigns.map((c) => [c.id, c.name]));
+    const campaignMap = new Map(relevantCampaigns.map((c) => [c.id, c.name]));
 
     adsets = adsetResponses
       .flatMap((r) => (r.data ?? []) as MetaAdSet[])
@@ -352,7 +428,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Build campaigns output
-  const campaignsOut = campaigns.map((c) => {
+  const campaignsOut = relevantCampaigns.map((c) => {
     const insightRaw = c.insights?.data?.[0] ?? null;
     return {
       id: c.id,
@@ -362,28 +438,26 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  // Build summary by aggregating active campaigns only
+  // Summary: prefer account-level totals (captures spend from ALL campaigns,
+  // incl. deleted ones); fall back to aggregating the campaign list
   let totalSpend = 0;
   let totalLeads = 0;
   let totalImpressions = 0;
   let totalClicks = 0;
 
-  for (const c of campaignsOut) {
-    if (c.insights) {
-      totalSpend += c.insights.spend;
-      totalLeads += c.insights.leads;
-      totalImpressions += c.insights.impressions;
-      totalClicks += c.insights.clicks;
-    }
-  }
-
-  // Aggregate CPC from campaigns
-  let totalCpc = 0;
-  let cpcCount = 0;
-  for (const c of campaignsOut) {
-    if (c.insights && c.insights.cpc > 0) {
-      totalCpc += c.insights.cpc;
-      cpcCount++;
+  if (accountInsight) {
+    totalSpend = accountInsight.spend;
+    totalLeads = accountInsight.leads;
+    totalImpressions = accountInsight.impressions;
+    totalClicks = accountInsight.clicks;
+  } else {
+    for (const c of campaignsOut) {
+      if (c.insights) {
+        totalSpend += c.insights.spend;
+        totalLeads += c.insights.leads;
+        totalImpressions += c.insights.impressions;
+        totalClicks += c.insights.clicks;
+      }
     }
   }
 
@@ -401,10 +475,15 @@ export async function GET(request: NextRequest) {
     // Real pipeline leads from Close CRM
     leads: realLeads,
     cpl: realLeads > 0 ? totalSpend / realLeads : 0,
-    cpc: cpcCount > 0 ? totalCpc / cpcCount : 0,
+    cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
     ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
     impressions: totalImpressions,
     clicks: totalClicks,
+    // Kostenmetriken
+    cost_per_click: totalClicks > 0 ? totalSpend / totalClicks : 0,
+    cost_per_setting: closeRevenue.total_leads > 0 ? totalSpend / closeRevenue.total_leads : 0,
+    cost_per_closing: closeRevenue.closing_count > 0 ? totalSpend / closeRevenue.closing_count : 0,
+    cost_per_customer: closeRevenue.won_count > 0 ? totalSpend / closeRevenue.won_count : 0,
     // Pipeline funnel
     setting_count: closeRevenue.setting_count,
     closing_count: closeRevenue.closing_count,
@@ -431,5 +510,6 @@ export async function GET(request: NextRequest) {
     summary,
     campaigns: campaignsOut,
     adsets,
+    creatives: closeRevenue.creatives,
   });
 }

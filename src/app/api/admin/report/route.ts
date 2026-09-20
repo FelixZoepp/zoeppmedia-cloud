@@ -4,6 +4,11 @@ import { isAdmin } from '@/lib/admin';
 
 const META_API_VERSION = 'v21.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
+
+// Kampagnen für andere Produkte (KI Outreach Vorlage) komplett ausblenden
+const INSIGHTS_CAMPAIGN_FILTER = encodeURIComponent(JSON.stringify([
+  { field: 'campaign.name', operator: 'NOT_CONTAIN', value: 'KI Outreach Vorlage' },
+]));
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 
@@ -70,18 +75,18 @@ async function fetchMetaInsights(token: string, adAccountId: string, since: stri
   const fields = 'spend,impressions,clicks,cpc,ctr,actions,cost_per_action_type';
 
   // Account-level
-  const accountUrl = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${fields}&level=account`;
+  const accountUrl = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${fields}&level=account&filtering=${INSIGHTS_CAMPAIGN_FILTER}`;
   const accountRes = await fetch(accountUrl);
   const accountData = await accountRes.json();
 
   // Campaign-level
-  const campaignUrl = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${fields},campaign_id,campaign_name&level=campaign&limit=50`;
+  const campaignUrl = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${fields},campaign_id,campaign_name&level=campaign&limit=50&filtering=${INSIGHTS_CAMPAIGN_FILTER}`;
   const campaignRes = await fetch(campaignUrl);
   const campaignData = await campaignRes.json();
 
   // Ad-level
   const adFields = 'spend,impressions,clicks,actions,cost_per_action_type,ad_name,adset_name';
-  const adUrl = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${adFields}&level=ad&limit=100`;
+  const adUrl = `${META_BASE}/${adAccountId}/insights?access_token=${token}&time_range=${timeRange}&fields=${adFields}&level=ad&limit=100&filtering=${INSIGHTS_CAMPAIGN_FILTER}`;
   const adRes = await fetch(adUrl);
   const adData = await adRes.json();
 
@@ -133,6 +138,7 @@ interface PipelineDeal {
   deal_type: DealType;
   funnel_stage: FunnelStage;
   date_created: string;
+  date_won: string | null;
 }
 
 async function fetchClosePipeline() {
@@ -177,7 +183,7 @@ async function fetchClosePipeline() {
   const deals: PipelineDeal[] = allOpps.map((opp: {
     id: string; lead_id: string; lead_name?: string; status_id: string;
     status_label?: string; status_type?: string; value?: number;
-    date_created: string;
+    date_created: string; date_won?: string | null;
   }) => {
     const statusInfo = statusMap[opp.status_id] ?? { label: opp.status_label ?? '', type: 'active' };
     const label = statusInfo.label.toLowerCase();
@@ -203,6 +209,7 @@ async function fetchClosePipeline() {
       deal_type: (firstOppPerLead.get(opp.lead_id) === opp.id ? 'neukunde' : 'bestandskunde') as DealType,
       funnel_stage,
       date_created: opp.date_created,
+      date_won: opp.date_won ?? null,
     };
   });
 
@@ -227,14 +234,21 @@ export async function GET(request: NextRequest) {
   const { since, until } = getDateRange(range);
 
   // Fetch Meta + Close in parallel
-  const [meta, deals] = await Promise.all([
+  const [meta, allDeals] = await Promise.all([
     token && adAccountId
       ? fetchMetaInsights(token, adAccountId, since, until)
       : { total: { spend: 0, leads: 0, impressions: 0, clicks: 0 }, campaigns: [], ads: [] },
     fetchClosePipeline(),
   ]);
 
-  // Funnel counts (from all deals, not date-filtered — pipeline is cumulative)
+  // Filter deals to the selected period:
+  // won deals count by date_won, everything else by date_created
+  const untilEnd = `${until}T23:59:59`;
+  const deals = allDeals.filter((d) => {
+    const ref = d.funnel_stage === 'won' ? (d.date_won ?? d.date_created) : d.date_created;
+    return ref >= since && ref <= untilEnd;
+  });
+
   const totalDeals = deals.length;
   const settingPlus = deals.filter((d) => ['setting', 'closing', 'won'].includes(d.funnel_stage)).length;
   const closingPlus = deals.filter((d) => ['closing', 'won'].includes(d.funnel_stage)).length;

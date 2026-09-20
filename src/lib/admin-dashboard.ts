@@ -37,80 +37,74 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   startOfPrevWeek.setDate(startOfPrevWeek.getDate() - 7);
   const endOfPrevWeek = new Date(startOfWeek);
 
-  // Total agencies
-  const { count: totalAgencies } = await admin
-    .from('agencies')
-    .select('*', { count: 'exact', head: true });
+  const monthDefs = Array.from({ length: 6 }, (_, idx) => {
+    const i = 5 - idx;
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    return { start: d, end: nextMonth, label: d.toLocaleDateString('de-DE', { month: 'short' }) };
+  });
 
-  const { count: agenciesPrevWeek } = await admin
-    .from('agencies')
-    .select('*', { count: 'exact', head: true })
-    .lt('created_at', endOfPrevWeek.toISOString());
-
-  // Total candidates
-  const { count: totalCandidates } = await admin
-    .from('candidates')
-    .select('*', { count: 'exact', head: true });
-
-  const { count: candidatesPrevWeek } = await admin
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .lt('created_at', endOfPrevWeek.toISOString());
-
-  // New this week
-  const { count: newCandidatesThisWeek } = await admin
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', startOfWeek.toISOString());
-
-  const { count: newCandidatesPrevWeek } = await admin
-    .from('candidates')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', startOfPrevWeek.toISOString())
-    .lt('created_at', endOfPrevWeek.toISOString());
-
-  // Hired
-  const { data: hiredStage } = await admin
-    .from('pipeline_stages')
-    .select('id')
-    .eq('name', 'Eingestellt')
-    .single();
+  // Phase 1: everything without dependencies, in parallel
+  const [
+    { count: totalAgencies },
+    { count: agenciesPrevWeek },
+    { count: totalCandidates },
+    { count: candidatesPrevWeek },
+    { count: newCandidatesThisWeek },
+    { count: newCandidatesPrevWeek },
+    { data: hiredStage },
+    monthCounts,
+    { data: allCandidatesSource },
+    { data: allAgencies },
+    { data: allProblems },
+    { data: candidatesByAgency },
+    { data: recent },
+  ] = await Promise.all([
+    admin.from('agencies').select('*', { count: 'exact', head: true }),
+    admin.from('agencies').select('*', { count: 'exact', head: true })
+      .lt('created_at', endOfPrevWeek.toISOString()),
+    admin.from('candidates').select('*', { count: 'exact', head: true }),
+    admin.from('candidates').select('*', { count: 'exact', head: true })
+      .lt('created_at', endOfPrevWeek.toISOString()),
+    admin.from('candidates').select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfWeek.toISOString()),
+    admin.from('candidates').select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfPrevWeek.toISOString()).lt('created_at', endOfPrevWeek.toISOString()),
+    admin.from('pipeline_stages').select('id').eq('name', 'Eingestellt').single(),
+    Promise.all(monthDefs.map((m) =>
+      admin.from('candidates').select('*', { count: 'exact', head: true })
+        .gte('created_at', m.start.toISOString()).lt('created_at', m.end.toISOString())
+    )),
+    admin.from('candidates').select('source'),
+    admin.from('agencies').select('id, name'),
+    admin.from('agency_problems').select('agency_id, severity').is('resolved_at', null),
+    admin.from('candidates').select('agency_id, current_stage_id'),
+    admin.from('candidates').select('id, name, source, created_at, agency_id')
+      .order('created_at', { ascending: false }).limit(5),
+  ]);
 
   const hiredStageId = hiredStage?.id;
 
-  const { count: totalHired } = hiredStageId
-    ? await admin.from('candidates').select('*', { count: 'exact', head: true }).eq('current_stage_id', hiredStageId)
-    : { count: 0 };
+  // Phase 2: queries depending on hiredStageId, in parallel
+  const [{ count: totalHired }, { count: hiredPrevWeek }] = await Promise.all([
+    hiredStageId
+      ? admin.from('candidates').select('*', { count: 'exact', head: true }).eq('current_stage_id', hiredStageId)
+      : Promise.resolve({ count: 0 }),
+    hiredStageId
+      ? admin.from('candidate_stages').select('*', { count: 'exact', head: true })
+          .eq('stage_id', hiredStageId)
+          .gte('changed_at', startOfPrevWeek.toISOString()).lt('changed_at', endOfPrevWeek.toISOString())
+      : Promise.resolve({ count: 0 }),
+  ]);
 
-  const { count: hiredPrevWeek } = hiredStageId
-    ? await admin
-        .from('candidate_stages')
-        .select('*', { count: 'exact', head: true })
-        .eq('stage_id', hiredStageId)
-        .gte('changed_at', startOfPrevWeek.toISOString())
-        .lt('changed_at', endOfPrevWeek.toISOString())
-    : { count: 0 };
-
-  // Candidates over time (last 6 months)
-  const candidatesOverTime: { month: string; count: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-    const label = d.toLocaleDateString('de-DE', { month: 'short' });
-
-    const { count } = await admin
-      .from('candidates')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', d.toISOString())
-      .lt('created_at', nextMonth.toISOString());
-
-    candidatesOverTime.push({ month: label, count: count ?? 0 });
-  }
+  const candidatesOverTime = monthDefs.map((m, i) => ({
+    month: m.label,
+    count: monthCounts[i].count ?? 0,
+  }));
 
   // Source breakdown
-  const { data: allCandidates } = await admin.from('candidates').select('source');
   const sourceCounts: Record<string, number> = { meta: 0, indeed: 0, manual: 0 };
-  (allCandidates ?? []).forEach((c) => {
+  (allCandidatesSource ?? []).forEach((c) => {
     sourceCounts[c.source] = (sourceCounts[c.source] || 0) + 1;
   });
   const sourceLabels: Record<string, string> = { meta: 'Meta Ads', indeed: 'Indeed', manual: 'Manuell' };
@@ -120,14 +114,6 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   }));
 
   // Agency problem statuses (traffic light)
-  const allAgencies_raw = await admin.from('agencies').select('id, name');
-  const allAgencies = allAgencies_raw.data;
-
-  const { data: allProblems } = await admin
-    .from('agency_problems')
-    .select('agency_id, severity')
-    .is('resolved_at', null);
-
   const problemsByAgency = new Map<string, { critical: number; warning: number }>();
   for (const p of allProblems || []) {
     if (!problemsByAgency.has(p.agency_id)) problemsByAgency.set(p.agency_id, { critical: 0, warning: 0 });
@@ -152,9 +138,6 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const totalProblems = (allProblems || []).length;
 
   // Top agencies by candidate count
-  const { data: agencies } = await admin.from('agencies').select('id, name');
-  const { data: candidatesByAgency } = await admin.from('candidates').select('agency_id, current_stage_id');
-
   const agencyMap: Record<string, { candidates: number; hired: number }> = {};
   (candidatesByAgency ?? []).forEach((c) => {
     if (!agencyMap[c.agency_id]) agencyMap[c.agency_id] = { candidates: 0, hired: 0 };
@@ -162,7 +145,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     if (hiredStageId && c.current_stage_id === hiredStageId) agencyMap[c.agency_id].hired++;
   });
 
-  const topAgencies = (agencies ?? [])
+  const topAgencies = (allAgencies ?? [])
     .map((a) => ({
       id: a.id,
       name: a.name,
@@ -173,14 +156,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     .slice(0, 5);
 
   // Recent candidates with agency name
-  const { data: recent } = await admin
-    .from('candidates')
-    .select('id, name, source, created_at, agency_id')
-    .order('created_at', { ascending: false })
-    .limit(5);
-
   const agencyNames: Record<string, string> = {};
-  (agencies ?? []).forEach((a) => { agencyNames[a.id] = a.name; });
+  (allAgencies ?? []).forEach((a) => { agencyNames[a.id] = a.name; });
 
   const recentCandidates = (recent ?? []).map((c) => ({
     id: c.id,

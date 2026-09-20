@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { sendPushToUsers } from '@/lib/push/send';
 
 export type NotificationType =
   | 'new_candidate'
@@ -19,10 +20,24 @@ interface CreateNotificationParams {
   type: NotificationType;
   entity_type?: 'candidate' | 'task' | 'agency';
   entity_id?: string;
+  /** Ziel-URL beim Klick auf die Push-Benachrichtigung */
+  push_url?: string;
+}
+
+function pushUrlFor(params: Pick<CreateNotificationParams, 'push_url' | 'type'>): string {
+  if (params.push_url) return params.push_url;
+  if (params.type === 'new_candidate') return '/candidates';
+  return '/dashboard';
 }
 
 export async function createNotification(supabase: SupabaseClient, params: CreateNotificationParams) {
-  await supabase.from('notifications').insert(params);
+  const { push_url, ...insertParams } = params;
+  await supabase.from('notifications').insert(insertParams);
+  await sendPushToUsers([params.user_id], {
+    title: params.title,
+    body: params.body,
+    url: pushUrlFor({ push_url, type: params.type }),
+  }).catch(() => {});
 }
 
 export async function createNotificationForAgency(
@@ -38,13 +53,19 @@ export async function createNotificationForAgency(
 
   if (!users?.length) return;
 
+  const { push_url, ...insertParams } = params;
   const notifications = users.map(u => ({
-    ...params,
+    ...insertParams,
     user_id: u.id,
     agency_id: agencyId,
   }));
 
   await supabase.from('notifications').insert(notifications);
+  await sendPushToUsers(users.map(u => u.id), {
+    title: params.title,
+    body: params.body,
+    url: pushUrlFor({ push_url, type: params.type }),
+  }).catch(() => {});
 }
 
 export async function createNotificationForInternals(
@@ -58,10 +79,16 @@ export async function createNotificationForInternals(
 
   if (!users?.length) return;
 
+  const { push_url, ...insertParams } = params;
   const notifications = users.map(u => ({
-    ...params,
+    ...insertParams,
     user_id: u.id,
   }));
 
   await supabase.from('notifications').insert(notifications);
+  await sendPushToUsers(users.map(u => u.id), {
+    title: params.title,
+    body: params.body,
+    url: pushUrlFor({ push_url, type: params.type }),
+  }).catch(() => {});
 }

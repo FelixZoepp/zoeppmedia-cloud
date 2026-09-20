@@ -60,11 +60,11 @@ function SectionLabel({ children }: { children: string }) {
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-3">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 shadow-sm min-w-0">
+      <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-3 leading-snug">
         {label}
       </span>
-      <span className="text-3xl font-extrabold text-gray-900 leading-none tracking-tight block">
+      <span className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-none tracking-tight block break-words">
         {value}
       </span>
       <span className="text-xs text-gray-400 uppercase tracking-wider mt-1.5 block">

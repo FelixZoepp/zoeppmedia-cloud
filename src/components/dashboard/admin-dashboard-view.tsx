@@ -236,12 +236,12 @@ export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
 
 function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; iconBg: string; label: string; value: string; sub: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-5 py-5 md:px-8 md:py-7">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center`}>{icon}</div>
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:px-8 md:py-7 min-w-0">
+      <div className="flex items-start justify-between gap-2 mb-4">
+        <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center shrink-0`}>{icon}</div>
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-right leading-snug min-w-0">{label}</span>
       </div>
-      <span className="text-4xl font-extrabold text-gray-900 leading-none block">{value}</span>
+      <span className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-none block break-words">{value}</span>
       <span className="text-xs text-gray-400 uppercase tracking-wider mt-2 block">{sub}</span>
     </div>
   );

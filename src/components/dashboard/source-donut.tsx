@@ -12,7 +12,7 @@ export function SourceDonut({ data }: SourceDonutProps) {
   const total = data.reduce((s, d) => s + d.count, 0);
 
   return (
-    <div className="flex items-center gap-6 h-[200px]">
+    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 sm:h-[200px]">
       <div className="w-[140px] h-[140px] shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -34,7 +34,7 @@ export function SourceDonut({ data }: SourceDonutProps) {
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="space-y-3 flex-1">
+      <div className="space-y-3 flex-1 w-full min-w-0">
         {data.map((item, i) => {
           const pct = total > 0 ? ((item.count / total) * 100).toFixed(1) : '0';
           return (

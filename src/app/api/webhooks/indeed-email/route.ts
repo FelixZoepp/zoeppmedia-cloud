@@ -25,11 +25,69 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const to = (body.to || body.headers?.to || '').toString();
-    const from = (body.from || body.headers?.from || '').toString();
-    const subject = (body.subject || body.headers?.subject || '').toString();
-    const htmlBody = body.html || body.text || '';
-    const attachments: { filename?: string; content_type?: string; content?: string }[] = body.attachments || [];
+    // Resend "email.received" webhooks verschachteln die Felder unter `data`
+    // und liefern `to` als Array. Beide Formate (flach + Resend) unterstützen.
+    const payload = body?.data && typeof body.data === 'object' && (body.data.to || body.data.subject !== undefined)
+      ? body.data
+      : body;
+    const joinAddr = (v: unknown): string => Array.isArray(v) ? v.join(', ') : (v ?? '').toString();
+    const to = joinAddr(payload.to || payload.headers?.to);
+    const from = joinAddr(payload.from || payload.headers?.from);
+    const subject = (payload.subject || payload.headers?.subject || '').toString();
+    let htmlBody = payload.html || payload.text || '';
+    let attachments: { filename?: string; content_type?: string; content?: string }[] = payload.attachments || [];
+
+    // Resend Inbound: Der Webhook enthält nur Metadaten (kein html/text, keine
+    // Anhang-Inhalte). Vollständigen Inhalt per Receiving-API nachladen.
+    const resendKey = process.env.RESEND_API_KEY;
+    const emailId = payload.email_id as string | undefined;
+    if (!htmlBody && emailId && resendKey) {
+      try {
+        const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
+          headers: { Authorization: `Bearer ${resendKey}` },
+        });
+        if (body && typeof body === 'object') {
+          body.fetch_debug = { status: res.status, ok: res.ok, snippet: res.ok ? null : (await res.clone().text()).slice(0, 500) };
+        }
+        if (res.ok) {
+          const full = await res.json();
+          htmlBody = full.html || full.text || '';
+          // Für spätere Analyse mit ins raw_payload-Log aufnehmen
+          if (body && typeof body === 'object') {
+            body.fetched_content = { html: full.html ?? null, text: full.text ?? null };
+          }
+
+          // PDF-Anhänge: Metadaten → Download-URL holen → Inhalt als Base64 laden
+          const fetchedAttachments: { filename?: string; content_type?: string; content?: string }[] = [];
+          for (const att of full.attachments ?? []) {
+            const isPdf = att.content_type?.includes('pdf') || att.filename?.toLowerCase().endsWith('.pdf');
+            if (!isPdf || !att.id) continue;
+            try {
+              const metaRes = await fetch(
+                `https://api.resend.com/emails/receiving/${emailId}/attachments/${att.id}`,
+                { headers: { Authorization: `Bearer ${resendKey}` } }
+              );
+              if (!metaRes.ok) continue;
+              const meta = await metaRes.json();
+              if (!meta.download_url) continue;
+              const fileRes = await fetch(meta.download_url);
+              if (!fileRes.ok) continue;
+              const buf = Buffer.from(await fileRes.arrayBuffer());
+              fetchedAttachments.push({
+                filename: att.filename,
+                content_type: att.content_type,
+                content: buf.toString('base64'),
+              });
+            } catch {
+              // Einzelner Anhang fehlgeschlagen — restliche weiter verarbeiten
+            }
+          }
+          if (fetchedAttachments.length > 0) attachments = fetchedAttachments;
+        }
+      } catch {
+        // Nachladen fehlgeschlagen — mit Webhook-Metadaten weitermachen
+      }
+    }
 
     // 1. Extract agency ID from +tag
     agencyId = extractAgencyIdFromAddress(to);
@@ -157,7 +215,7 @@ export async function POST(request: NextRequest) {
 
     fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
 
-    // 9. Log success
+    // 9. Log success (inkl. raw_payload zur Analyse des Indeed-Mail-Formats)
     await supabase.from('inbound_email_log').insert({
       agency_id: agencyId,
       from_address: from,
@@ -165,6 +223,7 @@ export async function POST(request: NextRequest) {
       subject,
       status: 'processed',
       candidate_id: candidate.id,
+      raw_payload: body,
     });
 
     return NextResponse.json({ ok: true, candidate_id: candidate.id });

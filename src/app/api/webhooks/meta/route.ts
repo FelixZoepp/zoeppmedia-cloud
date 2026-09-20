@@ -3,9 +3,11 @@ import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
+import { findDuplicateCandidate } from '@/lib/candidates/find-duplicate';
 import { logActivity } from '@/lib/activity/log';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { fireEvent } from '@/lib/automations/fire';
+import { createNotificationForAgency } from '@/lib/notifications/create';
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
@@ -84,6 +86,19 @@ export async function POST(request: NextRequest) {
       const email = extractField(leadData, 'email');
       const phone = extractField(leadData, 'phone_number');
 
+      // Duplikatcheck: Bewerber mit gleicher E-Mail/Telefonnummer nicht doppelt anlegen
+      const duplicate = await findDuplicateCandidate(supabase, agencyId, email, phone);
+      if (duplicate) {
+        await logActivity(supabase, {
+          agency_id: agencyId,
+          candidate_id: duplicate.id,
+          action: `Doppelte Meta-Bewerbung erkannt: ${name} entspricht bestehendem Bewerber ${duplicate.name} — nicht erneut angelegt`,
+          action_type: 'other',
+          metadata: { source: 'meta', duplicate_of: duplicate.id, campaign: leadData.campaign_name || null },
+        });
+        continue;
+      }
+
       const { data: candidate } = await supabase
         .from('candidates')
         .insert({
@@ -108,6 +123,16 @@ export async function POST(request: NextRequest) {
         });
 
         fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
+
+        // Kunde sofort benachrichtigen (In-App + Push aufs Handy)
+        await createNotificationForAgency(supabase, agencyId, {
+          title: 'Neuer Bewerber: ' + name,
+          body: phone ? `Jetzt anrufen: ${phone}` : 'Jetzt kontaktieren',
+          type: 'new_candidate',
+          entity_type: 'candidate',
+          entity_id: candidate.id,
+          push_url: `/candidates/${candidate.id}`,
+        }).catch(() => {});
 
         // Check blacklist
         const blacklistResult = await checkBlacklist(supabase, agencyId, email, phone);

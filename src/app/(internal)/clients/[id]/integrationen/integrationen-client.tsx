@@ -187,9 +187,20 @@ export function IntegrationenClient({ agencyId }: { agencyId: string }) {
           </div>
 
           <div className="space-y-4">
+            <CopyField
+              label="Webhook-URL (in Perspective im Funnel hinterlegen)"
+              value={`${origin}/api/webhooks/perspective?agency=${agencyId}`}
+            />
+            <p className="text-xs text-gray-400">
+              In Perspective: Funnel → Integrationen → Webhook → diese URL eintragen
+              (Trigger: &quot;Funnel abgeschlossen&quot;). Der <code>agency</code>-Parameter
+              ordnet alle Leads dieses Funnels dem Kunden zu — Name, E-Mail und Telefon
+              werden automatisch aus dem Perspective-Payload gelesen.
+            </p>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Perspective Funnel-ID
+                Perspective Funnel-ID (optional, für Statistiken)
               </label>
               <div className="flex gap-2">
                 <Input
@@ -205,20 +216,7 @@ export function IntegrationenClient({ agencyId }: { agencyId: string }) {
                   {saving === 'perspective' ? 'Speichert...' : 'Speichern'}
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">
-                Der Webhook ordnet eingehende Leads über diese ID der Agentur zu. Ohne
-                gespeicherte ID werden Leads abgelehnt.
-              </p>
             </div>
-
-            <CopyField
-              label="Webhook-URL (in Perspective hinterlegen)"
-              value={`${origin}/api/webhooks/perspective`}
-            />
-            <p className="text-xs text-gray-400">
-              Perspective muss <code>funnel_id</code>, <code>name</code>,{' '}
-              <code>email</code>, <code>phone</code> im JSON-Body senden.
-            </p>
           </div>
         </Card>
 

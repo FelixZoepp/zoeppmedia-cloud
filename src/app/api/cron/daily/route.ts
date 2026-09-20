@@ -254,8 +254,10 @@ async function runDailyJobs() {
   } catch { /* silent */ }
 
   // 7. Weekly report — only on Mondays
+  // DEAKTIVIERT (2026-09-17, Felix): Wochenberichte vorerst nicht versenden.
+  // Zum Reaktivieren: WEEKLY_REPORTS_ENABLED=true als Env-Var setzen.
   let weeklyReport: WeeklyReportResult | null = null;
-  if (now.getDay() === 1) {
+  if (now.getDay() === 1 && process.env.WEEKLY_REPORTS_ENABLED === 'true') {
     try {
       weeklyReport = await sendWeeklyReports(supabase);
     } catch {

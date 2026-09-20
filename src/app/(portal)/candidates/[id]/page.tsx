@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { AppointmentsSection } from '@/components/candidates/appointments-section';
 import {
   ArrowLeft,
   Mail,
@@ -1309,6 +1310,9 @@ export default function CandidateDetailPage() {
               </div>
             </Card>
           )}
+
+          {/* ---- VG & Probetage Card ---- */}
+          <AppointmentsSection candidateId={id} />
         </div>
 
         {/* ========================================================== */}

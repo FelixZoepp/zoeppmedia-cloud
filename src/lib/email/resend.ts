@@ -4,6 +4,8 @@ import {
   welcomeTemplate,
   onboardingReminderTemplate,
   surveyNotificationTemplate,
+  appointmentConfirmationTemplate,
+  appointmentUpdateTemplate,
 } from './templates';
 import { reportTemplate } from './report-template';
 
@@ -59,6 +61,93 @@ export async function sendSurveyNotification(
     to,
     subject: `Feedback-Check: ${surveyTitle}`,
     html: surveyNotificationTemplate(name, surveyTitle, portalUrl),
+  });
+}
+
+function formatBerlin(scheduledAt: Date): { dateStr: string; timeStr: string } {
+  return {
+    dateStr: scheduledAt.toLocaleDateString('de-DE', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/Berlin',
+    }),
+    timeStr: scheduledAt.toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Berlin',
+    }),
+  };
+}
+
+function icsAttachment(ics: string, method: 'REQUEST' | 'CANCEL') {
+  return [
+    {
+      filename: 'termin.ics',
+      content: Buffer.from(ics, 'utf-8'),
+      contentType: `text/calendar; method=${method}; charset=utf-8`,
+    },
+  ];
+}
+
+export async function sendAppointmentConfirmationEmail(
+  to: string,
+  candidateName: string,
+  typeLabel: string,
+  scheduledAt: Date,
+  agencyName: string,
+  notes: string | null,
+  ics?: string,
+) {
+  const { dateStr, timeStr } = formatBerlin(scheduledAt);
+  return getResend().emails.send({
+    from: `${agencyName} via Zoepp Media Cloud <noreply@zoepp-gruppe.de>`,
+    to,
+    subject: `Terminbestätigung: ${typeLabel} am ${dateStr}`,
+    html: appointmentConfirmationTemplate(candidateName, typeLabel, dateStr, timeStr, agencyName, notes),
+    attachments: ics ? icsAttachment(ics, 'REQUEST') : undefined,
+  });
+}
+
+export async function sendAppointmentUpdateEmail(
+  to: string,
+  candidateName: string,
+  typeLabel: string,
+  scheduledAt: Date,
+  agencyName: string,
+  notes: string | null,
+  kind: 'verschoben' | 'abgesagt',
+  ics?: string,
+) {
+  const { dateStr, timeStr } = formatBerlin(scheduledAt);
+  const subject =
+    kind === 'verschoben'
+      ? `Terminänderung: ${typeLabel} jetzt am ${dateStr}`
+      : `Terminabsage: ${typeLabel} am ${dateStr}`;
+  return getResend().emails.send({
+    from: `${agencyName} via Zoepp Media Cloud <noreply@zoepp-gruppe.de>`,
+    to,
+    subject,
+    html: appointmentUpdateTemplate(candidateName, typeLabel, dateStr, timeStr, agencyName, notes, kind),
+    attachments: ics ? icsAttachment(ics, kind === 'abgesagt' ? 'CANCEL' : 'REQUEST') : undefined,
+  });
+}
+
+/** Kalender-Einladung an den Kunden (Agentur) — Termin landet sofort im Kalender */
+export async function sendAgencyCalendarInvite(
+  to: string,
+  subject: string,
+  bodyHtml: string,
+  ics: string,
+  method: 'REQUEST' | 'CANCEL' = 'REQUEST',
+) {
+  return getResend().emails.send({
+    from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',
+    to,
+    subject,
+    html: bodyHtml,
+    attachments: icsAttachment(ics, method),
   });
 }
 
