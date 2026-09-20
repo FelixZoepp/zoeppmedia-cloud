@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
+import { logAudit } from '@/lib/audit/log';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function DELETE(
@@ -9,7 +10,7 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   const agencyId = await getEffectiveAgencyId();
@@ -23,5 +24,14 @@ export async function DELETE(
     .eq('agency_id', agencyId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAudit(supabase, {
+    user_id: user.id,
+    agency_id: agencyId,
+    entity_type: 'application',
+    entity_id: id,
+    action: 'delete',
+  });
+
   return NextResponse.json({ success: true });
 }

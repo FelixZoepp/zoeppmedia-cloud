@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { logActivity } from '@/lib/activity/log';
+import { logAudit } from '@/lib/audit/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -11,7 +12,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   const agencyId = await getEffectiveAgencyId();
@@ -41,6 +42,11 @@ export async function PATCH(
     .single();
 
   if (!newStage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
+
+  // Absagegrund prüfen
+  if (newStage.stage_type === 'rejected' && !rejection_reason?.trim()) {
+    return NextResponse.json({ error: 'Absagegrund erforderlich' }, { status: 400 });
+  }
 
   // Status ableiten
   let newStatus: string = 'open';

@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { logActivity } from '@/lib/activity/log';
+import { logAudit } from '@/lib/audit/log';
+import { fireEvent } from '@/lib/automations/fire';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -14,7 +16,7 @@ const BulkSchema = z.object({
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   const agencyId = await getEffectiveAgencyId();
@@ -28,7 +30,9 @@ export async function POST(request: NextRequest) {
   const supabase = await createServerClient();
   let affected = 0;
 
-  if (action === 'set_stage' && stage_id) {
+  if (action === 'set_stage') {
+    if (!stage_id) return NextResponse.json({ error: 'stage_id erforderlich' }, { status: 400 });
+
     const { data: stage } = await supabase
       .from('pipeline_stages')
       .select('id, stage_type, name')
@@ -65,6 +69,10 @@ export async function POST(request: NextRequest) {
         action_type: 'stage_change',
         metadata: { application_id: appId, old_stage_id: app.stage_id, new_stage_id: stage_id, bulk: true },
       });
+      fireEvent('stage_changed', agencyId, {
+        candidate_id: app.candidate_id,
+        extra: { application_id: appId, new_stage_id: stage_id, new_stage_type: stage.stage_type },
+      }).catch(() => {});
       affected++;
     }
   } else if (action === 'assign') {
@@ -83,7 +91,16 @@ export async function POST(request: NextRequest) {
         .delete()
         .eq('id', appId)
         .eq('agency_id', agencyId);
-      if (!error) affected++;
+      if (!error) {
+        affected++;
+        await logAudit(supabase, {
+          user_id: user.id,
+          agency_id: agencyId,
+          entity_type: 'application',
+          entity_id: appId,
+          action: 'delete',
+        });
+      }
     }
   }
 
