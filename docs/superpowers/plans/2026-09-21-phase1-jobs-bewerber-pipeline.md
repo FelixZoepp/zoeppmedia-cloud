@@ -1977,8 +1977,8 @@ git commit -m "feat(recruiting): Jobs-UI (Liste, Assistent mit 3+2 Schritten, De
 - Create: `src/app/api/applications/[id]/route.ts`
 
 **Interfaces:**
-- Consumes: `getCurrentUser`, `getEffectiveAgencyId`; `canWriteRole`; `logActivity`; `logAudit`; `fireEvent`.
-- Produces: `GET /api/applications`; `PATCH /api/applications/[id]/stage`; `POST /api/applications/bulk`; `DELETE /api/applications/[id]`.
+- Consumes: `getCurrentUser`, `getEffectiveAgencyId`; `canWriteRole`; `logActivity`; `logAudit`; `fireEvent`; `ingestApplication` (aus Task 3).
+- Produces: `GET /api/applications`; `POST /api/applications` (manuelles Anlegen); `PATCH /api/applications/[id]/stage`; `POST /api/applications/bulk`; `DELETE /api/applications/[id]`.
 
 - [ ] **Step 1: GET /api/applications**
 
@@ -2249,12 +2249,71 @@ export async function DELETE(
 }
 ```
 
-- [ ] **Step 5: Build + Commit**
+- [ ] **Step 5: POST /api/applications (manuelles Anlegen)**
+
+In `src/app/api/applications/route.ts` zusätzlich zur GET-Funktion eine POST-Funktion ergänzen. Sie legt Bewerber manuell an (ersetzt den bisherigen Flow über POST /api/candidates im Kanban-Modal) und läuft über `ingestApplication`:
+
+```ts
+// Ergänzung in src/app/api/applications/route.ts
+import { createAdminClient } from '@/lib/supabase/admin';
+import { canWriteRole } from '@/lib/recruiting/scope';
+import { ingestApplication } from '@/lib/recruiting/ingest';
+import { z } from 'zod';
+
+const createSchema = z.object({
+  jobId: z.string().uuid(),
+  firstName: z.string().min(1),
+  lastName: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
+
+  const agencyId = await getEffectiveAgencyId();
+  if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
+
+  const body = await request.json().catch(() => null);
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Ungültige Eingabe', details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Job muss zur Agentur gehören
+  const supabase = await createServerClient();
+  const { data: job } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('id', parsed.data.jobId)
+    .eq('agency_id', agencyId)
+    .single();
+  if (!job) return NextResponse.json({ error: 'Stellenanzeige nicht gefunden' }, { status: 404 });
+
+  // ingestApplication braucht Service-Role (schreibt candidates + applications + activity_log)
+  const admin = createAdminClient();
+  const result = await ingestApplication(admin, {
+    agencyId,
+    jobId: parsed.data.jobId,
+    firstName: parsed.data.firstName,
+    lastName: parsed.data.lastName ?? null,
+    phone: parsed.data.phone ?? null,
+    email: parsed.data.email ?? null,
+    source: 'manual',
+  });
+
+  return NextResponse.json(result, { status: result.applicationCreated ? 201 : 200 });
+}
+```
+
+- [ ] **Step 6: Build + Commit**
 
 ```bash
 npm run build
 git add src/app/api/applications/
-git commit -m "feat(recruiting): Applications-APIs (List, Stage-Wechsel, Bulk-Aktionen, Delete)"
+git commit -m "feat(recruiting): Applications-APIs (List, Create, Stage-Wechsel, Bulk-Aktionen, Delete)"
 ```
 
 ---
@@ -2266,9 +2325,10 @@ git commit -m "feat(recruiting): Applications-APIs (List, Stage-Wechsel, Bulk-Ak
 - Modify: `src/components/kanban/column.tsx`
 - Modify: `src/components/kanban/card.tsx`
 - Modify: `src/components/kanban/filters.tsx`
+- Modify: `src/components/kanban/add-candidate-modal.tsx`
 
 **Interfaces:**
-- Consumes: `GET /api/applications`; `PATCH /api/applications/[id]/stage`; bestehende UI-Kit-Komponenten.
+- Consumes: `GET /api/applications`; `POST /api/applications` (Task 6); `PATCH /api/applications/[id]/stage`; `GET /api/jobs` (Task 4); bestehende UI-Kit-Komponenten.
 - Produces: Application-basiertes Kanban-Board mit Job-Filter, Quellen-Filter, Stufen-Filter.
 
 - [ ] **Step 1: Board auf applications umstellen**
@@ -2690,7 +2750,32 @@ export function applyApplicationFilters(apps: ApplicationRow[], filters: Applica
 }
 ```
 
-- [ ] **Step 4: Build + Commit**
+- [ ] **Step 4: AddCandidateModal auf POST /api/applications umstellen**
+
+`src/components/kanban/add-candidate-modal.tsx` anpassen: Das Modal postet bisher auf `/api/candidates` (legt nur einen Kandidaten ohne Bewerbung an — dieser würde auf dem Applications-basierten Board nie erscheinen). Umstellen auf den neuen Endpoint aus Task 6:
+
+1. Beim Öffnen des Modals Jobs laden: `GET /api/jobs?status=active` und in einem `<select>` anbieten (Pflichtfeld „Stellenanzeige"). Wenn genau ein aktiver Job existiert, diesen vorauswählen.
+2. Das Namensfeld in `firstName` (Pflicht) und `lastName` (optional) aufteilen. Bestehende Felder `email`, `phone` behalten.
+3. Submit ändern auf:
+
+```ts
+const res = await fetch('/api/applications', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    jobId: selectedJobId,
+    firstName: firstName.trim(),
+    lastName: lastName.trim() || null,
+    email: email.trim() || null,
+    phone: phone.trim() || null,
+  }),
+});
+```
+
+4. Bei `duplicateWithin30Days: true` in der Antwort einen Hinweis-Toast zeigen („Bewerbung existiert bereits (letzte 30 Tage)") statt Erfolgsmeldung; `onCreated` trotzdem aufrufen, damit das Board neu lädt.
+5. Props-Signatur `{ open, onClose, onCreated }` unverändert lassen.
+
+- [ ] **Step 5: Build + Commit**
 
 ```bash
 npm run build
