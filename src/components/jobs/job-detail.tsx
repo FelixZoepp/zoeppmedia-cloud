@@ -8,8 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
-import { ArrowLeft, Copy, Play, Pause, X, Save, Files } from 'lucide-react';
+import { ArrowLeft, Play, Pause, X, Save, Files } from 'lucide-react';
 import { toast } from 'sonner';
+
+const EMPLOYMENT_TYPES = [
+  { value: '', label: 'Bitte waehlen' },
+  { value: 'Vollzeit', label: 'Vollzeit' },
+  { value: 'Teilzeit', label: 'Teilzeit' },
+  { value: 'Minijob', label: 'Minijob' },
+  { value: 'Freelance', label: 'Freelance / Selbststaendig' },
+  { value: 'Praktikum', label: 'Praktikum' },
+];
 
 interface JobDetailData {
   id: string;
@@ -206,6 +215,24 @@ export function JobDetail({ jobId }: { jobId: string }) {
                     <Input
                       value={editForm.postal_code || ''}
                       onChange={(e) => setEditForm((p) => ({ ...p, postal_code: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Anstellungsart</label>
+                    <Select
+                      value={editForm.employment_type || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, employment_type: e.target.value }))}
+                      options={EMPLOYMENT_TYPES}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gehaltsspanne</label>
+                    <Input
+                      value={editForm.salary_range || ''}
+                      onChange={(e) => setEditForm((p) => ({ ...p, salary_range: e.target.value }))}
+                      placeholder="z.B. 3.000-5.000 EUR"
                     />
                   </div>
                 </div>

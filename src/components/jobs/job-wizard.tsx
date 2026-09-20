@@ -68,6 +68,11 @@ export function JobWizard() {
       toast.error('Bitte einen Titel eingeben.');
       return;
     }
+    // Guard against double creation
+    if (createdJob) {
+      setStep(1);
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/jobs', {
