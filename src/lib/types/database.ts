@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member';
+export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member' | 'agency_viewer';
 
 export type Agency = {
   id: string;
@@ -11,6 +11,11 @@ export type Agency = {
   has_video_shoot: boolean;
   reels_per_month: number;
   created_at: string;
+  // Phase 0 additions
+  slug: string;
+  timezone: string;
+  retention_days: number;
+  settings: Record<string, unknown>;
 };
 
 export type InviteToken = {
@@ -55,6 +60,7 @@ export type PipelineStage = {
   name: string;
   sort_order: number;
   color: string;
+  stage_type: 'new' | 'qualifying' | 'qualified' | 'interview' | 'offer' | 'hired' | 'rejected' | null;
 };
 
 export type Candidate = {
@@ -63,18 +69,23 @@ export type Candidate = {
   name: string;
   email: string | null;
   phone: string | null;
-  source: 'meta' | 'indeed' | 'manual';
+  source: 'meta' | 'indeed' | 'manual' | 'form' | 'csv';
   meta_campaign: string | null;
   meta_adset: string | null;
   meta_form: string | null;
   current_stage_id: string;
   created_at: string;
-  // Indeed / resume fields
   resume_url: string | null;
   location: string | null;
   experience_summary: string | null;
   last_employer: string | null;
   indeed_job_title: string | null;
+  // Phase 0 additions
+  phone_e164: string | null;
+  consent_at: string | null;
+  consent_source: string | null;
+  language: string;
+  deleted_at: string | null;
 };
 
 export type CandidateStage = {

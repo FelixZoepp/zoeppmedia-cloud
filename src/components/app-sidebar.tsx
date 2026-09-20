@@ -162,6 +162,7 @@ function getGroupsForRole(role: UserRole): SidebarGroup[] {
     case 'employee': return employeeGroups;
     case 'agency_owner':
     case 'agency_member':
+    case 'agency_viewer':
       return agencyGroups;
   }
 }

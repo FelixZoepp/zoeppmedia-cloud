@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@/lib/supabase/server';
 import { IMPERSONATION_COOKIE } from '@/lib/recruiting/scope';
 
-export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member';
+export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member' | 'agency_viewer';
 
 export interface CurrentUser {
   id: string;
@@ -34,7 +34,7 @@ export function isInternal(role: UserRole): boolean {
 }
 
 export function isAgency(role: UserRole): boolean {
-  return role === 'agency_owner' || role === 'agency_member';
+  return role === 'agency_owner' || role === 'agency_member' || role === 'agency_viewer';
 }
 
 /**
