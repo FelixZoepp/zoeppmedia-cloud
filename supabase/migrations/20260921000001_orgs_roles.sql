@@ -8,8 +8,12 @@ ALTER TABLE agencies ADD COLUMN IF NOT EXISTS settings jsonb NOT NULL DEFAULT '{
 
 UPDATE agencies SET slug = trim(both '-' from regexp_replace(lower(name), '[^a-z0-9]+', '-', 'g'))
 WHERE slug IS NULL OR slug = '';
-UPDATE agencies a SET slug = a.slug || '-' || substr(a.id::text, 1, 4)
-WHERE EXISTS (SELECT 1 FROM agencies b WHERE b.slug = a.slug AND b.id < a.id);
+WITH d AS (
+  SELECT id, row_number() OVER (PARTITION BY slug ORDER BY id) AS rn
+  FROM agencies
+)
+UPDATE agencies a SET slug = a.slug || '-' || substr(a.id::text, 1, 8)
+FROM d WHERE d.id = a.id AND d.rn > 1;
 ALTER TABLE agencies ALTER COLUMN slug SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_agencies_slug ON agencies(slug);
 

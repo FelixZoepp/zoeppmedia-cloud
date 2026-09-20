@@ -22,6 +22,7 @@ CREATE TABLE jobs (
   UNIQUE (agency_id, slug)
 );
 CREATE INDEX idx_jobs_agency_status ON jobs(agency_id, status);
+CREATE UNIQUE INDEX uq_jobs_default_per_agency ON jobs(agency_id) WHERE is_default;
 
 CREATE TABLE job_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
