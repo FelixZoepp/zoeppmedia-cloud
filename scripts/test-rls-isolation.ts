@@ -34,6 +34,8 @@ function loadEnvLocal(): Record<string, string> {
     ) {
       val = val.slice(1, -1);
     }
+    // Vercel-Export schreibt Werte als "wert\n" — literales \n am Ende entfernen
+    val = val.replace(/\\n$/, '');
     result[key] = val;
   }
   return result;
