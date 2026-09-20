@@ -10,15 +10,15 @@ export async function POST(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   const agencyId = await getEffectiveAgencyId();
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const supabase = await createServerClient();
-  const { data: original } = await supabase.from('jobs').select('*').eq('id', id).single();
-  if (!original) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 });
+  const { data: original } = await supabase.from('jobs').select('*').eq('id', id).eq('agency_id', agencyId).single();
+  if (!original) return NextResponse.json({ error: 'Stellenanzeige nicht gefunden' }, { status: 404 });
 
   // Slug mit -kopie Suffix
   let slug = `${original.slug}-kopie`;

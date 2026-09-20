@@ -23,16 +23,20 @@ export async function GET(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
+
+  const agencyId = await getEffectiveAgencyId();
+  if (!agencyId) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 403 });
 
   const supabase = await createServerClient();
   const { data: job, error } = await supabase
     .from('jobs')
     .select('*, applications(count)')
     .eq('id', id)
+    .eq('agency_id', agencyId)
     .single();
 
-  if (error || !job) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 });
+  if (error || !job) return NextResponse.json({ error: 'Stellenanzeige nicht gefunden' }, { status: 404 });
   return NextResponse.json(job);
 }
 
@@ -42,7 +46,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   const agencyId = await getEffectiveAgencyId();
@@ -57,14 +61,15 @@ export async function PATCH(
   const supabase = await createServerClient();
 
   // Fetch current for audit diff
-  const { data: current } = await supabase.from('jobs').select('*').eq('id', id).single();
-  if (!current) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 });
+  const { data: current } = await supabase.from('jobs').select('*').eq('id', id).eq('agency_id', agencyId).single();
+  if (!current) return NextResponse.json({ error: 'Stellenanzeige nicht gefunden' }, { status: 404 });
 
   const updateData: Record<string, unknown> = { ...parsed.data, updated_at: new Date().toISOString() };
   const { data: updated, error } = await supabase
     .from('jobs')
     .update(updateData)
     .eq('id', id)
+    .eq('agency_id', agencyId)
     .select()
     .single();
 
