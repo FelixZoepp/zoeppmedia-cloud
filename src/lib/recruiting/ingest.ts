@@ -2,6 +2,7 @@
 // Wird mit Service-Role-Client aufgerufen, umgeht RLS bewusst.
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
@@ -36,10 +37,42 @@ export interface IngestResult {
   phoneInvalid: boolean;
 }
 
+// --- Zod-Validierung ---
+const ingestInputSchema = z.object({
+  agencyId: z.string().uuid(),
+  jobId: z.string().uuid(),
+  firstName: z.string().min(1),
+  lastName: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  source: z.string().min(1),
+  sourceRef: z.string().nullable().optional(),
+  campaign: z.record(z.string(), z.unknown()).nullable().optional(),
+  consentWhatsapp: z.boolean().optional(),
+  consentSource: z.string().nullable().optional(),
+  answers: z
+    .array(
+      z.object({
+        questionKey: z.string(),
+        questionText: z.string().optional(),
+        answerRaw: z.string(),
+        origin: z.enum(['indeed', 'bot', 'form']),
+      })
+    )
+    .optional(),
+  resume: z
+    .object({ storagePath: z.string(), mime: z.string(), size: z.number() })
+    .nullable()
+    .optional(),
+});
+
 export async function ingestApplication(
   svc: SupabaseClient,
   input: IngestInput
 ): Promise<IngestResult> {
+  // Validate input — throws ZodError with descriptive message on invalid input
+  ingestInputSchema.parse(input);
+
   const phoneE164 = normalizePhoneE164(input.phone);
   const phoneInvalid = input.phone != null && input.phone.trim() !== '' && phoneE164 === null;
   const emailLower = input.email?.toLowerCase().trim() || null;
@@ -96,6 +129,9 @@ export async function ingestApplication(
     if (data) existingCandidate = data;
   }
 
+  // --- Stage-ID einmalig ermitteln (wird fuer Kandidat + Application verwendet) ---
+  const newStageId = await getNewStageId(svc, input.agencyId);
+
   let candidateId: string;
 
   if (existingCandidate) {
@@ -139,7 +175,7 @@ export async function ingestApplication(
         phone: input.phone,
         phone_e164: phoneE164,
         source: input.source,
-        current_stage_id: await getNewStageId(svc, input.agencyId),
+        current_stage_id: newStageId,
         whatsapp_opt_in: input.consentWhatsapp ?? false,
         consent_at: input.consentWhatsapp ? new Date().toISOString() : null,
         consent_source: input.consentWhatsapp ? (input.consentSource || input.source) : null,
@@ -198,9 +234,7 @@ export async function ingestApplication(
     };
   }
 
-  // --- 4. Neue Application anlegen ---
-  const newStageId = await getNewStageId(svc, input.agencyId);
-
+  // --- 4. Neue Application anlegen (newStageId bereits oben ermittelt) ---
   const { data: newApp, error: appError } = await svc
     .from('applications')
     .insert({
@@ -256,11 +290,12 @@ export async function ingestApplication(
   }
 
   // --- 8. activity_log ---
+  // Neuer Kandidat: candidate_created; bestehender Kandidat: application_created
   await logActivity(svc, {
     agency_id: input.agencyId,
     candidate_id: candidateId,
     action: `Bewerbung eingegangen (${input.source})`,
-    action_type: 'candidate_created',
+    action_type: candidateCreated ? 'candidate_created' : 'application_created',
     metadata: {
       application_id: newApp.id,
       source: input.source,
