@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { AppSidebar } from '@/components/app-sidebar';
 import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
+import { ImpersonationBanner } from '@/components/impersonation-banner';
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -10,6 +11,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <LayoutShell sidebar={<AppSidebar role={user.role} userName={user.name} />}>
+      <ImpersonationBanner />
       {children}
       <PushManager />
     </LayoutShell>
