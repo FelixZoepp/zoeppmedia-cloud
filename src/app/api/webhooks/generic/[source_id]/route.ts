@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
-import { timingSafeEqual } from 'crypto';
+import { randomUUID, timingSafeEqual } from 'crypto';
+
+/** Best-effort Audit-Eintrag bei abgelehntem Webhook — darf den 401-Pfad nie blockieren. */
+async function auditReject(
+  svc: ReturnType<typeof createAdminClient>,
+  agencyId: string,
+  reason: string
+) {
+  await svc.from('audit_log').insert({
+    entity_type: 'webhook',
+    entity_id: randomUUID(),
+    agency_id: agencyId,
+    action: 'reject',
+    changes: { source: 'generic', reason },
+  }).then(
+    () => {},
+    (e: unknown) => console.error('[generic-webhook] Audit-Insert fehlgeschlagen', e)
+  );
+}
 
 /** POST /api/webhooks/generic/{source_id} — externe Formulare/Perspective (Spec §6/§13). */
 export async function POST(
@@ -22,10 +40,14 @@ export async function POST(
 
   // Fail-closed: ohne konfiguriertes Secret keine Annahme
   const provided = request.headers.get('x-webhook-secret');
-  if (!source.secret || !provided) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!source.secret || !provided) {
+    await auditReject(svc, source.agency_id, 'missing_secret');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const a = Buffer.from(provided);
   const b = Buffer.from(source.secret);
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    await auditReject(svc, source.agency_id, 'invalid_secret');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
