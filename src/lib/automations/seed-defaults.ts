@@ -68,6 +68,54 @@ const DEFAULT_AUTOMATIONS: DefaultAutomation[] = [
       },
     ],
   },
+  // --- Phase 4 Default-Automations ---
+  {
+    name: 'Bot abgeschlossen (A/B) → Recruiter benachrichtigen',
+    trigger_event: 'bot.completed',
+    conditions: [{ field: 'data.label', operator: 'in', value: ['A', 'B'] }],
+    actions: [
+      {
+        type: 'send_notification',
+        params: {
+          title: 'Qualifizierter Bewerber: {{candidate.name}} ({{data.label}})',
+          body: 'Score: {{data.score}} — Termineinladung wurde gesendet.',
+          type: 'system',
+          user_scope: 'agency',
+        },
+      },
+    ],
+  },
+  {
+    name: 'Bot-Übergabe → Zugewiesenen benachrichtigen',
+    trigger_event: 'bot.handover',
+    conditions: [],
+    actions: [
+      {
+        type: 'send_notification',
+        params: {
+          title: 'Bot-Übergabe: {{candidate.name}}',
+          body: '{{data.reason}}',
+          type: 'whatsapp_inbound',
+          user_scope: 'agency',
+        },
+      },
+    ],
+  },
+  {
+    name: 'No-Show → Benachrichtigung (Termin)',
+    trigger_event: 'appointment.no_show',
+    conditions: [],
+    actions: [
+      {
+        type: 'send_notification',
+        params: {
+          title: 'No-Show: {{candidate.name}}',
+          type: 'noshow',
+          user_scope: 'agency',
+        },
+      },
+    ],
+  },
 ];
 
 export async function seedDefaultAutomations(supabase: SupabaseClient): Promise<number> {

@@ -352,6 +352,46 @@ describe('Bedingungs-Operatoren', () => {
   });
 });
 
+describe('Rate-Limit P4-R9a', () => {
+  it('überspringt Automation wenn > 10 Runs pro Stunde für gleiche application_id', async () => {
+    const applicationId = 'app-rate-test';
+    const svc = makeSvcForActionWithRateLimit('send_notification', { title: 'Test', user_scope: 'agency' }, applicationId, 11);
+
+    await fireAutomations(svc, {
+      trigger_event: 'application.created',
+      agency_id: 'ag-1',
+      application_id: applicationId,
+    });
+
+    const _inserted = (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted;
+    const runs = _inserted['automation_runs'];
+    expect(runs).toBeDefined();
+    expect(runs?.length).toBeGreaterThan(0);
+    const skippedRun = (runs as Array<Record<string, unknown>>).find(r => r.status === 'skipped');
+    expect(skippedRun).toBeDefined();
+    expect(skippedRun?.error_message).toBe('Rate-Limit');
+  });
+});
+
+describe('Dedupe P4-R9c', () => {
+  it('überspringt bei doppeltem dedupe_key (Unique-Index-Verletzung)', async () => {
+    const applicationId = 'app-dedupe-test';
+    const svc = makeSvcForActionWithDedupeConflict('send_notification', { title: 'Test', user_scope: 'agency' }, applicationId);
+
+    await fireAutomations(svc, {
+      trigger_event: 'application.created',
+      agency_id: 'ag-1',
+      application_id: applicationId,
+    });
+
+    // Der Run wird übersprungen — es gibt keinen 'success'-Run (entweder keinen oder skipped)
+    const _inserted = (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted;
+    const runs = _inserted['automation_runs'];
+    const successRuns = (runs as Array<Record<string, unknown>> | undefined)?.filter(r => r.status === 'success');
+    expect(successRuns?.length ?? 0).toBe(0);
+  });
+});
+
 // --- Hilfsfunktionen für komplexe Mock-Setups ---
 
 function makeSvcForAction(
@@ -396,11 +436,24 @@ function makeSvcForAction(
 
     (chain.eq as ReturnType<typeof vi.fn>).mockReturnValue(chain);
     (chain.or as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    (chain.gte as ReturnType<typeof vi.fn>).mockReturnValue(chain);
 
     if (table === 'automations') {
       (chain.or as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: [automationRow],
         error: null,
+      });
+    }
+
+    if (table === 'automation_runs') {
+      // select für Rate-Limit-Check gibt count=0 zurück (kein Rate-Limit)
+      (chain.select as ReturnType<typeof vi.fn>).mockImplementation((_col: string, opts?: { count?: string; head?: boolean }) => {
+        if (opts?.count === 'exact' && opts?.head === true) {
+          (chain.gte as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+            Promise.resolve({ data: null, error: null, count: 0 })
+          );
+        }
+        return chain;
       });
     }
 
@@ -467,6 +520,11 @@ function makeSvcWithConversation(
       _inserted[table].push(data);
       return Promise.resolve({ data: [data], error: null });
     });
+    (chain.upsert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+      if (!_inserted[table]) _inserted[table] = [];
+      _inserted[table].push(data);
+      return Promise.resolve({ data: [data], error: null });
+    });
     (chain.update as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
       if (!_updated[table]) _updated[table] = [];
       _updated[table].push(data);
@@ -475,11 +533,24 @@ function makeSvcWithConversation(
 
     (chain.eq as ReturnType<typeof vi.fn>).mockReturnValue(chain);
     (chain.or as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    (chain.gte as ReturnType<typeof vi.fn>).mockReturnValue(chain);
 
     if (table === 'automations') {
       (chain.or as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: [automationRow],
         error: null,
+      });
+    }
+
+    if (table === 'automation_runs') {
+      // select für Rate-Limit-Check gibt count=0 zurück (kein Rate-Limit)
+      (chain.select as ReturnType<typeof vi.fn>).mockImplementation((_col: string, opts?: { count?: string; head?: boolean }) => {
+        if (opts?.count === 'exact' && opts?.head === true) {
+          (chain.gte as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+            Promise.resolve({ data: null, error: null, count: 0 })
+          );
+        }
+        return chain;
       });
     }
 
@@ -497,5 +568,166 @@ function makeSvcWithConversation(
     return chain;
   });
 
+  return svc;
+}
+
+/**
+ * Mock-Svc für Rate-Limit-Tests: automation_runs COUNT gibt `count` zurück
+ */
+function makeSvcForActionWithRateLimit(
+  actionType: string,
+  params: Record<string, unknown>,
+  applicationId: string,
+  runCount: number,
+) {
+  const automationRow = makeAutomationRow(actionType, params);
+  const svc = buildMockSvc({});
+  const fromOriginal = (svc.from as ReturnType<typeof vi.fn>);
+  const _inserted: Record<string, unknown[]> = {};
+  const _updated: Record<string, unknown[]> = {};
+  (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted = _inserted;
+  (svc as unknown as { _updated: Record<string, unknown[]> })._updated = _updated;
+
+  // Verfolgt, ob wir in einer Rate-Limit-Zähl-Abfrage sind
+  let isCountQuery = false;
+
+  fromOriginal.mockImplementation((table: string) => {
+    const chain: Record<string, unknown> = {};
+    const methods = [
+      'select', 'eq', 'is', 'in', 'filter', 'not', 'maybeSingle', 'single',
+      'insert', 'update', 'upsert', 'delete', 'gte', 'lte', 'or', 'limit', 'head',
+    ];
+    for (const m of methods) chain[m] = vi.fn(() => chain);
+
+    (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+      if (!_inserted[table]) _inserted[table] = [];
+      _inserted[table].push(data);
+      return Promise.resolve({ data: [data], error: null, count: null });
+    });
+    (chain.update as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+      if (!_updated[table]) _updated[table] = [];
+      _updated[table].push(data);
+      return chain;
+    });
+    (chain.eq as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    (chain.or as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    (chain.gte as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+
+    if (table === 'automations') {
+      (chain.or as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: [automationRow],
+        error: null,
+      });
+    }
+
+    if (table === 'automation_runs') {
+      // select mit count:exact,head:true — liefert count
+      (chain.select as ReturnType<typeof vi.fn>).mockImplementation((_col: string, opts?: { count?: string; head?: boolean }) => {
+        if (opts?.count === 'exact' && opts?.head === true) {
+          isCountQuery = true;
+        }
+        return chain;
+      });
+      // Das letzte .gte() auf der count-Query löst die Promise aus
+      (chain.gte as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+        return Promise.resolve({ data: null, error: null, count: runCount });
+      });
+    }
+
+    (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+    (chain.maybeSingle as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+
+    return chain;
+  });
+
+  void isCountQuery;
+  return svc;
+}
+
+/**
+ * Mock-Svc für Dedupe-Tests: automation_runs INSERT wirft unique_violation
+ */
+function makeSvcForActionWithDedupeConflict(
+  actionType: string,
+  params: Record<string, unknown>,
+  applicationId: string,
+) {
+  const automationRow = makeAutomationRow(actionType, params);
+  const svc = buildMockSvc({});
+  const fromOriginal = (svc.from as ReturnType<typeof vi.fn>);
+  const _inserted: Record<string, unknown[]> = {};
+  const _updated: Record<string, unknown[]> = {};
+  (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted = _inserted;
+  (svc as unknown as { _updated: Record<string, unknown[]> })._updated = _updated;
+
+  let insertCallCount = 0;
+
+  fromOriginal.mockImplementation((table: string) => {
+    const chain: Record<string, unknown> = {};
+    const methods = [
+      'select', 'eq', 'is', 'in', 'filter', 'not', 'maybeSingle', 'single',
+      'insert', 'update', 'upsert', 'delete', 'gte', 'lte', 'or', 'limit',
+    ];
+    for (const m of methods) chain[m] = vi.fn(() => chain);
+
+    (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+      if (!_inserted[table]) _inserted[table] = [];
+      if (table === 'automation_runs') {
+        insertCallCount++;
+        // Simuliere Unique-Index-Verletzung beim ersten automation_runs Insert (success-path)
+        // Rate-Limit-Count-Query gibt 0 zurück (kein Rate-Limit), aber der Insert schlägt fehl
+        return Promise.resolve({
+          data: null,
+          error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+        });
+      }
+      _inserted[table].push(data);
+      return Promise.resolve({ data: [data], error: null });
+    });
+    (chain.upsert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown, opts?: unknown) => {
+      if (table === 'automation_runs') {
+        // ignoreDuplicates=true → kein Fehler, einfach ignorieren
+        return Promise.resolve({ data: [], error: null });
+      }
+      if (!_inserted[table]) _inserted[table] = [];
+      _inserted[table].push(data);
+      return Promise.resolve({ data: [data], error: null });
+    });
+    (chain.update as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+      if (!_updated[table]) _updated[table] = [];
+      _updated[table].push(data);
+      return chain;
+    });
+    (chain.eq as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    (chain.or as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    (chain.gte as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+
+    if (table === 'automations') {
+      (chain.or as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: [automationRow],
+        error: null,
+      });
+    }
+
+    if (table === 'automation_runs') {
+      // select für Rate-Limit-Check gibt count=0 zurück
+      (chain.select as ReturnType<typeof vi.fn>).mockImplementation((_col: string, opts?: { count?: string; head?: boolean }) => {
+        if (opts?.count === 'exact' && opts?.head === true) {
+          (chain.gte as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+            Promise.resolve({ data: null, error: null, count: 0 })
+          );
+        }
+        return chain;
+      });
+    }
+
+    (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+    (chain.maybeSingle as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+
+    return chain;
+  });
+
+  void applicationId;
+  void insertCallCount;
   return svc;
 }

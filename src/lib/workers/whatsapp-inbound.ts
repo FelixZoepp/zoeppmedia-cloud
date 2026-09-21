@@ -9,6 +9,7 @@ import { isStopMessage } from '@/lib/whatsapp/window';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
 import { cancelBotTimers } from '@/lib/bot/timers';
+import { fireEvent } from '@/lib/automations/fire';
 
 interface InboundPayload {
   type: 'whatsapp.inbound';
@@ -125,6 +126,23 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
     wa_message_id: msg.id,
     status: 'delivered',
   });
+
+  // Offene Application für Kandidaten nachschlagen (best effort)
+  const { data: openApp } = await svc
+    .from('applications')
+    .select('id')
+    .eq('agency_id', effectiveAgencyId)
+    .eq('candidate_id', candidate.id)
+    .eq('status', 'open')
+    .order('applied_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const applicationId: string | undefined = (openApp as { id: string } | null)?.id ?? undefined;
+
+  await fireEvent('message.received', effectiveAgencyId, {
+    candidate_id: candidate.id,
+    extra: { conversation_id: conversationId, body: bodyText },
+  }, { application_id: applicationId, conversation_id: conversationId }).catch(() => {});
 
   // 5. STOP-Erkennung
   if (isStopMessage(msg.text?.body)) {

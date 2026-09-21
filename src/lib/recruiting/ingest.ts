@@ -305,10 +305,13 @@ export async function ingestApplication(
     },
   });
 
-  // --- 9. fireEvent nur bei neuem Kandidaten ---
+  // --- 9. fireEvent: neuer Kandidat + neue Application ---
   if (candidateCreated) {
     await fireEvent('candidate_created', input.agencyId, { candidate_id: candidateId }).catch(() => {});
   }
+  await fireEvent('application.created', input.agencyId, {
+    candidate_id: candidateId, extra: { application_id: newApp.id, source: input.source },
+  }, { application_id: newApp.id }).catch(() => {});
 
   // --- Phase 3: Bot-Eröffnung einreihen (Spec §8 Schritt 1). Worker prüft Config/Consent erneut. ---
   // Hier ist immer applicationCreated=true (wir sind im Happy-Path hinter der 30-Tage-Prüfung)

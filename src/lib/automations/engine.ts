@@ -607,6 +607,26 @@ export async function fireAutomations(
   }
 }
 
+// --- Dedupe-Hilfsfunktionen (P4-R9c) ---
+
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function computeDedupeKey(ctx: AutomationContext, actions: Action[]): string | null {
+  if (!ctx.application_id) return null;
+  const actionSummary = actions.map(a => `${a.type}:${JSON.stringify(a.params)}`).join('|');
+  const hash = simpleHash(actionSummary);
+  const hourBucket = Math.floor(Date.now() / 3600_000);
+  return `${ctx.application_id}:${hash}:${hourBucket}`;
+}
+
 async function runSingleAutomation(
   supabase: SupabaseClient,
   automation: Automation,
@@ -624,6 +644,30 @@ async function runSingleAutomation(
       error_message: `Delayed automation (${automation.delay_seconds}s) — queuing not yet implemented`,
     });
     return;
+  }
+
+  // P4-R9a: Rate-Limit — max 10 Runs pro application_id pro Stunde
+  if (context.application_id) {
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    const { count } = await supabase.from('automation_runs')
+      .select('id', { count: 'exact', head: true })
+      .eq('agency_id', context.agency_id)
+      .eq('application_id', context.application_id)
+      .gte('created_at', hourAgo);
+
+    if ((count ?? 0) >= 10) {
+      await supabase.from('automation_runs').insert({
+        automation_id: automation.id,
+        agency_id: context.agency_id,
+        application_id: context.application_id,
+        candidate_id: context.candidate_id ?? null,
+        trigger_data: context.data ?? {},
+        actions_executed: [],
+        status: 'skipped',
+        error_message: 'Rate-Limit',
+      });
+      return;
+    }
   }
 
   // Evaluate conditions
@@ -666,14 +710,20 @@ async function runSingleAutomation(
     }
   }
 
-  // Log the run
-  await supabase.from('automation_runs').insert({
-    automation_id: automation.id,
-    agency_id: context.agency_id,
-    candidate_id: context.candidate_id ?? null,
-    trigger_data: context.data ?? {},
-    actions_executed: executedActions,
-    status: overallStatus,
-    error_message: overallError ?? null,
-  });
+  // P4-R9c: Dedupe-Key berechnen und upsert mit ignoreDuplicates
+  const dedupeKey = computeDedupeKey(context, automation.actions);
+  await supabase.from('automation_runs').upsert(
+    {
+      automation_id: automation.id,
+      agency_id: context.agency_id,
+      application_id: context.application_id ?? null,
+      candidate_id: context.candidate_id ?? null,
+      trigger_data: context.data ?? {},
+      actions_executed: executedActions,
+      status: overallStatus,
+      error_message: overallError ?? null,
+      ...(dedupeKey ? { dedupe_key: dedupeKey } : {}),
+    },
+    { onConflict: 'dedupe_key', ignoreDuplicates: true },
+  );
 }

@@ -22,6 +22,10 @@ vi.mock('@/lib/notifications/create', () => ({
   createNotificationForAgency: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/automations/fire', () => ({
+  fireEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 function makeSvc(overrides: Record<string, unknown> = {}) {
   const fromMock = vi.fn();
 
@@ -37,7 +41,7 @@ function makeSvc(overrides: Record<string, unknown> = {}) {
 
   fromMock.mockImplementation((table: string) => {
     const chain: Record<string, unknown> = {};
-    const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update', 'upsert'];
+    const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update', 'upsert', 'order', 'limit'];
     for (const m of methods) {
       chain[m] = vi.fn(() => chain);
     }
@@ -172,7 +176,7 @@ describe('processInbound', () => {
     };
     fromMock.mockImplementation((table: string) => {
       const chain: Record<string, unknown> = {};
-      const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update', 'upsert'];
+      const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update', 'upsert', 'order', 'limit'];
       for (const m of methods) {
         chain[m] = vi.fn(() => chain);
       }
