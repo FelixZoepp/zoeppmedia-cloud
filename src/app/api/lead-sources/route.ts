@@ -85,13 +85,16 @@ export async function POST(request: Request) {
       config: config ?? null,
       active: true,
     })
-    .select()
+    .select('id, agency_id, kind, name, config, active, created_at')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const response: Record<string, unknown> = { source };
+  // Secret nur einmalig als eigenes Top-Level-Feld — nie eingebettet im source-Objekt
+  const { secret: _ignored, ...sourceWithoutSecret } = source as Record<string, unknown>;
+  const response: Record<string, unknown> = { source: sourceWithoutSecret };
   if (kind === 'generic') {
+    response.secret = secret;
     response.webhook_url = `${BASE_URL}/api/webhooks/generic/${source.id}`;
   }
 

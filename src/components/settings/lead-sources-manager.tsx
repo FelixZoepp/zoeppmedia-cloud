@@ -324,10 +324,10 @@ export function LeadSourcesManager() {
     const data = await res.json();
     toast.success('Quelle angelegt');
     setNewName('');
-    if (data.source?.secret) {
+    if (data.secret) {
       setNewSecret({
         sourceId: data.source.id,
-        secret: data.source.secret,
+        secret: data.secret,
         webhookUrl: data.webhook_url ?? '',
       });
     }

@@ -192,6 +192,11 @@ describe('POST /api/lead-sources', () => {
     expect(res.status).toBe(400);
   });
 
+  it('400 bei name über 120 Zeichen', async () => {
+    const res = await POST(makePostRequest({ kind: 'generic', name: 'x'.repeat(121) }));
+    expect(res.status).toBe(400);
+  });
+
   it('legt generische Quelle mit Secret an und gibt webhook_url zurück', async () => {
     let insertedData: Record<string, unknown> | null = null;
 
@@ -220,9 +225,10 @@ describe('POST /api/lead-sources', () => {
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.source).toBeDefined();
-    expect(json.source.secret).toBeTruthy();
-    expect(typeof json.source.secret).toBe('string');
-    expect(json.source.secret).toHaveLength(48); // 24 bytes hex = 48 chars
+    expect(json.source.secret).toBeUndefined(); // Secret nie im source-Objekt
+    expect(json.secret).toBeTruthy();
+    expect(typeof json.secret).toBe('string');
+    expect(json.secret).toHaveLength(48); // 24 bytes hex = 48 chars
     expect(json.webhook_url).toContain(`/api/webhooks/generic/${SOURCE_ID}`);
     expect(insertedData).toMatchObject({ kind: 'generic', name: 'Meine Quelle', agency_id: AGENCY_ID });
     expect(insertedData!['secret']).toBeTruthy();
