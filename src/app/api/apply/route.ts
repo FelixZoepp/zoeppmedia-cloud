@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = ApplySchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Validierungsfehler', details: parsed.error.flatten().fieldErrors }, { status: 400 });
+    return NextResponse.json({ error: 'Validierungsfehler' }, { status: 400 });
   }
 
   const { agencyId, jobId, firstName, lastName, phone, email, consentWhatsapp, campaign: campaignStr } = parsed.data;
@@ -37,6 +37,18 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
+  // Serverseitige Job-Re-Validierung: Job muss zur Agency gehoeren und aktiv sein
+  const { data: job, error: jobError } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('id', jobId)
+    .eq('agency_id', agencyId)
+    .eq('status', 'active')
+    .single();
+  if (jobError || !job) {
+    return NextResponse.json({ error: 'Stellenanzeige nicht gefunden' }, { status: 404 });
+  }
+
   // Resume-Upload
   let resume: { storagePath: string; mime: string; size: number } | null = null;
   const resumeFile = formData.get('resume');
@@ -44,16 +56,24 @@ export async function POST(request: NextRequest) {
     if (resumeFile.size > 10 * 1024 * 1024) {
       return NextResponse.json({ error: 'Datei zu gross (max. 10 MB)' }, { status: 400 });
     }
-    const timestamp = Date.now();
-    const safeName = resumeFile.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50);
-    const storagePath = `${agencyId}/apply/${timestamp}-${safeName}`;
+    // MIME-Check: nur PDF erlaubt (client-kontrollierter type-Header nicht vertrauenswuerdig)
+    if (resumeFile.type !== 'application/pdf') {
+      return NextResponse.json({ error: 'Nur PDF-Dateien erlaubt' }, { status: 400 });
+    }
     const buffer = Buffer.from(await resumeFile.arrayBuffer());
+    // Magic-Byte-Check: %PDF = 0x25 0x50 0x44 0x46
+    if (buffer.length < 4 || buffer[0] !== 0x25 || buffer[1] !== 0x50 || buffer[2] !== 0x44 || buffer[3] !== 0x46) {
+      return NextResponse.json({ error: 'Nur PDF-Dateien erlaubt' }, { status: 400 });
+    }
+    // storagePath ausschliesslich aus UUIDs + eigenem Timestamp — kein Client-Dateiname im Pfad
+    const { randomUUID } = await import('crypto');
+    const storagePath = `${agencyId}/apply/${randomUUID()}`;
     const { error: uploadError } = await supabase.storage
       .from('candidate-resumes')
-      .upload(storagePath, buffer, { contentType: resumeFile.type || 'application/pdf' });
+      .upload(storagePath, buffer, { contentType: 'application/pdf' });
 
     if (!uploadError) {
-      resume = { storagePath, mime: resumeFile.type || 'application/pdf', size: resumeFile.size };
+      resume = { storagePath, mime: 'application/pdf', size: resumeFile.size };
     }
   }
 
@@ -79,6 +99,7 @@ export async function POST(request: NextRequest) {
       duplicateWithin30Days: result.duplicateWithin30Days,
     });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Verarbeitung fehlgeschlagen' }, { status: 500 });
+    console.error('[apply] ingestApplication fehlgeschlagen:', err);
+    return NextResponse.json({ error: 'Verarbeitung fehlgeschlagen. Bitte später erneut versuchen.' }, { status: 500 });
   }
 }
