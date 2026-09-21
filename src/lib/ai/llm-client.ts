@@ -153,9 +153,10 @@ export async function llmJsonCall<T>(
     return (validated as { success: true; data: T }).data;
   }
 
-  // Retry: zweiter Versuch mit angehängter Hinweis-Message
+  // Retry: zweiter Versuch mit fehlgeschlagener Assistent-Antwort und Hinweis-Message
   const retryMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [
     ...opts.messages,
+    { role: 'assistant', content: rawText },
     {
       role: 'user',
       content: 'Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.',

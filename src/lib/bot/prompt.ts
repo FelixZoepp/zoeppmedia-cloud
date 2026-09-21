@@ -56,6 +56,7 @@ function buildRoleBlock(ctx: PromptContext): string {
     `Sprache: ${language}.`,
     erlaubteSprachen,
     `Stelle dich in der ersten freien Nachricht als digitaler Assistent vor und weise darauf hin, dass jederzeit ein Mensch übernehmen kann.`,
+    `Heutiges Datum: ${new Date().toISOString().slice(0, 10)}.`,
   ]
     .filter(Boolean)
     .join(' ');

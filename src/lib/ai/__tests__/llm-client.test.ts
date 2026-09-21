@@ -127,9 +127,15 @@ describe('llmJsonCall', () => {
 
     expect(result).toEqual({ score: 0.5, label: 'unklar' });
     expect(createFn).toHaveBeenCalledTimes(2);
-    // Zweiter Aufruf muss die Retry-Message enthalten
+    // Zweiter Aufruf muss fehlgeschlagene Assistent-Antwort + Hinweis-Message enthalten
     const secondCall = createFn.mock.calls[1][0];
-    const lastMsg = secondCall.messages[secondCall.messages.length - 1];
+    const msgs: Array<{ role: string; content: string }> = secondCall.messages;
+    // vorletztes Element: fehlgeschlagene Assistent-Antwort
+    const assistantTurn = msgs[msgs.length - 2];
+    expect(assistantTurn.role).toBe('assistant');
+    expect(assistantTurn.content).toBe('das ist kein json');
+    // letztes Element: Nutzer-Hinweis
+    const lastMsg = msgs[msgs.length - 1];
     expect(lastMsg.role).toBe('user');
     expect(lastMsg.content).toBe('Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.');
   });
