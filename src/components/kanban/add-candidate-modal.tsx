@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, Briefcase } from 'lucide-react';
+import { User, Mail, Phone } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,15 +84,15 @@ export function AddCandidateModal({
       }),
     });
 
+    const data = await res.json().catch(() => null);
+
     if (!res.ok) {
-      const data = await res.json().catch(() => null);
       setError(data?.error ?? 'Fehler beim Anlegen der Bewerbung.');
       setLoading(false);
       return;
     }
 
-    const result = await res.json().catch(() => null);
-    if (result?.duplicateWithin30Days) {
+    if (data?.duplicateWithin30Days) {
       toast.warning('Bewerbung existiert bereits (letzte 30 Tage)');
     } else {
       toast.success('Bewerber hinzugefuegt');
