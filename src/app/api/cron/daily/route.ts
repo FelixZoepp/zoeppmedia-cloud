@@ -16,7 +16,7 @@ async function runDailyJobs() {
     return { ok: false, error: error.message };
   }
 
-  const results: Record<string, string> = {};
+  const results: Record<string, unknown> = {};
   let problemsDetected = 0;
   let surveysScheduled = 0;
   let recurringCreated = 0;
@@ -330,6 +330,16 @@ async function runDailyJobs() {
     ingestFeedAlerts = monResult.feedAlerts;
     ingestErrorRateAlerts = monResult.errorRateAlerts;
   } catch (e) { console.error('[cron-daily] ingest-monitor fehlgeschlagen', e); }
+
+  // Phase 6: Verbrauchs-Aggregation für den Vortag (best effort)
+  try {
+    const { aggregateUsageForDay, yesterdayUtc } = await import('@/lib/usage/aggregate');
+    const usageResult = await aggregateUsageForDay(supabase, yesterdayUtc());
+    results.usage_aggregation = usageResult;
+  } catch (e) {
+    console.error('Verbrauchs-Aggregation fehlgeschlagen', e);
+    results.usage_aggregation = { error: String(e) };
+  }
 
   return {
     ok: true,
