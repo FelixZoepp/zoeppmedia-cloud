@@ -35,6 +35,8 @@ import {
   PlusCircle,
   PhoneCall,
   Briefcase,
+  MessageSquare,
+  Smartphone,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -123,6 +125,7 @@ const agencyGroups: SidebarGroup[] = [
     label: 'Recruiting',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/dashboard' },
+      { id: 'inbox', label: 'Inbox', icon: <MessageSquare className="w-5 h-5" />, href: '/inbox' },
       { id: 'jobs', label: 'Stellenanzeigen', icon: <Briefcase className="w-5 h-5" />, href: '/jobs' },
       { id: 'candidates', label: 'Bewerber', icon: <ClipboardList className="w-5 h-5" />, href: '/candidates' },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/reports' },
@@ -133,6 +136,12 @@ const agencyGroups: SidebarGroup[] = [
     items: [
       { id: 'status', label: 'Projektstatus', icon: <ListChecks className="w-5 h-5" />, href: '/status' },
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/masterclass' },
+    ],
+  },
+  {
+    label: 'Einstellungen',
+    items: [
+      { id: 'whatsapp', label: 'WhatsApp', icon: <Smartphone className="w-5 h-5" />, href: '/settings/whatsapp' },
     ],
   },
 ];
