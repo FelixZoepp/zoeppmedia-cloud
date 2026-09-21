@@ -12,6 +12,7 @@ const BulkSchema = z.object({
   action: z.enum(['set_stage', 'assign', 'delete']),
   stage_id: z.string().uuid().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
+  rejection_reason: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   const parsed = BulkSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { ids, action, stage_id, assigned_to } = parsed.data;
+  const { ids, action, stage_id, assigned_to, rejection_reason } = parsed.data;
   const supabase = await createServerClient();
   let affected = 0;
 
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest) {
       .eq('agency_id', agencyId)
       .single();
     if (!stage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
+
+    // Absagegrund prüfen
+    if (stage.stage_type === 'rejected' && !rejection_reason?.trim()) {
+      return NextResponse.json({ error: 'Absagegrund erforderlich' }, { status: 400 });
+    }
 
     let newStatus: string = 'open';
     if (stage.stage_type === 'hired') newStatus = 'hired';
@@ -61,13 +67,23 @@ export async function POST(request: NextRequest) {
         .eq('agency_id', agencyId);
       await supabase.from('candidate_stages').insert({ candidate_id: app.candidate_id, stage_id, changed_by: user.id });
       await supabase.from('candidates').update({ current_stage_id: stage_id }).eq('id', app.candidate_id).eq('agency_id', agencyId);
+
+      const metadata: Record<string, unknown> = {
+        application_id: appId,
+        old_stage_id: app.stage_id,
+        new_stage_id: stage_id,
+        new_stage_name: stage.name,
+        bulk: true,
+      };
+      if (rejection_reason) metadata.rejection_reason = rejection_reason;
+
       await logActivity(supabase, {
         agency_id: agencyId,
         user_id: user.id,
         candidate_id: app.candidate_id,
-        action: `Stufe geaendert (Mehrfachaktion): ${stage.name}`,
+        action: `Stufe geaendert (Mehrfachaktion): ${stage.name}${rejection_reason ? ` (Grund: ${rejection_reason})` : ''}`,
         action_type: 'stage_change',
-        metadata: { application_id: appId, old_stage_id: app.stage_id, new_stage_id: stage_id, bulk: true },
+        metadata,
       });
       fireEvent('stage_changed', agencyId, {
         candidate_id: app.candidate_id,
