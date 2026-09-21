@@ -8,6 +8,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { isStopMessage } from '@/lib/whatsapp/window';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
+import { cancelBotTimers } from '@/lib/bot/timers';
 
 interface InboundPayload {
   type: 'whatsapp.inbound';
@@ -153,6 +154,28 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
       .eq('id', conversationId);
 
     return;
+  }
+
+  // Phase 3: Bot-Verarbeitung mit 8-Sekunden-Batching (P3-R3)
+  if (conv.state === 'bot_active') {
+    await cancelBotTimers(svc, { agencyId: effectiveAgencyId, conversationId });
+    const { data: pendingJob } = await svc
+      .from('scheduled_jobs')
+      .select('id')
+      .eq('agency_id', effectiveAgencyId)
+      .eq('type', 'bot.process')
+      .eq('status', 'pending')
+      .eq('payload->>conversation_id', conversationId)
+      .maybeSingle();
+    if (!pendingJob) {
+      await svc.from('scheduled_jobs').insert({
+        agency_id: effectiveAgencyId,
+        run_at: new Date(Date.now() + 8000).toISOString(),
+        type: 'bot.process',
+        payload: { conversation_id: conversationId },
+        status: 'pending',
+      });
+    }
   }
 
   // 6. Media-Download als scheduled_job planen

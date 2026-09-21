@@ -13,6 +13,7 @@ import { processMediaDownload } from '@/lib/workers/media-download';
 import { processBotOpen } from '@/lib/workers/bot-open';
 import { processBotNudge } from '@/lib/workers/bot-nudge';
 import { processBotTimeout } from '@/lib/workers/bot-timeout';
+import { processBotTurn } from '@/lib/workers/bot-process';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
@@ -141,6 +142,9 @@ export async function GET(request: NextRequest) {
           break;
         case 'bot.timeout':
           await processBotTimeout(svc, job.agency_id, payload as unknown as Parameters<typeof processBotTimeout>[2]);
+          break;
+        case 'bot.process':
+          await processBotTurn(svc, job.agency_id, payload as { conversation_id: string }, job.attempts);
           break;
         default:
           break;
