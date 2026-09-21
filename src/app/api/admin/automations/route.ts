@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 
 export async function GET(request: NextRequest) {
   const supabase = await createServerClient();
@@ -83,6 +84,19 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Audit-Log (best-effort)
+  try {
+    await logAudit(supabase, {
+      agency_id: data.agency_id as string | null,
+      user_id: user.id,
+      entity_type: 'automation',
+      entity_id: data.id as string,
+      action: 'create',
+    });
+  } catch (auditErr) {
+    console.error('[audit] Automation POST log fehlgeschlagen:', auditErr);
+  }
 
   return NextResponse.json(data, { status: 201 });
 }

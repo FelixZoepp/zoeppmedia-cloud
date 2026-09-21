@@ -16,6 +16,7 @@ import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { BOT_PRESETS } from '@/lib/bot/presets';
 import { violatesForbiddenTopics } from '@/lib/bot/schema';
+import { logAudit } from '@/lib/audit/log';
 
 // ---------------------------------------------------------------------------
 // Zod-Schema für den PUT-Body
@@ -312,6 +313,19 @@ export async function PUT(
     if (insertError) {
       return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
     }
+  }
+
+  // Audit-Log (best-effort)
+  try {
+    await logAudit(svc, {
+      agency_id: agencyId,
+      user_id: user.id,
+      entity_type: 'settings',
+      entity_id: configId as string,
+      action: job.bot_config_id ? 'update' : 'create',
+    });
+  } catch (auditErr) {
+    console.error('[audit] Bot-Config PUT log fehlgeschlagen:', auditErr);
   }
 
   return NextResponse.json({ ok: true, config_id: configId });
