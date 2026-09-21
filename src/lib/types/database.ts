@@ -869,3 +869,65 @@ export type QuickReply = {
   created_at: string;
   updated_at: string;
 };
+
+// --- Phase 3: KI-Bot ---
+export type BotQuestionType = 'text' | 'number' | 'choice' | 'yes_no' | 'date';
+
+export interface BotConfig {
+  id: string;
+  agency_id: string;
+  persona: string;
+  tone: string;
+  formality: 'du' | 'sie';
+  language: string;
+  allowed_languages: string[];
+  intro_text: string | null;
+  faq: Array<{ q: string; a: string }>;
+  max_turns: number;
+  handover_rules: Record<string, unknown>;
+  scoring_rules: { a_min: number; b_min: number };
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BotQuestion {
+  id: string;
+  agency_id: string;
+  bot_config_id: string;
+  position: number;
+  key: string;
+  text: string;
+  type: BotQuestionType;
+  options: string[] | null;
+  required: boolean;
+  knockout_rule: Record<string, unknown> | null;
+  weight: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiCall {
+  id: string;
+  agency_id: string;
+  conversation_id: string | null;
+  purpose: string;
+  model: string;
+  prompt_version: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  latency_ms: number | null;
+  ok: boolean;
+  error: string | null;
+  created_at: string;
+}
+
+/** Laufzeitzustand des Bots je Conversation (conversations.bot_meta) */
+export interface BotMeta {
+  /** Anzahl Bot-Nachrichten in diesem Gespräch */
+  turns?: number;
+  /** Nachfragen je question_key (max 2) */
+  clarify?: Record<string, number>;
+  /** Zähler für confidence < 0.6 in Folge */
+  low_confidence?: number;
+}
