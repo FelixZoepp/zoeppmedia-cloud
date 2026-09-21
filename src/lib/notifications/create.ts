@@ -10,7 +10,8 @@ export type NotificationType =
   | 'sla_breach'
   | 'noshow'
   | 'opt_out'
-  | 'system';
+  | 'system'
+  | 'whatsapp_inbound';
 
 interface CreateNotificationParams {
   user_id: string;
