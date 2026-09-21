@@ -5,13 +5,20 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { z } from 'zod';
 
-const SendSchema = z.object({
-  conversationId: z.string().uuid(),
-  type: z.enum(['text', 'template', 'image', 'document']),
-  body: z.string().optional(),
-  templateId: z.string().uuid().optional(),
-  templateVariables: z.record(z.string(), z.string()).optional(),
-});
+// I2: restrict type to implemented variants only (image/document not in v1)
+// M2: refine — for type === 'text', body must be a non-empty string after trim
+const SendSchema = z
+  .object({
+    conversationId: z.string().uuid(),
+    type: z.enum(['text', 'template']),
+    body: z.string().optional(),
+    templateId: z.string().uuid().optional(),
+    templateVariables: z.record(z.string(), z.string()).optional(),
+  })
+  .refine(
+    (d) => d.type !== 'text' || (typeof d.body === 'string' && d.body.trim().length > 0),
+    { message: 'body muss für type=text ein nicht-leerer String sein' }
+  );
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
@@ -21,7 +28,14 @@ export async function POST(request: NextRequest) {
   const agencyId = await getEffectiveAgencyId();
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
-  const rawBody = await request.json();
+  // I1: wrap request.json() in try/catch
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
+  }
+
   const parsed = SendSchema.safeParse(rawBody);
   if (!parsed.success) return NextResponse.json({ error: 'Validierungsfehler' }, { status: 400 });
 
@@ -85,13 +99,7 @@ export async function POST(request: NextRequest) {
     };
   }
 
-  // Recruiter-Freitext-Nachricht setzt automatisch human_active
-  if (parsed.data.type === 'text' && conv.state !== 'human_active') {
-    await svc.from('conversations')
-      .update({ state: 'human_active', updated_at: new Date().toISOString() })
-      .eq('id', conv.id);
-  }
-
+  // C3: state update moved AFTER successful send — must not run when send throws
   // R4: sendWhatsAppMessage wirft bei Fehler (deutscher Error-Text) — try/catch
   try {
     const result = await sendWhatsAppMessage(svc, {
@@ -105,6 +113,14 @@ export async function POST(request: NextRequest) {
       templateId: parsed.data.templateId || null,
       isHumanUiSend: true,
     });
+
+    // C3+C4: only update state after successful send; include agency_id scope
+    if (parsed.data.type === 'text' && conv.state !== 'human_active') {
+      await svc.from('conversations')
+        .update({ state: 'human_active', updated_at: new Date().toISOString() })
+        .eq('id', conv.id)
+        .eq('agency_id', agencyId);
+    }
 
     return NextResponse.json({ ok: true, messageId: result.messageId });
   } catch (err) {

@@ -15,7 +15,8 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
 
   const agencyId = await getEffectiveAgencyId();
-  if (!agencyId) return NextResponse.json([]);
+  // C1: consistent with POST/DELETE — return 403 instead of empty array
+  if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const svc = createAdminClient();
   const { data } = await svc
@@ -35,8 +36,15 @@ export async function POST(request: NextRequest) {
   const agencyId = await getEffectiveAgencyId();
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
-  const body = await request.json();
-  const parsed = CreateSchema.safeParse(body);
+  // I1: wrap request.json() in try/catch
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
+  }
+
+  const parsed = CreateSchema.safeParse(rawBody);
   if (!parsed.success) return NextResponse.json({ error: 'Validierungsfehler' }, { status: 400 });
 
   const svc = createAdminClient();
@@ -58,11 +66,28 @@ export async function DELETE(request: NextRequest) {
   const agencyId = await getEffectiveAgencyId();
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
-  const { id } = await request.json();
+  // I1: wrap request.json() in try/catch
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
+  }
+
+  const { id } = rawBody as { id?: string };
   if (!id) return NextResponse.json({ error: 'ID erforderlich' }, { status: 400 });
 
   const svc = createAdminClient();
-  await svc.from('quick_replies').delete().eq('id', id).eq('agency_id', agencyId);
+  // C2: capture result, check for error and empty data
+  const { data, error } = await svc
+    .from('quick_replies')
+    .delete()
+    .eq('id', id)
+    .eq('agency_id', agencyId)
+    .select('id');
+
+  if (error) return NextResponse.json({ error: 'Löschen fehlgeschlagen' }, { status: 500 });
+  if (!data || data.length === 0) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 });
 
   return NextResponse.json({ ok: true });
 }
