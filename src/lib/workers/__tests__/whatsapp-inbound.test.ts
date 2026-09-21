@@ -100,6 +100,15 @@ describe('processInbound', () => {
     await expect(processInbound(svc, 'agency-1', basePayload)).resolves.toBeUndefined();
   });
 
+  it('C3: increment_unread wird mit p_conversation_id und p_agency_id aufgerufen', async () => {
+    const svc = makeSvc();
+    await processInbound(svc, 'agency-1', basePayload);
+    expect((svc.rpc as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+      'increment_unread',
+      expect.objectContaining({ p_conversation_id: 'conv-1', p_agency_id: 'agency-1' })
+    );
+  });
+
   it('normiert Telefonnummer ohne + korrekt (Präfix +)', async () => {
     const svc = makeSvc();
     // from ohne '+' → worker muss '+' voranstellen
@@ -144,6 +153,75 @@ describe('processInbound', () => {
         isHumanUiSend: true,
       })
     );
+  });
+
+  it('C4: sendWhatsAppMessage wird vor dem opt-in Update aufgerufen (Reihenfolge)', async () => {
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+    const callOrder: string[] = [];
+
+    (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      callOrder.push('send');
+      return { messageId: 'wamid.test', messageRowId: 'row-1' };
+    });
+
+    // Eigener Svc-Mock der die Aufruf-Reihenfolge für candidates.update aufzeichnet
+    const fromMock = vi.fn();
+    const tableResponses: Record<string, unknown> = {
+      whatsapp_accounts: { data: { id: 'wa-1', agency_id: 'agency-1' }, error: null },
+      candidates: { data: { id: 'cand-1', name: 'Max Müller', whatsapp_opt_in: true }, error: null },
+    };
+    fromMock.mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update', 'upsert'];
+      for (const m of methods) {
+        chain[m] = vi.fn(() => chain);
+      }
+      const resp = tableResponses[table] || { data: null, error: null };
+      if (table === 'conversations') {
+        const convRow = { data: { id: 'conv-1', state: 'waiting', assigned_to: null }, error: null };
+        (chain.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+        const updateChain: Record<string, unknown> = {};
+        for (const m of ['eq', 'select', 'single']) {
+          updateChain[m] = vi.fn(() => updateChain);
+        }
+        (updateChain.single as ReturnType<typeof vi.fn>).mockResolvedValue(convRow);
+        (chain.update as ReturnType<typeof vi.fn>).mockReturnValue(updateChain);
+      } else if (table === 'candidates') {
+        (chain.maybySingle as ReturnType<typeof vi.fn> | undefined)?.mockResolvedValue(resp);
+        (chain.maybeSingle as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
+        // Reihenfolgen-Tracking für update
+        const origUpdate = chain.update as ((...a: unknown[]) => unknown);
+        chain.update = vi.fn((...args: unknown[]) => {
+          callOrder.push('candidates.update');
+          return origUpdate(...args);
+        });
+      } else {
+        (chain.maybeSingle as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
+        (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
+      }
+      const insertChain: Record<string, unknown> = {};
+      for (const m of ['select', 'eq', 'single', 'insert', 'update', 'upsert']) {
+        insertChain[m] = vi.fn(() => insertChain);
+      }
+      (insertChain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+      (chain.insert as ReturnType<typeof vi.fn>).mockReturnValue(insertChain);
+      return chain;
+    });
+    const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const svc = { from: fromMock, rpc: rpcMock } as unknown as Parameters<typeof processInbound>[0];
+
+    const stopPayload = {
+      ...basePayload,
+      message: { ...basePayload.message, text: { body: 'STOP' } },
+    };
+    await processInbound(svc, 'agency-1', stopPayload);
+
+    const sendIdx = callOrder.indexOf('send');
+    const updateIdx = callOrder.indexOf('candidates.update');
+    // send muss vor candidates.update stattfinden
+    expect(sendIdx).toBeGreaterThanOrEqual(0);
+    expect(updateIdx).toBeGreaterThan(sendIdx);
   });
 
   it('plant media-download Job für Bildnachricht', async () => {

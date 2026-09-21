@@ -7,6 +7,7 @@ import { processStatus } from '../whatsapp-status';
 
 function makeSvc() {
   // C2: update chain must support eq / in / neq (downgrade guard)
+  // C1: eq is also used for agency_id scoping
   const updateChain = {
     eq: vi.fn().mockResolvedValue({ data: null, error: null }),
     in: vi.fn().mockResolvedValue({ data: null, error: null }),
@@ -34,7 +35,7 @@ describe('processStatus', () => {
     const { from, _chain, _updateChain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: {
@@ -48,13 +49,15 @@ describe('processStatus', () => {
     expect(from).toHaveBeenCalledWith('messages');
     expect(_chain.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'delivered' }));
     expect(_updateChain.eq).toHaveBeenCalledWith('wa_message_id', 'wamid.abc');
+    // C1: tenant scoping
+    expect(_updateChain.eq).toHaveBeenCalledWith('agency_id', 'agency-1');
   });
 
   it('schreibt error_code bei failed-Status mit Fehlerdetails', async () => {
     const { from, _chain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: {
@@ -78,7 +81,7 @@ describe('processStatus', () => {
     const { from, _chain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: {
@@ -97,7 +100,7 @@ describe('processStatus', () => {
     const { from, _updateChain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: { id: 'wamid.s1', status: 'sent', timestamp: '1700000010', recipient_id: '+491761234567' },
@@ -110,7 +113,7 @@ describe('processStatus', () => {
     const { from, _updateChain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: { id: 'wamid.d1', status: 'delivered', timestamp: '1700000011', recipient_id: '+491761234567' },
@@ -123,7 +126,7 @@ describe('processStatus', () => {
     const { from, _updateChain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: { id: 'wamid.r1', status: 'read', timestamp: '1700000012', recipient_id: '+491761234567' },
@@ -136,7 +139,7 @@ describe('processStatus', () => {
     const { from, _updateChain } = makeSvc();
     const svc = { from } as unknown as Parameters<typeof processStatus>[0];
 
-    await processStatus(svc, {
+    await processStatus(svc, 'agency-1', {
       type: 'whatsapp.status',
       phone_number_id: 'pn-1',
       status: {

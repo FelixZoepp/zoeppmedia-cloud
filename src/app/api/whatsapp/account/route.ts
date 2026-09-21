@@ -7,7 +7,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
 
   const agencyId = await getEffectiveAgencyId();
-  if (!agencyId) return NextResponse.json(null);
+  if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const svc = createAdminClient();
   const { data } = await svc

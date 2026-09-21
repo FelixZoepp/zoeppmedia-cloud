@@ -18,7 +18,7 @@ interface StatusPayload {
   };
 }
 
-export async function processStatus(svc: SupabaseClient, payload: StatusPayload) {
+export async function processStatus(svc: SupabaseClient, agencyId: string, payload: StatusPayload) {
   const s = payload.status;
   const waMessageId = s.id;
 
@@ -34,7 +34,8 @@ export async function processStatus(svc: SupabaseClient, payload: StatusPayload)
   // Für jeden eingehenden Status wird nur dann aktualisiert, wenn der aktuelle DB-Status
   // kleiner/gleich dem eingehenden ist (Rang: queued < sent < delivered < read).
   // 'failed' greift nur, wenn der aktuelle Status noch nicht 'read' ist.
-  let query = svc.from('messages').update(updates).eq('wa_message_id', waMessageId);
+  // C1: agency_id-Filter verhindert cross-tenant Zugriff.
+  let query = svc.from('messages').update(updates).eq('wa_message_id', waMessageId).eq('agency_id', agencyId);
 
   switch (s.status) {
     case 'sent':

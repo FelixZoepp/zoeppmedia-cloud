@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
+  }
   const parsed = CallbackSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Validierungsfehler' }, { status: 400 });

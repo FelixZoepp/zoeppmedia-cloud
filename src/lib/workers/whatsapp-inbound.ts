@@ -102,8 +102,8 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   const conversationId: string = conv.id;
   const assignedTo: string | null = conv.assigned_to ?? null;
 
-  // C4: unread_count atomar via DB-Funktion inkrementieren (kein client-seitiges +1)
-  await svc.rpc('increment_unread', { conversation_id: conversationId });
+  // C3: unread_count atomar via DB-Funktion inkrementieren — mit agency_id-Scoping
+  await svc.rpc('increment_unread', { p_conversation_id: conversationId, p_agency_id: effectiveAgencyId });
 
   // 4. Message speichern
   const bodyText = msg.text?.body
@@ -127,15 +127,9 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
 
   // 5. STOP-Erkennung
   if (isStopMessage(msg.text?.body)) {
-    await svc.from('candidates')
-      .update({ whatsapp_opt_in: false })
-      .eq('id', candidate.id);
-
-    await svc.from('conversations')
-      .update({ state: 'closed', updated_at: new Date().toISOString() })
-      .eq('id', conversationId);
-
-    // Einmalige Abmeldebestätigung
+    // C4: Bestätigung ZUERST senden — opt_in ist noch true, Consent-Preflight wird bestanden.
+    // Danach erst opt_in=false und Konversation schließen (damit sendWhatsAppMessage nicht
+    // wegen fehlendem Consent abgewiesen wird).
     await sendWhatsAppMessage(svc, {
       agencyId: effectiveAgencyId,
       conversationId,
@@ -149,6 +143,14 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
       senderType: 'system',
       isHumanUiSend: true, // Ausnahme von Ruhezeiten — Pflichtbestätigung
     }).catch(() => {}); // Best effort
+
+    await svc.from('candidates')
+      .update({ whatsapp_opt_in: false })
+      .eq('id', candidate.id);
+
+    await svc.from('conversations')
+      .update({ state: 'closed', updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
 
     return;
   }

@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           await processInbound(svc, event.agency_id, payload as unknown as Parameters<typeof processInbound>[2]);
           break;
         case 'whatsapp.status':
-          await processStatus(svc, payload as unknown as Parameters<typeof processStatus>[1]);
+          await processStatus(svc, event.agency_id, payload as unknown as Parameters<typeof processStatus>[2]);
           break;
         default:
           // Unbekannter Typ — als done markieren

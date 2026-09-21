@@ -49,8 +49,9 @@ export async function processMediaDownload(svc: SupabaseClient, agencyId: string
 
   if (uploadErr) throw new Error(`Storage-Upload fehlgeschlagen: ${uploadErr.message}`);
 
-  // 5. Message-Row aktualisieren mit media_path
+  // 5. Message-Row aktualisieren mit media_path (C2: agency_id-Filter verhindert cross-tenant Zugriff)
   await svc.from('messages')
     .update({ media_path: storagePath })
-    .eq('wa_message_id', payload.message_id);
+    .eq('wa_message_id', payload.message_id)
+    .eq('agency_id', agencyId);
 }

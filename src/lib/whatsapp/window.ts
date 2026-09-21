@@ -73,7 +73,7 @@ export function checkPreflight(opts: PreflightOpts): PreflightResult {
   }
   // Ruhezeiten binden automatisierte Sends; manueller UI-Versand durch Recruiter ist ausgenommen
   if (!opts.isHumanUiSend && isQuietHours(opts.timezone)) {
-    return { ok: false, reason: 'Ruhezeit (08:00–20:00 Mo–Sa) — automatischer Versand gesperrt' };
+    return { ok: false, reason: 'Ruhezeit (20:00–08:00 Mo–Sa, So ganztägig) — automatischer Versand gesperrt' };
   }
   return { ok: true };
 }

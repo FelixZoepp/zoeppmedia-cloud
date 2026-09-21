@@ -28,7 +28,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Keine Agentur — bitte zuerst impersonieren' }, { status: 403 });
   }
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
+  }
   const parsed = ManualSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Validierungsfehler: wabaId, phoneNumberId und accessToken erforderlich' }, { status: 400 });
