@@ -16,6 +16,7 @@ export interface DsgvoExport {
   answers: Array<Record<string, unknown>>;
   messages: Array<Record<string, unknown>>;
   notes: Array<Record<string, unknown>>;
+  recordings: Array<Record<string, unknown>>;
 }
 
 /**
@@ -87,6 +88,15 @@ export async function buildDsgvoExport(
 
   const noteRows = (notes ?? []) as Array<Record<string, unknown>>;
 
+  // 7. Call Recordings — agency-gescoped
+  const { data: recordings } = await svc
+    .from('call_recordings')
+    .select('id, recording_type, file_name, duration_seconds, transcript, created_at')
+    .eq('agency_id', agencyId)
+    .eq('candidate_id', candidateId);
+
+  const recordingRows = (recordings ?? []) as Array<Record<string, unknown>>;
+
   return {
     exportedAt: new Date().toISOString(),
     candidate: candidateRow,
@@ -101,6 +111,7 @@ export async function buildDsgvoExport(
     answers: answerRows,
     messages: messageRows,
     notes: noteRows,
+    recordings: recordingRows,
   };
 }
 
@@ -291,6 +302,20 @@ export async function renderDsgvoPdf(data: DsgvoExport): Promise<Uint8Array> {
     for (const note of data.notes) {
       drawLine('Text', safeStr(note.text));
       if (note.created_at) drawLine('Erstellt', safeStr(note.created_at));
+      y -= 4;
+    }
+  }
+
+  // --- Gesprächsaufnahmen ---
+  drawSectionHeader(`Gesprächsaufnahmen (${data.recordings.length})`);
+  if (data.recordings.length === 0) {
+    drawText('Keine Gesprächsaufnahmen vorhanden.');
+  } else {
+    for (const rec of data.recordings) {
+      drawLine('Typ', safeStr(rec.recording_type));
+      drawLine('Dateiname', safeStr(rec.file_name));
+      drawLine('Erstellt', safeStr(rec.created_at));
+      if (rec.transcript) drawLine('Transkript', safeStr(rec.transcript));
       y -= 4;
     }
   }

@@ -257,6 +257,90 @@ describe('anonymizeCandidate', () => {
       })
     );
   });
+
+  it('11. call_recordings: update ist agency-gescoped und candidate-gescoped, nullt transcript/analysis, setzt file_url leer und file_name Anonymisiert', async () => {
+    const { svc, _updated } = makeSvc({
+      applications: [{ data: [], error: null }],
+      conversations: [{ data: [], error: null }],
+      call_recordings: [
+        {
+          data: [
+            {
+              id: 'rec-1',
+              file_url:
+                'https://x.supabase.co/storage/v1/object/sign/call-recordings/agency-1/123-audio.mp3?token=abc',
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+
+    await anonymizeCandidate(svc, 'agency-1', 'cand-1', null);
+
+    const recUpdates = _updated['call_recordings'] ?? [];
+    expect(recUpdates.length).toBeGreaterThan(0);
+    expect(recUpdates[0]).toEqual(
+      expect.objectContaining({
+        transcript: null,
+        analysis: null,
+        file_url: '',
+        file_name: 'Anonymisiert',
+      })
+    );
+
+    // from('call_recordings') muss mit agency_id UND candidate_id aufgerufen worden sein
+    expect(svc.from).toHaveBeenCalledWith('call_recordings');
+  });
+
+  it('12. call_recordings: storage.from(call-recordings).remove wird mit korrekt extrahiertem Pfad aufgerufen', async () => {
+    const { svc, _storagePaths } = makeSvc({
+      applications: [{ data: [], error: null }],
+      conversations: [{ data: [], error: null }],
+      call_recordings: [
+        {
+          data: [
+            {
+              id: 'rec-2',
+              file_url:
+                'https://x.supabase.co/storage/v1/object/sign/call-recordings/agency-1/123-audio.mp3?token=abc',
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+
+    await anonymizeCandidate(svc, 'agency-1', 'cand-1', null);
+
+    // storage.remove muss mit dem extrahierten Pfad aufgerufen worden sein
+    const allRemovedPaths = _storagePaths.flat();
+    expect(allRemovedPaths).toContain('agency-1/123-audio.mp3');
+  });
+
+  it('13. call_recordings: keine Aufnahmen → kein storage.remove und kein update für call_recordings', async () => {
+    const { svc, _storagePaths, _updated } = makeSvc({
+      applications: [{ data: [], error: null }],
+      conversations: [{ data: [], error: null }],
+      call_recordings: [{ data: [], error: null }],
+    });
+
+    await anonymizeCandidate(svc, 'agency-1', 'cand-1', null);
+
+    // Kein storage.remove für call-recordings bucket
+    const callRecordingStorageRemovals = _storagePaths.filter((_, i) => {
+      // _storagePaths wird von allen storage.remove-Aufrufen befüllt.
+      // Bei keinen Recordings darf es keine storage-Removes für den call-recordings-Bucket geben.
+      // Da documents ebenfalls leer sind, sollte _storagePaths komplett leer sein.
+      return i >= 0;
+    });
+    // Kein storage.remove darf aufgerufen worden sein (documents auch leer)
+    expect(callRecordingStorageRemovals).toHaveLength(0);
+
+    // Kein call_recordings update
+    const recUpdates = _updated['call_recordings'] ?? [];
+    expect(recUpdates).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

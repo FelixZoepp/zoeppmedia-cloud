@@ -92,7 +92,7 @@ describe('buildDsgvoExport', () => {
     expect(result).toBeNull();
   });
 
-  it('2. Vollständiger Export: Stammdaten, applications, answers, messages, notes', async () => {
+  it('2. Vollständiger Export: Stammdaten, applications, answers, messages, notes, recordings', async () => {
     const candidate = {
       id: 'cand-1',
       agency_id: 'agency-1',
@@ -109,6 +109,7 @@ describe('buildDsgvoExport', () => {
     const conversations = [{ id: 'conv-1', agency_id: 'agency-1', candidate_id: 'cand-1' }];
     const messages = [{ id: 'msg-1', agency_id: 'agency-1', conversation_id: 'conv-1', direction: 'inbound', created_at: '2026-01-03T00:00:00Z', body: 'Hallo' }];
     const notes = [{ id: 'note-1', candidate_id: 'cand-1', text: 'Notiz' }];
+    const recordings = [{ id: 'rec-1', agency_id: 'agency-1', candidate_id: 'cand-1', recording_type: 'erstgespraech', file_name: 'call.mp3', duration_seconds: 120, transcript: 'Hallo Welt', created_at: '2026-01-04T00:00:00Z' }];
 
     const { svc } = makeSvc({
       candidates: [{ data: candidate, error: null }],
@@ -117,6 +118,7 @@ describe('buildDsgvoExport', () => {
       conversations: [{ data: conversations, error: null }],
       messages: [{ data: messages, error: null }],
       notes: [{ data: notes, error: null }],
+      call_recordings: [{ data: recordings, error: null }],
     });
 
     const result = await buildDsgvoExport(svc, 'agency-1', 'cand-1');
@@ -127,6 +129,8 @@ describe('buildDsgvoExport', () => {
     expect(result!.answers).toHaveLength(1);
     expect(result!.messages).toHaveLength(1);
     expect(result!.notes).toHaveLength(1);
+    expect(result!.recordings).toHaveLength(1);
+    expect(result!.recordings[0]).toMatchObject({ recording_type: 'erstgespraech', file_name: 'call.mp3' });
     expect(typeof result!.exportedAt).toBe('string');
   });
 
@@ -148,6 +152,7 @@ describe('buildDsgvoExport', () => {
       applications: [{ data: [], error: null }],
       conversations: [{ data: [], error: null }],
       notes: [{ data: [], error: null }],
+      call_recordings: [{ data: [], error: null }],
     });
 
     const result = await buildDsgvoExport(svc, 'agency-1', 'cand-2');
@@ -172,6 +177,7 @@ describe('buildDsgvoExport', () => {
       applications: [{ data: [], error: null }],
       conversations: [{ data: [], error: null }],
       notes: [{ data: [], error: null }],
+      call_recordings: [{ data: [], error: null }],
     });
 
     await buildDsgvoExport(svc, 'agency-1', 'cand-3');
@@ -195,6 +201,11 @@ describe('buildDsgvoExport', () => {
     // (kein Dummy-Query mehr) — kein Dummy-Query in Produktion
     const msgCalls = _callLog.filter((c) => c.table === 'messages');
     expect(msgCalls).toHaveLength(0);
+
+    // call_recordings-Tabelle muss eq mit 'agency_id' aufgerufen haben
+    const recCalls = _callLog.filter((c) => c.table === 'call_recordings');
+    const recAgencyEq = recCalls.find((c) => c.method === 'eq' && c.arg === 'agency_id');
+    expect(recAgencyEq).toBeDefined();
   });
 
   it('4b. Agency-Scoping: conversations- UND messages-Query tragen eq(agency_id) bei vorhandenen Conversations', async () => {
@@ -208,6 +219,7 @@ describe('buildDsgvoExport', () => {
       conversations: [{ data: conversations, error: null }],
       messages: [{ data: messages, error: null }],
       notes: [{ data: [], error: null }],
+      call_recordings: [{ data: [], error: null }],
     });
 
     await buildDsgvoExport(svc, 'agency-1', 'cand-4b');
@@ -236,6 +248,7 @@ describe('renderDsgvoPdf', () => {
       answers: [{ id: 'ans-1', answer_raw: 'Antwort' }],
       messages: [{ direction: 'inbound', created_at: '2026-01-03T00:00:00Z', body: 'Hallo Welt' }],
       notes: [{ text: 'Notiz' }],
+      recordings: [{ id: 'rec-1', recording_type: 'erstgespraech', file_name: 'call.mp3', created_at: '2026-01-04T00:00:00Z', transcript: 'Hallo' }],
     };
 
     const pdfBytes = await renderDsgvoPdf(exportData);
@@ -260,6 +273,7 @@ describe('renderDsgvoPdf', () => {
         { direction: 'outbound', created_at: '2026-01-02T00:00:00Z', body: 'Hallo Ö-straße' },
       ],
       notes: [],
+      recordings: [],
     };
 
     // Darf keinen Fehler werfen

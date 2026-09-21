@@ -2,6 +2,26 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { logAudit } from '@/lib/audit/log';
 
+/**
+ * Extracts the storage path from a Supabase signed URL for the call-recordings bucket.
+ * Signed URLs look like: https://x.supabase.co/storage/v1/object/sign/call-recordings/<path>?token=...
+ * Returns the decoded path (e.g. "agency-1/1234-audio.mp3") or null if unparseable.
+ */
+function extractRecordingPath(fileUrl: string): string | null {
+  try {
+    const marker = '/call-recordings/';
+    const idx = fileUrl.indexOf(marker);
+    if (idx === -1) return null;
+    const withQuery = fileUrl.slice(idx + marker.length);
+    const qIdx = withQuery.indexOf('?');
+    const raw = qIdx === -1 ? withQuery : withQuery.slice(0, qIdx);
+    const decoded = decodeURIComponent(raw);
+    return decoded || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function anonymizeCandidate(
   svc: SupabaseClient,
   agencyId: string,
@@ -51,6 +71,26 @@ export async function anonymizeCandidate(
       .update({ body: null, media_path: null })
       .eq('agency_id', agencyId)
       .in('conversation_id', convIds);
+  }
+
+  const { data: recordings } = await svc
+    .from('call_recordings')
+    .select('id, file_url')
+    .eq('agency_id', agencyId)
+    .eq('candidate_id', candidateId);
+  const recordingRows = (recordings ?? []) as Array<{ id: string; file_url: string }>;
+  const recordingPaths = recordingRows
+    .map((r) => extractRecordingPath(r.file_url))
+    .filter((p): p is string => p !== null);
+  if (recordingPaths.length > 0) {
+    await svc.storage.from('call-recordings').remove(recordingPaths);
+  }
+  if (recordingRows.length > 0) {
+    await svc
+      .from('call_recordings')
+      .update({ transcript: null, analysis: null, file_url: '', file_name: 'Anonymisiert' })
+      .eq('agency_id', agencyId)
+      .eq('candidate_id', candidateId);
   }
 
   await svc.from('notes').update({ text: 'Anonymisiert (DSGVO)' }).eq('candidate_id', candidateId);
