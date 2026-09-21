@@ -8,8 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
-import { ArrowLeft, Play, Pause, X, Save, Files } from 'lucide-react';
+import { ArrowLeft, Play, Pause, X, Save, Files, Bot } from 'lucide-react';
 import { toast } from 'sonner';
+import { BotConfigForm } from '@/components/bot/bot-config-form';
+import { BotSimulator } from '@/components/bot/bot-simulator';
+
+type JobTab = 'details' | 'ki-bot';
 
 const EMPLOYMENT_TYPES = [
   { value: '', label: 'Bitte waehlen' },
@@ -46,6 +50,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<JobDetailData>>({});
+  const [activeTab, setActiveTab] = useState<JobTab>('details');
 
   useEffect(() => {
     fetch(`/api/jobs/${jobId}`)
@@ -172,6 +177,47 @@ export function JobDetail({ jobId }: { jobId: string }) {
         }
       />
 
+      {/* Tab-Navigation */}
+      <div className="flex gap-1 mb-6 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('details')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'details'
+              ? 'border-red-500 text-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Details
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('ki-bot')}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'ki-bot'
+              ? 'border-red-500 text-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          KI-Bot
+        </button>
+      </div>
+
+      {/* Tab: KI-Bot */}
+      {activeTab === 'ki-bot' && (
+        <div className="grid grid-cols-3 gap-6">
+          <div className="col-span-2">
+            <BotConfigForm jobId={jobId} />
+          </div>
+          <div>
+            <BotSimulator jobId={jobId} />
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Details */}
+      {activeTab === 'details' && (
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-6">
           <Card className="p-6">
@@ -289,6 +335,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }
