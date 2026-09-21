@@ -24,6 +24,12 @@ import {
   processFollowupCheck,
   processNoShowFollowup,
 } from '@/lib/workers/appointment-reminders';
+import {
+  processSlaRecruiter24h,
+  processSlaRecruiter48h,
+  processWindowExpiry,
+  processDocumentsRequest,
+} from '@/lib/workers/sla-reminders';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
 export const maxDuration = 60;
@@ -175,6 +181,18 @@ export async function GET(request: NextRequest) {
           break;
         case 'appointment.no_show_followup':
           await processNoShowFollowup(svc, job.agency_id, payload as { appointment_id: string });
+          break;
+        case 'sla.recruiter_24h':
+          await processSlaRecruiter24h(svc, job.agency_id, payload as { application_id: string });
+          break;
+        case 'sla.recruiter_48h':
+          await processSlaRecruiter48h(svc, job.agency_id, payload as { application_id: string });
+          break;
+        case 'window.expiry':
+          await processWindowExpiry(svc, job.agency_id, payload as { conversation_id: string });
+          break;
+        case 'documents.request':
+          await processDocumentsRequest(svc, job.agency_id, payload as { application_id: string; stage_id: string });
           break;
         default:
           break;
