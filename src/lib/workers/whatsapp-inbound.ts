@@ -107,6 +107,26 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   // C3: unread_count atomar via DB-Funktion inkrementieren — mit agency_id-Scoping
   await svc.rpc('increment_unread', { p_conversation_id: conversationId, p_agency_id: effectiveAgencyId });
 
+  // Fenster-Ablauf-Warnung planen (2h vor Ablauf, best effort).
+  // Dedupe-Key enthält den Fenster-Zeitstempel: jede eingehende Nachricht verlängert das
+  // Fenster und erzeugt einen neuen Job; veraltete Jobs sind No-Ops, weil processWindowExpiry
+  // window_expires_at erneut prüft (> now+2h → return).
+  const warnAt = new Date(new Date(windowExpires).getTime() - 2 * 60 * 60 * 1000).toISOString();
+  const { error: winexpError } = await svc
+    .from('scheduled_jobs')
+    .upsert(
+      {
+        agency_id: effectiveAgencyId,
+        run_at: warnAt,
+        type: 'window.expiry',
+        payload: { conversation_id: conversationId },
+        status: 'pending',
+        dedupe_key: `winexp:${conversationId}:${windowExpires}`,
+      },
+      { onConflict: 'dedupe_key', ignoreDuplicates: true }
+    );
+  if (winexpError) console.error('window.expiry-Planung fehlgeschlagen', winexpError);
+
   // 4. Message speichern
   const bodyText = msg.text?.body
     || msg.image?.caption || (msg.type === 'image' ? '[Bild]' : '')

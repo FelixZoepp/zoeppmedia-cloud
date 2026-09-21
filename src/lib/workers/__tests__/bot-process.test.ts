@@ -49,6 +49,10 @@ vi.mock('@/lib/bot/handover', () => ({
   handoverToHuman: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/workers/sla-reminders', () => ({
+  scheduleStageReminders: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('@/lib/appointments/lifecycle', () => ({
   createProposedAppointment: vi.fn().mockResolvedValue({
     appointmentId: 'appt-auto-1',
@@ -627,6 +631,38 @@ describe('processBotTurn', () => {
       }
     }
     expect(foundWaiting).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 9b: Abschluss mit Score A → scheduleStageReminders für qualified-Stage
+  // -------------------------------------------------------------------------
+  it('9b. Abschluss mit Score A → scheduleStageReminders mit qualified-Stage aufgerufen', async () => {
+    const existingAnswers = [{ question_key: 'fuehrerschein', answer_normalized: { value: true, confidence: 0.9 }, origin: 'bot' }];
+    const { svc, enqueue } = makeHappySvc({ answers: existingAnswers });
+    enqueue('pipeline_stages', {
+      data: { id: 'stage-qualified', stage_type: 'qualified', requires_documents: false },
+      error: null,
+    });
+
+    const { llmJsonCall } = await import('@/lib/ai/llm-client');
+    (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...stdDialogOutput,
+      answers: [{ question_key: 'fuehrerschein', value: true, confidence: 0.9, evidence: 'ja' }],
+    });
+    const { computeScore } = await import('@/lib/bot/scoring');
+    (computeScore as ReturnType<typeof vi.fn>).mockReturnValue({ score: 85, label: 'A', knockout: false, reasons: [] });
+
+    const { scheduleStageReminders } = await import('@/lib/workers/sla-reminders');
+    await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 1);
+
+    expect(scheduleStageReminders).toHaveBeenCalledWith(
+      expect.anything(),
+      AGENCY_ID,
+      APP_ID,
+      'stage-qualified',
+      'qualified',
+      false,
+    );
   });
 
   // -------------------------------------------------------------------------

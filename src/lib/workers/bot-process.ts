@@ -452,7 +452,7 @@ export async function processBotTurn(
     if (scoreResult.label === 'A' || scoreResult.label === 'B') {
       const { data: qualifiedStage } = await svc
         .from('pipeline_stages')
-        .select('id')
+        .select('id, stage_type, requires_documents')
         .eq('agency_id', agencyId)
         .eq('stage_type', 'qualified')
         .maybeSingle();
@@ -463,6 +463,17 @@ export async function processBotTurn(
           .update({ stage_id: qualifiedStage.id, updated_at: new Date().toISOString() })
           .eq('id', conv.application_id)
           .eq('agency_id', agencyId);
+
+        // SLA- und Dokumente-Reminder planen (best effort)
+        const { scheduleStageReminders } = await import('@/lib/workers/sla-reminders');
+        await scheduleStageReminders(
+          svc,
+          agencyId,
+          conv.application_id,
+          qualifiedStage.id,
+          qualifiedStage.stage_type,
+          qualifiedStage.requires_documents ?? false,
+        ).catch((e) => console.error('scheduleStageReminders fehlgeschlagen', e));
       }
     } else {
       // Label C: manuelle Prüfung notwendig

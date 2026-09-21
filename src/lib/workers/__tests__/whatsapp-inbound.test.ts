@@ -28,6 +28,7 @@ vi.mock('@/lib/automations/fire', () => ({
 
 function makeSvc(overrides: Record<string, unknown> = {}) {
   const fromMock = vi.fn();
+  const upsertCalls: { table: string; row: Record<string, unknown>; options?: Record<string, unknown> }[] = [];
 
   // Default table responses
   const tableResponses: Record<string, unknown> = {
@@ -64,6 +65,17 @@ function makeSvc(overrides: Record<string, unknown> = {}) {
       (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
     }
 
+    // upsert-Aufrufe je Tabelle aufzeichnen (für window.expiry-Assertion)
+    const origUpsert = chain.upsert as (...a: unknown[]) => unknown;
+    chain.upsert = vi.fn((...args: unknown[]) => {
+      upsertCalls.push({
+        table,
+        row: args[0] as Record<string, unknown>,
+        options: args[1] as Record<string, unknown> | undefined,
+      });
+      return origUpsert(...args);
+    });
+
     // insert().select().single() for other tables
     const insertChain: Record<string, unknown> = {};
     const insertMethods = ['select', 'eq', 'single', 'insert', 'update', 'upsert'];
@@ -79,7 +91,7 @@ function makeSvc(overrides: Record<string, unknown> = {}) {
   // rpc: increment_unread resolves void
   const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
 
-  return { from: fromMock, rpc: rpcMock } as unknown as Parameters<typeof processInbound>[0];
+  return { from: fromMock, rpc: rpcMock, _upsertCalls: upsertCalls } as unknown as Parameters<typeof processInbound>[0];
 }
 
 const basePayload = {
@@ -245,6 +257,21 @@ describe('processInbound', () => {
     const insertCalls = ((svc.from as ReturnType<typeof vi.fn>).mock.calls as unknown[][])
       .filter((args) => args[0] === 'scheduled_jobs');
     expect(insertCalls.length).toBeGreaterThan(0);
+  });
+
+  it('plant window.expiry-Job mit winexp-Dedupe-Key bei eingehender Nachricht', async () => {
+    const svc = makeSvc();
+    await processInbound(svc, 'agency-1', basePayload);
+    const upserts = (svc as unknown as {
+      _upsertCalls: { table: string; row: Record<string, unknown>; options?: Record<string, unknown> }[];
+    })._upsertCalls;
+    const winexp = upserts.find(
+      (u) => u.table === 'scheduled_jobs' && (u.row as { type?: string }).type === 'window.expiry'
+    );
+    expect(winexp).toBeDefined();
+    expect(String(winexp!.row.dedupe_key)).toMatch(/^winexp:conv-1:/);
+    expect(winexp!.row.agency_id).toBe('agency-1');
+    expect(winexp!.options).toEqual({ onConflict: 'dedupe_key', ignoreDuplicates: true });
   });
 
   it('Abmeldebestätigung enthält echte Umlaute', async () => {

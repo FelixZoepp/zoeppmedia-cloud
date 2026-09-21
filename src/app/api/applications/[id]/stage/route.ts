@@ -4,6 +4,7 @@ import { canWriteRole } from '@/lib/recruiting/scope';
 import { logActivity } from '@/lib/activity/log';
 import { logAudit } from '@/lib/audit/log';
 import { fireEvent } from '@/lib/automations/fire';
+import { scheduleStageReminders } from '@/lib/workers/sla-reminders';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PATCH(
@@ -36,7 +37,7 @@ export async function PATCH(
 
   const { data: newStage } = await supabase
     .from('pipeline_stages')
-    .select('id, stage_type, name')
+    .select('id, stage_type, name, requires_documents')
     .eq('id', stage_id)
     .eq('agency_id', agencyId)
     .single();
@@ -65,6 +66,10 @@ export async function PATCH(
     .eq('agency_id', agencyId);
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+
+  // SLA- und Dokumente-Reminder planen (best effort)
+  scheduleStageReminders(supabase, agencyId, id, stage_id, newStage.stage_type, newStage.requires_documents ?? false)
+    .catch((e) => console.error('scheduleStageReminders fehlgeschlagen', e));
 
   // candidate_stages (Bestandskompatibilitaet R5)
   await supabase.from('candidate_stages').insert({
