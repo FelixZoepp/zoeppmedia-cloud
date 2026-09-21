@@ -133,11 +133,16 @@ function evaluateCondition(fieldValue: unknown, operator: string, conditionValue
 
 // --- Action execution ---
 
+interface ActionDetail {
+  status?: 'success' | 'skipped';
+  response_status?: number;
+}
+
 async function executeAction(
   supabase: SupabaseClient,
   action: Action,
   context: AutomationContext
-): Promise<void> {
+): Promise<ActionDetail | void> {
   switch (action.type) {
     case 'send_notification':
       await executeSendNotification(supabase, action.params, context);
@@ -164,8 +169,7 @@ async function executeAction(
       await executeSendTemplate(supabase, action.params, context);
       break;
     case 'send_message':
-      await executeSendMessage(supabase, action.params, context);
-      break;
+      return await executeSendMessage(supabase, action.params, context);
     case 'start_bot':
       await executeStartBot(supabase, action.params, context);
       break;
@@ -176,8 +180,7 @@ async function executeAction(
       await executeScheduleJob(supabase, action.params, context);
       break;
     case 'call_webhook':
-      await executeCallWebhook(supabase, action.params, context);
-      break;
+      return await executeCallWebhook(supabase, action.params, context);
     case 'add_note':
       await executeAddNote(supabase, action.params, context);
       break;
@@ -350,9 +353,35 @@ async function executeCallWebhook(
   _svc: SupabaseClient,
   params: Record<string, unknown>,
   ctx: AutomationContext,
-): Promise<void> {
+): Promise<ActionDetail> {
   const url = params.url as string;
-  if (!url) return;
+  if (!url) return {};
+
+  // SSRF-Schutz: URL parsen und unzulässige Ziele ablehnen
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error('Ungültige Webhook-URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Ungültige Webhook-URL');
+  }
+  const h = parsed.hostname;
+  if (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === '::1' ||
+    h === '[::1]' ||
+    h === '0.0.0.0' ||
+    h === '169.254.169.254' ||
+    h.startsWith('10.') ||
+    h.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+  ) {
+    throw new Error('Ungültige Webhook-URL');
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
@@ -371,6 +400,7 @@ async function executeCallWebhook(
     if (!res.ok) {
       throw new Error(`Webhook fehlgeschlagen: HTTP ${res.status}`);
     }
+    return { response_status: res.status };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -444,10 +474,10 @@ async function executeSendMessage(
   svc: SupabaseClient,
   params: Record<string, unknown>,
   ctx: AutomationContext,
-): Promise<void> {
-  if (!ctx.conversation_id || !ctx.candidate_id) return;
+): Promise<ActionDetail> {
+  if (!ctx.conversation_id || !ctx.candidate_id) return {};
   const body = resolveTemplate(String(params.body ?? ''), ctx);
-  if (!body) return;
+  if (!body) return {};
 
   const { data: conv } = await svc
     .from('conversations')
@@ -455,7 +485,7 @@ async function executeSendMessage(
     .eq('id', ctx.conversation_id)
     .eq('agency_id', ctx.agency_id)
     .single();
-  if (!conv) return;
+  if (!conv) return {};
   const convRow = conv as Record<string, unknown>;
 
   const { data: candidate } = await svc
@@ -464,7 +494,7 @@ async function executeSendMessage(
     .eq('id', ctx.candidate_id)
     .eq('agency_id', ctx.agency_id)
     .single();
-  if (!(candidate as Record<string, unknown> | null)?.phone_e164) return;
+  if (!(candidate as Record<string, unknown> | null)?.phone_e164) return {};
   const cand = candidate as Record<string, unknown>;
 
   const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
@@ -477,8 +507,10 @@ async function executeSendMessage(
       payload: { to: cand.phone_e164 as string, type: 'text', text: { body } },
       senderType: 'system',
     });
+    return {};
   } catch {
     // Fenster geschlossen oder anderer temporärer Fehler → überspringen
+    return { status: 'skipped' };
   }
 }
 
@@ -610,14 +642,21 @@ async function runSingleAutomation(
   }
 
   // Execute actions
-  const executedActions: { type: string; status: string; error?: string }[] = [];
+  const executedActions: { type: string; status: string; error?: string; response_status?: number }[] = [];
   let overallStatus: 'success' | 'failed' = 'success';
   let overallError: string | undefined;
 
   for (const action of automation.actions) {
     try {
-      await executeAction(supabase, action, context);
-      executedActions.push({ type: action.type, status: 'success' });
+      const detail = await executeAction(supabase, action, context);
+      const entry: { type: string; status: string; response_status?: number } = {
+        type: action.type,
+        status: (detail as ActionDetail | undefined)?.status ?? 'success',
+      };
+      if ((detail as ActionDetail | undefined)?.response_status !== undefined) {
+        entry.response_status = (detail as ActionDetail).response_status;
+      }
+      executedActions.push(entry);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       executedActions.push({ type: action.type, status: 'failed', error: errorMessage });

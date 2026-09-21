@@ -211,7 +211,84 @@ describe('Automations v2 — neue Aktionen', () => {
       }),
     );
 
+    // Fix 2b: automation_runs muss response_status enthalten
+    const runs = (svc as ReturnType<typeof buildMockSvc>)._inserted['automation_runs'];
+    expect(runs).toBeDefined();
+    expect(runs?.[0]).toMatchObject({
+      status: 'success',
+    });
+    const actionsExecuted = (runs?.[0] as Record<string, unknown>)?.actions_executed as Array<Record<string, unknown>>;
+    expect(actionsExecuted).toBeDefined();
+    const webhookEntry = actionsExecuted?.find((a) => a.type === 'call_webhook');
+    expect(webhookEntry).toBeDefined();
+    expect(webhookEntry?.response_status).toBe(200);
+
     vi.unstubAllGlobals();
+  });
+
+  it('call_webhook SSRF-Schutz: interne IP wird abgelehnt', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const svc = makeSvcForAction('call_webhook', { url: 'http://169.254.169.254/x' }, undefined);
+
+    await fireAutomations(svc, {
+      trigger_event: 'application.created',
+      agency_id: 'ag-1',
+    });
+
+    // fetch darf nicht aufgerufen werden
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // Der Run soll als failed geloggt sein
+    const runs = (svc as ReturnType<typeof buildMockSvc>)._inserted['automation_runs'];
+    expect(runs?.[0]).toMatchObject({ status: 'failed' });
+    const actionsExecuted = (runs?.[0] as Record<string, unknown>)?.actions_executed as Array<Record<string, unknown>>;
+    const webhookEntry = actionsExecuted?.find((a) => a.type === 'call_webhook');
+    expect(webhookEntry?.status).toBe('failed');
+    expect(String(webhookEntry?.error)).toContain('Ungültige Webhook-URL');
+
+    vi.unstubAllGlobals();
+  });
+
+  it('start_bot legt scheduled_job mit dedupe_key an', async () => {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+
+    // Wir brauchen einen verfolgbaren Admin-Svc
+    const adminSvc = buildMockSvc({});
+    const adminInserted: Record<string, unknown[]> = {};
+    const adminUpsertCalls: Array<{ data: unknown; opts: unknown }> = [];
+    (adminSvc.from as ReturnType<typeof vi.fn>).mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      const methods = ['select', 'eq', 'insert', 'update', 'upsert', 'delete', 'or', 'single', 'maybeSingle'];
+      for (const m of methods) chain[m] = vi.fn(() => chain);
+      (chain.upsert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown, opts: unknown) => {
+        if (!adminInserted[table]) adminInserted[table] = [];
+        adminInserted[table].push(data);
+        adminUpsertCalls.push({ data, opts });
+        return Promise.resolve({ data: [data], error: null });
+      });
+      return chain;
+    });
+    vi.mocked(createAdminClient).mockReturnValue(adminSvc);
+
+    const applicationId = 'app-bot-1';
+    const svc = makeSvcForAction('start_bot', {}, applicationId);
+
+    await fireAutomations(svc, {
+      trigger_event: 'application.created',
+      agency_id: 'ag-1',
+      application_id: applicationId,
+    });
+
+    // scheduled_jobs upsert muss aufgerufen worden sein
+    expect(adminUpsertCalls.length).toBeGreaterThan(0);
+    const call = adminUpsertCalls[0];
+    expect((call.data as Record<string, unknown>).dedupe_key).toBe(`bot.open:${applicationId}`);
+    expect(call.opts).toMatchObject({ onConflict: 'dedupe_key', ignoreDuplicates: true });
+
+    // Admin-Client-Mock zurücksetzen
+    vi.mocked(createAdminClient).mockReturnValue(buildMockSvc({}));
   });
 
   it('send_template sendet WhatsApp-Template über sendWhatsAppMessage', async () => {
@@ -250,6 +327,15 @@ describe('Automations v2 — neue Aktionen', () => {
 
     // run wurde trotzdem geloggt
     expect(svc.from).toHaveBeenCalledWith('automation_runs');
+
+    // Fix 3: actions_executed-Eintrag für send_message muss status 'skipped' haben
+    const _inserted = (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted;
+    const runs = _inserted['automation_runs'];
+    expect(runs).toBeDefined();
+    const actionsExecuted = (runs?.[0] as Record<string, unknown>)?.actions_executed as Array<Record<string, unknown>>;
+    const msgEntry = actionsExecuted?.find((a) => a.type === 'send_message');
+    expect(msgEntry).toBeDefined();
+    expect(msgEntry?.status).toBe('skipped');
   });
 });
 

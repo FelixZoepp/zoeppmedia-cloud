@@ -27,6 +27,7 @@ export async function fireEvent(
       .from('candidates')
       .select('*')
       .eq('id', data.candidate_id)
+      .eq('agency_id', agency_id)
       .single();
     candidate = c ?? undefined;
   }
