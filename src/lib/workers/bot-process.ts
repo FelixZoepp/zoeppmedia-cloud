@@ -529,6 +529,90 @@ export async function processBotTurn(
       metadata: { score: scoreResult.score, label: scoreResult.label },
     });
 
+    // Phase 4 P4-R2: Bei A/B automatisch Termineinladung
+    if (scoreResult.label === 'A' || scoreResult.label === 'B') {
+      try {
+        const { createProposedAppointment } = await import('@/lib/appointments/lifecycle');
+
+        // Job-Daten für Terminart
+        const jobType = (job as { appointment_type?: string })?.appointment_type ?? 'call';
+        const jobLocation = (job as { appointment_location?: string })?.appointment_location ?? null;
+
+        const { appointmentId, bookingToken } = await createProposedAppointment(svc, {
+          agencyId,
+          applicationId: conv.application_id,
+          type: jobType as 'call' | 'video' | 'onsite',
+          location: jobLocation,
+        });
+
+        // Buchungslink zusammenbauen
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
+        const buchungslink = `${baseUrl}/book/${bookingToken}`;
+
+        // appointment_invite-Template senden
+        const { data: inviteTmpl } = await svc.from('whatsapp_templates')
+          .select('id, name')
+          .eq('wa_account_id', conv.wa_account_id)
+          .eq('preset_key', 'appointment_invite')
+          .eq('status', 'approved')
+          .eq('agency_id', agencyId)
+          .maybeSingle();
+
+        if (inviteTmpl && candidate.phone_e164) {
+          const vorname = (candidate.name || '').split(' ')[0];
+          const jobTitle = (job as { title: string })?.title ?? '';
+
+          await sendWhatsAppMessage(svc, {
+            agencyId,
+            conversationId,
+            candidatePhone: candidate.phone_e164,
+            waAccountId: conv.wa_account_id,
+            payload: {
+              to: candidate.phone_e164,
+              type: 'template',
+              template: {
+                name: inviteTmpl.name,
+                language: { code: 'de' },
+                components: [{
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: vorname },
+                    { type: 'text', text: jobTitle },
+                    { type: 'text', text: buchungslink },
+                  ],
+                }],
+              },
+            },
+            senderType: 'system',
+            templateId: inviteTmpl.id,
+          }).catch(() => {});
+        }
+
+        // invite_followup +24h
+        await svc.from('scheduled_jobs').upsert({
+          agency_id: agencyId,
+          run_at: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
+          type: 'appointment.invite_followup',
+          payload: { appointment_id: appointmentId },
+          status: 'pending',
+          dedupe_key: `appt.invite_followup:${appointmentId}`,
+        }, { onConflict: 'dedupe_key', ignoreDuplicates: true });
+      } catch {
+        // Termineinladung ist best effort — Bot-Abschluss bleibt intakt
+      }
+    }
+
+    // fireEvent bot.completed
+    const { fireEvent } = await import('@/lib/automations/fire');
+    await fireEvent('bot.completed', agencyId, {
+      candidate_id: conv.candidate_id,
+      extra: {
+        application_id: conv.application_id,
+        score: scoreResult.score,
+        label: scoreResult.label,
+      },
+    }).catch(() => {});
+
     return;
   }
 

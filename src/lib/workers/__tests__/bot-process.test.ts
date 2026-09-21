@@ -49,6 +49,17 @@ vi.mock('@/lib/bot/handover', () => ({
   handoverToHuman: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/appointments/lifecycle', () => ({
+  createProposedAppointment: vi.fn().mockResolvedValue({
+    appointmentId: 'appt-auto-1',
+    bookingToken: 'tok-auto-1',
+  }),
+}));
+
+vi.mock('@/lib/automations/fire', () => ({
+  fireEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ---------------------------------------------------------------------------
 // Chain-Mock helper (from bot-open test style)
 // ---------------------------------------------------------------------------
@@ -827,5 +838,69 @@ describe('processBotTurn', () => {
       const updateArg = (call as unknown[])[0] as Record<string, unknown>;
       expect(updateArg?.state).not.toBeDefined();
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // Phase 4 Task 7: Bei Score A/B → Termineinladung senden
+  // -------------------------------------------------------------------------
+  it('Phase 4: Bei Score A/B wird createProposedAppointment aufgerufen und appointment_invite-Template gesendet', async () => {
+    // Setup: fuehrerschein bereits beantwortet (alle required beantwortet), Score A
+    const existingAnswers = [{ question_key: 'fuehrerschein', answer_normalized: { value: true, confidence: 0.9 }, origin: 'bot' }];
+    const { svc, enqueue } = makeHappySvc({ answers: existingAnswers });
+
+    // pipeline stage für qualified
+    enqueue('pipeline_stages', { data: { id: 'stage-qualified', stage_type: 'qualified' }, error: null });
+    // whatsapp_templates für appointment_invite
+    enqueue('whatsapp_templates', { data: { id: 'tmpl-invite', name: 'appointment_invite_de' }, error: null });
+
+    const { llmJsonCall } = await import('@/lib/ai/llm-client');
+    (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...stdDialogOutput,
+      answers: [{ question_key: 'fuehrerschein', value: true, confidence: 0.9, evidence: 'ja' }],
+    });
+
+    const { computeScore } = await import('@/lib/bot/scoring');
+    (computeScore as ReturnType<typeof vi.fn>).mockReturnValue({ score: 85, label: 'A', knockout: false, reasons: [] });
+
+    const { createProposedAppointment } = await import('@/lib/appointments/lifecycle');
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+    const { fireEvent } = await import('@/lib/automations/fire');
+
+    await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 0);
+
+    expect(createProposedAppointment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ agencyId: AGENCY_ID }),
+    );
+    // appointment_invite Template muss gesendet werden
+    expect(sendWhatsAppMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        senderType: 'system',
+      }),
+    );
+    // fireEvent bot.completed muss aufgerufen werden
+    expect(fireEvent).toHaveBeenCalledWith('bot.completed', AGENCY_ID, expect.anything());
+  });
+
+  it('Phase 4: Bei Score C wird KEIN Termin erstellt', async () => {
+    // Setup: fuehrerschein bereits beantwortet (alle required beantwortet), Score C
+    const existingAnswers = [{ question_key: 'fuehrerschein', answer_normalized: { value: false, confidence: 0.9 }, origin: 'bot' }];
+    const { svc } = makeHappySvc({ answers: existingAnswers });
+
+    const { llmJsonCall } = await import('@/lib/ai/llm-client');
+    (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...stdDialogOutput,
+      answers: [{ question_key: 'fuehrerschein', value: false, confidence: 0.9, evidence: 'nein' }],
+    });
+
+    const { computeScore } = await import('@/lib/bot/scoring');
+    (computeScore as ReturnType<typeof vi.fn>).mockReturnValue({ score: 20, label: 'C', knockout: false, reasons: [] });
+
+    const { createProposedAppointment } = await import('@/lib/appointments/lifecycle');
+
+    await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 0);
+
+    expect(createProposedAppointment).not.toHaveBeenCalled();
   });
 });

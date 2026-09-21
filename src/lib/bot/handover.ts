@@ -90,4 +90,11 @@ export async function handoverToHuman(
     action_type: 'bot_handover',
     metadata: { reason },
   });
+
+  // Phase 4 P4-R8: fireEvent für Automations
+  const { fireEvent } = await import('@/lib/automations/fire');
+  await fireEvent('bot.handover', agencyId, {
+    candidate_id: candidateId,
+    extra: { conversation_id: conversationId, reason },
+  }).catch(() => {});
 }
