@@ -15,6 +15,8 @@ export interface AutomationContext {
   candidate_id?: string;
   candidate?: Record<string, unknown>;
   data?: Record<string, unknown>;
+  application_id?: string;
+  conversation_id?: string;
 }
 
 interface Condition {
@@ -24,7 +26,21 @@ interface Condition {
 }
 
 interface Action {
-  type: 'send_notification' | 'change_stage' | 'create_task' | 'set_field' | 'log_activity';
+  type:
+    | 'send_notification'
+    | 'change_stage'
+    | 'create_task'
+    | 'set_field'
+    | 'log_activity'
+    | 'send_template'
+    | 'send_message'
+    | 'start_bot'
+    | 'set_stage_application'
+    | 'assign_application'
+    | 'send_email'
+    | 'schedule_job'
+    | 'call_webhook'
+    | 'add_note';
   params: Record<string, unknown>;
 }
 
@@ -91,6 +107,11 @@ function evaluateConditions(conditions: Condition[], context: AutomationContext)
   });
 }
 
+/** Exportiert für Unit-Tests. */
+export function evaluateConditionExported(fieldValue: unknown, operator: string, conditionValue: unknown): boolean {
+  return evaluateCondition(fieldValue, operator, conditionValue);
+}
+
 function evaluateCondition(fieldValue: unknown, operator: string, conditionValue: unknown): boolean {
   switch (operator) {
     case 'eq':
@@ -132,6 +153,33 @@ async function executeAction(
       break;
     case 'log_activity':
       await executeLogActivity(supabase, action.params, context);
+      break;
+    case 'set_stage_application':
+      await executeSetStageApplication(supabase, action.params, context);
+      break;
+    case 'assign_application':
+      await executeAssignApplication(supabase, action.params, context);
+      break;
+    case 'send_template':
+      await executeSendTemplate(supabase, action.params, context);
+      break;
+    case 'send_message':
+      await executeSendMessage(supabase, action.params, context);
+      break;
+    case 'start_bot':
+      await executeStartBot(supabase, action.params, context);
+      break;
+    case 'send_email':
+      await executeSendEmail(supabase, action.params, context);
+      break;
+    case 'schedule_job':
+      await executeScheduleJob(supabase, action.params, context);
+      break;
+    case 'call_webhook':
+      await executeCallWebhook(supabase, action.params, context);
+      break;
+    case 'add_note':
+      await executeAddNote(supabase, action.params, context);
       break;
     default:
       throw new Error(`Unknown action type: ${(action as Action).type}`);
@@ -250,6 +298,247 @@ async function executeLogActivity(
     action,
     action_type: actionType,
     metadata: { automated: true, trigger: context.trigger_event },
+  });
+}
+
+// --- Neue Action-Implementierungen (v2) ---
+
+async function executeSetStageApplication(
+  svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  const stageId = params.stage_id as string;
+  if (!stageId || !ctx.application_id) return;
+  await svc
+    .from('applications')
+    .update({ stage_id: stageId, updated_at: new Date().toISOString() })
+    .eq('id', ctx.application_id)
+    .eq('agency_id', ctx.agency_id);
+}
+
+async function executeAssignApplication(
+  svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  const userId = params.user_id as string;
+  if (!userId || !ctx.application_id) return;
+  await svc
+    .from('applications')
+    .update({ assigned_to: userId, updated_at: new Date().toISOString() })
+    .eq('id', ctx.application_id)
+    .eq('agency_id', ctx.agency_id);
+}
+
+async function executeAddNote(
+  svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  const body = resolveTemplate(String(params.body ?? ''), ctx);
+  if (!ctx.application_id) return;
+  await svc.from('notes').insert({
+    agency_id: ctx.agency_id,
+    application_id: ctx.application_id,
+    body,
+    user_id: null,
+  });
+}
+
+async function executeCallWebhook(
+  _svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  const url = params.url as string;
+  if (!url) return;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trigger: ctx.trigger_event,
+        agency_id: ctx.agency_id,
+        candidate_id: ctx.candidate_id,
+        application_id: ctx.application_id,
+        data: ctx.data,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`Webhook fehlgeschlagen: HTTP ${res.status}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function executeSendTemplate(
+  svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  if (!ctx.conversation_id || !ctx.candidate_id) return;
+  const presetKey = params.preset_key as string;
+  if (!presetKey) return;
+
+  const { data: conv } = await svc
+    .from('conversations')
+    .select('wa_account_id, candidate_id')
+    .eq('id', ctx.conversation_id)
+    .eq('agency_id', ctx.agency_id)
+    .single();
+  if (!conv) return;
+
+  const { data: candidate } = await svc
+    .from('candidates')
+    .select('name, phone_e164')
+    .eq('id', ctx.candidate_id)
+    .eq('agency_id', ctx.agency_id)
+    .single();
+  if (!(candidate as Record<string, unknown> | null)?.phone_e164) return;
+  const cand = candidate as Record<string, unknown>;
+  const convRow = conv as Record<string, unknown>;
+
+  const { data: tmpl } = await svc
+    .from('whatsapp_templates')
+    .select('id, name, variables')
+    .eq('wa_account_id', convRow.wa_account_id as string)
+    .eq('preset_key', presetKey)
+    .eq('status', 'approved')
+    .eq('agency_id', ctx.agency_id)
+    .maybeSingle();
+  if (!tmpl) return;
+  const tmplRow = tmpl as Record<string, unknown>;
+
+  const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+  const variables = (params.variables as string[]) ?? [];
+  await sendWhatsAppMessage(svc, {
+    agencyId: ctx.agency_id,
+    conversationId: ctx.conversation_id,
+    candidatePhone: cand.phone_e164 as string,
+    waAccountId: convRow.wa_account_id as string,
+    payload: {
+      to: cand.phone_e164 as string,
+      type: 'template',
+      template: {
+        name: tmplRow.name as string,
+        language: { code: 'de' },
+        components: [
+          {
+            type: 'body',
+            parameters: variables.map((v) => ({ type: 'text', text: resolveTemplate(v, ctx) })),
+          },
+        ],
+      },
+    },
+    senderType: 'system',
+    templateId: tmplRow.id as string,
+  });
+}
+
+async function executeSendMessage(
+  svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  if (!ctx.conversation_id || !ctx.candidate_id) return;
+  const body = resolveTemplate(String(params.body ?? ''), ctx);
+  if (!body) return;
+
+  const { data: conv } = await svc
+    .from('conversations')
+    .select('wa_account_id')
+    .eq('id', ctx.conversation_id)
+    .eq('agency_id', ctx.agency_id)
+    .single();
+  if (!conv) return;
+  const convRow = conv as Record<string, unknown>;
+
+  const { data: candidate } = await svc
+    .from('candidates')
+    .select('phone_e164')
+    .eq('id', ctx.candidate_id)
+    .eq('agency_id', ctx.agency_id)
+    .single();
+  if (!(candidate as Record<string, unknown> | null)?.phone_e164) return;
+  const cand = candidate as Record<string, unknown>;
+
+  const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+  try {
+    await sendWhatsAppMessage(svc, {
+      agencyId: ctx.agency_id,
+      conversationId: ctx.conversation_id,
+      candidatePhone: cand.phone_e164 as string,
+      waAccountId: convRow.wa_account_id as string,
+      payload: { to: cand.phone_e164 as string, type: 'text', text: { body } },
+      senderType: 'system',
+    });
+  } catch {
+    // Fenster geschlossen oder anderer temporärer Fehler → überspringen
+  }
+}
+
+async function executeStartBot(
+  _svc: SupabaseClient,
+  _params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  if (!ctx.application_id) return;
+  const { createAdminClient } = await import('@/lib/supabase/admin');
+  const adminSvc = createAdminClient();
+  await adminSvc.from('scheduled_jobs').upsert(
+    {
+      agency_id: ctx.agency_id,
+      run_at: new Date().toISOString(),
+      type: 'bot.open',
+      payload: { application_id: ctx.application_id },
+      status: 'pending',
+      dedupe_key: `bot.open:${ctx.application_id}`,
+    },
+    { onConflict: 'dedupe_key', ignoreDuplicates: true },
+  );
+}
+
+async function executeSendEmail(
+  _svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  const to = params.to as string;
+  const subject = resolveTemplate(String(params.subject ?? ''), ctx);
+  const body = resolveTemplate(String(params.body ?? ''), ctx);
+  if (!to || !subject) return;
+
+  const { Resend } = await import('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY ?? '');
+  await resend.emails.send({
+    from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',
+    to,
+    subject,
+    html: body,
+  });
+}
+
+async function executeScheduleJob(
+  svc: SupabaseClient,
+  params: Record<string, unknown>,
+  ctx: AutomationContext,
+): Promise<void> {
+  const type = params.job_type as string;
+  const delaySeconds = (params.delay_seconds as number) ?? 0;
+  const payload = (params.payload as Record<string, unknown>) ?? {};
+  if (!type) return;
+
+  await svc.from('scheduled_jobs').insert({
+    agency_id: ctx.agency_id,
+    run_at: new Date(Date.now() + delaySeconds * 1000).toISOString(),
+    type,
+    payload: { ...payload, application_id: ctx.application_id, candidate_id: ctx.candidate_id },
+    status: 'pending',
   });
 }
 

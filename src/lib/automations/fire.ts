@@ -8,11 +8,19 @@ export async function fireEvent(
     candidate_id?: string;
     candidate?: Record<string, unknown>;
     extra?: Record<string, unknown>;
-  }
-) {
+  },
+  options?: {
+    suppress?: string[];
+    application_id?: string;
+    conversation_id?: string;
+  },
+): Promise<void> {
+  // Suppress-Check: wenn dieser trigger_event in der Liste steht, überspringen
+  if (options?.suppress?.includes(trigger_event)) return;
+
   const supabase = createAdminClient();
 
-  // Fetch candidate data if candidate_id provided but candidate object not passed
+  // Kandidaten-Daten nachladen, falls nur ID übergeben wurde
   let candidate = data?.candidate;
   if (data?.candidate_id && !candidate) {
     const { data: c } = await supabase
@@ -29,5 +37,7 @@ export async function fireEvent(
     candidate_id: data?.candidate_id,
     candidate,
     data: data?.extra,
+    application_id: options?.application_id,
+    conversation_id: options?.conversation_id,
   });
 }
