@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AppointmentsSection } from '@/components/candidates/appointments-section';
+import { AppointmentList } from '@/components/candidates/appointment-list';
 import {
   ArrowLeft,
   Mail,
@@ -1537,6 +1538,9 @@ export default function CandidateDetailPage() {
 
           {/* VG & Probetage */}
           <AppointmentsSection candidateId={id} />
+
+          {/* Recruiting-Termine (Phase 4) */}
+          {selectedAppId && <AppointmentList applicationId={selectedAppId} />}
         </div>
 
         {/* ========================================================== */}

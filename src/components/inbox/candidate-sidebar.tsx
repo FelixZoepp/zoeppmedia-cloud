@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Mail, Briefcase, User, UserCircle } from 'lucide-react';
+import { Phone, Mail, Briefcase, User, UserCircle, CalendarClock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -10,6 +10,13 @@ interface TeamMember {
   id: string;
   name: string;
   email: string;
+}
+
+interface NextAppointment {
+  id: string;
+  starts_at: string | null;
+  type: string;
+  status: string;
 }
 
 interface Props {
@@ -40,6 +47,7 @@ export function CandidateSidebar({ conversation }: Props) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [assignedTo, setAssignedTo] = useState<string>(conv.assigned_to ?? '');
   const [assigning, setAssigning] = useState(false);
+  const [nextAppointment, setNextAppointment] = useState<NextAppointment | null>(null);
 
   // Sync assignedTo wenn conversation von außen wechselt
   useEffect(() => {
@@ -53,6 +61,31 @@ export function CandidateSidebar({ conversation }: Props) {
       .then((data: TeamMember[]) => setMembers(data))
       .catch(() => {});
   }, []);
+
+  // Nächsten Termin laden (gebucht/bestätigt, in der Zukunft)
+  useEffect(() => {
+    const appId = conv.application?.[0]?.id;
+    if (!appId) {
+      setNextAppointment(null);
+      return;
+    }
+    fetch(`/api/applications/${appId}/appointments`)
+      .then(r => (r.ok ? r.json() : { appointments: [] }))
+      .then((data: { appointments?: NextAppointment[] }) => {
+        const upcoming = (data.appointments ?? [])
+          .filter(a =>
+            (a.status === 'booked' || a.status === 'confirmed') &&
+            a.starts_at &&
+            new Date(a.starts_at).getTime() > Date.now()
+          )
+          .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime());
+        setNextAppointment(upcoming[0] ?? null);
+      })
+      .catch(err => {
+        console.error('[CandidateSidebar] Fehler beim Laden des nächsten Termins', err);
+        setNextAppointment(null);
+      });
+  }, [conv.id, conv.application]);
 
   async function handleAssign(userId: string) {
     setAssigning(true);
@@ -124,6 +157,26 @@ export function CandidateSidebar({ conversation }: Props) {
           {app.stage && (
             <Badge>{app.stage.name}</Badge>
           )}
+        </div>
+      )}
+
+      {/* Nächster Termin */}
+      {nextAppointment && nextAppointment.starts_at && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase">Nächster Termin</h4>
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <CalendarClock className="w-4 h-4 text-gray-400" />
+            <span>
+              {new Date(nextAppointment.starts_at).toLocaleDateString('de-DE', {
+                weekday: 'short', day: '2-digit', month: '2-digit',
+              })}{' '}
+              {new Date(nextAppointment.starts_at).toLocaleTimeString('de-DE', {
+                hour: '2-digit', minute: '2-digit',
+              })}
+              {' · '}
+              {nextAppointment.type === 'video' ? 'Video' : nextAppointment.type === 'onsite' ? 'Vor Ort' : 'Telefon'}
+            </span>
+          </div>
         </div>
       )}
 
