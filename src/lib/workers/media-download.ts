@@ -15,11 +15,12 @@ interface MediaJobPayload {
 }
 
 export async function processMediaDownload(svc: SupabaseClient, agencyId: string, payload: MediaJobPayload) {
-  // 1. Token laden
+  // 1. Token laden (I1: agency_id-Filter verhindert cross-tenant Zugriff)
   const { data: waAccount } = await svc
     .from('whatsapp_accounts')
     .select('access_token_enc, phone_number_id')
     .eq('id', payload.wa_account_id)
+    .eq('agency_id', agencyId)
     .single();
 
   if (!waAccount) throw new Error('WhatsApp-Account nicht gefunden');

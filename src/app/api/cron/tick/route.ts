@@ -12,13 +12,25 @@ import { processSend } from '@/lib/workers/whatsapp-send';
 import { processMediaDownload } from '@/lib/workers/media-download';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 
+// M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
+export const maxDuration = 60;
+
 // Retry-Backoff in Minuten
 const RETRY_DELAYS = [1, 5, 15, 60];
 
-function getRetryDelay(attempts: number): number {
+/** I3: Exportiert für Tests — berechnet Wartezeit in ms vor dem nächsten Versuch. */
+export function getRetryDelay(attempts: number): number {
   const idx = Math.min(attempts - 1, RETRY_DELAYS.length - 1);
   return RETRY_DELAYS[idx] * 60 * 1000;
 }
+
+/** I3: Exportiert für Tests — prüft ob ein Event/Job den Dead-Letter-Schwellenwert erreicht hat. */
+export function isDeadLetter(attempts: number): boolean {
+  return attempts >= 5;
+}
+
+// M1: Wanduhr-Deadline in ms (50 Sekunden, damit 10s für DB-Aufräumen bleiben)
+const WALL_CLOCK_LIMIT_MS = 50_000;
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -30,6 +42,7 @@ export async function GET(request: NextRequest) {
   }
 
   const svc = createAdminClient();
+  const startTime = Date.now();
   let eventsProcessed = 0;
   let eventsFailed = 0;
   let jobsProcessed = 0;
@@ -39,6 +52,15 @@ export async function GET(request: NextRequest) {
   const { data: events } = await svc.rpc('claim_inbox_events', { batch_size: 100 });
 
   for (const event of events || []) {
+    // M1: Wanduhr-Deadline — verbleibende geclaimte Rows zurücksetzen
+    if (Date.now() - startTime > WALL_CLOCK_LIMIT_MS) {
+      await svc
+        .from('events_inbox')
+        .update({ status: 'pending' })
+        .eq('id', event.id);
+      continue;
+    }
+
     try {
       const payload = event.payload as { type: string; [key: string]: unknown };
       switch (payload.type) {
@@ -58,7 +80,7 @@ export async function GET(request: NextRequest) {
       eventsProcessed++;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unbekannter Fehler';
-      if (event.attempts >= 5) {
+      if (isDeadLetter(event.attempts)) {
         await svc.from('events_inbox')
           .update({ status: 'dead', error: errorMsg })
           .eq('id', event.id);
@@ -73,8 +95,13 @@ export async function GET(request: NextRequest) {
           }).catch(() => {});
         }
       } else {
+        // C1: retry_at via Backoff setzen damit claim_inbox_events die Row überspringt
         await svc.from('events_inbox')
-          .update({ status: 'pending', error: errorMsg })
+          .update({
+            status: 'pending',
+            error: errorMsg,
+            retry_at: new Date(Date.now() + getRetryDelay(event.attempts)).toISOString(),
+          })
           .eq('id', event.id);
       }
       eventsFailed++;
@@ -85,6 +112,15 @@ export async function GET(request: NextRequest) {
   const { data: jobs } = await svc.rpc('claim_due_jobs', { batch_size: 100 });
 
   for (const job of jobs || []) {
+    // M1: Wanduhr-Deadline — verbleibende geclaimte Rows zurücksetzen
+    if (Date.now() - startTime > WALL_CLOCK_LIMIT_MS) {
+      await svc
+        .from('scheduled_jobs')
+        .update({ status: 'pending', updated_at: new Date().toISOString() })
+        .eq('id', job.id);
+      continue;
+    }
+
     try {
       const payload = job.payload as { [key: string]: unknown };
       switch (job.type) {
@@ -103,7 +139,7 @@ export async function GET(request: NextRequest) {
       jobsProcessed++;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unbekannter Fehler';
-      if (job.attempts >= 5) {
+      if (isDeadLetter(job.attempts)) {
         await svc.from('scheduled_jobs')
           .update({ status: 'dead', last_error: errorMsg, updated_at: new Date().toISOString() })
           .eq('id', job.id);

@@ -1,17 +1,42 @@
 /**
  * Tests für den /api/cron/tick Tick-Cron.
- * Testet Auth-Guard und Retry-Backoff-Logik isoliert.
+ * I3: getRetryDelay und isDeadLetter werden direkt aus route.ts importiert.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { getRetryDelay, isDeadLetter } from '@/app/api/cron/tick/route';
 
-// Retry-Backoff-Logik direkt testen (kopiert aus route.ts — keine Abhängigkeit auf Next.js)
-const RETRY_DELAYS = [1, 5, 15, 60];
+// next/server muss gemockt werden damit der route-Import nicht fehlschlägt
+vi.mock('next/server', () => ({
+  NextRequest: class {},
+  NextResponse: {
+    json: vi.fn((body: unknown, init?: { status?: number }) => ({ body, status: init?.status ?? 200 })),
+  },
+}));
 
-function getRetryDelay(attempts: number): number {
-  const idx = Math.min(attempts - 1, RETRY_DELAYS.length - 1);
-  return RETRY_DELAYS[idx] * 60 * 1000;
-}
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: vi.fn(() => ({})),
+}));
+
+vi.mock('@/lib/workers/whatsapp-inbound', () => ({
+  processInbound: vi.fn(),
+}));
+
+vi.mock('@/lib/workers/whatsapp-status', () => ({
+  processStatus: vi.fn(),
+}));
+
+vi.mock('@/lib/workers/whatsapp-send', () => ({
+  processSend: vi.fn(),
+}));
+
+vi.mock('@/lib/workers/media-download', () => ({
+  processMediaDownload: vi.fn(),
+}));
+
+vi.mock('@/lib/notifications/create', () => ({
+  createNotificationForAgency: vi.fn(),
+}));
 
 describe('getRetryDelay', () => {
   it('erster Versuch → 1 Minute', () => {
@@ -34,26 +59,81 @@ describe('getRetryDelay', () => {
     expect(getRetryDelay(10)).toBe(60 * 60_000);
     expect(getRetryDelay(99)).toBe(60 * 60_000);
   });
+});
 
-  it('Versuch 0 → clamped auf Index 0 → 1 Minute', () => {
-    // attempts=0 → idx = max(-1, 3) = -1 → Math.min(-1,3) = -1 → RETRY_DELAYS[-1] = undefined → 1 Min Fallback?
-    // Tatsächlich: idx = Math.min(0-1, 3) = Math.min(-1, 3) = -1 → RETRY_DELAYS[-1] = undefined
-    // In JS: undefined * 60 * 1000 = NaN. Das ist ein Edge-Case — attempts sollte >= 1 sein.
-    // Wir testen nur den normalen Bereich (1-N).
-    expect(getRetryDelay(1)).toBe(60_000); // Grenze: attempts=1
+describe('isDeadLetter', () => {
+  it('weniger als 5 Versuche → kein Dead Letter', () => {
+    expect(isDeadLetter(0)).toBe(false);
+    expect(isDeadLetter(1)).toBe(false);
+    expect(isDeadLetter(4)).toBe(false);
+  });
+
+  it('genau 5 Versuche → Dead Letter', () => {
+    expect(isDeadLetter(5)).toBe(true);
+  });
+
+  it('mehr als 5 Versuche → Dead Letter', () => {
+    expect(isDeadLetter(6)).toBe(true);
+    expect(isDeadLetter(99)).toBe(true);
   });
 });
 
-describe('Tick-Cron Auth-Guard (unit)', () => {
-  it('CRON_SECRET Bearer-Check: falsches Token wird abgelehnt', () => {
-    const secret = 'geheimesToken123';
-    const authHeader = `Bearer falsch`;
-    expect(authHeader).not.toBe(`Bearer ${secret}`);
+describe('GET Handler — Auth-Guard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('CRON_SECRET', 'test-secret-123');
   });
 
-  it('CRON_SECRET Bearer-Check: richtiges Token wird akzeptiert', () => {
-    const secret = 'geheimesToken123';
-    const authHeader = `Bearer ${secret}`;
-    expect(authHeader).toBe(`Bearer ${secret}`);
+  it('lehnt Request ohne Authorization-Header ab (401)', async () => {
+    const { GET } = await import('@/app/api/cron/tick/route');
+    const { NextResponse } = await import('next/server');
+
+    const req = {
+      headers: { get: vi.fn().mockReturnValue(null) },
+    } as unknown as import('next/server').NextRequest;
+
+    await GET(req);
+
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  });
+
+  it('lehnt Request mit falschem Token ab (401)', async () => {
+    const { GET } = await import('@/app/api/cron/tick/route');
+    const { NextResponse } = await import('next/server');
+
+    const req = {
+      headers: { get: vi.fn().mockReturnValue('Bearer falsches-token') },
+    } as unknown as import('next/server').NextRequest;
+
+    await GET(req);
+
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  });
+
+  it('verarbeitet Request mit korrektem Token (200 ok)', async () => {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    (createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({ data: [] }),
+      from: vi.fn(),
+    });
+
+    const { GET } = await import('@/app/api/cron/tick/route');
+    const { NextResponse } = await import('next/server');
+
+    const req = {
+      headers: { get: vi.fn().mockReturnValue('Bearer test-secret-123') },
+    } as unknown as import('next/server').NextRequest;
+
+    await GET(req);
+
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: true })
+    );
   });
 });

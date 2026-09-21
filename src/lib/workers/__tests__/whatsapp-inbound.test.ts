@@ -25,18 +25,6 @@ vi.mock('@/lib/notifications/create', () => ({
 function makeSvc(overrides: Record<string, unknown> = {}) {
   const fromMock = vi.fn();
 
-  const chainFor = (result: unknown) => {
-    const chain: Record<string, unknown> = {};
-    const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update'];
-    for (const m of methods) {
-      chain[m] = vi.fn(() => chain);
-    }
-    // terminal: maybeSingle / single return the result
-    (chain.maybeSingle as ReturnType<typeof vi.fn>).mockResolvedValue(result);
-    (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue(result);
-    return chain;
-  };
-
   // Default table responses
   const tableResponses: Record<string, unknown> = {
     whatsapp_accounts: { data: { id: 'wa-1', agency_id: 'agency-1' }, error: null },
@@ -49,30 +37,45 @@ function makeSvc(overrides: Record<string, unknown> = {}) {
 
   fromMock.mockImplementation((table: string) => {
     const chain: Record<string, unknown> = {};
-    const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update'];
+    const methods = ['select', 'eq', 'is', 'maybeSingle', 'single', 'insert', 'update', 'upsert'];
     for (const m of methods) {
       chain[m] = vi.fn(() => chain);
     }
 
     const resp = tableResponses[table] || { data: null, error: null };
-    (chain.maybeSingle as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
-    (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
-    // insert().select().single() → new conversation
+    // conversations: upsert resolves void, update().eq().select().single() returns conv row
+    if (table === 'conversations') {
+      const convRow = { data: { id: 'conv-1', state: 'waiting', assigned_to: null }, error: null };
+      (chain.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
+      // update chain: eq → eq → select → single
+      const updateChain: Record<string, unknown> = {};
+      const updateMethods = ['eq', 'select', 'single'];
+      for (const m of updateMethods) {
+        updateChain[m] = vi.fn(() => updateChain);
+      }
+      (updateChain.single as ReturnType<typeof vi.fn>).mockResolvedValue(convRow);
+      (chain.update as ReturnType<typeof vi.fn>).mockReturnValue(updateChain);
+    } else {
+      (chain.maybeSingle as ReturnType<typeof vi.fn>)?.mockResolvedValue(resp);
+      (chain.single as ReturnType<typeof vi.fn>).mockResolvedValue(resp);
+    }
+
+    // insert().select().single() for other tables
     const insertChain: Record<string, unknown> = {};
-    for (const m of methods) {
+    const insertMethods = ['select', 'eq', 'single', 'insert', 'update', 'upsert'];
+    for (const m of insertMethods) {
       insertChain[m] = vi.fn(() => insertChain);
     }
-    (insertChain.single as ReturnType<typeof vi.fn>).mockResolvedValue(
-      table === 'conversations'
-        ? { data: { id: 'conv-new-1' }, error: null }
-        : { data: null, error: null }
-    );
+    (insertChain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
     (chain.insert as ReturnType<typeof vi.fn>).mockReturnValue(insertChain);
 
     return chain;
   });
 
-  return { from: fromMock } as unknown as Parameters<typeof processInbound>[0];
+  // rpc: increment_unread resolves void
+  const rpcMock = vi.fn().mockResolvedValue({ data: null, error: null });
+
+  return { from: fromMock, rpc: rpcMock } as unknown as Parameters<typeof processInbound>[0];
 }
 
 const basePayload = {
