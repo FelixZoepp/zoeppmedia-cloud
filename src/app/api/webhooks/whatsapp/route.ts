@@ -20,10 +20,13 @@ export async function GET(request: NextRequest) {
   const challenge = request.nextUrl.searchParams.get('hub.challenge');
 
   if (mode === 'subscribe' && VERIFY_TOKEN && token === VERIFY_TOKEN) {
+    if (!challenge) {
+      return NextResponse.json({ error: 'Challenge fehlt' }, { status: 400 });
+    }
     return new NextResponse(challenge, { status: 200 });
   }
 
-  return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
+  return NextResponse.json({ error: 'Verifizierung fehlgeschlagen' }, { status: 403 });
 }
 
 // Receive WhatsApp events: messages, statuses, template updates
@@ -40,69 +43,85 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 401 });
   }
 
-  // Sofort 200 antworten — Verarbeitung passiert asynchron über events_inbox.
+  // Events synchron einreihen, danach 200 zurückgeben (kein Business-Processing hier)
   // Wir parsen und schreiben in die Queue, aber kehren in <2s zurück.
-  const body = JSON.parse(rawBody);
-  const supabase = createAdminClient();
+  try {
+    const body = JSON.parse(rawBody);
+    const supabase = createAdminClient();
 
-  const entries = body?.entry || [];
-  for (const entry of entries) {
-    const changes = entry?.changes || [];
-    for (const change of changes) {
-      if (change.field !== 'messages') continue;
+    const entries = body?.entry || [];
+    for (const entry of entries) {
+      const changes = entry?.changes || [];
+      for (const change of changes) {
+        if (change.field !== 'messages') continue;
 
-      const value = change.value || {};
-      const phoneNumberId = value.metadata?.phone_number_id;
+        const value = change.value || {};
+        const phoneNumberId = value.metadata?.phone_number_id;
 
-      // Agency über phone_number_id -> whatsapp_accounts auflösen
-      let agencyId: string | null = null;
-      if (phoneNumberId) {
-        const { data: waAccount } = await supabase
-          .from('whatsapp_accounts')
-          .select('agency_id')
-          .eq('phone_number_id', phoneNumberId)
-          .maybeSingle();
-        agencyId = waAccount?.agency_id || null;
+        // Agency über phone_number_id -> whatsapp_accounts auflösen
+        let agencyId: string | null = null;
+        if (phoneNumberId) {
+          const { data: waAccount, error: lookupError } = await supabase
+            .from('whatsapp_accounts')
+            .select('agency_id')
+            .eq('phone_number_id', phoneNumberId)
+            .maybeSingle();
+          if (lookupError) {
+            console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', lookupError.message);
+          }
+          agencyId = waAccount?.agency_id || null;
+        }
+
+        // Eingehende Nachrichten
+        const messages = value.messages || [];
+        for (const msg of messages) {
+          const { error } = await supabase.from('events_inbox').insert({
+            source: 'whatsapp',
+            external_id: msg.id || null,
+            agency_id: agencyId,
+            payload: { type: 'whatsapp.inbound', phone_number_id: phoneNumberId, message: msg, contacts: value.contacts },
+            status: 'pending',
+          });
+          if (error) {
+            console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', error.message);
+          }
+        }
+
+        // Status-Updates (sent, delivered, read, failed)
+        const statuses = value.statuses || [];
+        for (const status of statuses) {
+          const { error } = await supabase.from('events_inbox').insert({
+            source: 'whatsapp',
+            external_id: `status_${status.id}_${status.status}`,
+            agency_id: agencyId,
+            payload: { type: 'whatsapp.status', phone_number_id: phoneNumberId, status },
+            status: 'pending',
+          });
+          if (error) {
+            console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', error.message);
+          }
+        }
       }
 
-      // Eingehende Nachrichten
-      const messages = value.messages || [];
-      for (const msg of messages) {
-        await supabase.from('events_inbox').insert({
+      // Template-Status-Updates (separates change.field)
+      const templateChanges = (entry?.changes || []).filter(
+        (c: Record<string, unknown>) => c.field === 'message_template_status_update'
+      );
+      for (const tc of templateChanges) {
+        const { error } = await supabase.from('events_inbox').insert({
           source: 'whatsapp',
-          external_id: msg.id || null,
-          agency_id: agencyId,
-          payload: { type: 'whatsapp.inbound', phone_number_id: phoneNumberId, message: msg, contacts: value.contacts },
+          external_id: `tmpl_${tc.value?.message_template_id}_${tc.value?.event}`,
+          agency_id: null,
+          payload: { type: 'whatsapp.template_status', ...tc.value },
           status: 'pending',
         });
-      }
-
-      // Status-Updates (sent, delivered, read, failed)
-      const statuses = value.statuses || [];
-      for (const status of statuses) {
-        await supabase.from('events_inbox').insert({
-          source: 'whatsapp',
-          external_id: `status_${status.id}_${status.status}`,
-          agency_id: agencyId,
-          payload: { type: 'whatsapp.status', phone_number_id: phoneNumberId, status },
-          status: 'pending',
-        });
+        if (error) {
+          console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', error.message);
+        }
       }
     }
-
-    // Template-Status-Updates (separates change.field)
-    const templateChanges = (entry?.changes || []).filter(
-      (c: Record<string, unknown>) => c.field === 'message_template_status_update'
-    );
-    for (const tc of templateChanges) {
-      await supabase.from('events_inbox').insert({
-        source: 'whatsapp',
-        external_id: `tmpl_${tc.value?.message_template_id}_${tc.value?.event}`,
-        agency_id: null,
-        payload: { type: 'whatsapp.template_status', ...tc.value },
-        status: 'pending',
-      });
-    }
+  } catch (err) {
+    console.error('WhatsApp-Webhook: Verarbeitung fehlgeschlagen', err);
   }
 
   return NextResponse.json({ success: true });

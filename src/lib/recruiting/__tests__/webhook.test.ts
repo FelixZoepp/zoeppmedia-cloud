@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 /**
  * Standalone-Tests für die Webhook-Signatur-Logik.
@@ -13,7 +13,7 @@ function verifyWhatsAppSignature(rawBody: string, sigHeader: string | null, appS
   const receivedBuf = Buffer.from(received);
   const expectedBuf = Buffer.from(expected);
   return receivedBuf.length === expectedBuf.length &&
-    require('crypto').timingSafeEqual(receivedBuf, expectedBuf);
+    timingSafeEqual(receivedBuf, expectedBuf);
 }
 
 const TEST_SECRET = 'test_app_secret_12345';
@@ -28,6 +28,13 @@ describe('WhatsApp webhook signature verification', () => {
   it('rejects invalid signature', () => {
     const body = '{"entry":[]}';
     expect(verifyWhatsAppSignature(body, 'sha256=deadbeef', TEST_SECRET)).toBe(false);
+  });
+
+  it('rejects wrong signature of valid length', () => {
+    const body = '{"entry":[]}';
+    const differentBody = '{"entry":[{"changes":[]}]}';
+    const wrongSig = 'sha256=' + createHmac('sha256', TEST_SECRET).update(differentBody).digest('hex');
+    expect(verifyWhatsAppSignature(body, wrongSig, TEST_SECRET)).toBe(false);
   });
 
   it('rejects null signature header', () => {
