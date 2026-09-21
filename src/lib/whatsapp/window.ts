@@ -9,7 +9,7 @@ export function isWindowOpen(windowExpiresAt: string | null): boolean {
 }
 
 /**
- * Prueft ob gerade Ruhezeit ist (Standard 20:00–08:00 Ortszeit Mo–Sa, Sonntag ganztaegig).
+ * Prüft ob gerade Ruhezeit ist (Standard 20:00–08:00 Ortszeit Mo–Sa, Sonntag ganztägig).
  * Verwendet Intl API — keine npm-Dependency.
  */
 export function isQuietHours(timezone: string): boolean {
@@ -27,15 +27,15 @@ export function isQuietHours(timezone: string): boolean {
   // Sonntag = ganzer Tag Ruhezeit
   if (weekday === 'Sun') return true;
 
-  // Mo–Sa: 08:00 bis 20:00 sind Geschaeftszeiten
+  // Mo–Sa: 08:00 bis 20:00 sind Geschäftszeiten
   return hour < 8 || hour >= 20;
 }
 
 const STOP_WORDS = new Set(['stop', 'stopp', 'abmelden']);
 
 /**
- * Prueft ob eine eingehende Nachricht ein Opt-out (STOP) ist.
- * Case-insensitive, exakte Uebereinstimmung (kein Teilstring).
+ * Prüft ob eine eingehende Nachricht ein Opt-out (STOP) ist.
+ * Case-insensitive, exakte Übereinstimmung (kein Teilstring).
  */
 export function isStopMessage(text: string | null | undefined): boolean {
   if (!text) return false;
@@ -58,7 +58,7 @@ export interface PreflightResult {
 }
 
 /**
- * Preflight-Pruefung vor jedem Versand. Spec Abschn. 7.
+ * Preflight-Prüfung vor jedem Versand. Spec Abschn. 7.
  * Reihenfolge: Account -> Consent -> Fenster/Vorlage -> Ruhezeiten.
  */
 export function checkPreflight(opts: PreflightOpts): PreflightResult {

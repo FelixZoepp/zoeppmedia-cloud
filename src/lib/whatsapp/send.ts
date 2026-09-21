@@ -1,10 +1,13 @@
 /**
- * Einziger Ausgangsweg fuer alle WhatsApp-Nachrichten.
- * Fuehrt Preflight-Checks durch und schreibt die Message-Row.
+ * Einziger Ausgangsweg für alle WhatsApp-Nachrichten.
+ * Führt Preflight-Checks durch und schreibt die Message-Row.
+ *
+ * Vertrag (C1): Bei jedem Fehler wird ein Error geworfen (deutscher Text).
+ * Downstream (Tasks 6/9) fängt via try/catch.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { checkPreflight, type PreflightResult } from './window';
+import { checkPreflight } from './window';
 import { getProvider, type SendMessagePayload } from './provider';
 import { decryptSecret } from '@/lib/crypto';
 
@@ -21,43 +24,39 @@ export interface SendOpts {
   isHumanUiSend?: boolean;
 }
 
-export interface SendResult {
-  ok: boolean;
-  messageId?: string;
-  messageRowId?: string;
-  error?: string;
-}
-
 export async function sendWhatsAppMessage(
   svc: SupabaseClient,
   opts: SendOpts
-): Promise<SendResult> {
-  // 1. WhatsApp-Account laden
+): Promise<{ messageId: string; messageRowId: string }> {
+  // 1. WhatsApp-Account laden (I1: agency_id-Scoping, da Service-Role RLS umgeht)
   const { data: waAccount } = await svc
     .from('whatsapp_accounts')
     .select('id, phone_number_id, access_token_enc, status')
     .eq('id', opts.waAccountId)
+    .eq('agency_id', opts.agencyId)
     .single();
 
   if (!waAccount) {
-    return { ok: false, error: 'WhatsApp-Konto nicht gefunden' };
+    throw new Error('WhatsApp-Konto nicht gefunden');
   }
 
-  // 2. Conversation + Candidate laden fuer Preflight
+  // 2. Conversation + Candidate laden für Preflight (I1: agency_id-Scoping)
   const { data: conv } = await svc
     .from('conversations')
     .select('window_expires_at, candidate_id')
     .eq('id', opts.conversationId)
+    .eq('agency_id', opts.agencyId)
     .single();
 
   if (!conv) {
-    return { ok: false, error: 'Konversation nicht gefunden' };
+    throw new Error('Konversation nicht gefunden');
   }
 
   const { data: candidate } = await svc
     .from('candidates')
     .select('whatsapp_opt_in')
     .eq('id', conv.candidate_id)
+    .eq('agency_id', opts.agencyId)
     .single();
 
   // 3. Agency-Timezone laden
@@ -71,7 +70,7 @@ export async function sendWhatsAppMessage(
 
   // 4. Preflight
   const isTemplate = opts.payload.type === 'template';
-  const preflight: PreflightResult = checkPreflight({
+  const preflight = checkPreflight({
     consentWhatsapp: candidate?.whatsapp_opt_in ?? false,
     windowExpiresAt: conv.window_expires_at,
     isTemplate,
@@ -81,14 +80,25 @@ export async function sendWhatsAppMessage(
   });
 
   if (!preflight.ok) {
-    return { ok: false, error: preflight.reason };
+    // C1: Preflight-Ablehnung als Error werfen mit dem reason als Nachricht
+    throw new Error(preflight.reason ?? 'Preflight fehlgeschlagen');
   }
 
-  // 5. Message-Row anlegen (status queued)
-  const bodyText = opts.payload.text?.body
-    || opts.payload.template?.name
-    || (opts.payload.type === 'image' ? '[Bild]' : opts.payload.type === 'document' ? '[Dokument]' : '[Nachricht]');
+  // C2: Token entschlüsseln VOR dem Anlegen der Message-Row.
+  // Crypto-Fehler dürfen nie in error_code landen — kein catch bis zur Row-Anlage.
+  const token = decryptSecret(waAccount.access_token_enc);
 
+  // 5. bodyText ableiten (M2: audio + interactive ergänzt)
+  const bodyText =
+    opts.payload.text?.body
+    || opts.payload.template?.name
+    || (opts.payload.type === 'image' ? '[Bild]'
+      : opts.payload.type === 'document' ? '[Dokument]'
+      : opts.payload.type === 'audio' ? '[Audio]'
+      : opts.payload.type === 'interactive' ? '[Interaktiv]'
+      : '[Nachricht]');
+
+  // 6. Message-Row anlegen (status queued)
   const { data: msgRow, error: insertErr } = await svc
     .from('messages')
     .insert({
@@ -107,32 +117,37 @@ export async function sendWhatsAppMessage(
     .single();
 
   if (insertErr || !msgRow) {
-    return { ok: false, error: 'Nachricht konnte nicht gespeichert werden' };
+    throw new Error('Nachricht konnte nicht gespeichert werden');
   }
 
-  // 6. An Provider senden
+  // 7. An Provider senden — nur noch Provider-Fehler können hier landen (Crypto ist oben bereits erledigt)
   try {
-    const token = decryptSecret(waAccount.access_token_enc);
     const provider = getProvider();
     const result = await provider.sendMessage(waAccount.phone_number_id, token, opts.payload);
 
-    // 7. Message-Row aktualisieren
-    await svc.from('messages')
+    // 8. Message-Row aktualisieren
+    await svc
+      .from('messages')
       .update({ wa_message_id: result.messageId, status: 'sent' })
       .eq('id', msgRow.id);
 
-    // 8. Conversation aktualisieren
-    await svc.from('conversations')
+    // 9. Conversation aktualisieren
+    await svc
+      .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', opts.conversationId);
 
-    return { ok: true, messageId: result.messageId, messageRowId: msgRow.id };
+    return { messageId: result.messageId, messageRowId: msgRow.id };
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : 'Unbekannter Fehler';
-    await svc.from('messages')
-      .update({ status: 'failed', error_code: errorMsg })
+    // C2: Provider-Fehler in error_code speichern (max 200 Zeichen), dann re-throw
+    const rawMsg = err instanceof Error ? err.message : 'Unbekannter Provider-Fehler';
+    const sanitized = rawMsg.slice(0, 200);
+    await svc
+      .from('messages')
+      .update({ status: 'failed', error_code: sanitized })
       .eq('id', msgRow.id);
 
-    return { ok: false, messageRowId: msgRow.id, error: errorMsg };
+    // C1: Re-throw damit Downstream try/catch greifen kann
+    throw err instanceof Error ? err : new Error(rawMsg);
   }
 }

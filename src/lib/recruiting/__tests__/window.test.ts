@@ -44,6 +44,43 @@ describe('quiet hours', () => {
     expect(isQuietHours('Europe/Berlin')).toBe(true);
     vi.useRealTimers();
   });
+
+  // I2: Grenzwert-Tests für Ruhezeit-Grenzen (Mo–Sa)
+  it('07:59 Berlin (Mo) → Ruhezeit (quiet)', async () => {
+    const { isQuietHours } = await import('@/lib/whatsapp/window');
+    vi.useFakeTimers();
+    // Montag 2026-09-28, 07:59 Berlin = 05:59 UTC (UTC+2 im Sommer)
+    vi.setSystemTime(new Date('2026-09-28T05:59:00Z'));
+    expect(isQuietHours('Europe/Berlin')).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('08:00 Berlin (Mo) → Geschäftszeit (not quiet)', async () => {
+    const { isQuietHours } = await import('@/lib/whatsapp/window');
+    vi.useFakeTimers();
+    // Montag 2026-09-28, 08:00 Berlin = 06:00 UTC
+    vi.setSystemTime(new Date('2026-09-28T06:00:00Z'));
+    expect(isQuietHours('Europe/Berlin')).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('19:59 Berlin (Mo) → Geschäftszeit (not quiet)', async () => {
+    const { isQuietHours } = await import('@/lib/whatsapp/window');
+    vi.useFakeTimers();
+    // Montag 2026-09-28, 19:59 Berlin = 17:59 UTC
+    vi.setSystemTime(new Date('2026-09-28T17:59:00Z'));
+    expect(isQuietHours('Europe/Berlin')).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('20:00 Berlin (Mo) → Ruhezeit (quiet)', async () => {
+    const { isQuietHours } = await import('@/lib/whatsapp/window');
+    vi.useFakeTimers();
+    // Montag 2026-09-28, 20:00 Berlin = 18:00 UTC
+    vi.setSystemTime(new Date('2026-09-28T18:00:00Z'));
+    expect(isQuietHours('Europe/Berlin')).toBe(true);
+    vi.useRealTimers();
+  });
 });
 
 describe('STOP detection', () => {
