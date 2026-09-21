@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -161,8 +163,10 @@ function CardSkeleton() {
 /* ------------------------------------------------------------------ */
 
 function ConsentCard({ candidateId }: { candidateId: string }) {
+  const router = useRouter();
   const [events, setEvents] = useState<ConsentEvent[] | null>(null);
   const [error, setError] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetch(`/api/candidates/${candidateId}/consent`)
@@ -173,6 +177,28 @@ function ConsentCard({ candidateId }: { candidateId: string }) {
       .then((data) => setEvents(data))
       .catch(() => setError(true));
   }, [candidateId]);
+
+  async function handleDsgvoDelete() {
+    if (
+      !confirm(
+        'Alle personenbezogenen Daten dieses Kandidaten werden unwiderruflich anonymisiert. Fortfahren?'
+      )
+    )
+      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/candidates/${candidateId}/dsgvo-delete`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Kandidat anonymisiert');
+      router.refresh();
+    } catch {
+      toast.error('Fehler beim Anonymisieren');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (error) return null;
   if (!events) return <CardSkeleton />;
@@ -223,6 +249,31 @@ function ConsentCard({ candidateId }: { candidateId: string }) {
             Keine Consent-Events vorhanden.
           </p>
         )}
+        <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2 items-center">
+          <a
+            href={`/api/candidates/${candidateId}/dsgvo-export`}
+            download
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            Export (JSON)
+          </a>
+          <a
+            href={`/api/candidates/${candidateId}/dsgvo-export?format=pdf`}
+            download
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            Export (PDF)
+          </a>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleDsgvoDelete}
+            disabled={deleting}
+            className="ml-auto text-xs"
+          >
+            {deleting ? 'Wird anonymisiert…' : 'Daten löschen (DSGVO)'}
+          </Button>
+        </div>
       </div>
     </Card>
   );
