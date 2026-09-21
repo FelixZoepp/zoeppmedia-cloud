@@ -77,9 +77,8 @@ function KpiTile({ label, value, delta, positive = true }: TileProps) {
 const SOURCE_COLORS: Record<string, string> = {
   indeed: '#3B82F6',
   meta: '#6366F1',
-  formular: '#10B981',
+  form: '#10B981',
   manual: '#F59E0B',
-  manuell: '#F59E0B',
 };
 
 function sourceColor(src: string): string {
@@ -100,7 +99,7 @@ const SOURCE_OPTIONS = [
   { value: '', label: 'Alle Quellen' },
   { value: 'indeed', label: 'Indeed' },
   { value: 'meta', label: 'Meta' },
-  { value: 'formular', label: 'Formular' },
+  { value: 'form', label: 'Formular' },
   { value: 'manual', label: 'Manuell' },
 ];
 
