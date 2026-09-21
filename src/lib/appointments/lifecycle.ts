@@ -40,15 +40,24 @@ export async function bookAppointment(svc: SupabaseClient, args: {
   // 2. Termin + Application + Candidate + Agency laden
   const { data: appt } = await svc.from('appointments').select('*')
     .eq('id', args.appointmentId).eq('agency_id', args.agencyId).single();
-  if (!appt) return;
+  if (!appt) {
+    console.error('[appointments] Buchung ohne Folgeaktionen — Datensatz fehlt', { appointmentId: args.appointmentId, table: 'appointments' });
+    return;
+  }
 
   const { data: application } = await svc.from('applications').select('id, candidate_id, assigned_to')
     .eq('id', appt.application_id).eq('agency_id', args.agencyId).single();
-  if (!application) return;
+  if (!application) {
+    console.error('[appointments] Buchung ohne Folgeaktionen — Datensatz fehlt', { appointmentId: args.appointmentId, table: 'applications', application_id: appt.application_id });
+    return;
+  }
 
   const { data: candidate } = await svc.from('candidates').select('id, name, phone_e164, email, whatsapp_opt_in')
     .eq('id', application.candidate_id).eq('agency_id', args.agencyId).single();
-  if (!candidate) return;
+  if (!candidate) {
+    console.error('[appointments] Buchung ohne Folgeaktionen — Datensatz fehlt', { appointmentId: args.appointmentId, table: 'candidates', candidate_id: application.candidate_id });
+    return;
+  }
 
   const { data: agency } = await svc.from('agencies').select('id, name, timezone')
     .eq('id', args.agencyId).single();
@@ -126,20 +135,25 @@ export async function bookAppointment(svc: SupabaseClient, args: {
   if (candidate.email || application.assigned_to) {
     // Recruiter-E-Mail aus assigned_to laden
     let recruiterEmail: string | null = null;
+    let recruiterName: string | null = null;
+    let isCandidateFallback = false;
     if (application.assigned_to) {
       const { data: recruiter } = await svc.from('users')
-        .select('email').eq('id', application.assigned_to).maybeSingle();
+        .select('email, name').eq('id', application.assigned_to).eq('agency_id', args.agencyId).maybeSingle();
       recruiterEmail = recruiter?.email ?? null;
+      recruiterName = recruiter?.name ?? null;
     }
     // Fallback: agency_owner
     if (!recruiterEmail) {
       const { data: owner } = await svc.from('users')
-        .select('email').eq('agency_id', args.agencyId).eq('role', 'agency_owner').maybeSingle();
+        .select('email, name').eq('agency_id', args.agencyId).eq('role', 'agency_owner').maybeSingle();
       recruiterEmail = owner?.email ?? null;
+      recruiterName = owner?.name ?? null;
     }
     // Letzter Fallback: Bewerber-E-Mail (für Bestätigung an den Kandidaten)
     if (!recruiterEmail) {
       recruiterEmail = candidate.email ?? null;
+      isCandidateFallback = true;
     }
 
     if (recruiterEmail) {
@@ -154,7 +168,9 @@ export async function bookAppointment(svc: SupabaseClient, args: {
         notes: null,
         agencyName: agency?.name || 'Agentur',
         attendeeEmail: recruiterEmail,
-        attendeeName: 'Recruiter',
+        attendeeName: isCandidateFallback
+          ? (candidate.name || 'Bewerber')
+          : (recruiterName || 'Recruiter'),
       });
       await sendAgencyCalendarInvite(
         recruiterEmail,

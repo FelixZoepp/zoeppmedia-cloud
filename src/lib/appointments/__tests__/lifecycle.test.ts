@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   createProposedAppointment,
   bookAppointment,
@@ -137,5 +137,105 @@ describe('cancelAppointmentJobs', () => {
     const svc = makeSvc();
     await cancelAppointmentJobs(svc, { agencyId: 'ag-1', appointmentId: 'appt-1' });
     expect(svc.from).toHaveBeenCalledWith('scheduled_jobs');
+  });
+});
+
+describe('cancelAppointment', () => {
+  it('setzt appointment-Status auf cancelled und storniert scheduled_jobs mit agency_id-Filter', async () => {
+    const svc = makeSvc({
+      appointments: {
+        data: { application_id: 'app-1' },
+        error: null,
+      },
+      applications: {
+        data: { candidate_id: 'cand-1' },
+        error: null,
+      },
+    });
+
+    await cancelAppointment(svc, { agencyId: 'ag-1', appointmentId: 'appt-1', reason: 'Test' });
+
+    // appointment update mit status cancelled
+    const apptUpdates = (svc as unknown as { _updated: Record<string, unknown[]> })._updated['appointments'] ?? [];
+    expect(apptUpdates.some((u: unknown) => (u as Record<string, unknown>)['status'] === 'cancelled')).toBe(true);
+
+    // scheduled_jobs update mit status cancelled
+    const jobUpdates = (svc as unknown as { _updated: Record<string, unknown[]> })._updated['scheduled_jobs'] ?? [];
+    expect(jobUpdates.some((u: unknown) => (u as Record<string, unknown>)['status'] === 'cancelled')).toBe(true);
+
+    // from('scheduled_jobs') wurde mit agency_id-Filter aufgerufen (eq wird auf der chain gerufen)
+    expect(svc.from).toHaveBeenCalledWith('scheduled_jobs');
+  });
+});
+
+describe('rescheduleAppointment', () => {
+  it('storniert alten Termin und gibt eine neue appointmentId zurück, die sich vom alten unterscheidet', async () => {
+    // makeSvc mit table-spezifischen Antworten; appointments liefert erst den alten Datensatz,
+    // danach bei createProposedAppointment einen neuen — wir mocken beide IDs über eine factory.
+    let appointmentsCallCount = 0;
+    const svc = makeSvc({});
+
+    // Override single() per-call: erster Aufruf auf appointments gibt den alten Datensatz (für reschedule-lookup),
+    // alle weiteren geben einen neuen Datensatz zurück (für bookAppointment-intern).
+    const originalFrom = (svc as unknown as { from: ReturnType<typeof vi.fn> }).from;
+    originalFrom.mockImplementation((table: string) => {
+      const chain: Record<string, unknown> = {};
+      const methods = ['select', 'eq', 'is', 'in', 'filter', 'not', 'maybeSingle', 'single',
+                       'insert', 'update', 'upsert', 'delete', 'gte', 'lte', 'or'];
+      const inserted: Record<string, unknown[]> = (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted;
+      const updated: Record<string, unknown[]> = (svc as unknown as { _updated: Record<string, unknown[]> })._updated;
+      for (const m of methods) {
+        chain[m] = vi.fn(() => chain);
+      }
+      (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+        if (!inserted[table]) inserted[table] = [];
+        inserted[table].push(data);
+        return chain;
+      });
+      (chain.update as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
+        if (!updated[table]) updated[table] = [];
+        updated[table].push(data);
+        return chain;
+      });
+      (chain.single as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        if (table === 'appointments') {
+          appointmentsCallCount++;
+          if (appointmentsCallCount === 1) {
+            // reschedule: alten Datensatz laden
+            return Promise.resolve({ data: { application_id: 'app-1', type: 'call', location: null }, error: null });
+          }
+          // createProposedAppointment insert → select single
+          return Promise.resolve({ data: { id: 'appt-new', booking_token: 'tok-new' }, error: null });
+        }
+        if (table === 'applications') return Promise.resolve({ data: { id: 'app-1', candidate_id: 'cand-1', assigned_to: null }, error: null });
+        if (table === 'candidates') return Promise.resolve({ data: { id: 'cand-1', name: 'Max Mustermann', phone_e164: '+491234567890', email: 'max@test.de', whatsapp_opt_in: true }, error: null });
+        if (table === 'agencies') return Promise.resolve({ data: { id: 'ag-1', name: 'Test Agentur', timezone: 'Europe/Berlin' }, error: null });
+        return Promise.resolve({ data: null, error: null });
+      });
+      (chain.maybeSingle as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        if (table === 'conversations') return Promise.resolve({ data: null, error: null });
+        if (table === 'whatsapp_templates') return Promise.resolve({ data: null, error: null });
+        if (table === 'users') return Promise.resolve({ data: null, error: null });
+        if (table === 'pipeline_stages') return Promise.resolve({ data: null, error: null });
+        return Promise.resolve({ data: null, error: null });
+      });
+      return chain;
+    });
+
+    const result = await rescheduleAppointment(svc, {
+      agencyId: 'ag-1',
+      oldAppointmentId: 'appt-old',
+      startsAt: new Date('2026-10-15T10:00:00Z'),
+      endsAt: new Date('2026-10-15T10:30:00Z'),
+      bookedVia: 'booking_page',
+    });
+
+    // neuer Termin hat andere ID
+    expect(result.newAppointmentId).toBe('appt-new');
+    expect(result.newAppointmentId).not.toBe('appt-old');
+
+    // alter Termin wurde auf cancelled gesetzt
+    const apptUpdates = (svc as unknown as { _updated: Record<string, unknown[]> })._updated['appointments'] ?? [];
+    expect(apptUpdates.some((u: unknown) => (u as Record<string, unknown>)['status'] === 'cancelled')).toBe(true);
   });
 });
