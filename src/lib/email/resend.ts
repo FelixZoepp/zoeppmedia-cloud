@@ -176,11 +176,17 @@ export async function sendReportEmail(
   });
 }
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 export async function sendOptInFallbackEmail(to: string, firstName: string, applyUrl: string) {
+  const safeFirstName = escapeHtml(firstName);
+  const safeApplyUrl = escapeHtml(applyUrl);
   return getResend().emails.send({
     from: FROM,
     to,
+    // subject is plain-text — no HTML escaping needed
     subject: 'Deine Bewerbung — ein Schritt fehlt noch',
-    html: `<p>Hallo ${firstName},</p><p>danke für deine Bewerbung! Damit wir dich schnell erreichen können, bestätige bitte kurz deine Telefonnummer und die Kontaktaufnahme über unser Formular:</p><p><a href="${applyUrl}">${applyUrl}</a></p><p>Viele Grüße<br/>Dein Recruiting-Team</p>`,
+    html: `<p>Hallo ${safeFirstName},</p><p>danke für deine Bewerbung! Damit wir dich schnell erreichen können, bestätige bitte kurz deine Telefonnummer und die Kontaktaufnahme über unser Formular:</p><p><a href="${safeApplyUrl}">${safeApplyUrl}</a></p><p>Viele Grüße<br/>Dein Recruiting-Team</p>`,
   });
 }

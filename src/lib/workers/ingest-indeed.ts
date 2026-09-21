@@ -89,10 +89,15 @@ export async function processIngestIndeed(
   const x = extractIndeedApplication(payload.body);
   if (!x.applyId || !x.jobRef) throw new Error('ingest.indeed: id oder job.jobId fehlt');
 
-  // Job auflösen (UUID oder external_ref) — Agentur kommt aus dem Job
+  // Job auflösen (UUID oder external_ref) — Agentur kommt aus dem Job.
+  // Bei external_ref + bekannter agencyId auf die Agentur eingrenzen, da external_refs
+  // agenturübergreifend nicht eindeutig sein müssen. Ist agencyId null (globaler Lookup),
+  // bleibt die Query ungescopet — der Mismatch-Throw danach fängt falsche Zuordnungen ab.
   const jobQuery = isUuid(x.jobRef)
     ? svc.from('jobs').select('id, agency_id, slug').eq('id', x.jobRef).single()
-    : svc.from('jobs').select('id, agency_id, slug').eq('external_ref', x.jobRef).limit(1).single();
+    : agencyId
+      ? svc.from('jobs').select('id, agency_id, slug').eq('external_ref', x.jobRef).eq('agency_id', agencyId).limit(1).single()
+      : svc.from('jobs').select('id, agency_id, slug').eq('external_ref', x.jobRef).limit(1).single();
   const { data: jobRow } = await jobQuery;
   if (!jobRow) throw new Error(`ingest.indeed: Job ${x.jobRef} nicht gefunden`);
   if (agencyId && jobRow.agency_id !== agencyId)
