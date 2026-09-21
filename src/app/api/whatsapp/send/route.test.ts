@@ -19,10 +19,15 @@ vi.mock('@/lib/whatsapp/send', () => ({
   sendWhatsAppMessage: vi.fn(),
 }));
 
+vi.mock('@/lib/bot/timers', () => ({
+  cancelBotTimers: vi.fn(),
+}));
+
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
+import { cancelBotTimers } from '@/lib/bot/timers';
 import { POST } from './route';
 
 // --- Constants (valid RFC 4122 v4 UUIDs for Zod .uuid() validation) ---
@@ -330,5 +335,109 @@ describe('POST /api/whatsapp/send', () => {
     // eq should have been called with both id and agency_id
     expect(eqSpy).toHaveBeenCalledWith('id', CONV_ID);
     expect(eqSpy).toHaveBeenCalledWith('agency_id', AGENCY_ID);
+  });
+
+  // --- Bot-Pause: Recruiter-Nachricht pausiert Bot ---
+
+  it('calls cancelBotTimers when sending on a bot_active conversation (Bot-Pause)', async () => {
+    const convData = { id: CONV_ID, candidate_id: 'cand-1', wa_account_id: 'wa-1', state: 'bot_active' };
+    const candidateData = { phone_e164: '+491761234567' };
+
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSvcMock({
+        conversations: makeChain({ data: convData, error: null }),
+        candidates: makeChain({ data: candidateData, error: null }),
+      })
+    );
+
+    vi.mocked(sendWhatsAppMessage).mockResolvedValue({ messageId: 'wamid.pause1', messageRowId: 'row-pause-1' });
+    vi.mocked(cancelBotTimers).mockResolvedValue(undefined);
+
+    const res = await POST(makeRequest({ conversationId: CONV_ID, type: 'text', body: 'Hallo' }));
+
+    expect(res.status).toBe(200);
+
+    // cancelBotTimers muss nach erfolgreichem Versand aufgerufen worden sein
+    expect(cancelBotTimers).toHaveBeenCalledOnce();
+    const timerArgs = vi.mocked(cancelBotTimers).mock.calls[0][1];
+    expect(timerArgs.agencyId).toBe(AGENCY_ID);
+    expect(timerArgs.conversationId).toBe(CONV_ID);
+  });
+
+  it('state is set to human_active after sending on bot_active conversation (Bot-Pause)', async () => {
+    const convData = { id: CONV_ID, candidate_id: 'cand-1', wa_account_id: 'wa-1', state: 'bot_active' };
+    const candidateData = { phone_e164: '+491761234567' };
+
+    const eqSpy = vi.fn().mockReturnThis();
+    const updateChain = { update: vi.fn().mockReturnValue({ eq: eqSpy }) };
+
+    let convCallCount = 0;
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        if (table === 'conversations') {
+          convCallCount++;
+          if (convCallCount === 1) return makeChain({ data: convData, error: null });
+          return updateChain as unknown as ReturnType<typeof makeChain>;
+        }
+        if (table === 'candidates') return makeChain({ data: candidateData, error: null });
+        return makeChain({ data: null, error: null });
+      },
+    } as unknown as ReturnType<typeof createAdminClient>);
+
+    vi.mocked(sendWhatsAppMessage).mockResolvedValue({ messageId: 'wamid.pause2', messageRowId: 'row-pause-2' });
+    vi.mocked(cancelBotTimers).mockResolvedValue(undefined);
+
+    const res = await POST(makeRequest({ conversationId: CONV_ID, type: 'text', body: 'Hallo' }));
+
+    expect(res.status).toBe(200);
+
+    // Update muss mit state=human_active aufgerufen worden sein
+    expect(updateChain.update).toHaveBeenCalledOnce();
+    const updateArg = updateChain.update.mock.calls[0][0];
+    expect(updateArg).toHaveProperty('state', 'human_active');
+  });
+
+  it('does NOT call cancelBotTimers when sending on non-bot_active conversation', async () => {
+    const convData = { id: CONV_ID, candidate_id: 'cand-1', wa_account_id: 'wa-1', state: 'human_active' };
+    const candidateData = { phone_e164: '+491761234567' };
+
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSvcMock({
+        conversations: makeChain({ data: convData, error: null }),
+        candidates: makeChain({ data: candidateData, error: null }),
+      })
+    );
+
+    vi.mocked(sendWhatsAppMessage).mockResolvedValue({ messageId: 'wamid.nopause', messageRowId: 'row-nopause' });
+    vi.mocked(cancelBotTimers).mockResolvedValue(undefined);
+
+    const res = await POST(makeRequest({ conversationId: CONV_ID, type: 'text', body: 'Hallo' }));
+
+    expect(res.status).toBe(200);
+
+    // cancelBotTimers darf NICHT aufgerufen werden wenn kein Bot aktiv
+    expect(cancelBotTimers).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call cancelBotTimers when send fails on bot_active conversation', async () => {
+    const convData = { id: CONV_ID, candidate_id: 'cand-1', wa_account_id: 'wa-1', state: 'bot_active' };
+    const candidateData = { phone_e164: '+491761234567' };
+
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSvcMock({
+        conversations: makeChain({ data: convData, error: null }),
+        candidates: makeChain({ data: candidateData, error: null }),
+      })
+    );
+
+    vi.mocked(sendWhatsAppMessage).mockRejectedValue(new Error('WhatsApp-Fehler'));
+    vi.mocked(cancelBotTimers).mockResolvedValue(undefined);
+
+    const res = await POST(makeRequest({ conversationId: CONV_ID, type: 'text', body: 'Hallo' }));
+
+    expect(res.status).toBe(400);
+
+    // cancelBotTimers darf NICHT aufgerufen werden wenn Versand scheitert
+    expect(cancelBotTimers).not.toHaveBeenCalled();
   });
 });

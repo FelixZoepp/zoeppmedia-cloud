@@ -3,6 +3,7 @@ import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
+import { cancelBotTimers } from '@/lib/bot/timers';
 import { z } from 'zod';
 
 // I2: restrict type to implemented variants only (image/document not in v1)
@@ -120,6 +121,11 @@ export async function POST(request: NextRequest) {
         .update({ state: 'human_active', updated_at: new Date().toISOString() })
         .eq('id', conv.id)
         .eq('agency_id', agencyId);
+
+      // Bot-Pause: Recruiter-Nachricht pausiert den Bot (storniert ausstehende Timer)
+      if (conv.state === 'bot_active') {
+        await cancelBotTimers(svc, { agencyId, conversationId: conv.id });
+      }
     }
 
     return NextResponse.json({ ok: true, messageId: result.messageId });
