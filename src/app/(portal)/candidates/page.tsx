@@ -10,8 +10,6 @@ import type { PipelineStage } from '@/lib/types/database';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export const dynamic = 'force-dynamic';
-
 export default function CandidatesPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
@@ -20,6 +18,7 @@ export default function CandidatesPage() {
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [tableLoaded, setTableLoaded] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -36,26 +35,17 @@ export default function CandidatesPage() {
       if (Array.isArray(usersRes)) {
         setUsers(usersRes.map((u: { user_id: string; name: string }) => ({ id: u.user_id, name: u.name })));
       }
+      setTableLoaded(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData, refreshKey]);
-
-  if (loading && view === 'table') {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (view === 'kanban') {
-    return <KanbanBoard key={refreshKey} />;
-  }
+    if (view === 'table') {
+      loadData();
+    }
+  }, [view, loadData, refreshKey]);
 
   return (
     <div>
@@ -87,16 +77,24 @@ export default function CandidatesPage() {
         }
       />
 
+      {view === 'kanban' && <KanbanBoard key={refreshKey} hideHeader />}
+
       {view === 'table' && (
-        <div className="p-6">
-          <ApplicationTableView
-            applications={applications}
-            stages={stages}
-            jobs={jobs}
-            users={users}
-            onRefresh={() => setRefreshKey((k) => k + 1)}
-          />
-        </div>
+        loading && !tableLoaded ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="p-6">
+            <ApplicationTableView
+              applications={applications}
+              stages={stages}
+              jobs={jobs}
+              users={users}
+              onRefresh={() => setRefreshKey((k) => k + 1)}
+            />
+          </div>
+        )
       )}
     </div>
   );

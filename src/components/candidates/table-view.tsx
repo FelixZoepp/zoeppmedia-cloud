@@ -61,11 +61,24 @@ export function ApplicationTableView({
   const [bulkModal, setBulkModal] = useState<'stage' | 'assign' | 'delete' | null>(null);
   const [bulkStageId, setBulkStageId] = useState('');
   const [bulkAssignTo, setBulkAssignTo] = useState('');
+  const [bulkRejectionReason, setBulkRejectionReason] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Determine if the currently selected bulk stage is a rejection stage
+  const selectedStageIsRejection = useMemo(() => {
+    if (!bulkStageId) return false;
+    const stage = stages.find((s) => s.id === bulkStageId);
+    return stage?.stage_type === 'rejected';
+  }, [bulkStageId, stages]);
 
   useEffect(() => {
     localStorage.setItem('zmc_table_columns', JSON.stringify(columns));
   }, [columns]);
+
+  // Reset rejection reason when stage selection changes
+  useEffect(() => {
+    if (!selectedStageIsRejection) setBulkRejectionReason('');
+  }, [selectedStageIsRejection]);
 
   const filtered = useMemo(() => {
     return applications.filter((a) => {
@@ -104,7 +117,10 @@ export function ApplicationTableView({
     setBulkLoading(true);
     try {
       const body: Record<string, unknown> = { ids: Array.from(selected), action };
-      if (action === 'set_stage') body.stage_id = bulkStageId;
+      if (action === 'set_stage') {
+        body.stage_id = bulkStageId;
+        if (selectedStageIsRejection) body.rejection_reason = bulkRejectionReason;
+      }
       if (action === 'assign') body.assigned_to = bulkAssignTo || null;
 
       const res = await fetch('/api/applications/bulk', {
@@ -112,11 +128,16 @@ export function ApplicationTableView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data?.error ?? 'Fehler bei Mehrfachaktion');
+        return;
+      }
       const result = await res.json();
       toast.success(`${result.affected} Bewerbung(en) aktualisiert`);
       setSelected(new Set());
       setBulkModal(null);
+      setBulkRejectionReason('');
       onRefresh();
     } catch {
       toast.error('Fehler bei Mehrfachaktion');
@@ -183,7 +204,7 @@ export function ApplicationTableView({
           ]}
           className="w-40" />
         <button onClick={() => setShowColumns(!showColumns)}
-          className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Spalten waehlen">
+          className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50" title="Spalten wählen">
           <Settings2 className="w-4 h-4 text-gray-500" />
         </button>
         <Button variant="ghost" size="sm" onClick={exportCsv}>
@@ -191,7 +212,7 @@ export function ApplicationTableView({
         </Button>
         {selected.size > 0 && (
           <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm text-gray-500">{selected.size} ausgewaehlt</span>
+            <span className="text-sm text-gray-500">{selected.size} ausgewählt</span>
             <Button size="sm" variant="ghost" onClick={() => setBulkModal('stage')}>
               <ArrowRightLeft className="w-4 h-4" /> Stufe
             </Button>
@@ -199,7 +220,7 @@ export function ApplicationTableView({
               <UserPlus className="w-4 h-4" /> Zuweisen
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setBulkModal('delete')}>
-              <Trash2 className="w-4 h-4" /> Loeschen
+              <Trash2 className="w-4 h-4" /> Löschen
             </Button>
           </div>
         )}
@@ -254,14 +275,33 @@ export function ApplicationTableView({
       </div>
 
       {/* Bulk Modals */}
-      <Modal open={bulkModal === 'stage'} onClose={() => setBulkModal(null)} title="Stufe aendern" width="max-w-sm">
+      <Modal open={bulkModal === 'stage'} onClose={() => setBulkModal(null)} title="Stufe ändern" width="max-w-sm">
         <div className="space-y-4">
           <Select value={bulkStageId} onChange={(e) => setBulkStageId(e.target.value)}
-            options={[{ value: '', label: 'Stufe waehlen' }, ...stages.map((s) => ({ value: s.id, label: s.name }))]} />
+            options={[{ value: '', label: 'Stufe wählen' }, ...stages.map((s) => ({ value: s.id, label: s.name }))]} />
+          {selectedStageIsRejection && (
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Absagegrund <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                rows={3}
+                placeholder="Bitte Absagegrund eingeben..."
+                value={bulkRejectionReason}
+                onChange={(e) => setBulkRejectionReason(e.target.value)}
+              />
+            </div>
+          )}
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" onClick={() => setBulkModal(null)}>Abbrechen</Button>
-            <Button className="flex-1" disabled={!bulkStageId || bulkLoading}
-              onClick={() => executeBulk('set_stage')}>{bulkLoading ? 'Wird gesetzt...' : 'Uebernehmen'}</Button>
+            <Button
+              className="flex-1"
+              disabled={!bulkStageId || bulkLoading || (selectedStageIsRejection && !bulkRejectionReason.trim())}
+              onClick={() => executeBulk('set_stage')}
+            >
+              {bulkLoading ? 'Wird gesetzt...' : 'Übernehmen'}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -273,20 +313,20 @@ export function ApplicationTableView({
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" onClick={() => setBulkModal(null)}>Abbrechen</Button>
             <Button className="flex-1" disabled={bulkLoading}
-              onClick={() => executeBulk('assign')}>{bulkLoading ? 'Wird zugewiesen...' : 'Uebernehmen'}</Button>
+              onClick={() => executeBulk('assign')}>{bulkLoading ? 'Wird zugewiesen...' : 'Übernehmen'}</Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={bulkModal === 'delete'} onClose={() => setBulkModal(null)} title="Bewerbungen loeschen" width="max-w-sm">
+      <Modal open={bulkModal === 'delete'} onClose={() => setBulkModal(null)} title="Bewerbungen löschen" width="max-w-sm">
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            {selected.size} Bewerbung(en) unwiderruflich loeschen? Die Kandidaten bleiben erhalten.
+            {selected.size} Bewerbung(en) unwiderruflich löschen? Die Kandidaten bleiben erhalten.
           </p>
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" onClick={() => setBulkModal(null)}>Abbrechen</Button>
             <Button variant="primary" className="flex-1" disabled={bulkLoading}
-              onClick={() => executeBulk('delete')}>{bulkLoading ? 'Wird geloescht...' : 'Endgueltig loeschen'}</Button>
+              onClick={() => executeBulk('delete')}>{bulkLoading ? 'Wird gelöscht...' : 'Endgültig löschen'}</Button>
           </div>
         </div>
       </Modal>

@@ -41,7 +41,7 @@ const REJECTION_REASONS = [
   'Sonstiges',
 ];
 
-export function KanbanBoard() {
+export function KanbanBoard({ hideHeader }: { hideHeader?: boolean } = {}) {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [jobs, setJobs] = useState<{ id: string; title: string }[]>([]);
@@ -156,26 +156,28 @@ export function KanbanBoard() {
 
   return (
     <div>
-      <PageHeader
-        label="PIPELINE"
-        title="Pipeline"
-        action={
-          <div className="flex items-center gap-2">
-            <a
-              href="/api/export/candidates"
-              download
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              CSV
-            </a>
-            <Button onClick={() => setShowAddModal(true)} size="md">
-              <Plus className="w-4 h-4" />
-              Neuer Bewerber
-            </Button>
-          </div>
-        }
-      />
+      {!hideHeader && (
+        <PageHeader
+          label="PIPELINE"
+          title="Pipeline"
+          action={
+            <div className="flex items-center gap-2">
+              <a
+                href="/api/export/candidates"
+                download
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                CSV
+              </a>
+              <Button onClick={() => setShowAddModal(true)} size="md">
+                <Plus className="w-4 h-4" />
+                Neuer Bewerber
+              </Button>
+            </div>
+          }
+        />
+      )}
 
       <ApplicationFilterBar stages={stages} jobs={jobs} filters={filters} onChange={setFilters} />
 
