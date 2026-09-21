@@ -43,11 +43,11 @@ function windowCountdown(expiresAt: string | null): string | null {
 }
 
 // Map conversation state to Badge tone (Badge uses `tone`, not `variant`)
-const STATE_INFO: Record<string, { label: string; tone: 'success' | 'softAccent' | 'neutral' | 'accent' }> = {
+const STATE_INFO: Record<string, { label: string; tone: 'success' | 'softAccent' | 'neutral' | 'accent' | 'outline' }> = {
   bot_active:   { label: 'Bot',          tone: 'softAccent' },
   human_active: { label: 'Mensch',       tone: 'success'    },
   waiting:      { label: 'Wartet',       tone: 'neutral'    },
-  closed:       { label: 'Geschlossen',  tone: 'neutral'    },
+  closed:       { label: 'Geschlossen',  tone: 'outline'    },
 };
 
 export function ConversationList({

@@ -42,9 +42,20 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Suche
+  // Suche — zwei Schritte, da PostgREST kein .or() auf joined columns unterstützt (I-2).
+  // Kommas im Suchbegriff werden entfernt um .or()-Syntax nicht zu brechen.
   if (search) {
-    query = query.or(`candidate.name.ilike.%${search}%,candidate.phone_e164.ilike.%${search}%`);
+    const s = search.replace(/,/g, '');
+    const { data: matchingCandidates } = await svc
+      .from('candidates')
+      .select('id')
+      .eq('agency_id', agencyId)
+      .or(`name.ilike.%${s}%,phone_e164.ilike.%${s}%`);
+
+    const ids = (matchingCandidates ?? []).map((c: { id: string }) => c.id);
+    if (ids.length === 0) return NextResponse.json([]);
+
+    query = query.in('candidate_id', ids);
   }
 
   const { data, error } = await query.limit(100);

@@ -21,7 +21,10 @@ export function QuickReplyModal({ onSelect, onClose }: Props) {
 
   useEffect(() => {
     fetch('/api/quick-replies')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) return [];
+        return r.json();
+      })
       .then(data => {
         if (Array.isArray(data)) setReplies(data);
       });

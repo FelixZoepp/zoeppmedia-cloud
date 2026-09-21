@@ -33,7 +33,7 @@ function makeRequest(params: Record<string, string> = {}): NextRequest {
 function makeChain(result: { data: unknown; error: unknown }) {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
-  for (const m of ['select', 'eq', 'is', 'gt', 'lt', 'or', 'order', 'limit']) {
+  for (const m of ['select', 'eq', 'is', 'gt', 'lt', 'or', 'in', 'order', 'limit']) {
     chain[m] = self;
   }
   // Make the chain itself thenable so `await query` works
@@ -44,6 +44,17 @@ function makeChain(result: { data: unknown; error: unknown }) {
 function makeSvcMock(tableMap: Record<string, ReturnType<typeof makeChain>>) {
   return {
     from: (table: string) => tableMap[table] ?? makeChain({ data: null, error: null }),
+  } as unknown as ReturnType<typeof createAdminClient>;
+}
+
+/**
+ * Returns chains in call order (for routes that call `from()` multiple times
+ * against different tables, e.g. candidates lookup then conversations query).
+ */
+function makeSvcCallOrderMock(calls: Array<ReturnType<typeof makeChain>>) {
+  let idx = 0;
+  return {
+    from: (_table: string) => calls[idx++] ?? makeChain({ data: null, error: null }),
   } as unknown as ReturnType<typeof createAdminClient>;
 }
 
@@ -118,10 +129,77 @@ describe('GET /api/conversations', () => {
     expect(Array.isArray(json)).toBe(true);
   });
 
-  // --- Happy path: search param ---
-  it('returns 200 with search param', async () => {
+  // --- Search: two-step path (I-2 fix) ---
+  it('returns [] immediately when candidate lookup finds no matches', async () => {
+    // svc.from() order: [0] conversations (initial builder), [1] candidates (search).
+    // When candidates returns empty, route returns [] early without awaiting conversations.
     vi.mocked(createAdminClient).mockReturnValue(
-      makeSvcMock({ conversations: makeChain({ data: [], error: null }) })
+      makeSvcCallOrderMock([
+        makeChain({ data: [], error: null }), // [0] conversations (never awaited)
+        makeChain({ data: [], error: null }), // [1] candidates — no match
+      ])
+    );
+
+    const res = await GET(makeRequest({ filter: 'all', search: 'Unbekannt' }));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(Array.isArray(json)).toBe(true);
+    expect(json).toHaveLength(0);
+  });
+
+  it('queries conversations with .in(candidate_id) when candidates match', async () => {
+    const conversations = [
+      {
+        id: 'conv-1',
+        state: 'human_active',
+        unread_count: 0,
+        last_message_at: new Date().toISOString(),
+        candidate: { id: 'cand-1', name: 'Max Mustermann', phone_e164: '+491761234567', email: null },
+        application: [],
+      },
+    ];
+
+    // Track .in() call to verify correct column + ids.
+    // NOTE: svc.from() call order in the route is:
+    //   [0] conversations (initial query builder, before search)
+    //   [1] candidates    (search lookup)
+    // The conversations chain receives .in() AFTER the candidates lookup resolves.
+    let inCallArgs: [string, string[]] | null = null;
+    const convChain = makeChain({ data: conversations, error: null });
+    convChain['in'] = (col: string, ids: string[]) => {
+      inCallArgs = [col, ids];
+      return convChain; // keep chain thenable
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSvcCallOrderMock([
+        convChain,                                             // [0] conversations
+        makeChain({ data: [{ id: 'cand-1' }], error: null }), // [1] candidates
+      ])
+    );
+
+    const res = await GET(makeRequest({ filter: 'all', search: 'Max' }));
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toHaveLength(1);
+    expect(json[0].id).toBe('conv-1');
+
+    // Verify the route used .in('candidate_id', [...]) not .or() on joined column
+    expect(inCallArgs).not.toBeNull();
+    expect(inCallArgs![0]).toBe('candidate_id');
+    expect(inCallArgs![1]).toContain('cand-1');
+  });
+
+  // --- Happy path: search param (legacy test — now exercises two-step path) ---
+  it('returns 200 with search param', async () => {
+    // [0] conversations (initial builder), [1] candidates — no match → early []
+    vi.mocked(createAdminClient).mockReturnValue(
+      makeSvcCallOrderMock([
+        makeChain({ data: [], error: null }), // [0] conversations
+        makeChain({ data: [], error: null }), // [1] candidates — no match
+      ])
     );
 
     const res = await GET(makeRequest({ filter: 'all', search: 'Max' }));

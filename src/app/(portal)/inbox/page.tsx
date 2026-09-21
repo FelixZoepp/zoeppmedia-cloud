@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { ConversationList } from '@/components/inbox/conversation-list';
 import { ChatPane } from '@/components/inbox/chat-pane';
 import { CandidateSidebar } from '@/components/inbox/candidate-sidebar';
@@ -14,8 +14,9 @@ export default function InboxPage() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // C1: stable client instance — never re-created on render
+  const supabase = useMemo(() => createClient(), []);
 
   const loadConversations = useCallback(async () => {
     const params = new URLSearchParams({ filter });
@@ -44,35 +45,57 @@ export default function InboxPage() {
     if (selectedId) loadMessages(selectedId);
   }, [selectedId, loadMessages]);
 
-  // Supabase Realtime für Live-Updates
+  // Keep a stable ref so realtime callbacks always call the latest version
+  // without needing it in effect deps (avoids subscription churn).
+  const loadConversationsRef = useRef(loadConversations);
+  useEffect(() => { loadConversationsRef.current = loadConversations; }, [loadConversations]);
+
+  // C2: Effect A — mount-only, stable. Subscribes to conversation INSERT+UPDATE
+  // so the list refreshes whenever a conversation is created or last_message_at changes.
   useEffect(() => {
     const channel = supabase
-      .channel('inbox-realtime')
+      .channel('inbox-conversations')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
-        table: 'messages',
-      }, (payload) => {
-        const newMsg = payload.new as Record<string, unknown>;
-        // Update messages if current conversation
-        if (selectedId && newMsg.conversation_id === selectedId) {
-          setMessages(prev => [...prev, newMsg]);
-        }
-        // Refresh conversation list
-        loadConversations();
-      })
+        table: 'conversations',
+      }, () => { loadConversationsRef.current(); })
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'conversations',
-      }, () => {
-        loadConversations();
+      }, () => { loadConversationsRef.current(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase]);
+
+  // C3: Effect B — keyed on selectedId. Subscribes to message INSERTs for the
+  // open conversation only, with a server-side filter (no cross-conversation noise).
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const channel = supabase
+      .channel(`inbox-messages-${selectedId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${selectedId}`,
+      }, (payload) => {
+        const newMsg = payload.new as Record<string, unknown>;
+        setMessages(prev => {
+          // Dedupe by id in case optimistic append already added it
+          if (prev.some((m) => (m as { id: string }).id === (newMsg as { id: string }).id)) {
+            return prev;
+          }
+          return [...prev, newMsg];
+        });
       })
       .subscribe();
 
-    channelRef.current = channel;
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, selectedId, loadConversations]);
+  }, [supabase, selectedId]);
 
   const selectedConv = conversations.find((c) => (c as { id: string }).id === selectedId) || null;
 

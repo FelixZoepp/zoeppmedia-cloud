@@ -42,6 +42,7 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
     candidate: { name: string };
   } | null;
 
+  const isOptedOut = conv?.state === 'closed';
   const windowOpen = conv?.window_expires_at
     ? new Date(conv.window_expires_at).getTime() > Date.now()
     : false;
@@ -183,7 +184,11 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
 
       {/* Composer */}
       <div className="border-t border-gray-200 p-3">
-        {isClosed ? (
+        {isOptedOut ? (
+          <p className="text-sm text-gray-500 text-center py-2">
+            Konversation geschlossen — Kandidat hat sich abgemeldet oder das Gespräch wurde beendet.
+          </p>
+        ) : isClosed ? (
           <TemplatePicker onSend={handleTemplateSend} sending={sending} />
         ) : (
           <div className="flex items-center gap-2">

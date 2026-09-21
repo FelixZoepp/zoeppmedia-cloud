@@ -24,8 +24,12 @@ export function TemplatePicker({ onSend, sending }: Props) {
   const [variables, setVariables] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    // API does not filter by status param, so we keep the client-side approved filter.
     fetch('/api/whatsapp/templates?status=approved')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) return [];
+        return r.json();
+      })
       .then(data => {
         if (Array.isArray(data)) {
           setTemplates(data.filter((t: Template) => t.status === 'approved'));
