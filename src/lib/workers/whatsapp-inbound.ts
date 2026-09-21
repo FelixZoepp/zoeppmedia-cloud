@@ -56,40 +56,13 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
     return;
   }
 
-  // 3. Conversation atomar upsert-en.
-  //
-  // Ansatz: Upsert mit onConflict auf (wa_account_id, candidate_id).
-  // - Felder die IMMER aktualisiert werden (window_expires_at, last_message_at, updated_at)
-  //   gehen direkt in den Upsert-Payload.
-  // - Felder die nur bei Neuanlage gesetzt werden dürfen (state, bot_step, agency_id, candidate_id,
-  //   wa_account_id) gehen ebenfalls in den Payload, werden aber durch ignoreDuplicates: false
-  //   überschrieben — das ist für state/bot_step nicht korrekt.
-  //
-  // Da Supabase-Upserts mit onConflict kein "nur bei INSERT"-Semantik für einzelne Spalten bieten,
-  // verwenden wir einen zweistufigen Ansatz:
-  //   a) Upsert mit nur den "immer-update"-Feldern plus den INSERT-Initialisierungsfeldern.
-  //   b) Nach dem Upsert prüfen wir den zurückgegebenen state: Wenn die Row NEU angelegt wurde,
-  //      enthält state den von uns gesetzten Wert 'waiting'. Wenn die Row bereits existierte,
-  //      enthält state den gespeicherten Wert (kann alles sein).
-  //   c) Für existing conversations: state und bot_step werden NICHT vom Upsert clobbered, weil
-  //      Supabase-Upsert bei onConflict alle Felder im Payload schreibt. Daher upserten wir
-  //      zunächst nur die always-update-Felder, lesen state/assigned_to zurück, und wenden dann
-  //      ggf. Zustandsübergänge an.
-  //
-  // Konkretes Vorgehen:
-  //   - INSERT mit allen Feldern inkl. state='waiting', bot_step=0.
-  //   - ON CONFLICT (wa_account_id, candidate_id): nur window_expires_at, last_message_at,
-  //     updated_at aktualisieren (ignoreDuplicates: false aktualisiert alle Payload-Felder —
-  //     das würde state clobbern).
-  //
-  // Da Supabase JS v2 keinen partiellen upsert-Update unterstützt (kein DO UPDATE SET subset),
-  // wählen wir: upsert mit ignoreDuplicates: false, aber im Payload KEINE state/bot_step Werte
-  // für vorhandene Rows. Dies lässt sich nicht atomar ausdrücken, daher:
-  //
-  // Finale Strategie: INSERT ... ON CONFLICT DO NOTHING via ignoreDuplicates: true, dann
-  // immer ein UPDATE der always-update-Felder. Ergebnis: 2 Queries statt race condition.
-  // Das ist sicher weil events_inbox SKIP LOCKED single-worker-Semantik garantiert —
-  // kein gleichzeitiger Worker verarbeitet denselben Kandidaten.
+  // 3. Conversation anlegen/aktualisieren (C3, atomar in 2 Schritten):
+  //    a) INSERT ... ON CONFLICT DO NOTHING (upsert mit ignoreDuplicates: true) —
+  //       legt die Row nur an, wenn sie fehlt; state/bot_step bestehender Rows bleiben unberührt,
+  //       da Supabase JS kein partielles "DO UPDATE SET <subset>" unterstützt.
+  //    b) UPDATE der always-update-Felder (window_expires_at, last_message_at, updated_at)
+  //       auf der dann sicher existierenden Row. Kein Race: parallele Inserts kollidieren
+  //       am Unique-Index uq_conversations_account_candidate und laufen in Schritt b zusammen.
 
   const windowExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
@@ -128,10 +101,6 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
 
   const conversationId: string = conv.id;
   const assignedTo: string | null = conv.assigned_to ?? null;
-  // isNew: wenn state noch 'waiting' und assigned_to null — aber das ist nicht eindeutig.
-  // Wir merken uns stattdessen ob die Notification für neue Konversationen ausgelöst wird,
-  // indem wir prüfen ob die Row gerade erst erzeugt wurde (via separaten Zähler ist nicht nötig —
-  // die Notification-Logik in Schritt 7 behandelt assigned_to=null gleich).
 
   // C4: unread_count atomar via DB-Funktion inkrementieren (kein client-seitiges +1)
   await svc.rpc('increment_unread', { conversation_id: conversationId });
