@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
-import { ArrowLeft, Play, Pause, X, Save, Files, Bot } from 'lucide-react';
+import { ArrowLeft, Play, Pause, X, Save, Files, Bot, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { BotConfigForm } from '@/components/bot/bot-config-form';
 import { BotSimulator } from '@/components/bot/bot-simulator';
+import { AvailabilityEditor } from '@/components/jobs/availability-editor';
 
-type JobTab = 'details' | 'ki-bot';
+type JobTab = 'details' | 'ki-bot' | 'termine';
 
 const EMPLOYMENT_TYPES = [
   { value: '', label: 'Bitte waehlen' },
@@ -202,6 +203,18 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <Bot className="w-3.5 h-3.5" />
           KI-Bot
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('termine')}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'termine'
+              ? 'border-red-500 text-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <CalendarDays className="w-3.5 h-3.5" />
+          Termine
+        </button>
       </div>
 
       {/* Tab: KI-Bot */}
@@ -213,6 +226,13 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <div>
             <BotSimulator jobId={jobId} />
           </div>
+        </div>
+      )}
+
+      {/* Tab: Termine */}
+      {activeTab === 'termine' && (
+        <div className="max-w-2xl">
+          <AvailabilityEditor jobId={jobId} />
         </div>
       )}
 
