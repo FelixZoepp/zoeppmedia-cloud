@@ -64,7 +64,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: urlData } = await admin.storage
     .from('call-recordings')
-    .createSignedUrl(storagePath, 365 * 24 * 60 * 60);
+    .createSignedUrl(storagePath, 3600);
 
   const fileUrl = urlData?.signedUrl || '';
 

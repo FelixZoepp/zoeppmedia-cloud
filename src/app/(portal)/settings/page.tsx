@@ -87,8 +87,9 @@ export default function SettingsPage() {
     );
   }
 
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const webhookUrl = isAgencyUser && agency
-    ? `${window.location.origin}/api/webhooks/meta?agency=${agency.id}`
+    ? `${origin}/api/webhooks/meta?agency=${agency.id}`
     : '';
 
   function handleCopy() {
@@ -364,14 +365,14 @@ export default function SettingsPage() {
           <div className="space-y-4 pl-12">
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-3">
               <code className="text-xs text-gray-900 font-mono break-all flex-1">
-                {`${window.location.origin}/api/calendar/${agency.calendar_feed_token}`}
+                {`${origin}/api/calendar/${agency.calendar_feed_token}`}
               </code>
               <Button
                 variant="secondary"
                 size="sm"
                 pill
                 onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/api/calendar/${agency.calendar_feed_token}`);
+                  navigator.clipboard.writeText(`${origin}/api/calendar/${agency.calendar_feed_token}`);
                   setCalCopied(true);
                   toast.success('Kalender-URL kopiert');
                   setTimeout(() => setCalCopied(false), 2000);

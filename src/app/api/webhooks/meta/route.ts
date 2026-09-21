@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
   }
 
+  // lead_sources einmalig pro Request laden (N+1-Vermeidung)
+  const { data: sources } = await supabase
+    .from('lead_sources')
+    .select('config')
+    .eq('agency_id', agencyId)
+    .eq('kind', 'meta')
+    .eq('active', true);
+
   // Process Meta lead entries
   const entries = body?.entry || [];
   for (const entry of entries) {
@@ -78,12 +86,6 @@ export async function POST(request: NextRequest) {
       const formId = (leadData.form_id as string | undefined) || null;
 
       // Formular→Job-Mapping über lead_sources (Phase 5 Task 6)
-      const { data: sources } = await supabase
-        .from('lead_sources')
-        .select('config')
-        .eq('agency_id', agencyId)
-        .eq('kind', 'meta')
-        .eq('active', true);
       const { jobId: mappedJobId, pageToken } = resolveMetaJob(
         (sources ?? []) as MetaSource[],
         formId

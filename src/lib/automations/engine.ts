@@ -240,7 +240,8 @@ async function executeChangeStage(
   await supabase
     .from('candidates')
     .update({ current_stage_id: stageId })
-    .eq('id', context.candidate_id);
+    .eq('id', context.candidate_id)
+    .eq('agency_id', context.agency_id);
 
   await supabase.from('candidate_stages').insert({
     candidate_id: context.candidate_id,
@@ -284,7 +285,8 @@ async function executeSetField(
   await supabase
     .from('candidates')
     .update({ [field]: value })
-    .eq('id', context.candidate_id);
+    .eq('id', context.candidate_id)
+    .eq('agency_id', context.agency_id);
 }
 
 async function executeLogActivity(
