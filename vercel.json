@@ -8,6 +8,14 @@
     {
       "path": "/api/cron/cadence",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/tick",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/sync-whatsapp",
+      "schedule": "0 * * * *"
     }
   ]
 }
