@@ -964,3 +964,24 @@ export interface AvailabilityRule {
   created_at: string;
   updated_at: string;
 }
+
+// --- Phase 6: Verbrauch & Kosten ---
+export interface UsageDaily {
+  id: string;
+  agency_id: string;
+  day: string; // YYYY-MM-DD
+  messages_out: number;
+  messages_in: number;
+  templates_by_category: Record<string, number>;
+  ai_input_tokens: number;
+  ai_output_tokens: number;
+  ai_cost_usd: number;
+  created_at: string;
+}
+
+export interface MetaPricing {
+  id: string;
+  category: string;
+  price_eur: number;
+  updated_at: string;
+}
