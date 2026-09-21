@@ -25,7 +25,7 @@ vi.mock('@/lib/activity/log', () => ({
 }));
 
 vi.mock('@/lib/bot/timers', () => ({
-  armBotTimers: vi.fn().mockResolvedValue(undefined),
+  armBotTimersV2: vi.fn().mockResolvedValue(undefined),
   cancelBotTimers: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -351,13 +351,13 @@ describe('processBotOpen', () => {
     expect(params).toContain('Max');
   });
 
-  it('Erfolgsfall: armBotTimers wird aufgerufen', async () => {
+  it('Erfolgsfall: armBotTimersV2 wird aufgerufen', async () => {
     const { svc } = makeHappySvc();
-    const { armBotTimers } = await import('@/lib/bot/timers');
+    const { armBotTimersV2 } = await import('@/lib/bot/timers');
 
     await processBotOpen(svc, AGENCY_ID, { application_id: APPLICATION_ID });
 
-    expect(armBotTimers).toHaveBeenCalledWith(
+    expect(armBotTimersV2).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ agencyId: AGENCY_ID, botStep: 0 })
     );

@@ -282,29 +282,35 @@ export async function processFollowupCheck(
 }
 
 // ---------------------------------------------------------------------------
-// processNoShowFollowup — No-Show nachverfolgen
+// processNoShowFollowup — No-Show-Nachverfolgung mit Buchungslink-Template
 // ---------------------------------------------------------------------------
 
 export async function processNoShowFollowup(
   svc: SupabaseClient,
   agencyId: string,
-  payload: { appointment_id: string },
+  payload: { appointment_id: string; booking_token?: string },
 ): Promise<void> {
-  // Termin laden (ohne Status-Guard, da auch booked-Status ein No-Show sein kann)
+  // Termin laden — der payload.appointment_id ist der NEUE proposed-Termin
   const { data: appt } = await svc
     .from('appointments')
-    .select('id, status, application_id, starts_at')
+    .select('id, status, application_id, starts_at, booking_token')
     .eq('id', payload.appointment_id)
     .eq('agency_id', agencyId)
     .maybeSingle();
 
   if (!appt) return;
-  const apptData = appt as { id: string; status: string; application_id: string; starts_at: string | null };
+  const apptData = appt as {
+    id: string;
+    status: string;
+    application_id: string;
+    starts_at: string | null;
+    booking_token: string | null;
+  };
 
-  // Nur bei booked/confirmed (candidate hat nicht abgesagt)
-  if (!ACTIVE_STATUSES.includes(apptData.status)) return;
+  // Guard: nur bei proposed (wenn inzwischen gebucht oder abgesagt → no-op)
+  if (apptData.status !== 'proposed') return;
 
-  // Bewerbung laden für candidate_id
+  // Bewerbung laden (agency_id-Filter — Multi-Tenant-Doktrin)
   const { data: application } = await svc
     .from('applications')
     .select('id, candidate_id')
@@ -312,21 +318,173 @@ export async function processNoShowFollowup(
     .eq('agency_id', agencyId)
     .maybeSingle();
 
+  if (!application) {
+    await createNotificationForAgency(svc, agencyId, {
+      title: 'Möglicher No-Show',
+      body: `Bewerber ist möglicherweise nicht zum Termin erschienen (Termin ${apptData.id}).`,
+      type: 'noshow',
+      push_url: '/appointments',
+    });
+    return;
+  }
+  const appData = application as { id: string; candidate_id: string };
+
+  // Kandidat laden (agency_id-Filter)
+  const { data: candidate } = await svc
+    .from('candidates')
+    .select('id, name, phone_e164, whatsapp_opt_in')
+    .eq('id', appData.candidate_id)
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+
+  const cand = candidate as {
+    id: string;
+    name: string;
+    phone_e164: string | null;
+    whatsapp_opt_in: boolean;
+  } | null;
+
+  // Gates: WhatsApp-Opt-in und Telefonnummer vorhanden
+  if (!cand?.whatsapp_opt_in || !cand?.phone_e164) {
+    await createNotificationForAgency(svc, agencyId, {
+      title: 'Möglicher No-Show',
+      body: `Bewerber ist möglicherweise nicht zum Termin erschienen (Termin ${apptData.id}).`,
+      type: 'noshow',
+      push_url: '/appointments',
+    });
+    if (cand) {
+      await logActivity(svc, {
+        agency_id: agencyId,
+        candidate_id: cand.id,
+        action: 'Möglicher No-Show gemeldet',
+        action_type: 'appointment_no_show',
+        metadata: { appointment_id: apptData.id },
+      });
+    }
+    return;
+  }
+
+  // Buchungslink aufbauen — payload.booking_token hat Vorrang, dann Termin-Spalte
+  const token = payload.booking_token ?? apptData.booking_token;
+  if (!token) {
+    await createNotificationForAgency(svc, agencyId, {
+      title: 'Möglicher No-Show',
+      body: `Bewerber ist möglicherweise nicht zum Termin erschienen (Termin ${apptData.id}).`,
+      type: 'noshow',
+      push_url: '/appointments',
+    });
+    await logActivity(svc, {
+      agency_id: agencyId,
+      candidate_id: cand.id,
+      action: 'Möglicher No-Show gemeldet',
+      action_type: 'appointment_no_show',
+      metadata: { appointment_id: apptData.id },
+    });
+    return;
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
+  const bookingUrl = `${baseUrl}/book/${token}`;
+
+  // Conversation laden (agency_id-Filter)
+  const { data: conv } = await svc
+    .from('conversations')
+    .select('id, wa_account_id')
+    .eq('candidate_id', cand.id)
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+
+  if (!conv) {
+    await createNotificationForAgency(svc, agencyId, {
+      title: 'Möglicher No-Show',
+      body: `Bewerber ist möglicherweise nicht zum Termin erschienen (Termin ${apptData.id}).`,
+      type: 'noshow',
+      push_url: '/appointments',
+    });
+    await logActivity(svc, {
+      agency_id: agencyId,
+      candidate_id: cand.id,
+      action: 'Möglicher No-Show gemeldet',
+      action_type: 'appointment_no_show',
+      metadata: { appointment_id: apptData.id },
+    });
+    return;
+  }
+  const convData = conv as { id: string; wa_account_id: string };
+
+  // Template laden — no_show_followup: Variablen [vorname, buchungslink]
+  const { data: tmpl } = await svc
+    .from('whatsapp_templates')
+    .select('id, name, body')
+    .eq('wa_account_id', convData.wa_account_id)
+    .eq('preset_key', 'no_show_followup')
+    .eq('status', 'approved')
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+
+  if (!tmpl) {
+    // Kein Template approved — best-effort: nur Notification
+    await createNotificationForAgency(svc, agencyId, {
+      title: 'Möglicher No-Show',
+      body: `Bewerber ist möglicherweise nicht zum Termin erschienen (Termin ${apptData.id}).`,
+      type: 'noshow',
+      push_url: '/appointments',
+    });
+    await logActivity(svc, {
+      agency_id: agencyId,
+      candidate_id: cand.id,
+      action: 'Möglicher No-Show gemeldet',
+      action_type: 'appointment_no_show',
+      metadata: { appointment_id: apptData.id },
+    });
+    return;
+  }
+  const tmplData = tmpl as { id: string; name: string; body: string };
+
+  // WhatsApp-Template senden — no_show_followup hat [vorname, buchungslink]
+  const vorname = (cand.name || '').split(' ')[0];
+  try {
+    await sendWhatsAppMessage(svc, {
+      agencyId,
+      conversationId: convData.id,
+      candidatePhone: cand.phone_e164,
+      waAccountId: convData.wa_account_id,
+      payload: {
+        to: cand.phone_e164,
+        type: 'template',
+        template: {
+          name: tmplData.name,
+          language: { code: 'de' },
+          components: [{
+            type: 'body',
+            parameters: [
+              { type: 'text', text: vorname },
+              { type: 'text', text: bookingUrl },
+            ],
+          }],
+        },
+      },
+      senderType: 'system',
+      templateId: tmplData.id,
+      bypassQuietHours: true,
+    });
+  } catch (err) {
+    console.error('[processNoShowFollowup] WhatsApp-Versand fehlgeschlagen:', err);
+  }
+
+  // Activity + Notification immer protokollieren
+  await logActivity(svc, {
+    agency_id: agencyId,
+    candidate_id: cand.id,
+    action: 'Möglicher No-Show gemeldet',
+    action_type: 'appointment_no_show',
+    metadata: { appointment_id: apptData.id, booking_url: bookingUrl },
+  });
+
   await createNotificationForAgency(svc, agencyId, {
     title: 'Möglicher No-Show',
     body: `Bewerber ist möglicherweise nicht zum Termin erschienen (Termin ${apptData.id}).`,
     type: 'noshow',
     push_url: '/appointments',
   });
-
-  if (application) {
-    const appData = application as { id: string; candidate_id: string };
-    await logActivity(svc, {
-      agency_id: agencyId,
-      candidate_id: appData.candidate_id,
-      action: 'Möglicher No-Show gemeldet',
-      action_type: 'appointment_no_show',
-      metadata: { appointment_id: apptData.id },
-    });
-  }
 }

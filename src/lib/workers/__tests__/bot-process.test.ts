@@ -41,7 +41,7 @@ vi.mock('@/lib/activity/log', () => ({
 }));
 
 vi.mock('@/lib/bot/timers', () => ({
-  armBotTimers: vi.fn().mockResolvedValue(undefined),
+  armBotTimersV2: vi.fn().mockResolvedValue(undefined),
   cancelBotTimers: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -343,7 +343,7 @@ describe('processBotTurn', () => {
     (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue(stdDialogOutput);
 
     const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
-    const { armBotTimers, cancelBotTimers } = await import('@/lib/bot/timers');
+    const { armBotTimersV2, cancelBotTimers } = await import('@/lib/bot/timers');
 
     await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 1);
 
@@ -359,9 +359,9 @@ describe('processBotTurn', () => {
       expect.objectContaining({ senderType: 'bot' })
     );
 
-    // cancelBotTimers und dann armBotTimers aufgerufen
+    // cancelBotTimers und dann armBotTimersV2 aufgerufen
     expect(cancelBotTimers).toHaveBeenCalled();
-    expect(armBotTimers).toHaveBeenCalledWith(
+    expect(armBotTimersV2).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ agencyId: AGENCY_ID, conversationId: CONV_ID })
     );

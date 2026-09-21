@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { armBotTimers, cancelBotTimers } from '../timers';
+import { armBotTimers, armBotTimersV2, cancelBotTimers } from '../timers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 function makeSvc(upsertResult = { data: null, error: null }, updateResult = { data: null, error: null }) {
@@ -124,6 +124,92 @@ describe('armBotTimers', () => {
 
     const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
     for (const row of rows) {
+      expect(row.status).toBe('pending');
+    }
+  });
+});
+
+describe('armBotTimersV2', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('legt genau 3 scheduled_jobs an (bot.nudge + bot.nudge2 + bot.close — KEIN bot.timeout)', async () => {
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-1', conversationId: 'conv-1', botStep: 0 });
+
+    expect(upsertFn).toHaveBeenCalledTimes(1);
+    const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
+    expect(rows).toHaveLength(3);
+  });
+
+  it('enthält bot.nudge, bot.nudge2, bot.close — kein bot.timeout', async () => {
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-1', conversationId: 'conv-42', botStep: 2 });
+
+    const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
+    const types = rows.map((r) => r.type);
+    expect(types).toContain('bot.nudge');
+    expect(types).toContain('bot.nudge2');
+    expect(types).toContain('bot.close');
+    expect(types).not.toContain('bot.timeout');
+  });
+
+  it('dedupe-Keys korrekt für alle 3 Jobs', async () => {
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-1', conversationId: 'conv-X', botStep: 1 });
+
+    const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
+    const nudge = rows.find((r) => r.type === 'bot.nudge');
+    const nudge2 = rows.find((r) => r.type === 'bot.nudge2');
+    const close = rows.find((r) => r.type === 'bot.close');
+    expect(nudge?.dedupe_key).toBe('bot.nudge:conv-X:1');
+    expect(nudge2?.dedupe_key).toBe('bot.nudge2:conv-X:1');
+    expect(close?.dedupe_key).toBe('bot.close:conv-X:1');
+  });
+
+  it('bot.nudge2 run_at ist ca. +24h (±30s Toleranz)', async () => {
+    const before = Date.now();
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-1', conversationId: 'conv-1', botStep: 0 });
+    const after = Date.now();
+
+    const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
+    const nudge2Row = rows.find((r) => r.type === 'bot.nudge2');
+    const runAt = new Date(nudge2Row?.run_at as string).getTime();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    expect(runAt).toBeGreaterThanOrEqual(before + twentyFourHours - 30_000);
+    expect(runAt).toBeLessThanOrEqual(after + twentyFourHours + 30_000);
+  });
+
+  it('bot.close run_at ist ca. +48h (±30s Toleranz)', async () => {
+    const before = Date.now();
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-1', conversationId: 'conv-1', botStep: 0 });
+    const after = Date.now();
+
+    const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
+    const closeRow = rows.find((r) => r.type === 'bot.close');
+    const runAt = new Date(closeRow?.run_at as string).getTime();
+    const fortyEightHours = 48 * 60 * 60 * 1000;
+    expect(runAt).toBeGreaterThanOrEqual(before + fortyEightHours - 30_000);
+    expect(runAt).toBeLessThanOrEqual(after + fortyEightHours + 30_000);
+  });
+
+  it('upsert nutzt onConflict=dedupe_key und ignoreDuplicates=true', async () => {
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-1', conversationId: 'conv-1', botStep: 0 });
+
+    const opts = upsertFn.mock.calls[0][1] as Record<string, unknown>;
+    expect(opts.onConflict).toBe('dedupe_key');
+    expect(opts.ignoreDuplicates).toBe(true);
+  });
+
+  it('setzt agency_id und status=pending auf jeder Row', async () => {
+    const { svc, upsertFn } = makeSvc();
+    await armBotTimersV2(svc, { agencyId: 'agency-99', conversationId: 'conv-1', botStep: 0 });
+
+    const rows = upsertFn.mock.calls[0][0] as Array<Record<string, unknown>>;
+    for (const row of rows) {
+      expect(row.agency_id).toBe('agency-99');
       expect(row.status).toBe('pending');
     }
   });

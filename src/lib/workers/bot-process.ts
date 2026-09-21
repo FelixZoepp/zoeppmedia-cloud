@@ -10,7 +10,7 @@ import { llmJsonCall, llmTextCall, DIALOG_MODEL, SCORING_MODEL } from '@/lib/ai/
 import { dialogOutputSchema, type DialogOutput } from '@/lib/bot/schema';
 import { buildSystemBlocks, buildTurnMessages, PROMPT_VERSION } from '@/lib/bot/prompt';
 import { computeScore, type AnswerForScoring } from '@/lib/bot/scoring';
-import { armBotTimers, cancelBotTimers } from '@/lib/bot/timers';
+import { armBotTimersV2, cancelBotTimers } from '@/lib/bot/timers';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
@@ -674,5 +674,5 @@ export async function processBotTurn(
 
   // Timer neu armen
   await cancelBotTimers(svc, { agencyId, conversationId });
-  await armBotTimers(svc, { agencyId, conversationId, botStep: nextBotStep });
+  await armBotTimersV2(svc, { agencyId, conversationId, botStep: nextBotStep });
 }

@@ -351,22 +351,156 @@ describe('processNoShowFollowup', () => {
     vi.clearAllMocks();
   });
 
-  it('sendet Notification bei No-Show (Termin war booked, ist jetzt überfällig)', async () => {
+  it('No-op wenn Termin nicht mehr proposed (inzwischen gebucht)', async () => {
     const { svc, enqueue } = makeSvc();
 
     enqueue('appointments', {
-      data: { id: 'appt-10', status: 'booked', application_id: 'app-1', starts_at: '2026-10-10T10:00:00Z', location: null },
+      data: { id: 'appt-10', status: 'booked', application_id: 'app-1', starts_at: '2026-10-10T10:00:00Z', booking_token: 'tok-1' },
+      error: null,
+    });
+
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+    const { createNotificationForAgency } = await import('@/lib/notifications/create');
+
+    await processNoShowFollowup(svc, 'ag-1', { appointment_id: 'appt-10', booking_token: 'tok-1' });
+
+    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+    expect(createNotificationForAgency).not.toHaveBeenCalled();
+  });
+
+  it('proposed-Termin + opt-in-Kandidat + approved Template → sendWhatsAppMessage mit Buchungslink', async () => {
+    const { svc, enqueue } = makeSvc();
+
+    // Neuer proposed Termin
+    enqueue('appointments', {
+      data: { id: 'appt-ns-new', status: 'proposed', application_id: 'app-1', starts_at: null, booking_token: 'tok-new' },
       error: null,
     });
     enqueue('applications', {
       data: { id: 'app-1', candidate_id: 'cand-1' },
       error: null,
     });
+    enqueue('candidates', {
+      data: { id: 'cand-1', name: 'Max Müller', phone_e164: '+49123456789', whatsapp_opt_in: true },
+      error: null,
+    });
+    enqueue('conversations', {
+      data: { id: 'conv-ns', wa_account_id: 'wa-1' },
+      error: null,
+    });
+    enqueue('whatsapp_templates', {
+      data: { id: 'tmpl-ns', name: 'no_show_followup', body: 'Hallo {{1}} buch dir: {{2}}' },
+      error: null,
+    });
 
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+
+    await processNoShowFollowup(svc, 'ag-1', { appointment_id: 'appt-ns-new', booking_token: 'tok-new' });
+
+    expect(sendWhatsAppMessage).toHaveBeenCalledOnce();
+
+    const callArgs = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const components = callArgs?.payload?.template?.components as Array<{ type: string; parameters: Array<{ text: string }> }>;
+    const bodyComp = components?.find((c: { type: string }) => c.type === 'body');
+    const params = bodyComp?.parameters?.map((p: { text: string }) => p.text) ?? [];
+    // Vorname
+    expect(params).toContain('Max');
+    // Buchungslink enthält den token
+    expect(params.some((p: string) => p.includes('/book/tok-new'))).toBe(true);
+  });
+
+  it('proposed-Termin ohne Kandidat opt-in → nur Notification, kein WhatsApp', async () => {
+    const { svc, enqueue } = makeSvc();
+
+    enqueue('appointments', {
+      data: { id: 'appt-ns-2', status: 'proposed', application_id: 'app-1', starts_at: null, booking_token: 'tok-2' },
+      error: null,
+    });
+    enqueue('applications', {
+      data: { id: 'app-1', candidate_id: 'cand-2' },
+      error: null,
+    });
+    enqueue('candidates', {
+      data: { id: 'cand-2', name: 'Anke Bauer', phone_e164: '+49111222333', whatsapp_opt_in: false },
+      error: null,
+    });
+
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
     const { createNotificationForAgency } = await import('@/lib/notifications/create');
 
-    await processNoShowFollowup(svc, 'ag-1', { appointment_id: 'appt-10' });
+    await processNoShowFollowup(svc, 'ag-1', { appointment_id: 'appt-ns-2', booking_token: 'tok-2' });
 
+    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
     expect(createNotificationForAgency).toHaveBeenCalledOnce();
+  });
+
+  it('proposed-Termin + opt-in + kein approved Template → Notification, kein WhatsApp', async () => {
+    const { svc, enqueue } = makeSvc();
+
+    enqueue('appointments', {
+      data: { id: 'appt-ns-3', status: 'proposed', application_id: 'app-1', starts_at: null, booking_token: 'tok-3' },
+      error: null,
+    });
+    enqueue('applications', {
+      data: { id: 'app-1', candidate_id: 'cand-3' },
+      error: null,
+    });
+    enqueue('candidates', {
+      data: { id: 'cand-3', name: 'Karl Schuster', phone_e164: '+49444555666', whatsapp_opt_in: true },
+      error: null,
+    });
+    enqueue('conversations', {
+      data: { id: 'conv-3', wa_account_id: 'wa-1' },
+      error: null,
+    });
+    enqueue('whatsapp_templates', {
+      data: null, // kein Template approved
+      error: null,
+    });
+
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+    const { createNotificationForAgency } = await import('@/lib/notifications/create');
+
+    await processNoShowFollowup(svc, 'ag-1', { appointment_id: 'appt-ns-3', booking_token: 'tok-3' });
+
+    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+    expect(createNotificationForAgency).toHaveBeenCalledOnce();
+  });
+
+  it('booking_token vom Termin-Datensatz als Fallback wenn payload keinen hat', async () => {
+    const { svc, enqueue } = makeSvc();
+
+    enqueue('appointments', {
+      data: { id: 'appt-ns-fb', status: 'proposed', application_id: 'app-1', starts_at: null, booking_token: 'tok-fallback' },
+      error: null,
+    });
+    enqueue('applications', {
+      data: { id: 'app-1', candidate_id: 'cand-4' },
+      error: null,
+    });
+    enqueue('candidates', {
+      data: { id: 'cand-4', name: 'Lisa Hansen', phone_e164: '+49777888999', whatsapp_opt_in: true },
+      error: null,
+    });
+    enqueue('conversations', {
+      data: { id: 'conv-4', wa_account_id: 'wa-1' },
+      error: null,
+    });
+    enqueue('whatsapp_templates', {
+      data: { id: 'tmpl-4', name: 'no_show_followup', body: 'Hallo {{1}} buch: {{2}}' },
+      error: null,
+    });
+
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+
+    // Kein booking_token im payload → Fallback auf Termin-Datensatz
+    await processNoShowFollowup(svc, 'ag-1', { appointment_id: 'appt-ns-fb' });
+
+    expect(sendWhatsAppMessage).toHaveBeenCalledOnce();
+    const callArgs = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const components = callArgs?.payload?.template?.components as Array<{ type: string; parameters: Array<{ text: string }> }>;
+    const bodyComp = components?.find((c: { type: string }) => c.type === 'body');
+    const params = bodyComp?.parameters?.map((p: { text: string }) => p.text) ?? [];
+    expect(params.some((p: string) => p.includes('/book/tok-fallback'))).toBe(true);
   });
 });

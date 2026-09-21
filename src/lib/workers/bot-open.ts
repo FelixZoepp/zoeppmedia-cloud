@@ -5,7 +5,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
-import { armBotTimers } from '@/lib/bot/timers';
+import { armBotTimersV2 } from '@/lib/bot/timers';
 import { logActivity } from '@/lib/activity/log';
 
 export async function processBotOpen(
@@ -162,7 +162,7 @@ export async function processBotOpen(
   });
 
   // --- 11. Timer anlegen ---
-  await armBotTimers(svc, { agencyId, conversationId, botStep: 0 });
+  await armBotTimersV2(svc, { agencyId, conversationId, botStep: 0 });
 
   // --- 12. Activity loggen ---
   await logActivity(svc, {

@@ -62,10 +62,11 @@ export async function armBotTimersV2(
   const { agencyId, conversationId, botStep } = args;
   const payload = { conversation_id: conversationId, bot_step: botStep };
 
+  // bot.timeout wird NICHT mehr geplant (FB-N1: bot.close ist strikte Obermenge).
+  // Bereits in der DB liegende v1-bot.timeout-Jobs bleiben verarbeitbar (processBotTimeout bleibt erhalten).
   const jobs = [
     { type: 'bot.nudge', runAt: 4 * 60 * 60_000, dedupe: `bot.nudge:${conversationId}:${botStep}` },
     { type: 'bot.nudge2', runAt: 24 * 60 * 60_000, dedupe: `bot.nudge2:${conversationId}:${botStep}` },
-    { type: 'bot.timeout', runAt: 48 * 60 * 60_000, dedupe: `bot.timeout:${conversationId}:${botStep}` },
     { type: 'bot.close', runAt: 48 * 60 * 60_000, dedupe: `bot.close:${conversationId}:${botStep}` },
   ];
 
