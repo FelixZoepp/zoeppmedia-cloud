@@ -31,6 +31,7 @@ export async function processSlaRecruiter24h(
     .from('pipeline_stages')
     .select('stage_type')
     .eq('id', app.stage_id)
+    .eq('agency_id', agencyId)
     .maybeSingle();
   if (!stage || stage.stage_type !== 'qualified') return;
 
@@ -99,6 +100,7 @@ export async function processSlaRecruiter48h(
     .from('pipeline_stages')
     .select('stage_type')
     .eq('id', app.stage_id)
+    .eq('agency_id', agencyId)
     .maybeSingle();
   if (!stage || stage.stage_type !== 'qualified') return;
 
@@ -214,7 +216,8 @@ export async function processDocumentsRequest(
   const { count } = await svc
     .from('documents')
     .select('id', { count: 'exact', head: true })
-    .eq('application_id', payload.application_id);
+    .eq('application_id', payload.application_id)
+    .eq('agency_id', agencyId);
   if ((count ?? 0) > 0) return;
 
   // Conversation laden
@@ -251,10 +254,12 @@ export async function processDocumentsRequest(
     .from('pipeline_stages')
     .select('name')
     .eq('id', payload.stage_id)
+    .eq('agency_id', agencyId)
     .maybeSingle();
 
   const vorname = (candidate.name || '').split(' ')[0];
 
+  let sendOk = true;
   await sendWhatsAppMessage(svc, {
     agencyId,
     conversationId: conv.id,
@@ -279,14 +284,20 @@ export async function processDocumentsRequest(
     },
     senderType: 'system',
     templateId: tmpl.id,
-  }).catch(() => {});
-
-  await logActivity(svc, {
-    agency_id: agencyId,
-    candidate_id: app.candidate_id,
-    action: 'Unterlagen angefordert (automatisch)',
-    action_type: 'documents_request',
+  }).catch((e) => {
+    sendOk = false;
+    console.error('documents_request send failed', e);
   });
+
+  // Aktivität nur loggen, wenn der Versand nicht fehlgeschlagen ist
+  if (sendOk) {
+    await logActivity(svc, {
+      agency_id: agencyId,
+      candidate_id: app.candidate_id,
+      action: 'Unterlagen angefordert (automatisch)',
+      action_type: 'documents_request',
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
