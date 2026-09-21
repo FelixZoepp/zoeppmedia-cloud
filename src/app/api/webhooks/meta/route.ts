@@ -113,6 +113,7 @@ export async function POST(request: NextRequest) {
         phone,
         email,
         source: 'meta',
+        sourceRef: (leadData.leadgen_id as string | undefined) || null,
         campaign: {
           campaign_name: leadData.campaign_name || null,
           adset_name: leadData.adset_name || null,

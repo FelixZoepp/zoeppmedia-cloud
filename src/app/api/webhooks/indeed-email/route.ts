@@ -193,8 +193,16 @@ export async function POST(request: NextRequest) {
 
     // 7. Ingest application via central ingestApplication()
     // resume references the REAL uploaded storage path (not a fabricated one)
+    let resumeSize = 0;
+    const pdfBuffer = attachments.find(a =>
+      a.content_type?.includes('pdf') || a.filename?.toLowerCase().endsWith('.pdf')
+    )?.content;
+    if (pdfBuffer && typeof pdfBuffer === 'string') {
+      // Base64 string: length / 4 * 3 (approximately)
+      resumeSize = Math.ceil(pdfBuffer.length * 0.75);
+    }
     const resume = uploadedStoragePath
-      ? { storagePath: uploadedStoragePath, mime: 'application/pdf', size: 0 }
+      ? { storagePath: uploadedStoragePath, mime: 'application/pdf', size: resumeSize }
       : null;
 
     const result = await ingestApplication(supabase, {
@@ -220,6 +228,18 @@ export async function POST(request: NextRequest) {
           metadata: { source: 'indeed', blacklist_match: blacklistResult.matching_candidate },
         });
       }
+
+      // 7c. Enrichment: CV-Felder auf candidates schreiben (nur bei neu angelegtem Kandidaten)
+      await supabase
+        .from('candidates')
+        .update({
+          location: cvData.location || null,
+          experience_summary: cvData.experience_summary || null,
+          last_employer: cvData.last_employer || null,
+          indeed_job_title: parsed.jobTitle || null,
+        })
+        .eq('id', result.candidateId)
+        .eq('agency_id', agencyId!);
     }
 
     // 8. Log success (inkl. raw_payload zur Analyse des Indeed-Mail-Formats)
