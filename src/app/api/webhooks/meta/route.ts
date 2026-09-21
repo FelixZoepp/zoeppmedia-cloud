@@ -3,10 +3,8 @@ import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
-import { findDuplicateCandidate } from '@/lib/candidates/find-duplicate';
 import { logActivity } from '@/lib/activity/log';
-import { getStagesForAgency } from '@/lib/pipeline/get-stages';
-import { fireEvent } from '@/lib/automations/fire';
+import { ingestApplication } from '@/lib/recruiting/ingest';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
@@ -67,13 +65,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
   }
 
-  // Get first pipeline stage for this agency
-  const stages = await getStagesForAgency(supabase, agencyId);
-  const firstStage = stages[0];
-  if (!firstStage) {
-    return NextResponse.json({ error: 'No pipeline stages configured' }, { status: 500 });
-  }
-
   // Process Meta lead entries
   const entries = body?.entry || [];
   for (const entry of entries) {
@@ -86,60 +77,65 @@ export async function POST(request: NextRequest) {
       const email = extractField(leadData, 'email');
       const phone = extractField(leadData, 'phone_number');
 
-      // Duplikatcheck: Bewerber mit gleicher E-Mail/Telefonnummer nicht doppelt anlegen
-      const duplicate = await findDuplicateCandidate(supabase, agencyId, email, phone);
-      if (duplicate) {
-        await logActivity(supabase, {
-          agency_id: agencyId,
-          candidate_id: duplicate.id,
-          action: `Doppelte Meta-Bewerbung erkannt: ${name} entspricht bestehendem Bewerber ${duplicate.name} — nicht erneut angelegt`,
-          action_type: 'other',
-          metadata: { source: 'meta', duplicate_of: duplicate.id, campaign: leadData.campaign_name || null },
-        });
-        continue;
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0] || 'Unbekannt';
+      const lastName = nameParts.slice(1).join(' ') || null;
+
+      // Default-Job der Agentur finden (bis Meta-Formular→Job-Mapping in Phase 5 kommt)
+      let defaultJob: { id: string } | null = null;
+      const { data: markedDefault } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('agency_id', agencyId)
+        .eq('is_default', true)
+        .limit(1)
+        .maybeSingle();
+      defaultJob = markedDefault;
+
+      if (!defaultJob) {
+        // Fallback: erster aktiver Job
+        const { data: anyJob } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('agency_id', agencyId)
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+        if (!anyJob) continue; // Kein Job vorhanden
+        defaultJob = anyJob;
       }
 
-      const { data: candidate } = await supabase
-        .from('candidates')
-        .insert({
-          agency_id: agencyId,
-          name,
-          email,
-          phone,
-          source: 'meta',
-          meta_campaign: leadData.campaign_name || null,
-          meta_adset: leadData.adset_name || null,
-          meta_form: leadData.form_name || null,
-          current_stage_id: firstStage.id,
-        })
-        .select()
-        .single();
+      const result = await ingestApplication(supabase, {
+        agencyId,
+        jobId: defaultJob.id,
+        firstName,
+        lastName,
+        phone,
+        email,
+        source: 'meta',
+        campaign: {
+          campaign_name: leadData.campaign_name || null,
+          adset_name: leadData.adset_name || null,
+          form_name: leadData.form_name || null,
+        },
+      });
 
-      if (candidate) {
-        await supabase.from('candidate_stages').insert({
-          candidate_id: candidate.id,
-          stage_id: firstStage.id,
-          changed_by: null,
-        });
-
-        fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
-
-        // Kunde sofort benachrichtigen (In-App + Push aufs Handy)
+      // Bestehende Notification + Blacklist beibehalten
+      if (result.candidateCreated) {
         await createNotificationForAgency(supabase, agencyId, {
           title: 'Neuer Bewerber: ' + name,
           body: phone ? `Jetzt anrufen: ${phone}` : 'Jetzt kontaktieren',
           type: 'new_candidate',
           entity_type: 'candidate',
-          entity_id: candidate.id,
-          push_url: `/candidates/${candidate.id}`,
+          entity_id: result.candidateId,
+          push_url: `/candidates/${result.candidateId}`,
         }).catch(() => {});
 
-        // Check blacklist
         const blacklistResult = await checkBlacklist(supabase, agencyId, email, phone);
         if (blacklistResult.is_blacklisted) {
           await logActivity(supabase, {
             agency_id: agencyId,
-            candidate_id: candidate.id,
+            candidate_id: result.candidateId,
             action: `Blacklist-Warnung (Meta): Bewerber ${name} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
             action_type: 'other',
             metadata: { source: 'meta', blacklist_match: blacklistResult.matching_candidate },

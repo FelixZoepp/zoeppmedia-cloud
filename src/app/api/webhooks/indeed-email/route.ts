@@ -4,8 +4,7 @@ import { parseIndeedEmail, extractAgencyIdFromAddress } from '@/lib/indeed/parse
 import { extractTextFromPdf, extractCvData, type CvData } from '@/lib/indeed/extract-cv';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
-import { getStagesForAgency } from '@/lib/pipeline/get-stages';
-import { fireEvent } from '@/lib/automations/fire';
+import { ingestApplication } from '@/lib/recruiting/ingest';
 
 export async function POST(request: NextRequest) {
   // Shared-Secret-Prüfung: aktiv sobald INDEED_WEBHOOK_SECRET gesetzt ist.
@@ -122,7 +121,9 @@ export async function POST(request: NextRequest) {
     const parsed = parseIndeedEmail(htmlBody, subject);
 
     // 4. Handle PDF attachment
-    let resumeUrl: string | null = null;
+    // storagePath tracks the REAL path used when uploading — passed to ingestApplication
+    // so the documents table references the actual file in storage.
+    let uploadedStoragePath: string | null = null;
     let cvData: CvData = { full_name: null, email: null, phone: null, location: null, experience_summary: null, last_employer: null };
 
     const pdfAttachment = attachments.find(a =>
@@ -142,13 +143,11 @@ export async function POST(request: NextRequest) {
           .upload(fileName, pdfBuffer, { contentType: 'application/pdf' });
 
         if (!uploadError) {
-          const { data: urlData } = await supabase.storage
-            .from('candidate-resumes')
-            .createSignedUrl(fileName, 365 * 24 * 60 * 60); // 1 year
-          resumeUrl = urlData?.signedUrl || null;
+          // Retain the actual storage path for ingestApplication resume reference
+          uploadedStoragePath = fileName;
         }
       } catch {
-        // Storage failed — continue without resume URL
+        // Storage failed — continue without resume
       }
 
       // Extract text from PDF and run Claude
@@ -167,66 +166,74 @@ export async function POST(request: NextRequest) {
     const finalEmail = cvData.email || parsed.email || null;
     const finalPhone = cvData.phone || parsed.phone || null;
 
-    // 6. Get first pipeline stage for this agency
-    const stages = await getStagesForAgency(supabase, agencyId);
-    const firstStage = stages[0];
-    if (!firstStage) {
-      throw new Error('No pipeline stages configured');
+    // 6. Default-Job der Agentur finden
+    let defaultJob: { id: string } | null = null;
+    const { data: markedDefault } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('agency_id', agencyId)
+      .eq('is_default', true)
+      .limit(1)
+      .maybeSingle();
+    defaultJob = markedDefault;
+
+    if (!defaultJob) {
+      const { data: anyJob } = await supabase
+        .from('jobs')
+        .select('id')
+        .eq('agency_id', agencyId!)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+      if (!anyJob) {
+        return NextResponse.json({ error: 'Kein aktiver Job für diese Agentur' }, { status: 422 });
+      }
+      defaultJob = anyJob;
     }
 
-    // 7. Create candidate
-    const { data: candidate, error: candidateError } = await supabase
-      .from('candidates')
-      .insert({
-        agency_id: agencyId,
-        name: finalName,
-        email: finalEmail,
-        phone: finalPhone,
-        source: 'indeed',
-        current_stage_id: firstStage.id,
-        resume_url: resumeUrl,
-        location: cvData.location,
-        experience_summary: cvData.experience_summary,
-        last_employer: cvData.last_employer,
-        indeed_job_title: parsed.jobTitle,
-      })
-      .select()
-      .single();
+    // 7. Ingest application via central ingestApplication()
+    // resume references the REAL uploaded storage path (not a fabricated one)
+    const resume = uploadedStoragePath
+      ? { storagePath: uploadedStoragePath, mime: 'application/pdf', size: 0 }
+      : null;
 
-    if (candidateError) throw candidateError;
-
-    // 7b. Check blacklist
-    const blacklistResult = await checkBlacklist(supabase, agencyId, finalEmail, finalPhone);
-    if (blacklistResult.is_blacklisted) {
-      await logActivity(supabase, {
-        agency_id: agencyId,
-        candidate_id: candidate.id,
-        action: `Blacklist-Warnung (Indeed): Bewerber ${candidate.name} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
-        action_type: 'other',
-        metadata: { source: 'indeed', blacklist_match: blacklistResult.matching_candidate },
-      });
-    }
-
-    // 8. Log initial stage
-    await supabase.from('candidate_stages').insert({
-      candidate_id: candidate.id,
-      stage_id: firstStage.id,
+    const result = await ingestApplication(supabase, {
+      agencyId: agencyId!,
+      jobId: defaultJob.id,
+      firstName: finalName.split(' ')[0] || 'Indeed-Bewerber',
+      lastName: finalName.split(' ').slice(1).join(' ') || null,
+      phone: finalPhone,
+      email: finalEmail,
+      source: 'indeed',
+      resume,
     });
 
-    fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
+    // 7b. Blacklist-Check (nur bei neu angelegtem Kandidaten)
+    if (result.candidateCreated) {
+      const blacklistResult = await checkBlacklist(supabase, agencyId!, finalEmail, finalPhone);
+      if (blacklistResult.is_blacklisted) {
+        await logActivity(supabase, {
+          agency_id: agencyId!,
+          candidate_id: result.candidateId,
+          action: `Blacklist-Warnung (Indeed): Bewerber ${finalName} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
+          action_type: 'other',
+          metadata: { source: 'indeed', blacklist_match: blacklistResult.matching_candidate },
+        });
+      }
+    }
 
-    // 9. Log success (inkl. raw_payload zur Analyse des Indeed-Mail-Formats)
+    // 8. Log success (inkl. raw_payload zur Analyse des Indeed-Mail-Formats)
     await supabase.from('inbound_email_log').insert({
       agency_id: agencyId,
       from_address: from,
       to_address: to,
       subject,
       status: 'processed',
-      candidate_id: candidate.id,
+      candidate_id: result.candidateId,
       raw_payload: body,
     });
 
-    return NextResponse.json({ ok: true, candidate_id: candidate.id });
+    return NextResponse.json({ ok: true, candidate_id: result.candidateId });
   } catch (err) {
     // Final fallback: log the error
     try {
