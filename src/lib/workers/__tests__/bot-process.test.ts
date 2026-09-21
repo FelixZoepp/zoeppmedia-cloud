@@ -294,19 +294,12 @@ describe('processBotTurn', () => {
   // Test 1: Conversation nicht mehr bot_active → No-op
   // -------------------------------------------------------------------------
   it('1. Conversation nicht mehr bot_active → No-op, kein LLM-Aufruf', async () => {
-    const { svc } = makeSvc();
-    // enqueue conversation with state != bot_active
-    const { enqueue } = makeSvc();
-    void enqueue;
-
-    // Use fresh svc with non-bot_active conv
     const { svc: svc2, enqueue: eq2 } = makeSvc();
     eq2('conversations', { data: { ...baseConversation, state: 'waiting' }, error: null });
 
     const { llmJsonCall } = await import('@/lib/ai/llm-client');
     await processBotTurn(svc2, AGENCY_ID, { conversation_id: CONV_ID }, 1);
     expect(llmJsonCall).not.toHaveBeenCalled();
-    void svc;
   });
 
   // -------------------------------------------------------------------------
@@ -500,9 +493,24 @@ describe('processBotTurn', () => {
 
     expect(handoverToHuman).not.toHaveBeenCalled();
 
-    // conversations.update mit bot_meta wurde aufgerufen
-    const convCalls = (fromMock.mock.calls as unknown[][]).filter((c) => c[0] === 'conversations');
-    expect(convCalls.length).toBeGreaterThan(0);
+    // conversations.update wurde mit bot_meta.clarify.fuehrerschein = 1 aufgerufen
+    let foundClarify = false;
+    for (const call of fromMock.mock.calls as unknown[][]) {
+      if (call[0] !== 'conversations') continue;
+      const idx = (fromMock.mock.calls as unknown[][]).indexOf(call);
+      const chain = fromMock.mock.results[idx]?.value as Record<string, ReturnType<typeof vi.fn>>;
+      if (chain?.update?.mock?.calls?.length > 0) {
+        for (const updateCall of chain.update.mock.calls) {
+          const arg = (updateCall as unknown[])[0] as Record<string, unknown>;
+          const meta = arg?.bot_meta as Record<string, unknown> | undefined;
+          const clarify = meta?.clarify as Record<string, unknown> | undefined;
+          if (clarify?.fuehrerschein === 1) {
+            foundClarify = true;
+          }
+        }
+      }
+    }
+    expect(foundClarify).toBe(true);
   });
 
   it('7b. 3. Klärungsversuch derselben Frage (clarify-Zähler > 2) → Übergabe', async () => {
@@ -592,9 +600,22 @@ describe('processBotTurn', () => {
       expect.objectContaining({ senderType: 'bot' })
     );
 
-    // conversations.update wurde aufgerufen (für state='waiting')
-    const convCalls = (fromMock.mock.calls as unknown[][]).filter((c) => c[0] === 'conversations');
-    expect(convCalls.length).toBeGreaterThan(0);
+    // conversations.update wurde mit state='waiting' aufgerufen
+    let foundWaiting = false;
+    for (const call of fromMock.mock.calls as unknown[][]) {
+      if (call[0] !== 'conversations') continue;
+      const idx = (fromMock.mock.calls as unknown[][]).indexOf(call);
+      const chain = fromMock.mock.results[idx]?.value as Record<string, ReturnType<typeof vi.fn>>;
+      if (chain?.update?.mock?.calls?.length > 0) {
+        for (const updateCall of chain.update.mock.calls) {
+          const arg = (updateCall as unknown[])[0] as Record<string, unknown>;
+          if (arg?.state === 'waiting') {
+            foundWaiting = true;
+          }
+        }
+      }
+    }
+    expect(foundWaiting).toBe(true);
   });
 
   // -------------------------------------------------------------------------
@@ -661,6 +682,113 @@ describe('processBotTurn', () => {
       expect.anything(),
       expect.objectContaining({ reason: 'Bot gerade nicht verfügbar' })
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Test Fix-1: intent: 'reschedule' → handoverToHuman, kein Reply
+  // -------------------------------------------------------------------------
+  it('F1. intent: reschedule → handoverToHuman mit "Terminwunsch des Bewerbers", kein Reply', async () => {
+    const { svc } = makeHappySvc();
+
+    const { llmJsonCall } = await import('@/lib/ai/llm-client');
+    (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...stdDialogOutput,
+      intent: 'reschedule',
+      handover: false,
+    });
+
+    const { handoverToHuman } = await import('@/lib/bot/handover');
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+
+    await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 1);
+
+    expect(handoverToHuman).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reason: 'Terminwunsch des Bewerbers' })
+    );
+    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // Test Fix-2: intent: 'off_topic' → kein Handover, reply gesendet
+  // -------------------------------------------------------------------------
+  it('F2. intent: off_topic, keine Antworten, needs_clarification false → kein Handover, reply gesendet, keine Antworten gespeichert', async () => {
+    const q2 = { ...baseQuestion, id: 'q-2', key: 'erfahrung', position: 2 };
+    const { svc, fromMock } = makeHappySvc({
+      questions: [baseQuestion, q2],
+    });
+
+    const { llmJsonCall } = await import('@/lib/ai/llm-client');
+    (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...stdDialogOutput,
+      intent: 'off_topic',
+      needs_clarification: false,
+      answers: [],
+      reply_text: 'Zurück zur Frage: Hast du einen Führerschein?',
+    });
+
+    const { handoverToHuman } = await import('@/lib/bot/handover');
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+
+    await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 1);
+
+    expect(handoverToHuman).not.toHaveBeenCalled();
+    expect(sendWhatsAppMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ senderType: 'bot' })
+    );
+
+    // Keine Antworten in application_answers gespeichert
+    let upsertCalled = false;
+    for (const call of fromMock.mock.calls as unknown[][]) {
+      if (call[0] !== 'application_answers') continue;
+      const idx = (fromMock.mock.calls as unknown[][]).indexOf(call);
+      const chain = fromMock.mock.results[idx]?.value as Record<string, ReturnType<typeof vi.fn>>;
+      if (chain?.upsert?.mock?.calls?.length > 0) {
+        upsertCalled = true;
+      }
+    }
+    expect(upsertCalled).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // Test Fix-3: low_confidence-Zähler bleibt bei antwortlosem Turn unverändert
+  // -------------------------------------------------------------------------
+  it('F3. low_confidence=1 vorher, Turn ohne Antworten (intent question) → low_confidence bleibt 1', async () => {
+    const q2 = { ...baseQuestion, id: 'q-2', key: 'erfahrung', position: 2 };
+    const { svc, fromMock } = makeHappySvc({
+      conv: { bot_meta: { low_confidence: 1 } },
+      questions: [baseQuestion, q2],
+    });
+
+    const { llmJsonCall } = await import('@/lib/ai/llm-client');
+    (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...stdDialogOutput,
+      intent: 'question',
+      needs_clarification: false,
+      answers: [],
+      reply_text: 'Das beantworte ich gern. Also, hast du einen Führerschein?',
+    });
+
+    await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 1);
+
+    // conversations.update muss bot_meta.low_confidence = 1 enthalten (nicht 0 oder 2)
+    let foundLowConfidence: number | undefined;
+    for (const call of fromMock.mock.calls as unknown[][]) {
+      if (call[0] !== 'conversations') continue;
+      const idx = (fromMock.mock.calls as unknown[][]).indexOf(call);
+      const chain = fromMock.mock.results[idx]?.value as Record<string, ReturnType<typeof vi.fn>>;
+      if (chain?.update?.mock?.calls?.length > 0) {
+        for (const updateCall of chain.update.mock.calls) {
+          const arg = (updateCall as unknown[])[0] as Record<string, unknown>;
+          const meta = arg?.bot_meta as Record<string, unknown> | undefined;
+          if (meta && 'low_confidence' in meta) {
+            foundLowConfidence = meta.low_confidence as number;
+          }
+        }
+      }
+    }
+    expect(foundLowConfidence).toBe(1);
   });
 
   // -------------------------------------------------------------------------

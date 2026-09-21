@@ -248,6 +248,24 @@ export async function processBotTurn(
     return;
   }
 
+  // Terminwunsch → Übergabe an Mensch
+  // Phase 3 hat keine Terminbuchung — Terminwünsche übernimmt ein Mensch.
+  if (dialogOutput.intent === 'reschedule') {
+    await handoverToHuman(svc, {
+      agencyId,
+      conversationId,
+      candidateId: conv.candidate_id,
+      candidateName: candidate.name,
+      candidatePhone: candidate.phone_e164 ?? '',
+      waAccountId: conv.wa_account_id,
+      assignedTo: conv.assigned_to ?? null,
+      reason: 'Terminwunsch des Bewerbers',
+    });
+    return;
+  }
+
+  // off_topic/question/unclear: kein Handover — reply_text lenkt zurück zur aktuellen Frage (Spec §8 listet off_topic nicht als Übergabe-Trigger)
+
   // max_turns Guard (nach LLM-Aufruf, damit wir den Turn mitzählen)
   const currentTurns = botMeta.turns ?? 0;
   if (currentTurns >= cfg.max_turns) {
@@ -304,33 +322,33 @@ export async function processBotTurn(
   };
 
   // Confidence-Prüfung: niedrigste Confidence aus gültigen Antworten
-  const minConfidence =
-    validAnswers.length > 0
-      ? Math.min(...validAnswers.map((a) => a.confidence))
-      : 1;
+  if (validAnswers.length > 0) {
+    const minConfidence = Math.min(...validAnswers.map((a) => a.confidence));
 
-  if (minConfidence < 0.6) {
-    const prevLow = botMeta.low_confidence ?? 0;
-    const newLow = prevLow + 1;
-    newBotMeta.low_confidence = newLow;
+    if (minConfidence < 0.6) {
+      const prevLow = botMeta.low_confidence ?? 0;
+      const newLow = prevLow + 1;
+      newBotMeta.low_confidence = newLow;
 
-    if (newLow >= 2) {
-      await handoverToHuman(svc, {
-        agencyId,
-        conversationId,
-        candidateId: conv.candidate_id,
-        candidateName: candidate.name,
-        candidatePhone: candidate.phone_e164 ?? '',
-        waAccountId: conv.wa_account_id,
-        assignedTo: conv.assigned_to ?? null,
-        reason: 'Niedrige Konfidenz — Bewerber antwortet unklar',
-      });
-      return;
+      if (newLow >= 2) {
+        await handoverToHuman(svc, {
+          agencyId,
+          conversationId,
+          candidateId: conv.candidate_id,
+          candidateName: candidate.name,
+          candidatePhone: candidate.phone_e164 ?? '',
+          waAccountId: conv.wa_account_id,
+          assignedTo: conv.assigned_to ?? null,
+          reason: 'Niedrige Konfidenz — Bewerber antwortet unklar',
+        });
+        return;
+      }
+    } else {
+      // Alle Antworten haben hohe Confidence → Zähler zurücksetzen
+      newBotMeta.low_confidence = 0;
     }
-  } else {
-    // Hohe Confidence → Zähler zurücksetzen
-    newBotMeta.low_confidence = 0;
   }
+  // Kein validAnswers-Turn: low_confidence-Zähler unverändert tragen (kein Reset)
 
   // needs_clarification-Guard: clarify-Zähler je question_key
   if (dialogOutput.needs_clarification && currentQuestionKey) {
