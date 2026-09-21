@@ -21,7 +21,7 @@ export default async function ApplyPage({
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Seite nicht gefunden</h1>
-          <p className="text-gray-500">Diese Stelle ist nicht verfuegbar.</p>
+          <p className="text-gray-500">Diese Stelle ist nicht verfügbar.</p>
         </div>
       </div>
     );
@@ -40,7 +40,7 @@ export default async function ApplyPage({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Stelle nicht verfuegbar</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Stelle nicht verfügbar</h1>
           <p className="text-gray-500">Diese Stelle ist aktuell nicht ausgeschrieben.</p>
         </div>
       </div>
