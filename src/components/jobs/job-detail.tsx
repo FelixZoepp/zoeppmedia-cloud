@@ -25,6 +25,18 @@ const EMPLOYMENT_TYPES = [
   { value: 'Praktikum', label: 'Praktikum' },
 ];
 
+const INDEED_MODE_OPTIONS = [
+  { value: 'off', label: 'Aus' },
+  { value: 'redirect', label: 'Weiterleitung' },
+  { value: 'apply', label: 'Indeed Apply' },
+];
+
+const INDEED_MODE_LABELS: Record<string, string> = {
+  off: 'Aus',
+  redirect: 'Weiterleitung',
+  apply: 'Indeed Apply',
+};
+
 interface JobDetailData {
   id: string;
   title: string;
@@ -35,7 +47,7 @@ interface JobDetailData {
   employment_type: string | null;
   salary_range: string | null;
   status: 'draft' | 'active' | 'paused' | 'closed';
-  indeed_mode: string;
+  indeed_mode: 'off' | 'redirect' | 'apply';
   created_at: string;
   applications: { count: number }[];
 }
@@ -96,6 +108,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
           postal_code: editForm.postal_code,
           employment_type: editForm.employment_type,
           salary_range: editForm.salary_range,
+          indeed_mode: editForm.indeed_mode,
         }),
       });
       if (!res.ok) throw new Error();
@@ -302,6 +315,14 @@ export function JobDetail({ jobId }: { jobId: string }) {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Indeed-Modus</label>
+                  <Select
+                    value={editForm.indeed_mode || 'off'}
+                    onChange={(e) => setEditForm((p) => ({ ...p, indeed_mode: e.target.value as 'off' | 'redirect' | 'apply' }))}
+                    options={INDEED_MODE_OPTIONS}
+                  />
+                </div>
                 <div className="flex gap-3 pt-2">
                   <Button onClick={handleSave} disabled={saving}>
                     <Save className="w-4 h-4" />
@@ -332,6 +353,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
                   {job.salary_range && (
                     <div><dt className="text-gray-500">Gehaltsspanne</dt><dd className="text-gray-900">{job.salary_range}</dd></div>
                   )}
+                  <div>
+                    <dt className="text-gray-500">Indeed-Modus</dt>
+                    <dd className="text-gray-900">{INDEED_MODE_LABELS[job.indeed_mode] ?? job.indeed_mode}</dd>
+                  </div>
                 </dl>
               </div>
             )}
