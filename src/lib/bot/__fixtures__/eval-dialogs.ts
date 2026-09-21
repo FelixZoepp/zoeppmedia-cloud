@@ -37,7 +37,7 @@ const pflegeDialogs: EvalDialog[] = [
   { preset: 'pflege', name: 'pflege/klar-05', category: 'klar', userMessage: 'Ich bringe 5 Jahre Berufserfahrung in der Pflege mit.', questionKey: 'erfahrung_jahre_pflege', expected: { value: 5 } },
   { preset: 'pflege', name: 'pflege/klar-06', category: 'klar', userMessage: 'Etwa 2 Jahre Erfahrung.', questionKey: 'erfahrung_jahre_pflege', expected: { value: 2 } },
   { preset: 'pflege', name: 'pflege/klar-07', category: 'klar', userMessage: 'Ich könnte ab dem 1. Februar starten.', questionKey: 'starttermin_pflege', expected: { value: '2027-02' } },
-  { preset: 'pflege', name: 'pflege/klar-08', category: 'klar', userMessage: 'Sofort, ab morgen wenn nötig.', questionKey: 'starttermin_pflege', expected: { intent: 'answer' } },
+  { preset: 'pflege', name: 'pflege/klar-08', category: 'klar', userMessage: 'Ich kann ab 1. September starten.', questionKey: 'starttermin_pflege', expected: { value: '2026-09' } },
   { preset: 'pflege', name: 'pflege/klar-09', category: 'klar', userMessage: 'Ich habe zuletzt in einem Pflegeheim in München gearbeitet.', questionKey: 'letzte_einrichtung', expected: { value: 'Pflegeheim' } },
   { preset: 'pflege', name: 'pflege/klar-10', category: 'klar', userMessage: 'Meine letzte Stelle war im ambulanten Pflegedienst.', questionKey: 'letzte_einrichtung', expected: { value: 'ambulante Pflege' } },
 
@@ -49,7 +49,7 @@ const pflegeDialogs: EvalDialog[] = [
   { preset: 'pflege', name: 'pflege/dialekt-05', category: 'dialekt', userMessage: 'So ungefähr fünf Jährle in der Pflege.', questionKey: 'erfahrung_jahre_pflege', expected: { value: 5 } },
   { preset: 'pflege', name: 'pflege/dialekt-06', category: 'dialekt', userMessage: 'Zwoa Jahr etwa, glaub i.', questionKey: 'erfahrung_jahre_pflege', expected: { value: 2 } },
   { preset: 'pflege', name: 'pflege/dialekt-07', category: 'dialekt', userMessage: 'Ab Febrüar wär i dabei.', questionKey: 'starttermin_pflege', expected: { value: '2027-02' } },
-  { preset: 'pflege', name: 'pflege/dialekt-08', category: 'dialekt', userMessage: 'Bin grad im Pflegheim drin, also im Krankenhaus.', questionKey: 'letzte_einrichtung', expected: { intent: 'answer' } },
+  { preset: 'pflege', name: 'pflege/dialekt-08', category: 'dialekt', userMessage: 'Bin grad im Pflegheim drin, also im Krankenhaus.', questionKey: 'letzte_einrichtung', expected: { value: 'Krankenhaus' } },
   { preset: 'pflege', name: 'pflege/dialekt-09', category: 'dialekt', userMessage: 'Joa, examinierten Pflegeberuf hab i schon gmacht.', questionKey: 'ausbildung_pflege', expected: { value: true } },
   { preset: 'pflege', name: 'pflege/dialekt-10', category: 'dialekt', userMessage: 'Schpätschicht geht bei mir, Nacht is schwierig.', questionKey: 'schichtmodell', expected: { value: ['Spätschicht'] } },
 
@@ -199,7 +199,7 @@ const handwerkDialogs: EvalDialog[] = [
   { preset: 'handwerk', name: 'handwerk/klar-07', category: 'klar', userMessage: 'Ich habe 6 Jahre Erfahrung als Maler.', questionKey: 'erfahrung_jahre_handwerk', expected: { value: 6 } },
   { preset: 'handwerk', name: 'handwerk/klar-08', category: 'klar', userMessage: 'Etwa 3 Jahre im Handwerk.', questionKey: 'erfahrung_jahre_handwerk', expected: { value: 3 } },
   { preset: 'handwerk', name: 'handwerk/klar-09', category: 'klar', userMessage: 'Ich könnte ab 1. Januar starten.', questionKey: 'starttermin_handwerk', expected: { value: '2027-01' } },
-  { preset: 'handwerk', name: 'handwerk/klar-10', category: 'klar', userMessage: 'Nächsten Monat wäre ich frei.', questionKey: 'starttermin_handwerk', expected: { intent: 'answer' } },
+  { preset: 'handwerk', name: 'handwerk/klar-10', category: 'klar', userMessage: 'Ich wäre ab 1. Oktober frei.', questionKey: 'starttermin_handwerk', expected: { value: '2026-10' } },
 
   // --- dialekt ---
   { preset: 'handwerk', name: 'handwerk/dialekt-01', category: 'dialekt', userMessage: 'Jo, Gesellenbrief hab ich, als Elektriker.', questionKey: 'gesellenbrief', expected: { value: true } },
@@ -358,7 +358,7 @@ const vertriebDialogs: EvalDialog[] = [
   { preset: 'vertrieb', name: 'vertrieb/klar-07', category: 'klar', userMessage: 'Teilzeit wäre mir lieber, 30 Stunden.', questionKey: 'arbeitszeit', expected: { value: ['Teilzeit'] } },
   { preset: 'vertrieb', name: 'vertrieb/klar-08', category: 'klar', userMessage: 'Meine letzte Tätigkeit war als Außendienstmitarbeiter bei einem Pharmaunternehmen.', questionKey: 'letzte_taetigkeit', expected: { value: 'Außendienstmitarbeiter' } },
   { preset: 'vertrieb', name: 'vertrieb/klar-09', category: 'klar', userMessage: 'Ich war zuletzt als Verkäufer im Einzelhandel tätig.', questionKey: 'letzte_taetigkeit', expected: { value: 'Verkäufer' } },
-  { preset: 'vertrieb', name: 'vertrieb/klar-10', category: 'klar', userMessage: 'Sofort, ich bin ab morgen verfügbar.', questionKey: 'starttermin', expected: { intent: 'answer' } },
+  { preset: 'vertrieb', name: 'vertrieb/klar-10', category: 'klar', userMessage: 'Ich bin ab 22. September verfügbar.', questionKey: 'starttermin', expected: { value: '2026-09' } },
 
   // --- dialekt ---
   { preset: 'vertrieb', name: 'vertrieb/dialekt-01', category: 'dialekt', userMessage: 'Jo freili, führerschein hob i, Klasse B.', questionKey: 'fuehrerschein', expected: { value: true } },

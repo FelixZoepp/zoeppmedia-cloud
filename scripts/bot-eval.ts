@@ -105,6 +105,7 @@ async function llmJsonCallDirect<T>(
   // Retry mit Hinweis
   const retryMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [
     { role: 'user', content: userMessage },
+    { role: 'assistant', content: rawText },
     {
       role: 'user',
       content: 'Antworte ausschließlich mit gültigem JSON nach dem vorgegebenen Schema.',
