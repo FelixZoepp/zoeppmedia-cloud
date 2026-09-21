@@ -146,6 +146,12 @@ BEGIN
 END;
 $$;
 
+-- Nur Service Role darf die Claim-Funktionen ausfuehren (SECURITY DEFINER umgeht RLS)
+REVOKE EXECUTE ON FUNCTION claim_inbox_events(int) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION claim_due_jobs(int) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION claim_inbox_events(int) TO service_role;
+GRANT EXECUTE ON FUNCTION claim_due_jobs(int) TO service_role;
+
 -- 8. Storage-Bucket fuer WhatsApp-Medien (private)
 INSERT INTO storage.buckets (id, name, public) VALUES ('whatsapp-media', 'whatsapp-media', false)
 ON CONFLICT (id) DO NOTHING;
