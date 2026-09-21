@@ -1,4 +1,36 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { nextAllowedTime } from '@/lib/whatsapp/window';
+
+describe('nextAllowedTime', () => {
+  it('Samstag 21:00 -> Montag 08:00', () => {
+    // 2026-10-10 ist ein Samstag
+    const sat21 = new Date('2026-10-10T19:00:00Z'); // 21:00 CEST
+    const result = nextAllowedTime(sat21, 'Europe/Berlin');
+    // Nächster erlaubter Zeitpunkt: Montag 08:00 CEST = 06:00 UTC
+    const expected = new Date('2026-10-12T06:00:00Z');
+    expect(result.getTime()).toBe(expected.getTime());
+  });
+
+  it('Sonntag 10:00 -> Montag 08:00', () => {
+    const sun10 = new Date('2026-10-11T08:00:00Z'); // 10:00 CEST
+    const result = nextAllowedTime(sun10, 'Europe/Berlin');
+    const expected = new Date('2026-10-12T06:00:00Z');
+    expect(result.getTime()).toBe(expected.getTime());
+  });
+
+  it('Mittwoch 15:00 (Geschäftszeit) -> Mittwoch 15:00 unverändert', () => {
+    const wed15 = new Date('2026-10-07T13:00:00Z'); // 15:00 CEST
+    const result = nextAllowedTime(wed15, 'Europe/Berlin');
+    expect(result.getTime()).toBe(wed15.getTime());
+  });
+
+  it('Dienstag 22:00 -> Mittwoch 08:00', () => {
+    const tue22 = new Date('2026-10-06T20:00:00Z'); // 22:00 CEST
+    const result = nextAllowedTime(tue22, 'Europe/Berlin');
+    const expected = new Date('2026-10-07T06:00:00Z'); // Mi 08:00 CEST
+    expect(result.getTime()).toBe(expected.getTime());
+  });
+});
 
 describe('window logic', () => {
   it('isWindowOpen returns true when window_expires_at is in the future', async () => {

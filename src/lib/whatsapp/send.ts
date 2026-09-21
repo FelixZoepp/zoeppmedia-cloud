@@ -22,6 +22,8 @@ export interface SendOpts {
   templateId?: string | null;
   /** true wenn ein Recruiter die Nachricht manuell im UI sendet */
   isHumanUiSend?: boolean;
+  /** true => Ruhezeiten-Check wird übersprungen (P4-R6: reminder_2h) */
+  bypassQuietHours?: boolean;
 }
 
 export async function sendWhatsAppMessage(
@@ -75,6 +77,7 @@ export async function sendWhatsAppMessage(
     windowExpiresAt: conv.window_expires_at,
     isTemplate,
     isHumanUiSend: opts.isHumanUiSend ?? false,
+    bypassQuietHours: opts.bypassQuietHours ?? false,
     timezone,
     accountConnected: waAccount.status === 'connected',
   });
