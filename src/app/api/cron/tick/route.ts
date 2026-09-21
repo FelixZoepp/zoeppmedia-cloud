@@ -17,6 +17,7 @@ import { processBotTimeout } from '@/lib/workers/bot-timeout';
 import { processBotClose } from '@/lib/workers/bot-close';
 import { processBotTurn } from '@/lib/workers/bot-process';
 import { processIngestIndeed } from '@/lib/workers/ingest-indeed';
+import { processIngestGeneric } from '@/lib/workers/ingest-generic';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 import {
   processInviteFollowup,
@@ -92,6 +93,9 @@ export async function GET(request: NextRequest) {
           break;
         case 'ingest.indeed':
           await processIngestIndeed(svc, event.agency_id, payload as unknown as Parameters<typeof processIngestIndeed>[2]);
+          break;
+        case 'ingest.generic':
+          await processIngestGeneric(svc, event.agency_id, payload as unknown as Parameters<typeof processIngestGeneric>[2]);
           break;
         default:
           // Unbekannter Typ — als done markieren
