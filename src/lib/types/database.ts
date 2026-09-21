@@ -651,6 +651,7 @@ export type ActivityActionType =
   | 'survey_submitted'
   | 'funnel_published'
   | 'candidate_created'
+  | 'application_created'
   | 'invite_sent'
   | 'email_sent'
   | 'task_completed'

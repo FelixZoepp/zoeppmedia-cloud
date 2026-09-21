@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { KanbanBoard } from '@/components/kanban/board';
 import { ApplicationTableView } from '@/components/candidates/table-view';
 import { CsvImportModal } from '@/components/candidates/csv-import-modal';
+import { AddCandidateModal } from '@/components/kanban/add-candidate-modal';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { PageHeader } from '@/components/ui/page-header';
 import type { ApplicationRow } from '@/components/kanban/board';
@@ -22,6 +23,7 @@ export default function CandidatesPage() {
   const [tableLoaded, setTableLoaded] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [csvImportJobId, setCsvImportJobId] = useState('');
+  const [addCandidateOpen, setAddCandidateOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -96,7 +98,7 @@ export default function CandidatesPage() {
               <Upload className="w-4 h-4" />
               CSV-Import
             </Button>
-            <Button onClick={() => setRefreshKey((k) => k + 1)} size="md">
+            <Button onClick={() => setAddCandidateOpen(true)} size="md">
               <Plus className="w-4 h-4" />
               Neuer Bewerber
             </Button>
@@ -135,6 +137,15 @@ export default function CandidatesPage() {
           }}
         />
       )}
+
+      <AddCandidateModal
+        open={addCandidateOpen}
+        onClose={() => setAddCandidateOpen(false)}
+        onCreated={() => {
+          setAddCandidateOpen(false);
+          setRefreshKey((k) => k + 1);
+        }}
+      />
     </div>
   );
 }

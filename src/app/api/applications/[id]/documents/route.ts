@@ -62,7 +62,7 @@ export async function GET(
     docs = await Promise.all(
       (data ?? []).map(async (doc) => {
         const { data: signed } = await supabase.storage
-          .from('documents')
+          .from('candidate-resumes')
           .createSignedUrl(doc.storage_path, 3600);
         return { ...doc, signed_url: signed?.signedUrl ?? null };
       })

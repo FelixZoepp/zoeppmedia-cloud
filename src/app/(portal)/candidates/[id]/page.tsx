@@ -67,7 +67,7 @@ type CandidateDetail = {
   name: string;
   email: string | null;
   phone: string | null;
-  source: 'meta' | 'indeed' | 'manual';
+  source: 'meta' | 'indeed' | 'manual' | 'form' | 'csv';
   meta_campaign: string | null;
   meta_adset: string | null;
   meta_form: string | null;
@@ -238,6 +238,8 @@ const sourceConfig: Record<string, { label: string; tone: 'softAccent' | 'succes
   meta: { label: 'Meta', tone: 'softAccent' },
   indeed: { label: 'Indeed', tone: 'success' },
   manual: { label: 'Manuell', tone: 'neutral' },
+  form: { label: 'Formular', tone: 'neutral' },
+  csv: { label: 'CSV', tone: 'neutral' },
 };
 
 const WINDOW_LABELS: Record<string, string> = {
