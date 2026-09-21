@@ -1,8 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Mail, Briefcase, User } from 'lucide-react';
+import { Phone, Mail, Briefcase, User, UserCircle } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+}
 
 interface Props {
   conversation: Record<string, unknown>;
@@ -10,6 +18,7 @@ interface Props {
 
 export function CandidateSidebar({ conversation }: Props) {
   const conv = conversation as {
+    id: string;
     candidate: {
       id: string;
       name: string;
@@ -27,6 +36,46 @@ export function CandidateSidebar({ conversation }: Props) {
 
   const candidate = conv.candidate;
   const app = conv.application?.[0];
+
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [assignedTo, setAssignedTo] = useState<string>(conv.assigned_to ?? '');
+  const [assigning, setAssigning] = useState(false);
+
+  // Sync assignedTo wenn conversation von außen wechselt
+  useEffect(() => {
+    setAssignedTo(conv.assigned_to ?? '');
+  }, [conv.id, conv.assigned_to]);
+
+  // Team-Mitglieder laden
+  useEffect(() => {
+    fetch('/api/team/members')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: TeamMember[]) => setMembers(data))
+      .catch(() => {});
+  }, []);
+
+  async function handleAssign(userId: string) {
+    setAssigning(true);
+    const previous = assignedTo;
+    setAssignedTo(userId); // optimistisch
+    try {
+      const res = await fetch(`/api/conversations/${conv.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to: userId || null }),
+      });
+      const result = await res.json();
+      if (!result.ok) {
+        setAssignedTo(previous);
+        toast.error(result.error || 'Zuweisung fehlgeschlagen');
+      }
+    } catch {
+      setAssignedTo(previous);
+      toast.error('Zuweisung fehlgeschlagen');
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   return (
     <div className="p-4 space-y-6">
@@ -77,6 +126,27 @@ export function CandidateSidebar({ conversation }: Props) {
           )}
         </div>
       )}
+
+      {/* Zuweisung */}
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold text-gray-400 uppercase">Zugewiesen an</h4>
+        <div className="flex items-center gap-2">
+          <UserCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <select
+            className="flex-1 text-sm border border-gray-200 rounded-md px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500 disabled:opacity-50"
+            value={assignedTo}
+            onChange={e => handleAssign(e.target.value)}
+            disabled={assigning || members.length === 0}
+          >
+            <option value="">— Nicht zugewiesen —</option>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     </div>
   );
 }

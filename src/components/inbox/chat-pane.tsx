@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TemplatePicker } from './template-picker';
 import { QuickReplyModal } from './quick-reply-modal';
-import { Send, Bot, User, Monitor, CheckCheck, Check, X } from 'lucide-react';
+import { Send, Bot, User, Monitor, CheckCheck, Check, X, Paperclip, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
@@ -33,13 +33,17 @@ const SENDER_ICONS: Record<string, React.ReactNode> = {
 export function ChatPane({ conversationId, messages, conversation, onMessageSent }: Props) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conv = conversation as {
     state: string;
     window_expires_at: string | null;
     candidate: { name: string };
+    application?: Array<{ id: string }> | null;
   } | null;
 
   const isOptedOut = conv?.state === 'closed';
@@ -47,6 +51,8 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
     ? new Date(conv.window_expires_at).getTime() > Date.now()
     : false;
   const isClosed = !windowOpen;
+  const isBotActive = conv?.state === 'bot_active';
+  const isHumanActive = conv?.state === 'human_active';
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -113,13 +119,100 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
     }
   }
 
+  async function handleSuggest() {
+    setSuggesting(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/suggest`, {
+        method: 'POST',
+      });
+      const result = await res.json();
+      if (res.ok && result.suggestion) {
+        setText(result.suggestion);
+      } else {
+        toast.error(result.error || 'KI-Vorschlag fehlgeschlagen');
+      }
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/conversations/${conversationId}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await res.json();
+      if (result.ok) {
+        // Realtime liefert die neue Nachricht — kein manuelles Nachladen nötig
+        toast.success('Datei gesendet');
+      } else {
+        toast.error(result.error || 'Upload fehlgeschlagen');
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleBotToggle(newState: 'bot_active' | 'human_active') {
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: newState }),
+      });
+      const result = await res.json();
+      if (!result.ok) {
+        toast.error(result.error || 'Status-Änderung fehlgeschlagen');
+      } else {
+        onMessageSent(); // Seite aktualisieren
+      }
+    } catch {
+      toast.error('Status-Änderung fehlgeschlagen');
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
+      {/* Header mit Bot-Status */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
         <h3 className="text-sm font-semibold text-gray-900">
           {conv?.candidate?.name || 'Chat'}
         </h3>
+        <div className="flex items-center gap-2">
+          {isBotActive && (
+            <>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-accent-100 text-accent-700">
+                <Bot className="w-3 h-3" />
+                Bot aktiv
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleBotToggle('human_active')}
+              >
+                Bot pausieren
+              </Button>
+            </>
+          )}
+          {isHumanActive && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleBotToggle('bot_active')}
+            >
+              Bot fortsetzen
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Nachrichten */}
@@ -191,19 +284,54 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
         ) : isClosed ? (
           <TemplatePicker onSend={handleTemplateSend} sending={sending} />
         ) : (
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="Nachricht schreiben... (/ für Textbausteine)"
-                value={text}
-                onChange={e => setText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={sending}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              {/* Verstecktes File-Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
               />
+              {/* Büroklammer-Button */}
+              <Button
+                size="md"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || sending}
+                title="Datei senden"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+              <div className="flex-1">
+                <Input
+                  placeholder="Nachricht schreiben... (/ für Textbausteine)"
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={sending}
+                />
+              </div>
+              {/* KI-Vorschlag */}
+              <Button
+                size="md"
+                variant="secondary"
+                onClick={handleSuggest}
+                disabled={suggesting || sending}
+                title="KI-Vorschlag"
+              >
+                {suggesting ? (
+                  <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                <span className="ml-1 text-xs hidden sm:inline">KI-Vorschlag</span>
+              </Button>
+              <Button onClick={handleSend} disabled={sending || !text.trim()} size="md">
+                <Send className="w-4 h-4" />
+              </Button>
             </div>
-            <Button onClick={handleSend} disabled={sending || !text.trim()} size="md">
-              <Send className="w-4 h-4" />
-            </Button>
           </div>
         )}
       </div>
