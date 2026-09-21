@@ -125,7 +125,8 @@ export function RecruitingOverviewView() {
   // --- Meta-Preis speichern ---
   async function savePricing(category: string) {
     const raw = pricingEdit[category];
-    const price_eur = parseFloat(raw);
+    // Deutsches Komma tolerieren ("0,14" → 0.14), sonst würde parseFloat still bei 0 abschneiden
+    const price_eur = parseFloat(raw.replace(',', '.'));
     if (isNaN(price_eur)) return;
 
     setPricingSaving((prev) => ({ ...prev, [category]: true }));
