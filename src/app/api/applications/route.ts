@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const jobId = request.nextUrl.searchParams.get('job_id');
+  const candidateId = request.nextUrl.searchParams.get('candidate_id');
   const source = request.nextUrl.searchParams.get('source');
   const stageId = request.nextUrl.searchParams.get('stage_id');
 
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     .order('applied_at', { ascending: false });
 
   if (jobId) query = query.eq('job_id', jobId);
+  if (candidateId) query = query.eq('candidate_id', candidateId);
   if (source) query = query.eq('source', source);
   if (stageId) query = query.eq('stage_id', stageId);
 
