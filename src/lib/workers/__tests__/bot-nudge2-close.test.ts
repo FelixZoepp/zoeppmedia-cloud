@@ -276,6 +276,20 @@ describe('processBotClose', () => {
     const convCalls = (fromMock.mock.calls as unknown[][]).filter((c) => c[0] === 'conversations');
     expect(convCalls.length).toBeGreaterThanOrEqual(1);
 
+    // Applications.update mit status=nicht_erreicht aufgerufen
+    const appCalls = (fromMock.mock.calls as unknown[][]).filter((c) => c[0] === 'applications');
+    expect(appCalls.length).toBeGreaterThanOrEqual(1);
+    const appUpdateChain = (fromMock as ReturnType<typeof vi.fn>).mock.results.find(
+      (r) => r.value && typeof r.value.update === 'function' &&
+      (fromMock.mock.calls as unknown[][]).some((c) => c[0] === 'applications')
+    );
+    if (appUpdateChain) {
+      const updateCall = (appUpdateChain.value.update as ReturnType<typeof vi.fn>).mock.calls[0];
+      if (updateCall) {
+        expect(updateCall[0]).toEqual(expect.objectContaining({ status: 'nicht_erreicht' }));
+      }
+    }
+
     // Notification wurde gesendet
     expect(createNotificationForAgency).toHaveBeenCalledWith(
       expect.anything(),

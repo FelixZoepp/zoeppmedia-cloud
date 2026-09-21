@@ -17,7 +17,7 @@ export async function processBotNudge2(
   // --- 1. Conversation laden ---
   const { data: conv } = await svc
     .from('conversations')
-    .select('id, state, bot_step, candidate_id, wa_account_id')
+    .select('id, state, bot_step, candidate_id, wa_account_id, application_id')
     .eq('id', conversationId)
     .eq('agency_id', agencyId)
     .maybeSingle();
@@ -49,17 +49,12 @@ export async function processBotNudge2(
 
   // --- 4. Jobtitel über application_id aus Conversation holen ---
   let jobTitle = '';
-  const { data: convFull } = await svc
-    .from('conversations')
-    .select('application_id')
-    .eq('id', conv.id)
-    .single();
 
-  if (convFull?.application_id) {
+  if (conv.application_id) {
     const { data: appData } = await svc
       .from('applications')
       .select('job_id')
-      .eq('id', convFull.application_id)
+      .eq('id', conv.application_id)
       .eq('agency_id', agencyId)
       .single();
 
@@ -101,5 +96,5 @@ export async function processBotNudge2(
     },
     senderType: 'bot',
     templateId: tmpl.id as string,
-  }).catch(() => {}); // Nudge-Fehler: kein Dead-Letter
+  }).catch((e) => console.error('qualification_nudge send failed', e)); // qualification_nudge-Fehler: kein Dead-Letter
 }
