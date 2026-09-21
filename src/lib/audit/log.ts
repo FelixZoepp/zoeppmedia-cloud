@@ -3,9 +3,9 @@ import { SupabaseClient } from '@supabase/supabase-js';
 interface AuditEntry {
   user_id?: string | null;
   agency_id?: string | null;
-  entity_type: 'candidate' | 'agency' | 'user' | 'automation' | 'template' | 'pipeline_stage' | 'consent' | 'recording' | 'settings' | 'job' | 'application';
+  entity_type: 'candidate' | 'agency' | 'user' | 'automation' | 'template' | 'pipeline_stage' | 'consent' | 'recording' | 'settings' | 'job' | 'application' | 'export';
   entity_id: string;
-  action: 'create' | 'update' | 'delete' | 'access' | 'impersonate';
+  action: 'create' | 'update' | 'delete' | 'access' | 'impersonate' | 'export' | 'anonymize';
   changes?: Array<{ field: string; old?: unknown; new?: unknown; old_label?: string; new_label?: string }>;
   ip_address?: string | null;
   user_agent?: string | null;
