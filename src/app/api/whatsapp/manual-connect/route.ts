@@ -39,6 +39,16 @@ export async function POST(request: NextRequest) {
     const tokenEnc = encryptSecret(parsed.data.accessToken);
     const provider = getProvider();
 
+    // Cross-Agency-Schutz: prüfen ob phone_number_id bereits einer anderen Agentur gehört
+    const { data: existing } = await svc
+      .from('whatsapp_accounts')
+      .select('id, agency_id')
+      .eq('phone_number_id', parsed.data.phoneNumberId)
+      .maybeSingle();
+    if (existing && existing.agency_id !== agencyId) {
+      return NextResponse.json({ error: 'Diese Telefonnummer ist bereits mit einer anderen Agentur verbunden' }, { status: 409 });
+    }
+
     const { data: waAccount, error: insertErr } = await svc
       .from('whatsapp_accounts')
       .upsert({

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
-import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getProvider } from '@/lib/whatsapp/provider';
 import { encryptSecret } from '@/lib/crypto';
@@ -16,10 +15,6 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   }
-  if (!canWriteRole(user.role)) {
-    return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
-  }
-
   // Org Admin oder Platform Admin
   if (user.role !== 'agency_owner' && user.role !== 'admin') {
     return NextResponse.json({ error: 'Nur Org-Admins können WhatsApp verbinden' }, { status: 403 });
@@ -53,6 +48,16 @@ export async function POST(request: NextRequest) {
     // 2. Verschlüsselt speichern
     const tokenEnc = encryptSecret(accessToken);
     const svc = createAdminClient();
+
+    // Cross-Agency-Schutz: prüfen ob phone_number_id bereits einer anderen Agentur gehört
+    const { data: existing } = await svc
+      .from('whatsapp_accounts')
+      .select('id, agency_id')
+      .eq('phone_number_id', phoneNumberId)
+      .maybeSingle();
+    if (existing && existing.agency_id !== agencyId) {
+      return NextResponse.json({ error: 'Diese Telefonnummer ist bereits mit einer anderen Agentur verbunden' }, { status: 409 });
+    }
 
     const { data: waAccount, error: insertErr } = await svc
       .from('whatsapp_accounts')

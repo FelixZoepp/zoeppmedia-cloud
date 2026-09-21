@@ -148,7 +148,7 @@ export class CloudApiProvider implements WhatsAppProvider {
       `${BASE_URL}/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`
     );
     if (!tokenRes.ok) {
-      throw new Error('Token-Austausch fehlgeschlagen: ' + await tokenRes.text());
+      throw new Error(`Token-Austausch fehlgeschlagen (HTTP ${tokenRes.status})`);
     }
     const tokenData = await tokenRes.json();
     const shortToken = tokenData.access_token;
@@ -158,7 +158,7 @@ export class CloudApiProvider implements WhatsAppProvider {
       `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`
     );
     if (!longRes.ok) {
-      throw new Error('Long-lived Token fehlgeschlagen: ' + await longRes.text());
+      throw new Error(`Long-lived Token fehlgeschlagen (HTTP ${longRes.status})`);
     }
     const longData = await longRes.json();
     const accessToken = longData.access_token;
@@ -168,7 +168,7 @@ export class CloudApiProvider implements WhatsAppProvider {
     const appAccessToken = encodeURIComponent(`${appId}|${appSecret}`);
     const debugRes = await fetch(`${BASE_URL}/debug_token?input_token=${accessToken}&access_token=${appAccessToken}`);
     if (!debugRes.ok) {
-      throw new Error('Debug-Token fehlgeschlagen: ' + await debugRes.text());
+      throw new Error(`Debug-Token fehlgeschlagen (HTTP ${debugRes.status})`);
     }
     const debugData = await debugRes.json();
     const granularScopes = debugData.data?.granular_scopes || [];

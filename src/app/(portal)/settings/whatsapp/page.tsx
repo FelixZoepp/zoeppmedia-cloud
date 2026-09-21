@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Script from 'next/script';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -180,9 +181,9 @@ export default function WhatsAppSettingsPage() {
 
       {/* FB JS SDK Script */}
       {envConfigured && (
-        <script
+        <Script
           async
-          defer
+          strategy="lazyOnload"
           crossOrigin="anonymous"
           src={`https://connect.facebook.net/de_DE/sdk.js#xfbml=true&version=v23.0&appId=${META_APP_ID}`}
         />
