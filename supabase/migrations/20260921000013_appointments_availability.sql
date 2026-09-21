@@ -18,9 +18,9 @@ CREATE TABLE appointments (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_appointments_agency_starts ON appointments(agency_id, starts_at);
--- P4-R5: Doppelbuchungsschutz
+-- P4-R5 (korrigiert): Doppelbuchungsschutz — ein Kalender je Agentur, verhindert zwei Buchungen zum selben Zeitpunkt
 CREATE UNIQUE INDEX idx_appointments_no_double_book
-  ON appointments(agency_id, application_id, starts_at)
+  ON appointments(agency_id, starts_at)
   WHERE status IN ('booked','confirmed');
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "appointments select" ON appointments FOR SELECT USING (can_access_agency(agency_id));
