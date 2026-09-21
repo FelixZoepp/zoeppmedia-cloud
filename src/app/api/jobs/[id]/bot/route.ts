@@ -165,21 +165,33 @@ export async function PUT(
     return NextResponse.json({ error: 'A-Schwelle muss über B-Schwelle liegen' }, { status: 400 });
   }
 
+  // --- Fix 1: Verbotene Themen in intro_text und FAQ prüfen ---
+  if (body.config.intro_text && violatesForbiddenTopics(body.config.intro_text)) {
+    return NextResponse.json({ error: 'Verbotenes Thema im Einleitungstext' }, { status: 400 });
+  }
+  for (const entry of body.config.faq) {
+    if (violatesForbiddenTopics(entry.q) || violatesForbiddenTopics(entry.a)) {
+      return NextResponse.json({ error: 'Verbotenes Thema in FAQ' }, { status: 400 });
+    }
+  }
+
+  // --- Fix 2: Unbekannter preset_key → 400 ---
   // --- Preset-Anwendung: wenn preset_key gesetzt, Fragen aus Preset übernehmen ---
   let finalQuestions = body.questions;
   if (body.preset_key) {
     const preset = BOT_PRESETS.find(p => p.key === body.preset_key);
-    if (preset) {
-      finalQuestions = preset.questions.map(q => ({
-        key:           q.key,
-        text:          q.text,
-        type:          q.type,
-        options:       q.options ?? null,
-        required:      q.required,
-        knockout_rule: q.knockout_rule ?? null,
-        weight:        q.weight,
-      }));
+    if (!preset) {
+      return NextResponse.json({ error: 'Unbekannter Preset-Schlüssel' }, { status: 400 });
     }
+    finalQuestions = preset.questions.map(q => ({
+      key:           q.key,
+      text:          q.text,
+      type:          q.type,
+      options:       q.options ?? null,
+      required:      q.required,
+      knockout_rule: q.knockout_rule ?? null,
+      weight:        q.weight,
+    }));
   }
 
   // --- Frage-Validierungen ---
@@ -213,7 +225,7 @@ export async function PUT(
 
   if (configId) {
     // Bestehenden Config aktualisieren (agency-scoped)
-    await svc
+    const { error: updateConfigError } = await svc
       .from('bot_configs')
       .update({
         persona:       body.config.persona,
@@ -229,6 +241,10 @@ export async function PUT(
       })
       .eq('id', configId)
       .eq('agency_id', agencyId);
+
+    if (updateConfigError) {
+      return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
+    }
   } else {
     // Neuen Config anlegen
     const { data: newConfig } = await svc
@@ -264,15 +280,19 @@ export async function PUT(
       .eq('agency_id', agencyId);
   }
 
-  // --- Fragen vollständig ersetzen: erst DELETE, dann INSERT ---
-  await svc
+  // Kein clientseitiges Transaktions-API — Delete+Insert nicht atomar. Fehler nach Delete → 500, Client wiederholt PUT (idempotent, Fragen kommen aus dem Request).
+  const { error: deleteError } = await svc
     .from('bot_questions')
     .delete()
     .eq('bot_config_id', configId)
     .eq('agency_id', agencyId);
 
+  if (deleteError) {
+    return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
+  }
+
   if (finalQuestions.length > 0) {
-    await svc
+    const { error: insertError } = await svc
       .from('bot_questions')
       .insert(
         finalQuestions.map((q, idx) => ({
@@ -288,6 +308,10 @@ export async function PUT(
           weight:        q.weight,
         }))
       );
+
+    if (insertError) {
+      return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true, config_id: configId });

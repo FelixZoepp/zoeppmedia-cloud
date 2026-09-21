@@ -451,6 +451,112 @@ describe('PUT /api/jobs/[id]/bot', () => {
     expect((await res.json()).error).toBe('Frage berührt ein verbotenes Thema');
   });
 
+  // --- Fix 1: Verbotene Themen in intro_text und FAQ ---
+
+  it('P_FIX1a: gibt 400 zurück wenn intro_text ein verbotenes Thema enthält (Religion)', async () => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        if (table === 'jobs') return makeChain({ data: { id: JOB_ID, bot_config_id: null }, error: null });
+        return makeChain({ data: null, error: null });
+      },
+    } as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await PUT(
+      makePutRequest({
+        config: {
+          ...validConfig,
+          intro_text: 'Welche Religion hast du?',
+        },
+        questions: validQuestions,
+      }),
+      { params: makeParams() }
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Verbotenes Thema im Einleitungstext');
+  });
+
+  it('P_FIX1b: gibt 400 zurück wenn FAQ-Antwort ein verbotenes Thema enthält (schwanger)', async () => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        if (table === 'jobs') return makeChain({ data: { id: JOB_ID, bot_config_id: null }, error: null });
+        return makeChain({ data: null, error: null });
+      },
+    } as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await PUT(
+      makePutRequest({
+        config: {
+          ...validConfig,
+          faq: [{ q: 'Normales Frage', a: 'Bitte nicht bewerben wenn schwanger.' }],
+        },
+        questions: validQuestions,
+      }),
+      { params: makeParams() }
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Verbotenes Thema in FAQ');
+  });
+
+  // --- Fix 2: Unbekannter preset_key → 400 ---
+
+  it('P_FIX2: gibt 400 zurück wenn preset_key unbekannt ist', async () => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        if (table === 'jobs') return makeChain({ data: { id: JOB_ID, bot_config_id: null }, error: null });
+        return makeChain({ data: null, error: null });
+      },
+    } as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await PUT(
+      makePutRequest({
+        preset_key: 'unbekannt',
+        config: validConfig,
+        questions: validQuestions,
+      }),
+      { params: makeParams() }
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Unbekannter Preset-Schlüssel');
+  });
+
+  // --- Fix 3: DB-Fehler bei bot_questions insert → 500 ---
+
+  it('P_FIX3: gibt 500 zurück wenn bot_questions insert fehlschlägt, ok ist nicht true', async () => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: (table: string) => {
+        const chain: Record<string, unknown> = {};
+        const self = () => chain;
+        for (const m of ['eq', 'order', 'neq', 'filter', 'in', 'select']) {
+          chain[m] = self;
+        }
+        chain['single'] = () => {
+          if (table === 'jobs') return Promise.resolve({ data: { id: JOB_ID, bot_config_id: CONFIG_ID }, error: null });
+          if (table === 'bot_configs') return Promise.resolve({ data: { id: CONFIG_ID, agency_id: AGENCY_ID }, error: null });
+          return Promise.resolve({ data: null, error: null });
+        };
+        chain['update'] = () => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+        chain['delete'] = () => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) });
+        chain['insert'] = () => {
+          if (table === 'bot_questions') {
+            return Promise.resolve({ data: null, error: { message: 'DB-Fehler' } });
+          }
+          return { select: () => ({ single: () => Promise.resolve({ data: { id: CONFIG_ID }, error: null }) }) };
+        };
+        chain['then'] = (resolve: (v: unknown) => void) => resolve({ data: [], error: null });
+        return chain;
+      },
+    } as unknown as ReturnType<typeof createAdminClient>);
+
+    const res = await PUT(
+      makePutRequest({ config: validConfig, questions: validQuestions }),
+      { params: makeParams() }
+    );
+    expect(res.status).toBe(500);
+    const json = await res.json();
+    expect(json.ok).not.toBe(true);
+    expect(json.error).toBe('Speichern fehlgeschlagen');
+  });
+
   // --- Preset-Anwendung ---
 
   it('P14: preset_key "vertrieb" → Fragen entsprechen dem Vertrieb-Preset (Body-questions werden ignoriert)', async () => {
