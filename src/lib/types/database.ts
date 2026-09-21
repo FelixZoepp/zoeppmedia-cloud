@@ -783,3 +783,89 @@ export interface ClientProfile {
   created_at: string;
   updated_at: string;
 }
+
+// Phase 2: WhatsApp + Inbox
+
+export type WhatsAppAccount = {
+  id: string;
+  agency_id: string;
+  waba_id: string;
+  phone_number_id: string;
+  display_number: string | null;
+  access_token_enc: string;
+  provider: string;
+  quality_rating: string | null;
+  messaging_limit: string | null;
+  status: 'connected' | 'disconnected' | 'banned';
+  connected_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WhatsAppTemplate = {
+  id: string;
+  agency_id: string;
+  wa_account_id: string;
+  name: string;
+  language: string;
+  category: string;
+  body: string;
+  variables: string[];
+  buttons: Array<{ type: string; text: string }> | null;
+  meta_template_id: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'paused' | 'deleted';
+  preset_key: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ConversationState = 'bot_active' | 'human_active' | 'waiting' | 'closed';
+
+export type Conversation = {
+  id: string;
+  agency_id: string;
+  candidate_id: string;
+  wa_account_id: string;
+  application_id: string | null;
+  state: ConversationState;
+  bot_step: number;
+  window_expires_at: string | null;
+  unread_count: number;
+  last_message_at: string | null;
+  assigned_to: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MessageDirection = 'in' | 'out';
+export type MessageSenderType = 'candidate' | 'bot' | 'user' | 'system';
+export type MessageType = 'text' | 'template' | 'image' | 'document' | 'audio' | 'interactive';
+export type MessageStatus = 'queued' | 'sent' | 'delivered' | 'read' | 'failed';
+
+export type Message = {
+  id: string;
+  agency_id: string;
+  conversation_id: string;
+  direction: MessageDirection;
+  sender_type: MessageSenderType;
+  user_id: string | null;
+  type: MessageType;
+  body: string | null;
+  media_path: string | null;
+  wa_message_id: string | null;
+  status: MessageStatus;
+  error_code: string | null;
+  template_id: string | null;
+  cost_category: string | null;
+  created_at: string;
+};
+
+export type QuickReply = {
+  id: string;
+  agency_id: string;
+  title: string;
+  body: string;
+  shortcut: string | null;
+  created_at: string;
+  updated_at: string;
+};
