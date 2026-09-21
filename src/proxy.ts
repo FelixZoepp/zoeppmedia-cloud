@@ -32,6 +32,7 @@ export async function proxy(request: NextRequest) {
   // Public routes
   if (
     pathname.startsWith('/login') ||
+    pathname.startsWith('/apply') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/register-employee') ||
     pathname.startsWith('/forgot-password') ||
