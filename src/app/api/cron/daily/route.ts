@@ -341,6 +341,15 @@ async function runDailyJobs() {
     results.usage_aggregation = { error: String(e) };
   }
 
+  // Phase 7: DSGVO-Retention — Anonymisierung abgelaufener Kandidaten (best effort)
+  try {
+    const { runRetention } = await import('@/lib/dsgvo/retention');
+    results.retention = await runRetention(supabase);
+  } catch (err) {
+    console.error('[cron-daily] retention failed', err);
+    results.retention = { error: String(err) };
+  }
+
   return {
     ok: true,
     processed: agencies?.length ?? 0,
