@@ -58,6 +58,12 @@ const adminGroups: SidebarGroup[] = [
     ],
   },
   {
+    label: 'Recruiting-Cloud',
+    items: [
+      { id: 'admin-recruiting', label: 'Kunden-Übersicht', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin/recruiting' },
+    ],
+  },
+  {
     label: 'Marketing & Sales',
     items: [
       { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
