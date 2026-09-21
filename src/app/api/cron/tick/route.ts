@@ -12,7 +12,9 @@ import { processSend } from '@/lib/workers/whatsapp-send';
 import { processMediaDownload } from '@/lib/workers/media-download';
 import { processBotOpen } from '@/lib/workers/bot-open';
 import { processBotNudge } from '@/lib/workers/bot-nudge';
+import { processBotNudge2 } from '@/lib/workers/bot-nudge2';
 import { processBotTimeout } from '@/lib/workers/bot-timeout';
+import { processBotClose } from '@/lib/workers/bot-close';
 import { processBotTurn } from '@/lib/workers/bot-process';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 import {
@@ -149,6 +151,12 @@ export async function GET(request: NextRequest) {
           break;
         case 'bot.timeout':
           await processBotTimeout(svc, job.agency_id, payload as unknown as Parameters<typeof processBotTimeout>[2]);
+          break;
+        case 'bot.nudge2':
+          await processBotNudge2(svc, job.agency_id, payload as { conversation_id: string; bot_step: number });
+          break;
+        case 'bot.close':
+          await processBotClose(svc, job.agency_id, payload as { conversation_id: string; bot_step: number });
           break;
         case 'bot.process':
           await processBotTurn(svc, job.agency_id, payload as { conversation_id: string }, job.attempts);
