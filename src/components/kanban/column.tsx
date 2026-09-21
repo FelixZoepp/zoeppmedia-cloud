@@ -3,16 +3,17 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { KanbanCard } from './card';
-import type { Candidate, PipelineStage } from '@/lib/types/database';
+import type { PipelineStage } from '@/lib/types/database';
+import type { ApplicationRow } from './board';
 
 export function KanbanColumn({
   stage,
-  candidates,
+  applications,
   onCardClick,
 }: {
   stage: PipelineStage;
-  candidates: Candidate[];
-  onCardClick: (candidate: Candidate) => void;
+  applications: ApplicationRow[];
+  onCardClick: (app: ApplicationRow) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
@@ -22,21 +23,19 @@ export function KanbanColumn({
         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
         <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wider">{stage.name}</h3>
         <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-          {candidates.length}
+          {applications.length}
         </span>
       </div>
-      <div
-        ref={setNodeRef}
+      <div ref={setNodeRef}
         className={`space-y-3 min-h-[200px] p-3 rounded-xl transition-colors ${
           isOver ? 'bg-red-50 border-2 border-dashed border-red-200' : 'bg-gray-50/50'
-        }`}
-      >
-        <SortableContext items={candidates.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-          {candidates.map((candidate) => (
-            <KanbanCard key={candidate.id} candidate={candidate} onClick={() => onCardClick(candidate)} />
+        }`}>
+        <SortableContext items={applications.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+          {applications.map((app) => (
+            <KanbanCard key={app.id} application={app} onClick={() => onCardClick(app)} />
           ))}
-          {candidates.length === 0 && (
-            <p className="text-xs text-gray-400 text-center py-8">Keine Kandidaten in dieser Phase.</p>
+          {applications.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-8">Keine Bewerber in dieser Stufe.</p>
           )}
         </SortableContext>
       </div>
