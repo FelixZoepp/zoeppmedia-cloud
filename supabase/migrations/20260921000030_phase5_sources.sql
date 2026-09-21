@@ -16,7 +16,7 @@ ALTER TABLE lead_sources ENABLE ROW LEVEL SECURITY;
 
 -- 2. Feed-Key je Agentur (geheimer ?key= für den Indeed-XML-Feed)
 ALTER TABLE agencies ADD COLUMN IF NOT EXISTS indeed_feed_key text;
-UPDATE agencies SET indeed_feed_key = encode(gen_random_bytes(24), 'hex') WHERE indeed_feed_key IS NULL;
+UPDATE agencies SET indeed_feed_key = encode(extensions.gen_random_bytes(24), 'hex') WHERE indeed_feed_key IS NULL;
 ALTER TABLE agencies ALTER COLUMN indeed_feed_key SET NOT NULL;
 
 -- 3. Feed-Abruf-Protokoll fürs Monitoring (Spec §5 Monitoring)
