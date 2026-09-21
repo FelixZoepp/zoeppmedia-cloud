@@ -931,3 +931,36 @@ export interface BotMeta {
   /** Zähler für confidence < 0.6 in Folge */
   low_confidence?: number;
 }
+
+// --- Phase 4: Termine, Automations v2 ---
+export type AppointmentStatus = 'proposed' | 'booked' | 'confirmed' | 'no_show' | 'done' | 'cancelled';
+export type AppointmentType = 'call' | 'video' | 'onsite';
+
+export interface Appointment {
+  id: string;
+  agency_id: string;
+  application_id: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  type: AppointmentType;
+  location: string | null;
+  status: AppointmentStatus;
+  booked_via: string | null;
+  booking_token: string;
+  token_expires_at: string | null;
+  ics_sequence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AvailabilityRule {
+  id: string;
+  agency_id: string;
+  job_id: string;
+  user_id: string | null;
+  weekday: number; // 0=Sonntag, 1=Montag, ..., 6=Samstag
+  start_time: string; // HH:MM:SS
+  end_time: string;   // HH:MM:SS
+  created_at: string;
+  updated_at: string;
+}
