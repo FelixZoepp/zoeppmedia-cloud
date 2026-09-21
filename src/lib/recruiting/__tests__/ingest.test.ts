@@ -294,6 +294,93 @@ describe('ingestApplication', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Phase 3 Ingest-Trigger: bot.open scheduled_job anlegen
+  // -------------------------------------------------------------------------
+  it('Phase 3: legt scheduled_job bot.open an wenn applicationCreated + consentWhatsapp + phoneE164', async () => {
+    // pipeline_stages already queued in beforeEach
+    // Tracking für scheduled_jobs.upsert — einfacher Intercept ohne Weiterleitung
+    const scheduledJobUpserts: Array<Record<string, unknown>> = [];
+    const origFrom = client.from.bind(client) as typeof client.from;
+    client.from = vi.fn().mockImplementation((table: string) => {
+      const chain = origFrom(table);
+      if (table === 'scheduled_jobs') {
+        (chain as Record<string, unknown>).upsert = vi.fn().mockImplementation(
+          (data: Record<string, unknown>) => {
+            scheduledJobUpserts.push(data);
+            return Promise.resolve({ data: null, error: null });
+          }
+        );
+      }
+      return chain;
+    }) as typeof client.from;
+
+    await ingestApplication(client as never, baseInput);
+
+    // Mindestens ein upsert auf scheduled_jobs mit type=bot.open
+    const botOpenJobs = scheduledJobUpserts.filter(
+      (d) => d.type === 'bot.open'
+    );
+    expect(botOpenJobs).toHaveLength(1);
+    expect(botOpenJobs[0]).toMatchObject({
+      type: 'bot.open',
+      status: 'pending',
+    });
+    // dedupe_key hat das Format 'bot.open:{applicationId}'
+    expect(typeof botOpenJobs[0].dedupe_key).toBe('string');
+    expect((botOpenJobs[0].dedupe_key as string).startsWith('bot.open:')).toBe(true);
+    // payload enthält application_id
+    expect((botOpenJobs[0].payload as Record<string, unknown>).application_id).toBeTruthy();
+  });
+
+  it('Phase 3: legt KEINEN bot.open Job an wenn kein consentWhatsapp', async () => {
+    // pipeline_stages already queued in beforeEach
+    const scheduledJobUpserts: Array<Record<string, unknown>> = [];
+    const origFrom2 = client.from.bind(client) as typeof client.from;
+    client.from = vi.fn().mockImplementation((table: string) => {
+      const chain = origFrom2(table);
+      if (table === 'scheduled_jobs') {
+        (chain as Record<string, unknown>).upsert = vi.fn().mockImplementation(
+          (data: Record<string, unknown>) => {
+            scheduledJobUpserts.push(data);
+            return Promise.resolve({ data: null, error: null });
+          }
+        );
+      }
+      return chain;
+    }) as typeof client.from;
+
+    const inputNoConsent: IngestInput = { ...baseInput, consentWhatsapp: false };
+    await ingestApplication(client as never, inputNoConsent);
+
+    const botOpenJobs = scheduledJobUpserts.filter((d) => d.type === 'bot.open');
+    expect(botOpenJobs).toHaveLength(0);
+  });
+
+  it('Phase 3: legt KEINEN bot.open Job an wenn Telefonnummer ungültig (kein phoneE164)', async () => {
+    // pipeline_stages already queued in beforeEach
+    const scheduledJobUpserts: Array<Record<string, unknown>> = [];
+    const origFrom3 = client.from.bind(client) as typeof client.from;
+    client.from = vi.fn().mockImplementation((table: string) => {
+      const chain = origFrom3(table);
+      if (table === 'scheduled_jobs') {
+        (chain as Record<string, unknown>).upsert = vi.fn().mockImplementation(
+          (data: Record<string, unknown>) => {
+            scheduledJobUpserts.push(data);
+            return Promise.resolve({ data: null, error: null });
+          }
+        );
+      }
+      return chain;
+    }) as typeof client.from;
+
+    const inputBadPhone: IngestInput = { ...baseInput, phone: 'abc-ungültig', consentWhatsapp: true };
+    await ingestApplication(client as never, inputBadPhone);
+
+    const botOpenJobs = scheduledJobUpserts.filter((d) => d.type === 'bot.open');
+    expect(botOpenJobs).toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------------
   // 5. Bestehender Kandidat (Match per phone_e164), kein 30-Tage-Duplikat
   // -------------------------------------------------------------------------
   it('Bestehender Kandidat per phone_e164, kein Duplikat: applicationCreated=true, candidateCreated=false', async () => {

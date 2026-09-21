@@ -310,6 +310,23 @@ export async function ingestApplication(
     await fireEvent('candidate_created', input.agencyId, { candidate_id: candidateId }).catch(() => {});
   }
 
+  // --- Phase 3: Bot-Eröffnung einreihen (Spec §8 Schritt 1). Worker prüft Config/Consent erneut. ---
+  // Hier ist immer applicationCreated=true (wir sind im Happy-Path hinter der 30-Tage-Prüfung)
+  if (newApp?.id && input.consentWhatsapp && phoneE164) {
+    try {
+      await svc.from('scheduled_jobs').upsert({
+        agency_id: input.agencyId,
+        run_at: new Date().toISOString(),
+        type: 'bot.open',
+        payload: { application_id: newApp.id },
+        status: 'pending',
+        dedupe_key: `bot.open:${newApp.id}`,
+      }, { onConflict: 'dedupe_key', ignoreDuplicates: true });
+    } catch {
+      // Best effort — Fehler beim Einreihen dürfen den Ingest nicht blockieren
+    }
+  }
+
   return {
     candidateId,
     applicationId: newApp.id,

@@ -34,6 +34,18 @@ vi.mock('@/lib/workers/media-download', () => ({
   processMediaDownload: vi.fn(),
 }));
 
+vi.mock('@/lib/workers/bot-open', () => ({
+  processBotOpen: vi.fn(),
+}));
+
+vi.mock('@/lib/workers/bot-nudge', () => ({
+  processBotNudge: vi.fn(),
+}));
+
+vi.mock('@/lib/workers/bot-timeout', () => ({
+  processBotTimeout: vi.fn(),
+}));
+
 vi.mock('@/lib/notifications/create', () => ({
   createNotificationForAgency: vi.fn(),
 }));

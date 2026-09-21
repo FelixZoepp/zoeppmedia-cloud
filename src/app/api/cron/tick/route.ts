@@ -10,6 +10,9 @@ import { processInbound } from '@/lib/workers/whatsapp-inbound';
 import { processStatus } from '@/lib/workers/whatsapp-status';
 import { processSend } from '@/lib/workers/whatsapp-send';
 import { processMediaDownload } from '@/lib/workers/media-download';
+import { processBotOpen } from '@/lib/workers/bot-open';
+import { processBotNudge } from '@/lib/workers/bot-nudge';
+import { processBotTimeout } from '@/lib/workers/bot-timeout';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
@@ -129,6 +132,15 @@ export async function GET(request: NextRequest) {
           break;
         case 'media.download':
           await processMediaDownload(svc, job.agency_id, payload as unknown as Parameters<typeof processMediaDownload>[2]);
+          break;
+        case 'bot.open':
+          await processBotOpen(svc, job.agency_id, payload as unknown as Parameters<typeof processBotOpen>[2]);
+          break;
+        case 'bot.nudge':
+          await processBotNudge(svc, job.agency_id, payload as unknown as Parameters<typeof processBotNudge>[2]);
+          break;
+        case 'bot.timeout':
+          await processBotTimeout(svc, job.agency_id, payload as unknown as Parameters<typeof processBotTimeout>[2]);
           break;
         default:
           break;
