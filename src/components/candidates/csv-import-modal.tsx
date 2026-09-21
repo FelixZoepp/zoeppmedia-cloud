@@ -17,7 +17,7 @@ interface CsvImportModalProps {
 
 type FieldKey = 'firstName' | 'lastName' | 'phone' | 'email' | 'skip';
 const FIELDS: { value: FieldKey; label: string }[] = [
-  { value: 'skip', label: '-- Ueberspringen --' },
+  { value: 'skip', label: '-- Überspringen --' },
   { value: 'firstName', label: 'Vorname' },
   { value: 'lastName', label: 'Nachname' },
   { value: 'phone', label: 'Telefon' },
@@ -29,6 +29,15 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<Record<number, FieldKey>>({});
+
+  const importableCount = rows.filter((row) => {
+    const obj: Record<string, string> = {};
+    headers.forEach((_, i) => {
+      const field = mapping[i];
+      if (field && field !== 'skip') obj[field] = row[i]?.trim() ?? '';
+    });
+    return obj.firstName || obj.phone;
+  }).length;
   const [optInConfirmed, setOptInConfirmed] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ created: number; duplicates: number; invalid: number } | null>(null);
@@ -59,7 +68,7 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
   }
 
   async function handleImport() {
-    if (!optInConfirmed) { toast.error('Bitte bestaetigen, dass das Opt-in fuer alle Kontakte vorliegt.'); return; }
+    if (!optInConfirmed) { toast.error('Bitte bestätigen, dass das Opt-in für alle Kontakte vorliegt.'); return; }
 
     // Map rows to IngestInput-compatible objects
     const mappedRows = rows.map((row) => {
@@ -71,7 +80,7 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
       return obj;
     }).filter((r) => r.firstName || r.phone); // Mindestens eines muss vorhanden sein
 
-    if (mappedRows.length === 0) { toast.error('Keine gueltigen Zeilen gefunden. Vorname oder Telefon wird benoetigt.'); return; }
+    if (mappedRows.length === 0) { toast.error('Keine gültigen Zeilen gefunden. Vorname oder Telefon wird benötigt.'); return; }
 
     setImporting(true);
     try {
@@ -117,10 +126,10 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
               </div>
               <div className="p-4 bg-red-50 rounded-lg">
                 <p className="text-2xl font-bold text-red-700">{result.invalid}</p>
-                <p className="text-sm text-red-600">Ungueltig</p>
+                <p className="text-sm text-red-600">Ungültig</p>
               </div>
             </div>
-            <Button className="mt-6" onClick={onClose}>Schliessen</Button>
+            <Button className="mt-6" onClick={onClose}>Schließen</Button>
           </div>
         ) : (
           <>
@@ -160,16 +169,16 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
               <div>
                 <p className="text-sm font-medium text-yellow-800">
                   <AlertTriangle className="w-4 h-4 inline mr-1" />
-                  Ich bestaettige, dass fuer alle importierten Kontakte ein gueltiges Opt-in zur Kontaktaufnahme vorliegt.
+                  Ich bestätige, dass für alle importierten Kontakte ein gültiges Opt-in zur Kontaktaufnahme vorliegt.
                 </p>
-                <p className="text-xs text-yellow-600 mt-1">Ohne Bestaetigung wird kein WhatsApp-Bot gestartet.</p>
+                <p className="text-xs text-yellow-600 mt-1">Ohne Bestätigung wird kein WhatsApp-Bot gestartet.</p>
               </div>
             </label>
 
             <div className="flex gap-3">
               <Button variant="ghost" className="flex-1" onClick={onClose}>Abbrechen</Button>
               <Button className="flex-1" disabled={!optInConfirmed || importing}
-                onClick={handleImport}>{importing ? 'Importiert...' : `${rows.length} Kontakte importieren`}</Button>
+                onClick={handleImport}>{importing ? 'Importiert...' : `${importableCount} Kontakte importieren`}</Button>
             </div>
           </>
         )}

@@ -1,4 +1,3 @@
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
@@ -30,7 +29,18 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { jobId, rows, optInConfirmed } = parsed.data;
-  const svc = createAdminClient();
+
+  if (optInConfirmed !== true) return NextResponse.json({ error: 'Opt-in-Bestätigung erforderlich' }, { status: 400 });
+
+  const admin = createAdminClient();
+
+  const { data: job } = await admin
+    .from('jobs')
+    .select('id')
+    .eq('id', jobId)
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+  if (!job) return NextResponse.json({ error: 'Stellenanzeige nicht gefunden' }, { status: 404 });
 
   let created = 0;
   let duplicates = 0;
@@ -40,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (!row.firstName && !row.phone) { invalid++; continue; }
 
     try {
-      const result = await ingestApplication(svc, {
+      const result = await ingestApplication(admin, {
         agencyId,
         jobId,
         firstName: row.firstName || 'Unbekannt',
