@@ -27,7 +27,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const { data: factors } = await supabase.auth.mfa.listFactors();
   const hasVerifiedTotp = factors?.totp?.some((f) => f.status === 'verified') ?? false;
   const showBanner =
-    process.env.REQUIRE_ADMIN_2FA !== 'true' && !hasVerifiedTotp;
+    process.env.REQUIRE_ADMIN_2FA !== 'true' && user.role === 'admin' && !hasVerifiedTotp;
 
   return (
     <LayoutShell sidebar={<AppSidebar role={user.role} userName={user.name} />}>

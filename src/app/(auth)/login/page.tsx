@@ -1,7 +1,6 @@
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Mail, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,6 @@ export default function LoginPage() {
   const [mfaError, setMfaError] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
 
-  const router = useRouter();
   const supabase = createClient();
 
   async function redirectAfterLogin() {
