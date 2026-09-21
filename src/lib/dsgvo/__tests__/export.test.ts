@@ -100,7 +100,7 @@ describe('buildDsgvoExport', () => {
       email: 'max@example.com',
       whatsapp_opt_in: true,
       consent_version: 2,
-      consent_text: 'Ich stimme zu.',
+      consent_text_snapshot: 'Ich stimme zu.',
       consent_at: '2026-01-01T00:00:00Z',
       consent_source: 'funnel_form',
     };
@@ -138,7 +138,7 @@ describe('buildDsgvoExport', () => {
       email: 'anna@example.com',
       whatsapp_opt_in: false,
       consent_version: 3,
-      consent_text: 'Text',
+      consent_text_snapshot: 'Text',
       consent_at: '2026-02-01T00:00:00Z',
       consent_source: 'manual',
     };
@@ -165,7 +165,7 @@ describe('buildDsgvoExport', () => {
   it('4. Agency-Scoping: candidates-Query verwendet .eq(agency_id) UND .eq(id)', async () => {
     // Wir prüfen, dass die kandidaten-Query agency-gescoped ist.
     // Kandidat existiert, aber callLog muss eq('agency_id', ...) zeigen.
-    const candidate = { id: 'cand-3', agency_id: 'agency-1', name: 'Testperson', whatsapp_opt_in: true, consent_version: null, consent_text: null, consent_at: null, consent_source: null };
+    const candidate = { id: 'cand-3', agency_id: 'agency-1', name: 'Testperson', whatsapp_opt_in: true, consent_version: null, consent_text_snapshot: null, consent_at: null, consent_source: null };
 
     const { svc, _callLog } = makeSvc({
       candidates: [{ data: candidate, error: null }],
@@ -198,7 +198,7 @@ describe('buildDsgvoExport', () => {
   });
 
   it('4b. Agency-Scoping: conversations- UND messages-Query tragen eq(agency_id) bei vorhandenen Conversations', async () => {
-    const candidate = { id: 'cand-4b', agency_id: 'agency-1', name: 'Scoping Test', whatsapp_opt_in: true, consent_version: null, consent_text: null, consent_at: null, consent_source: null };
+    const candidate = { id: 'cand-4b', agency_id: 'agency-1', name: 'Scoping Test', whatsapp_opt_in: true, consent_version: null, consent_text_snapshot: null, consent_at: null, consent_source: null };
     const conversations = [{ id: 'conv-x', agency_id: 'agency-1', candidate_id: 'cand-4b' }];
     const messages = [{ id: 'msg-x', agency_id: 'agency-1', conversation_id: 'conv-x', direction: 'inbound', created_at: '2026-01-01T00:00:00Z', body: 'Test' }];
 

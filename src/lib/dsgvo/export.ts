@@ -93,7 +93,7 @@ export async function buildDsgvoExport(
     consent: {
       optIn: Boolean(candidateRow.whatsapp_opt_in),
       version: (candidateRow.consent_version as number | null) ?? null,
-      text: (candidateRow.consent_text as string | null) ?? null,
+      text: (candidateRow.consent_text_snapshot as string | null) ?? null,
       at: (candidateRow.consent_at as string | null) ?? null,
       source: (candidateRow.consent_source as string | null) ?? null,
     },
