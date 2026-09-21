@@ -1,6 +1,6 @@
 /**
  * WhatsApp Cloud API Provider — Spec Abschn. 7, Integration-Design Annahme.
- * Alle Meta-Aufrufe gehen ueber dieses Interface, damit Direktanbindung und
+ * Alle Meta-Aufrufe gehen über dieses Interface, damit Direktanbindung und
  * BSP austauschbar bleiben.
  */
 
@@ -80,14 +80,18 @@ export class CloudApiProvider implements WhatsAppProvider {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    return { messageId: data.messages?.[0]?.id || '' };
+    const messageId = data.messages?.[0]?.id;
+    if (!messageId) {
+      throw new Error('WhatsApp API: Antwort ohne Message-ID: ' + JSON.stringify(data).slice(0, 300));
+    }
+    return { messageId };
   }
 
   async uploadMedia(phoneNumberId: string, token: string, file: Buffer, mimeType: string, filename: string): Promise<{ mediaId: string }> {
     const formData = new FormData();
     formData.append('messaging_product', 'whatsapp');
     formData.append('type', mimeType);
-    formData.append('file', new Blob([file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as unknown as ArrayBuffer], { type: mimeType }), filename);
+    formData.append('file', new Blob([new Uint8Array(file.buffer as ArrayBuffer, file.byteOffset, file.byteLength)], { type: mimeType }), filename);
     const res = await metaFetch(`/${phoneNumberId}/media`, token, {
       method: 'POST',
       body: formData,
@@ -125,10 +129,12 @@ export class CloudApiProvider implements WhatsAppProvider {
   }
 
   async registerPhone(phoneNumberId: string, token: string): Promise<void> {
+    // PIN wird über die Umgebungsvariable WHATSAPP_REGISTER_PIN gesetzt/geprüft
+    const pin = process.env.WHATSAPP_REGISTER_PIN || '000000';
     await metaFetch(`/${phoneNumberId}/register`, token, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', pin: '000000' }),
+      body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
     });
   }
 
@@ -139,7 +145,7 @@ export class CloudApiProvider implements WhatsAppProvider {
   async exchangeCode(code: string, appId: string, appSecret: string): Promise<{ accessToken: string; wabaId: string; phoneNumberId: string }> {
     // Step 1: Exchange code for short-lived token
     const tokenRes = await fetch(
-      `https://graph.facebook.com/v23.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`
+      `${BASE_URL}/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`
     );
     if (!tokenRes.ok) {
       throw new Error('Token-Austausch fehlgeschlagen: ' + await tokenRes.text());
@@ -149,7 +155,7 @@ export class CloudApiProvider implements WhatsAppProvider {
 
     // Step 2: Exchange for long-lived token
     const longRes = await fetch(
-      `https://graph.facebook.com/v23.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`
+      `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`
     );
     if (!longRes.ok) {
       throw new Error('Long-lived Token fehlgeschlagen: ' + await longRes.text());
@@ -158,7 +164,12 @@ export class CloudApiProvider implements WhatsAppProvider {
     const accessToken = longData.access_token;
 
     // Step 3: Get debug token info to extract WABA and phone number
-    const debugRes = await metaFetch('/debug_token?input_token=' + accessToken, accessToken);
+    // App-Access-Token (appId|appSecret) für /debug_token-Authentifizierung verwenden
+    const appAccessToken = encodeURIComponent(`${appId}|${appSecret}`);
+    const debugRes = await fetch(`${BASE_URL}/debug_token?input_token=${accessToken}&access_token=${appAccessToken}`);
+    if (!debugRes.ok) {
+      throw new Error('Debug-Token fehlgeschlagen: ' + await debugRes.text());
+    }
     const debugData = await debugRes.json();
     const granularScopes = debugData.data?.granular_scopes || [];
     const whatsappScope = granularScopes.find((s: Record<string, unknown>) => s.scope === 'whatsapp_business_management');
