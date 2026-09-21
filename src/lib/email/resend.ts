@@ -175,3 +175,12 @@ export async function sendReportEmail(
     html: reportTemplate(typ, daten, agencyName, dashboardUrl),
   });
 }
+
+export async function sendOptInFallbackEmail(to: string, firstName: string, applyUrl: string) {
+  return getResend().emails.send({
+    from: FROM,
+    to,
+    subject: 'Deine Bewerbung — ein Schritt fehlt noch',
+    html: `<p>Hallo ${firstName},</p><p>danke für deine Bewerbung! Damit wir dich schnell erreichen können, bestätige bitte kurz deine Telefonnummer und die Kontaktaufnahme über unser Formular:</p><p><a href="${applyUrl}">${applyUrl}</a></p><p>Viele Grüße<br/>Dein Recruiting-Team</p>`,
+  });
+}

@@ -16,6 +16,7 @@ import { processBotNudge2 } from '@/lib/workers/bot-nudge2';
 import { processBotTimeout } from '@/lib/workers/bot-timeout';
 import { processBotClose } from '@/lib/workers/bot-close';
 import { processBotTurn } from '@/lib/workers/bot-process';
+import { processIngestIndeed } from '@/lib/workers/ingest-indeed';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 import {
   processInviteFollowup,
@@ -88,6 +89,9 @@ export async function GET(request: NextRequest) {
           break;
         case 'whatsapp.status':
           await processStatus(svc, event.agency_id, payload as unknown as Parameters<typeof processStatus>[2]);
+          break;
+        case 'ingest.indeed':
+          await processIngestIndeed(svc, event.agency_id, payload as unknown as Parameters<typeof processIngestIndeed>[2]);
           break;
         default:
           // Unbekannter Typ — als done markieren
