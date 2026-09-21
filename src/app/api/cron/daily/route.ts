@@ -321,6 +321,16 @@ async function runDailyJobs() {
     await sendDailySlackReports(supabase);
   } catch { /* silent */ }
 
+  // 16. Eingangs-Monitoring: Feed-Abrufe ohne Bewerbungen + Fehlerquote (Phase 5 Task 8)
+  let ingestFeedAlerts = 0;
+  let ingestErrorRateAlerts = 0;
+  try {
+    const { runIngestMonitor } = await import('@/lib/monitoring/ingest-monitor');
+    const monResult = await runIngestMonitor(supabase);
+    ingestFeedAlerts = monResult.feedAlerts;
+    ingestErrorRateAlerts = monResult.errorRateAlerts;
+  } catch (e) { console.error('[cron-daily] ingest-monitor fehlgeschlagen', e); }
+
   return {
     ok: true,
     processed: agencies?.length ?? 0,
@@ -338,6 +348,8 @@ async function runDailyJobs() {
     reportsGenerated,
     healthChecksRun,
     overdueTasksCreated,
+    ingestFeedAlerts,
+    ingestErrorRateAlerts,
   };
 }
 
