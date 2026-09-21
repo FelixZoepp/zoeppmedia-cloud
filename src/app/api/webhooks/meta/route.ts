@@ -6,6 +6,7 @@ import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { createNotificationForAgency } from '@/lib/notifications/create';
+import { resolveMetaJob, fetchLeadFromGraph, MetaSource } from '@/lib/meta/lead-mapping';
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
@@ -73,26 +74,52 @@ export async function POST(request: NextRequest) {
       if (change.field !== 'leadgen') continue;
 
       const leadData = change.value;
-      const name = extractField(leadData, 'full_name') || extractField(leadData, 'first_name') || 'Unbekannt';
-      const email = extractField(leadData, 'email');
-      const phone = extractField(leadData, 'phone_number');
+      const leadgenId = (leadData.leadgen_id as string | undefined) || null;
+      const formId = (leadData.form_id as string | undefined) || null;
+
+      // Formular→Job-Mapping über lead_sources (Phase 5 Task 6)
+      const { data: sources } = await supabase
+        .from('lead_sources')
+        .select('config')
+        .eq('agency_id', agencyId)
+        .eq('kind', 'meta')
+        .eq('active', true);
+      const { jobId: mappedJobId, pageToken } = resolveMetaJob(
+        (sources ?? []) as MetaSource[],
+        formId
+      );
+
+      // Graph-API-Abruf: wenn pageToken vorhanden und leadgenId bekannt, Live-Felder holen
+      let fieldData = leadData.field_data as Array<{ name: string; values: string[] }> | undefined;
+      if (pageToken && leadgenId) {
+        const graphFields = await fetchLeadFromGraph(leadgenId, pageToken);
+        if (graphFields) {
+          fieldData = graphFields;
+        }
+      }
+
+      // Felder aus fieldData (Graph oder Payload) extrahieren
+      const name = extractFieldFromData(fieldData, 'full_name') || extractFieldFromData(fieldData, 'first_name') || 'Unbekannt';
+      const email = extractFieldFromData(fieldData, 'email');
+      const phone = extractFieldFromData(fieldData, 'phone_number');
 
       const nameParts = name.split(' ');
       const firstName = nameParts[0] || 'Unbekannt';
       const lastName = nameParts.slice(1).join(' ') || null;
 
-      // Default-Job der Agentur finden (bis Meta-Formular→Job-Mapping in Phase 5 kommt)
-      let defaultJob: { id: string } | null = null;
-      const { data: markedDefault } = await supabase
-        .from('jobs')
-        .select('id')
-        .eq('agency_id', agencyId)
-        .eq('is_default', true)
-        .limit(1)
-        .maybeSingle();
-      defaultJob = markedDefault;
-
-      if (!defaultJob) {
+      // Job-Wahl: Mapping-Ergebnis → Default-Job der Agentur (letzter Fallback)
+      let resolvedJobId: string | null = mappedJobId;
+      if (!resolvedJobId) {
+        const { data: markedDefault } = await supabase
+          .from('jobs')
+          .select('id')
+          .eq('agency_id', agencyId)
+          .eq('is_default', true)
+          .limit(1)
+          .maybeSingle();
+        resolvedJobId = markedDefault?.id ?? null;
+      }
+      if (!resolvedJobId) {
         // Fallback: erster aktiver Job
         const { data: anyJob } = await supabase
           .from('jobs')
@@ -102,18 +129,20 @@ export async function POST(request: NextRequest) {
           .limit(1)
           .maybeSingle();
         if (!anyJob) continue; // Kein Job vorhanden
-        defaultJob = anyJob;
+        resolvedJobId = anyJob.id;
       }
+
+      if (!resolvedJobId) continue; // TS-Narrowing: nach beiden Fallbacks gesichert
 
       const result = await ingestApplication(supabase, {
         agencyId,
-        jobId: defaultJob.id,
+        jobId: resolvedJobId,
         firstName,
         lastName,
         phone,
         email,
         source: 'meta',
-        sourceRef: (leadData.leadgen_id as string | undefined) || null,
+        sourceRef: leadgenId,
         campaign: {
           campaign_name: leadData.campaign_name || null,
           adset_name: leadData.adset_name || null,
@@ -149,8 +178,10 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-function extractField(leadData: Record<string, unknown>, fieldName: string): string | null {
-  const fieldData = leadData.field_data as Array<{ name: string; values: string[] }> | undefined;
+function extractFieldFromData(
+  fieldData: Array<{ name: string; values: string[] }> | undefined,
+  fieldName: string
+): string | null {
   if (!fieldData) return null;
   const field = fieldData.find((f) => f.name === fieldName);
   return field?.values?.[0] || null;
