@@ -42,7 +42,9 @@ export async function fetchLeadFromGraph(
     const data = (await res.json()) as { field_data?: Array<{ name: string; values: string[] }> };
     return data.field_data ?? null;
   } catch (e) {
-    console.error('[meta-leads] Graph-API-Abruf fehlgeschlagen', e);
+    // Exception nicht roh loggen — fetch-Fehlermeldungen können die URL inkl. access_token enthalten
+    const msg = (e instanceof Error ? e.message : String(e)).replace(/access_token=[^&\s]+/g, 'access_token=***');
+    console.error('[meta-leads] Graph-API-Abruf fehlgeschlagen:', msg);
     return null;
   }
 }
