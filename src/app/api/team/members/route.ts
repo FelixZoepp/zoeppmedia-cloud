@@ -7,11 +7,13 @@
 
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
+import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   const agencyId = await getEffectiveAgencyId();
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });

@@ -122,7 +122,7 @@ export function CandidateSidebar({ conversation }: Props) {
             </div>
           )}
           {app.stage && (
-            <Badge tone="neutral">{app.stage.name}</Badge>
+            <Badge>{app.stage.name}</Badge>
           )}
         </div>
       )}

@@ -374,4 +374,26 @@ describe('POST /api/conversations/[id]/upload', () => {
     const json = await res.json();
     expect(json.error).toBe('Fenster abgelaufen');
   });
+
+  // --- uploadMedia-Fehler → 400 ---
+
+  it('returns 400 with error message when uploadMedia throws', async () => {
+    setupConvSvc();
+    vi.mocked(getProvider).mockReturnValue({
+      uploadMedia: vi.fn().mockRejectedValue(new Error('Media-Upload fehlgeschlagen')),
+      sendMessage: vi.fn(),
+      getMediaUrl: vi.fn(),
+      createTemplate: vi.fn(),
+      listTemplates: vi.fn(),
+      registerPhone: vi.fn(),
+      subscribeWebhook: vi.fn(),
+      exchangeCode: vi.fn(),
+    });
+
+    const req = makeFormDataRequest(makeJpegFile());
+    const res = await uploadPOST(req, { params: makeParams() });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe('Media-Upload fehlgeschlagen');
+  });
 });

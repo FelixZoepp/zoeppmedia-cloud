@@ -118,32 +118,31 @@ export async function POST(
   // Token entschlüsseln
   const token = decryptSecret(waAccountTyped.access_token_enc);
 
-  // Media bei WhatsApp hochladen
-  const provider = getProvider();
-  const { mediaId } = await provider.uploadMedia(
-    waAccountTyped.phone_number_id,
-    token,
-    buffer,
-    file.type,
-    filename,
-  );
-
-  // Payload bestimmen (image vs. document)
-  const isImage = file.type === 'image/jpeg' || file.type === 'image/png';
-  const payload = isImage
-    ? ({
-        to: candidateTyped.phone_e164,
-        type: 'image' as const,
-        image: { id: mediaId },
-      })
-    : ({
-        to: candidateTyped.phone_e164,
-        type: 'document' as const,
-        document: { id: mediaId, filename },
-      });
-
-  // Via sendWhatsAppMessage senden (R4-Muster: Wurf → 400)
+  // Media bei WhatsApp hochladen + Nachricht senden (R4-Muster: Wurf → 400)
   try {
+    const provider = getProvider();
+    const { mediaId } = await provider.uploadMedia(
+      waAccountTyped.phone_number_id,
+      token,
+      buffer,
+      file.type,
+      filename,
+    );
+
+    // Payload bestimmen (image vs. document)
+    const isImage = file.type === 'image/jpeg' || file.type === 'image/png';
+    const payload = isImage
+      ? ({
+          to: candidateTyped.phone_e164,
+          type: 'image' as const,
+          image: { id: mediaId },
+        })
+      : ({
+          to: candidateTyped.phone_e164,
+          type: 'document' as const,
+          document: { id: mediaId, filename },
+        });
+
     const result = await sendWhatsAppMessage(svc, {
       agencyId,
       conversationId,
