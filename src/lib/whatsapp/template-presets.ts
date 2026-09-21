@@ -126,23 +126,31 @@ export async function seedTemplatesForAccount(
   const provider = getProvider();
 
   for (const preset of TEMPLATE_PRESETS) {
-    // Row anlegen mit status pending
-    const { data: tmplRow } = await svc
+    // Row anlegen mit status pending — idempotent via Unique-Index auf (wa_account_id, preset_key)
+    const { data: tmplRow, error: insertError } = await svc
       .from('whatsapp_templates')
-      .insert({
-        agency_id: agencyId,
-        wa_account_id: waAccountId,
-        name: preset.name,
-        language: preset.language,
-        category: preset.category,
-        body: preset.body,
-        variables: preset.variables,
-        buttons: preset.buttons || null,
-        status: 'pending',
-        preset_key: preset.presetKey,
-      })
+      .upsert(
+        {
+          agency_id: agencyId,
+          wa_account_id: waAccountId,
+          name: preset.name,
+          language: preset.language,
+          category: preset.category,
+          body: preset.body,
+          variables: preset.variables,
+          buttons: preset.buttons || null,
+          status: 'pending',
+          preset_key: preset.presetKey,
+        },
+        { onConflict: 'wa_account_id,preset_key' }
+      )
       .select('id')
       .single();
+
+    if (insertError) {
+      console.warn('Template-Seed: Insert fehlgeschlagen', insertError.message);
+      continue;
+    }
 
     if (!tmplRow) continue;
 

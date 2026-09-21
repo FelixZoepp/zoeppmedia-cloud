@@ -8,6 +8,21 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getProvider } from '@/lib/whatsapp/provider';
 import { decryptSecret } from '@/lib/crypto';
 
+/** Erlaubte DB-CHECK-Werte für whatsapp_templates.status */
+const ALLOWED_STATUSES = new Set(['pending', 'approved', 'rejected', 'paused', 'deleted']);
+
+/**
+ * Mapped einen Meta-API-Statuswert auf einen erlaubten DB-CHECK-Wert.
+ * Meta kann Werte wie PENDING_DELETION, IN_APPEAL, LIMIT_EXCEEDED liefern,
+ * die nicht im DB-CHECK-Constraint stehen.
+ */
+export function mapMetaTemplateStatus(metaStatus: string): string {
+  const lower = metaStatus.toLowerCase();
+  if (ALLOWED_STATUSES.has(lower)) return lower;
+  if (lower === 'pending_deletion') return 'deleted';
+  return 'pending';
+}
+
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
@@ -38,10 +53,10 @@ export async function GET(request: NextRequest) {
         const { count } = await svc
           .from('whatsapp_templates')
           .update({
-            status: tmpl.status.toLowerCase(),
+            status: mapMetaTemplateStatus(tmpl.status),
             meta_template_id: tmpl.id,
             updated_at: new Date().toISOString(),
-          })
+          }, { count: 'exact' })
           .eq('wa_account_id', account.id)
           .eq('name', tmpl.name)
           .eq('language', tmpl.language);
