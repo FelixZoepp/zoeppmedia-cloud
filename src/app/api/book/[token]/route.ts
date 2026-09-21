@@ -36,15 +36,29 @@ export async function POST(
   // Job laden für Dauer
   const { data: application } = await svc.from('applications')
     .select('job_id').eq('id', appt.application_id).eq('agency_id', appt.agency_id).single();
+
+  // Fix 2: Null-Guard für application
+  if (!application) {
+    return NextResponse.json({ error: 'Bewerbung nicht gefunden' }, { status: 404 });
+  }
+
   const { data: job } = await svc.from('jobs')
-    .select('appointment_duration_minutes').eq('id', application?.job_id).single();
+    .select('appointment_duration_minutes').eq('id', application.job_id).eq('agency_id', appt.agency_id).single();
   const durationMs = (job?.appointment_duration_minutes ?? 30) * 60_000;
+
+  // Fix 3: body.start vor Verwendung validieren
+  const needsStart = body.action === 'book' || body.action === 'reschedule';
+  if (needsStart) {
+    const startsAt = new Date(body.start ?? '');
+    if (!body.start || Number.isNaN(startsAt.getTime())) {
+      return NextResponse.json({ error: 'Ungültiger Zeitpunkt' }, { status: 400 });
+    }
+  }
 
   try {
     switch (body.action) {
       case 'book': {
-        if (!body.start) return NextResponse.json({ error: 'Startzeit fehlt' }, { status: 400 });
-        const startsAt = new Date(body.start);
+        const startsAt = new Date(body.start!);
         const endsAt = new Date(startsAt.getTime() + durationMs);
         await bookAppointment(svc, {
           agencyId: appt.agency_id, appointmentId: appt.id,
@@ -53,8 +67,7 @@ export async function POST(
         break;
       }
       case 'reschedule': {
-        if (!body.start) return NextResponse.json({ error: 'Startzeit fehlt' }, { status: 400 });
-        const startsAt = new Date(body.start);
+        const startsAt = new Date(body.start!);
         const endsAt = new Date(startsAt.getTime() + durationMs);
         await rescheduleAppointment(svc, {
           agencyId: appt.agency_id, oldAppointmentId: appt.id,
@@ -63,6 +76,10 @@ export async function POST(
         break;
       }
       case 'cancel':
+        // Fix 4: Guard für bereits abgeschlossene/stornierte Termine
+        if (appt.status === 'cancelled' || appt.status === 'done') {
+          return NextResponse.json({ error: 'Termin kann nicht mehr storniert werden' }, { status: 409 });
+        }
         await cancelAppointment(svc, { agencyId: appt.agency_id, appointmentId: appt.id });
         break;
       default:

@@ -276,4 +276,67 @@ describe('POST /api/book/[token]', () => {
     const res = await POST(req, { params: Promise.resolve({ token: 'unknown-token' }) });
     expect(res.status).toBe(404);
   });
+
+  // Fix 2: Null-Guard application
+  it('404 wenn Bewerbung nicht gefunden (application null)', async () => {
+    setupMockSvc({ application: { data: null, error: null } });
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'book', start: '2026-10-10T08:00:00Z' });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.error).toBe('Bewerbung nicht gefunden');
+  });
+
+  // Fix 3: Datums-Validierung
+  it('400 bei fehlendem start für book', async () => {
+    setupMockSvc({});
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'book' });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe('Ungültiger Zeitpunkt');
+  });
+
+  it('400 bei ungültigem Datum für book', async () => {
+    setupMockSvc({});
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'book', start: 'kein-datum' });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe('Ungültiger Zeitpunkt');
+  });
+
+  it('400 bei fehlendem start für reschedule', async () => {
+    setupMockSvc({});
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'reschedule' });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe('Ungültiger Zeitpunkt');
+  });
+
+  // Fix 4: Storno-Guard
+  it('409 wenn Termin bereits storniert ist', async () => {
+    setupMockSvc({ appt: { data: makeAppt({ status: 'cancelled' }), error: null } });
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'cancel' });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error).toBe('Termin kann nicht mehr storniert werden');
+  });
+
+  it('409 wenn Termin bereits abgeschlossen ist (done)', async () => {
+    setupMockSvc({ appt: { data: makeAppt({ status: 'done' }), error: null } });
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'cancel' });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error).toBe('Termin kann nicht mehr storniert werden');
+  });
 });
