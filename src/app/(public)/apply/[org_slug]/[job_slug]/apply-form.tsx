@@ -11,11 +11,13 @@ export function ApplyForm({
   agencySlug,
   jobId,
   jobTitle,
+  privacyUrl,
 }: {
   agencyId: string;
   agencySlug: string;
   jobId: string;
   jobTitle: string;
+  privacyUrl: string | null;
 }) {
   const searchParams = useSearchParams();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -165,6 +167,15 @@ export function ApplyForm({
           Ich bin damit einverstanden, per WhatsApp kontaktiert zu werden. Meine Daten werden zur Bearbeitung meiner Bewerbung gespeichert. Ich kann meine Einwilligung jederzeit widerrufen. *
         </span>
       </label>
+      {privacyUrl ? (
+        <p className="text-xs text-muted-foreground">
+          Details in der{' '}
+          <a href={privacyUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            Datenschutzerklärung
+          </a>
+          .
+        </p>
+      ) : null}
       {siteKey ? (
         <>
           <div className="cf-turnstile" data-sitekey={siteKey} data-response-field-name="turnstileToken" />

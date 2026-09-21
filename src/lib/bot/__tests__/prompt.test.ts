@@ -273,6 +273,37 @@ describe('Block 4 — Guardrails', () => {
 });
 
 // -------------------------------------------------------------------
+// privacyUrl — Datenschutz-Hinweis in Block 0
+// -------------------------------------------------------------------
+
+describe('Block 0 — Datenschutz-Hinweis', () => {
+  it('PV1: mit privacyUrl gesetzt enthält Block 0 die URL und den Hinweis', () => {
+    const ctx: PromptContext = {
+      ...baseCtx,
+      privacyUrl: 'https://example.com/datenschutz',
+    };
+    const blocks = buildSystemBlocks(ctx);
+    expect(blocks[0].text).toContain('https://example.com/datenschutz');
+    expect(blocks[0].text.toLowerCase()).toContain('datenschutzerklärung');
+  });
+
+  it('PV2: ohne privacyUrl (undefined) enthält Block 0 keinen Datenschutz-Hinweis', () => {
+    const ctx: PromptContext = { ...baseCtx };
+    // privacyUrl nicht gesetzt
+    delete (ctx as Partial<PromptContext>).privacyUrl;
+    const blocks = buildSystemBlocks(ctx);
+    expect(blocks[0].text).not.toContain('Datenschutzerklärung');
+    expect(blocks[0].text).not.toContain('datenschutz.example.com');
+  });
+
+  it('PV3: mit privacyUrl=null enthält Block 0 keinen Datenschutz-Hinweis', () => {
+    const ctx: PromptContext = { ...baseCtx, privacyUrl: null };
+    const blocks = buildSystemBlocks(ctx);
+    expect(blocks[0].text).not.toContain('Datenschutzerklärung');
+  });
+});
+
+// -------------------------------------------------------------------
 // buildTurnMessages
 // -------------------------------------------------------------------
 

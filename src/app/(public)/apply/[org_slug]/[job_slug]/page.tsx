@@ -12,7 +12,7 @@ export default async function ApplyPage({
   // Agentur via Slug laden
   const { data: agency } = await supabase
     .from('agencies')
-    .select('id, name, slug')
+    .select('id, name, slug, privacy_url')
     .eq('slug', org_slug)
     .single();
 
@@ -63,7 +63,7 @@ export default async function ApplyPage({
           </div>
         )}
 
-        <ApplyForm agencyId={agency.id} agencySlug={agency.slug} jobId={job.id} jobTitle={job.title} />
+        <ApplyForm agencyId={agency.id} agencySlug={agency.slug} jobId={job.id} jobTitle={job.title} privacyUrl={agency.privacy_url ?? null} />
       </div>
     </div>
   );

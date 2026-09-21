@@ -201,6 +201,8 @@ describe('ingestApplication', () => {
     expect(client._state.candidates[0]).toMatchObject({
       agency_id: BASE_AGENCY_ID,
       source: 'form',
+      consent_version: 1,
+      consent_text_snapshot: expect.stringContaining('WhatsApp'),
     });
 
     // applications-Insert wurde ausgefuehrt
@@ -408,5 +410,59 @@ describe('ingestApplication', () => {
     // Kein neuer Kandidat, aber eine neue Application
     expect(client._state.candidates).toHaveLength(0);
     expect(client._state.applications).toHaveLength(1);
+  });
+
+  // -------------------------------------------------------------------------
+  // Consent-Versionierung: Update-Zweig
+  // -------------------------------------------------------------------------
+  it('Consent-Versionierung Update: consent_version + consent_text_snapshot werden im Update-Zweig gesetzt', async () => {
+    const existingCandidateId = 'cand-consent-update-001';
+
+    // pipeline_stages (queued in beforeEach)
+    // candidates maybeSingle → bestehender Kandidat ohne opt-in
+    client._enqueue('candidates', {
+      data: { id: existingCandidateId, phone_e164: '+4917612345678', email: 'max@test.de' },
+      error: null,
+    });
+    // candidates single (consent check) → kein opt-in
+    client._enqueue('candidates', { data: { whatsapp_opt_in: false, consent_at: null }, error: null });
+
+    const updateCalls: Array<Record<string, unknown>> = [];
+    const origFrom = client.from.bind(client) as typeof client.from;
+    client.from = vi.fn().mockImplementation((table: string) => {
+      const chain = origFrom(table);
+      if (table === 'candidates') {
+        (chain as Record<string, unknown>).update = vi.fn().mockImplementation((data: Record<string, unknown>) => {
+          updateCalls.push(data);
+          return chain;
+        });
+      }
+      return chain;
+    }) as typeof client.from;
+
+    await ingestApplication(client as never, baseInput);
+
+    // Mindestens ein Update mit consent_version + consent_text_snapshot
+    const consentUpdates = updateCalls.filter((d) => 'consent_version' in d);
+    expect(consentUpdates).toHaveLength(1);
+    expect(consentUpdates[0]).toMatchObject({
+      whatsapp_opt_in: true,
+      consent_version: 1,
+      consent_text_snapshot: expect.stringContaining('WhatsApp'),
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Consent-Versionierung: Insert-Zweig ohne Consent → null-Felder
+  // -------------------------------------------------------------------------
+  it('Consent-Versionierung Insert: consent_version null wenn consentWhatsapp=false', async () => {
+    const inputNoConsent: IngestInput = { ...baseInput, consentWhatsapp: false };
+    await ingestApplication(client as never, inputNoConsent);
+
+    expect(client._state.candidates).toHaveLength(1);
+    expect(client._state.candidates[0]).toMatchObject({
+      consent_version: null,
+      consent_text_snapshot: null,
+    });
   });
 });

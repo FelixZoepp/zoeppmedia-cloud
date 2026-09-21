@@ -111,7 +111,7 @@ export async function processBotTurn(
 
   const { data: agency } = await svc
     .from('agencies')
-    .select('name')
+    .select('name, privacy_url')
     .eq('id', agencyId)
     .maybeSingle();
 
@@ -184,6 +184,7 @@ export async function processBotTurn(
     config: cfg,
     questions: questionsWithStatus,
     currentQuestionKey,
+    privacyUrl: (agency as { privacy_url?: string | null } | null)?.privacy_url ?? null,
   };
 
   const systemBlocks = buildSystemBlocks(promptCtx);

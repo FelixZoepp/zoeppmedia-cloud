@@ -10,7 +10,7 @@ import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pe
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null; calendar_feed_token: string | null } | null>(null);
+  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null; calendar_feed_token: string | null; privacy_url: string | null } | null>(null);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [isAgencyUser, setIsAgencyUser] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [editingAgency, setEditingAgency] = useState(false);
   const [agencyName, setAgencyName] = useState('');
   const [agencyPhone, setAgencyPhone] = useState('');
+  const [agencyPrivacyUrl, setAgencyPrivacyUrl] = useState('');
   const [agencySaving, setAgencySaving] = useState(false);
 
   // Password change
@@ -63,7 +64,7 @@ export default function SettingsPage() {
         if (agencyUser && profile.agency_id) {
           const { data: ag } = await supabase
             .from('agencies')
-            .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link, calendar_feed_token')
+            .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link, calendar_feed_token, privacy_url')
             .eq('id', profile.agency_id)
             .single();
           if (ag) {
@@ -71,6 +72,7 @@ export default function SettingsPage() {
             setCalendlyLink(ag.calendly_link || '');
             setAgencyName(ag.name);
             setAgencyPhone(ag.phone || '');
+            setAgencyPrivacyUrl(ag.privacy_url || '');
           }
         }
       }
@@ -121,11 +123,16 @@ export default function SettingsPage() {
     const res = await fetch('/api/settings/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'agency', name: agencyName.trim(), phone: agencyPhone.trim() || null }),
+      body: JSON.stringify({
+        type: 'agency',
+        name: agencyName.trim(),
+        phone: agencyPhone.trim() || null,
+        privacyUrl: agencyPrivacyUrl.trim() || '',
+      }),
     });
     setAgencySaving(false);
     if (res.ok) {
-      setAgency((prev) => prev ? { ...prev, name: agencyName.trim(), phone: agencyPhone.trim() || null } : prev);
+      setAgency((prev) => prev ? { ...prev, name: agencyName.trim(), phone: agencyPhone.trim() || null, privacy_url: agencyPrivacyUrl.trim() || null } : prev);
       setEditingAgency(false);
       toast.success('Agentur-Daten gespeichert');
     } else {
@@ -262,11 +269,22 @@ export default function SettingsPage() {
                     className="w-full"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Link zur Datenschutzerklärung</label>
+                  <Input
+                    type="url"
+                    value={agencyPrivacyUrl}
+                    onChange={(e) => setAgencyPrivacyUrl(e.target.value)}
+                    placeholder="https://…"
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Wird im Bewerbungsformular und vom WhatsApp-Bot verlinkt.</p>
+                </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="primary" onClick={saveAgency} disabled={agencySaving}>
                     {agencySaving ? 'Speichert...' : 'Speichern'}
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => { setEditingAgency(false); setAgencyName(agency?.name || ''); setAgencyPhone(agency?.phone || ''); }}>
+                  <Button size="sm" variant="secondary" onClick={() => { setEditingAgency(false); setAgencyName(agency?.name || ''); setAgencyPhone(agency?.phone || ''); setAgencyPrivacyUrl(agency?.privacy_url || ''); }}>
                     Abbrechen
                   </Button>
                 </div>
@@ -298,6 +316,16 @@ export default function SettingsPage() {
                   <span className="text-sm font-medium text-gray-900 font-mono">
                     {agency?.meta_page_id || <span className="text-gray-400 font-sans font-normal">Nicht konfiguriert</span>}
                   </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-400 w-16 shrink-0">Datenschutz</span>
+                  {agency?.privacy_url ? (
+                    <a href={agency.privacy_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-red-600 underline truncate max-w-xs">
+                      {agency.privacy_url}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-gray-400">Nicht konfiguriert</span>
+                  )}
                 </div>
               </>
             )}

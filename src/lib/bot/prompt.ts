@@ -33,6 +33,7 @@ export interface PromptContext {
     }
   >;
   currentQuestionKey: string | null;
+  privacyUrl?: string | null;
 }
 
 // -------------------------------------------------------------------
@@ -41,13 +42,16 @@ export interface PromptContext {
 
 /** Block 0 — Rolle */
 function buildRoleBlock(ctx: PromptContext): string {
-  const { agencyName, config } = ctx;
+  const { agencyName, config, privacyUrl } = ctx;
   const { persona, tone, formality, language, allowed_languages } = config;
   const anrede = formality === 'du' ? 'Du-Form' : 'Sie-Form';
   const erlaubteSprachen =
     allowed_languages.length > 0
       ? `Erlaubte Sprachen: ${allowed_languages.join(', ')}.`
       : '';
+  const datenschutzHinweis = privacyUrl
+    ? `Weise in deiner ersten Freitext-Nachricht kurz auf die Datenschutzerklärung hin: ${privacyUrl}. Danach nicht wiederholen.`
+    : '';
 
   return [
     `Du bist ${persona}, der digitale Recruiting-Assistent von ${agencyName}.`,
@@ -56,6 +60,7 @@ function buildRoleBlock(ctx: PromptContext): string {
     `Sprache: ${language}.`,
     erlaubteSprachen,
     `Stelle dich in der ersten freien Nachricht als digitaler Assistent vor und weise darauf hin, dass jederzeit ein Mensch übernehmen kann.`,
+    datenschutzHinweis,
     `Heutiges Datum: ${new Date().toISOString().slice(0, 10)}.`,
   ]
     .filter(Boolean)

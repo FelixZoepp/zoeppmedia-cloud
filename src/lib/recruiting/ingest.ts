@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
+import { CONSENT_VERSION, CONSENT_TEXT } from '@/lib/consent/version';
 
 export interface IngestInput {
   agencyId: string;
@@ -157,6 +158,8 @@ export async function ingestApplication(
         updates.whatsapp_opt_in = true;
         updates.consent_at = new Date().toISOString();
         updates.consent_source = input.consentSource || input.source;
+        updates.consent_version = CONSENT_VERSION;
+        updates.consent_text_snapshot = CONSENT_TEXT;
       }
     }
 
@@ -179,6 +182,8 @@ export async function ingestApplication(
         whatsapp_opt_in: input.consentWhatsapp ?? false,
         consent_at: input.consentWhatsapp ? new Date().toISOString() : null,
         consent_source: input.consentWhatsapp ? (input.consentSource || input.source) : null,
+        consent_version: input.consentWhatsapp ? CONSENT_VERSION : null,
+        consent_text_snapshot: input.consentWhatsapp ? CONSENT_TEXT : null,
         language: 'de',
       })
       .select('id')

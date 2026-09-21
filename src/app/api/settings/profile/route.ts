@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
+
+const agencyPatchSchema = z.object({
+  type: z.literal('agency'),
+  name: z.string().optional(),
+  phone: z.string().optional(),
+  privacyUrl: z
+    .string()
+    .transform((v) => (v === '' ? null : v))
+    .pipe(z.string().url().nullable())
+    .optional(),
+});
 
 export async function PATCH(request: NextRequest) {
   const supabase = await createServerClient();
@@ -26,9 +38,15 @@ export async function PATCH(request: NextRequest) {
       .single();
     if (!profile?.agency_id) return NextResponse.json({ error: 'No agency' }, { status: 400 });
 
-    const updates: Record<string, string> = {};
+    const parsed = agencyPatchSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+
+    const updates: Record<string, string | null> = {};
     if (name !== undefined) updates.name = name;
     if (phone !== undefined) updates.phone = phone;
+    if ('privacyUrl' in parsed.data) updates.privacy_url = parsed.data.privacyUrl ?? null;
 
     const { error } = await supabase
       .from('agencies')
