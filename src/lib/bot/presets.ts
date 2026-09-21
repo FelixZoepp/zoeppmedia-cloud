@@ -39,7 +39,7 @@ export const BOT_PRESETS: BotPreset[] = [
     key: 'pflege',
     name: 'Pflege',
     config: {
-      persona: 'freundliche Recruting-Assistentin für Pflegestellen',
+      persona: 'freundliche Recruiting-Assistentin für Pflegestellen',
       tone: 'warm, wertschätzend, klar',
       formality: 'du',
       intro_text:
@@ -185,7 +185,7 @@ export const BOT_PRESETS: BotPreset[] = [
         },
         {
           q: 'Werden Reisekosten erstattet?',
-          a: 'Die meisten unserer Partnerbet riebe erstatten Fahrtkosten — Details klärst du direkt im Gespräch.',
+          a: 'Die meisten unserer Partnerbetriebe erstatten Fahrtkosten — Details klärst du direkt im Gespräch.',
         },
       ],
     },
@@ -260,7 +260,6 @@ export const BOT_PRESETS: BotPreset[] = [
         type: 'choice',
         options: ['Ja, gerne', 'Gelegentlich', 'Nein'],
         required: true,
-        knockout_rule: { no_overlap: false },
         weight: 2,
       },
       {
