@@ -872,11 +872,24 @@ describe('processBotTurn', () => {
       expect.anything(),
       expect.objectContaining({ agencyId: AGENCY_ID }),
     );
-    // appointment_invite Template muss gesendet werden
+    // appointment_invite Template muss gesendet werden, mit Buchungslink in den templateParams
     expect(sendWhatsAppMessage).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         senderType: 'system',
+        payload: expect.objectContaining({
+          template: expect.objectContaining({
+            components: expect.arrayContaining([
+              expect.objectContaining({
+                parameters: expect.arrayContaining([
+                  expect.objectContaining({
+                    text: expect.stringContaining('/book/tok-auto-1'),
+                  }),
+                ]),
+              }),
+            ]),
+          }),
+        }),
       }),
     );
     // fireEvent bot.completed muss aufgerufen werden

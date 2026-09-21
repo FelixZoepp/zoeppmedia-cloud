@@ -559,7 +559,7 @@ export async function processBotTurn(
           .maybeSingle();
 
         if (inviteTmpl && candidate.phone_e164) {
-          const vorname = (candidate.name || '').split(' ')[0];
+          const vorname = (candidate.name || '').split(' ')[0] || 'Bewerber';
           const jobTitle = (job as { title: string })?.title ?? '';
 
           await sendWhatsAppMessage(svc, {
@@ -585,7 +585,7 @@ export async function processBotTurn(
             },
             senderType: 'system',
             templateId: inviteTmpl.id,
-          }).catch(() => {});
+          }).catch((e) => console.error('appointment_invite send failed', e));
         }
 
         // invite_followup +24h
@@ -597,8 +597,9 @@ export async function processBotTurn(
           status: 'pending',
           dedupe_key: `appt.invite_followup:${appointmentId}`,
         }, { onConflict: 'dedupe_key', ignoreDuplicates: true });
-      } catch {
+      } catch (e) {
         // Termineinladung ist best effort — Bot-Abschluss bleibt intakt
+        console.error('Termineinladung fehlgeschlagen', e);
       }
     }
 
