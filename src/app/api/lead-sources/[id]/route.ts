@@ -49,10 +49,10 @@ export async function PATCH(
 
   const { data: updated, error } = await svc
     .from('lead_sources')
-    .update({ ...parsed.data, updated_at: new Date().toISOString() })
+    .update(parsed.data)
     .eq('id', id)
     .eq('agency_id', agencyId)
-    .select()
+    .select('id, agency_id, kind, name, config, active, created_at')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
