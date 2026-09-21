@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
-import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pencil, Lock } from 'lucide-react';
+import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pencil, Lock, ShieldCheck } from 'lucide-react';
+import { TwoFactorSetup } from '@/components/security/two-factor-setup';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -480,6 +481,22 @@ export default function SettingsPage() {
           </div>
         </Card>
       )}
+
+      {/* Sicherheit */}
+      <Card padding="md" className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5 text-gray-600" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Sicherheit</h2>
+            <p className="text-sm text-gray-400">Zwei-Faktor-Authentifizierung (TOTP) für dein Konto</p>
+          </div>
+        </div>
+        <div className="pl-12">
+          <TwoFactorSetup />
+        </div>
+      </Card>
 
       {/* Webhook — agency users only */}
       {isAgencyUser && (
