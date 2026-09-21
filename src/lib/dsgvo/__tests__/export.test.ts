@@ -146,9 +146,7 @@ describe('buildDsgvoExport', () => {
     const { svc } = makeSvc({
       candidates: [{ data: candidate, error: null }],
       applications: [{ data: [], error: null }],
-      application_answers: [{ data: [], error: null }],
       conversations: [{ data: [], error: null }],
-      messages: [{ data: [], error: null }],
       notes: [{ data: [], error: null }],
     });
 
@@ -172,9 +170,7 @@ describe('buildDsgvoExport', () => {
     const { svc, _callLog } = makeSvc({
       candidates: [{ data: candidate, error: null }],
       applications: [{ data: [], error: null }],
-      application_answers: [{ data: [], error: null }],
       conversations: [{ data: [], error: null }],
-      messages: [{ data: [], error: null }],
       notes: [{ data: [], error: null }],
     });
 
@@ -189,6 +185,40 @@ describe('buildDsgvoExport', () => {
     const appCalls = _callLog.filter((c) => c.table === 'applications');
     const appAgencyEq = appCalls.find((c) => c.method === 'eq' && c.arg === 'agency_id');
     expect(appAgencyEq).toBeDefined();
+
+    // conversations-Tabelle muss eq mit 'agency_id' aufgerufen haben
+    const convCalls = _callLog.filter((c) => c.table === 'conversations');
+    const convAgencyEq = convCalls.find((c) => c.method === 'eq' && c.arg === 'agency_id');
+    expect(convAgencyEq).toBeDefined();
+
+    // messages-Tabelle darf bei leeren convIds NICHT abgefragt werden
+    // (kein Dummy-Query mehr) — kein Dummy-Query in Produktion
+    const msgCalls = _callLog.filter((c) => c.table === 'messages');
+    expect(msgCalls).toHaveLength(0);
+  });
+
+  it('4b. Agency-Scoping: conversations- UND messages-Query tragen eq(agency_id) bei vorhandenen Conversations', async () => {
+    const candidate = { id: 'cand-4b', agency_id: 'agency-1', name: 'Scoping Test', whatsapp_opt_in: true, consent_version: null, consent_text: null, consent_at: null, consent_source: null };
+    const conversations = [{ id: 'conv-x', agency_id: 'agency-1', candidate_id: 'cand-4b' }];
+    const messages = [{ id: 'msg-x', agency_id: 'agency-1', conversation_id: 'conv-x', direction: 'inbound', created_at: '2026-01-01T00:00:00Z', body: 'Test' }];
+
+    const { svc, _callLog } = makeSvc({
+      candidates: [{ data: candidate, error: null }],
+      applications: [{ data: [], error: null }],
+      conversations: [{ data: conversations, error: null }],
+      messages: [{ data: messages, error: null }],
+      notes: [{ data: [], error: null }],
+    });
+
+    await buildDsgvoExport(svc, 'agency-1', 'cand-4b');
+
+    // conversations-Query muss agency-gescoped sein
+    const convCalls = _callLog.filter((c) => c.table === 'conversations');
+    expect(convCalls.find((c) => c.method === 'eq' && c.arg === 'agency_id')).toBeDefined();
+
+    // messages-Query muss agency-gescoped sein (kritisch: WhatsApp-Inhalte)
+    const msgCalls = _callLog.filter((c) => c.table === 'messages');
+    expect(msgCalls.find((c) => c.method === 'eq' && c.arg === 'agency_id')).toBeDefined();
   });
 });
 

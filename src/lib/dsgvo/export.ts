@@ -57,12 +57,6 @@ export async function buildDsgvoExport(
       .select('*')
       .in('application_id', appIds);
     answerRows = (answers ?? []) as Array<Record<string, unknown>>;
-  } else {
-    // Still query to maintain consistent mock dequeue order in tests
-    await svc
-      .from('application_answers')
-      .select('*')
-      .in('application_id', ['__none__']);
   }
 
   // 4. Conversations — agency-gescoped
@@ -83,13 +77,6 @@ export async function buildDsgvoExport(
       .eq('agency_id', agencyId)
       .in('conversation_id', convIds);
     messageRows = (messages ?? []) as Array<Record<string, unknown>>;
-  } else {
-    // Still query to maintain consistent mock dequeue order in tests
-    await svc
-      .from('messages')
-      .select('direction, created_at, body')
-      .eq('agency_id', agencyId)
-      .in('conversation_id', ['__none__']);
   }
 
   // 6. Notes — via candidate_id
