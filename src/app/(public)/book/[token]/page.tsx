@@ -39,7 +39,7 @@ export default async function BookPage({
   const { data: job } = await svc.from('jobs')
     .select('title').eq('id', application?.job_id).single();
   const { data: agency } = await svc.from('agencies')
-    .select('name').eq('id', appt.agency_id).single();
+    .select('name, timezone').eq('id', appt.agency_id).single();
 
   const hasBooking = appt.status === 'booked' || appt.status === 'confirmed';
 
@@ -59,6 +59,7 @@ export default async function BookPage({
           hasBooking={hasBooking}
           bookedStart={appt.starts_at}
           bookedEnd={appt.ends_at}
+          agencyTimezone={agency?.timezone ?? 'Europe/Berlin'}
         />
       </div>
     </div>

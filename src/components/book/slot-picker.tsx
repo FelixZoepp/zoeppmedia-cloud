@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ interface SlotPickerProps {
   hasBooking: boolean;
   bookedStart: string | null;
   bookedEnd: string | null;
+  agencyTimezone: string;
 }
 
 interface SlotData {
@@ -19,7 +20,7 @@ interface SlotData {
   end: string;
 }
 
-export function SlotPicker({ token, appointmentType, location, hasBooking, bookedStart, bookedEnd }: SlotPickerProps) {
+export function SlotPicker({ token, appointmentType, location, hasBooking, bookedStart, bookedEnd, agencyTimezone }: SlotPickerProps) {
   const [slots, setSlots] = useState<SlotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -29,11 +30,17 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
   const [error, setError] = useState<string | null>(null);
   const [showReschedule, setShowReschedule] = useState(false);
 
-  useEffect(() => {
+  const fetchSlots = useCallback(() => {
+    setLoading(true);
     fetch(`/api/book/${token}/slots`)
-      .then(r => r.json())
-      .then(data => {
-        setSlots(data.slots ?? []);
+      .then(async r => {
+        const data = await r.json();
+        if (!r.ok) {
+          setError(data.error ?? 'Termine konnten nicht geladen werden');
+          setSlots([]);
+        } else {
+          setSlots(data.slots ?? []);
+        }
         setLoading(false);
       })
       .catch(() => {
@@ -42,11 +49,15 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
       });
   }, [token]);
 
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
+
   // Slots nach Tag gruppieren
   const slotsByDay = new Map<string, SlotData[]>();
   for (const slot of slots) {
     const day = new Date(slot.start).toLocaleDateString('de-DE', {
-      weekday: 'long', day: '2-digit', month: 'long',
+      weekday: 'long', day: '2-digit', month: 'long', timeZone: agencyTimezone,
     });
     if (!slotsByDay.has(day)) slotsByDay.set(day, []);
     slotsByDay.get(day)!.push(slot);
@@ -65,6 +76,11 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || 'Buchung fehlgeschlagen');
+        if (res.status === 409) {
+          setSelectedSlot(null);
+          setSelectedDay(null);
+          fetchSlots();
+        }
       } else {
         setSuccess(true);
       }
@@ -115,8 +131,8 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
         <Card padding="sm" className="mb-4">
           <p className="font-medium text-gray-900">Dein Termin</p>
           <p className="text-sm text-gray-600">
-            {date.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}{' '}
-            um {date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+            {date.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', timeZone: agencyTimezone })}{' '}
+            um {date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: agencyTimezone })} Uhr
           </p>
           <p className="mt-1 text-xs text-gray-500">
             {appointmentType === 'video'
@@ -176,7 +192,7 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
       {selectedDay && slotsByDay.get(selectedDay) && (
         <div className="mb-4 grid grid-cols-3 gap-2">
           {slotsByDay.get(selectedDay)!.map(slot => {
-            const time = new Date(slot.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            const time = new Date(slot.start).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: agencyTimezone });
             return (
               <button
                 key={slot.start}
@@ -198,8 +214,8 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
       {selectedSlot && (
         <div className="border-t pt-4">
           <p className="mb-3 text-sm text-gray-600">
-            {new Date(selectedSlot).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}{' '}
-            um {new Date(selectedSlot).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+            {new Date(selectedSlot).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', timeZone: agencyTimezone })}{' '}
+            um {new Date(selectedSlot).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: agencyTimezone })} Uhr
           </p>
           <Badge tone="neutral">
             {appointmentType === 'video' ? 'Videogespräch' : appointmentType === 'onsite' ? 'Vor Ort' : 'Telefon'}
