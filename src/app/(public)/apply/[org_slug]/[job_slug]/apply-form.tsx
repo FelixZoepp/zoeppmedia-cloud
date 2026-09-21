@@ -2,6 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Script from 'next/script';
+
+const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export function ApplyForm({
   agencyId,
@@ -162,7 +165,12 @@ export function ApplyForm({
           Ich bin damit einverstanden, per WhatsApp kontaktiert zu werden. Meine Daten werden zur Bearbeitung meiner Bewerbung gespeichert. Ich kann meine Einwilligung jederzeit widerrufen. *
         </span>
       </label>
-      {/* TODO Phase 7: Turnstile-Captcha hier einfuegen */}
+      {siteKey ? (
+        <>
+          <div className="cf-turnstile" data-sitekey={siteKey} data-response-field-name="turnstileToken" />
+          <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+        </>
+      ) : null}
 
       <button type="submit" disabled={submitting}
         className="w-full py-3 px-4 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">

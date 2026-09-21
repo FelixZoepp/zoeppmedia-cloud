@@ -1,7 +1,8 @@
 // Oeffentliches Bewerbungsformular — kein Auth erforderlich, multipart/form-data.
-// TODO Phase 7: Turnstile-Captcha-Pruefung hinzufuegen.
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ingestApplication } from '@/lib/recruiting/ingest';
+import { checkRateLimit } from '@/lib/security/rate-limit';
+import { verifyTurnstile } from '@/lib/security/turnstile';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -36,6 +37,22 @@ export async function POST(request: NextRequest) {
   try { campaign = JSON.parse(campaignStr); } catch { /* ignore */ }
 
   const supabase = createAdminClient();
+
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const allowed = await checkRateLimit(supabase, `apply:${ip}`, 20, 600);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Zu viele Anfragen. Bitte versuche es später erneut.' },
+      { status: 429 }
+    );
+  }
+  const turnstileOk = await verifyTurnstile(formData.get('turnstileToken') as string | null);
+  if (!turnstileOk) {
+    return NextResponse.json(
+      { error: 'Sicherheitsprüfung fehlgeschlagen. Bitte lade die Seite neu.' },
+      { status: 400 }
+    );
+  }
 
   // Serverseitige Job-Re-Validierung: Job muss zur Agency gehoeren und aktiv sein
   const { data: job, error: jobError } = await supabase
