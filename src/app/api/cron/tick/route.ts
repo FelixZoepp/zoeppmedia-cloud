@@ -32,6 +32,13 @@ import {
   processWindowExpiry,
   processDocumentsRequest,
 } from '@/lib/workers/sla-reminders';
+import {
+  processSalesBooking,
+  processSalesConfirmation,
+  processSalesReminder,
+  processSalesNoShowCheck,
+  type SalesJobPayload,
+} from '@/lib/workers/sales-reminders';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
 export const maxDuration = 60;
@@ -201,6 +208,18 @@ export async function GET(request: NextRequest) {
           break;
         case 'documents.request':
           await processDocumentsRequest(svc, job.agency_id, payload as { application_id: string; stage_id: string });
+          break;
+        case 'sales.booking':
+          await processSalesBooking(svc, job.agency_id, payload as unknown as SalesJobPayload);
+          break;
+        case 'sales.confirmation':
+          await processSalesConfirmation(svc, job.agency_id, payload as unknown as SalesJobPayload);
+          break;
+        case 'sales.reminder':
+          await processSalesReminder(svc, job.agency_id, payload as unknown as SalesJobPayload);
+          break;
+        case 'sales.noshow_check':
+          await processSalesNoShowCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
           break;
         default:
           break;

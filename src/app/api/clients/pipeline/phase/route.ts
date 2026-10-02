@@ -8,6 +8,7 @@ const VALID_PHASES: ClientPhase[] = [
   'fulfillment',
   'warten_zugaenge',
   'warten_starttermin',
+  'kampagne_starten',
   'kampagne_live',
   'kickoff_14d',
   'bestandskunde',

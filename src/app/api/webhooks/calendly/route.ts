@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fireEvent } from '@/lib/automations/fire';
+import {
+  SALES_EVENT_TYPES,
+  salesRemindersEnabled,
+  handleSalesBooking,
+  cancelSalesJobs,
+} from '@/lib/sales/calendly-chain';
 
 /**
  * Calendly Webhook Handler
@@ -34,39 +40,65 @@ function verifyCalendlySignature(rawBody: string, sigHeader: string | null, sign
   return sigBuf.length === expectedBuf.length && timingSafeEqual(sigBuf, expectedBuf);
 }
 
+interface CalendlyScheduledEvent {
+  uri?: string;
+  uuid?: string;
+  name?: string;
+  status?: string;
+  start_time?: string;
+  end_time?: string;
+  event_type?: string; // event type URI
+  location?: {
+    type: string;
+    location?: string;
+    join_url?: string;
+  };
+}
+
+interface CalendlyInvitee {
+  uri?: string;
+  uuid?: string;
+  name?: string;
+  email?: string;
+  timezone?: string;
+  created_at?: string;
+  canceled?: boolean;
+  text_reminder_number?: string | null;
+  questions_and_answers?: { question: string; answer: string; position: number }[];
+}
+
+/**
+ * Echte Calendly-v2-Webhooks liefern die Invitee-Felder direkt auf payload-Top-Level
+ * (payload.name, payload.email, payload.scheduled_event, …). Ältere/interne Aufrufer
+ * nutzten payload.invitee / payload.event_type als Objekte. Beide Formen normalisieren.
+ */
 interface CalendlyWebhookPayload {
   event: string;
-  payload: {
-    event: string; // event URI
-    event_type: {
-      uuid: string;
-      name: string;
-    };
-    invitee: {
-      uri: string;
-      uuid: string;
-      name: string;
-      email: string;
-      timezone: string;
-      created_at: string;
-      canceled: boolean;
-      questions_and_answers: { question: string; answer: string; position: number }[];
-    };
-    scheduled_event: {
-      uri: string;
-      uuid: string;
-      name: string;
-      status: string;
-      start_time: string;
-      end_time: string;
-      event_type: string;
-      location?: {
-        type: string;
-        location?: string;
-        join_url?: string;
-      };
-    };
+  payload: CalendlyInvitee & {
+    scheduled_event?: CalendlyScheduledEvent;
+    invitee?: CalendlyInvitee;
+    event_type?: { uuid?: string; name?: string };
   };
+}
+
+function normalizeWebhook(body: CalendlyWebhookPayload): {
+  invitee: CalendlyInvitee;
+  scheduledEvent: CalendlyScheduledEvent | null;
+  eventTypeUuid: string | null;
+  eventTypeName: string | null;
+} {
+  const p = body.payload;
+  const invitee: CalendlyInvitee = p.invitee ?? p;
+  const scheduledEvent = p.scheduled_event ?? null;
+
+  // Event-Type-UUID: aus Legacy-Objekt oder aus der event_type-URI des scheduled_event
+  let eventTypeUuid: string | null = p.event_type?.uuid ?? null;
+  if (!eventTypeUuid && typeof scheduledEvent?.event_type === 'string') {
+    eventTypeUuid = scheduledEvent.event_type.split('/').pop() || null;
+  }
+  const eventTypeName = p.event_type?.name ?? scheduledEvent?.name ?? null;
+
+  return { invitee, scheduledEvent, eventTypeUuid, eventTypeName };
 }
 
 function normalizePhone(phone: string): string {
@@ -135,15 +167,13 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const scheduledEvent = payload.scheduled_event;
-  const invitee = payload.invitee;
-  const eventType = payload.event_type;
+  const { invitee, scheduledEvent, eventTypeUuid, eventTypeName } = normalizeWebhook(body);
 
-  if (!scheduledEvent || !invitee) {
+  if (!scheduledEvent || !invitee.name) {
     return NextResponse.json({ error: 'Missing scheduled_event or invitee' }, { status: 400 });
   }
 
-  // Extract phone number from questions
+  // Extract phone number: SMS-Reminder-Feld hat Vorrang, dann Fragen
   const phoneAnswer = invitee.questions_and_answers?.find(
     (qa) =>
       qa.question.toLowerCase().includes('telefon') ||
@@ -151,7 +181,7 @@ export async function POST(request: NextRequest) {
       qa.question.toLowerCase().includes('handy') ||
       qa.question.toLowerCase().includes('mobil')
   );
-  const phone = phoneAnswer?.answer || null;
+  const phone = invitee.text_reminder_number || phoneAnswer?.answer || null;
 
   // Extract Calendly event UUID for deduplication
   const calendlyEventId = scheduledEvent.uuid || scheduledEvent.uri?.split('/').pop() || null;
@@ -180,6 +210,13 @@ export async function POST(request: NextRequest) {
       if (existingEvent?.agency_id && existingEvent?.candidate_id) {
         fireEvent('appointment_cancelled', existingEvent.agency_id, { candidate_id: existingEvent.candidate_id }).catch(() => {});
       }
+
+      // Sales-Kette: offene Reminder-Jobs dieser Buchung canceln
+      if (salesRemindersEnabled()) {
+        await cancelSalesJobs(supabase, calendlyEventId).catch((err) => {
+          console.error('[calendly] Sales-Jobs canceln fehlgeschlagen:', err);
+        });
+      }
     }
     return NextResponse.json({ ok: true, action: 'cancelled' });
   }
@@ -190,8 +227,30 @@ export async function POST(request: NextRequest) {
     let candidateId: string | null = null;
     let agencyId: string | null = null;
 
+    // Sales-Kette: Buchung auf einem Sales-Event-Type → Prospect anlegen + Jobs planen
+    const salesChain = eventTypeUuid ? SALES_EVENT_TYPES[eventTypeUuid] : undefined;
+    if (salesChain && salesRemindersEnabled() && calendlyEventId && scheduledEvent.start_time) {
+      try {
+        const result = await handleSalesBooking(supabase, {
+          chain: salesChain,
+          calendlyEventId,
+          startTime: scheduledEvent.start_time,
+          endTime: scheduledEvent.end_time || null,
+          inviteeName: invitee.name || 'Unbekannt',
+          inviteeEmail: invitee.email || null,
+          phone,
+        });
+        if (result) {
+          candidateId = result.candidateId;
+          agencyId = result.agencyId;
+        }
+      } catch (err) {
+        console.error('[calendly] Sales-Kette fehlgeschlagen:', err);
+      }
+    }
+
     // Match by email first
-    if (invitee.email) {
+    if (!candidateId && invitee.email) {
       const { data: candidateByEmail } = await supabase
         .from('candidates')
         .select('id, agency_id')
@@ -232,7 +291,7 @@ export async function POST(request: NextRequest) {
           agency_id: agencyId,
           candidate_id: candidateId,
           calendly_event_id: calendlyEventId,
-          event_type: eventType?.name || null,
+          event_type: eventTypeName,
           event_name: scheduledEvent.name || null,
           start_time: scheduledEvent.start_time,
           end_time: scheduledEvent.end_time || null,
@@ -251,12 +310,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (agencyId && candidateId) {
-      fireEvent('appointment_created', agencyId, { candidate_id: candidateId, extra: { event_type: eventType?.name || null } }).catch(() => {});
+      fireEvent('appointment_created', agencyId, { candidate_id: candidateId, extra: { event_type: eventTypeName } }).catch(() => {});
     }
 
     // Fulfillment: Onboarding-/Kickoff-Termin des Kunden hakt die passende
     // Projekt-Aufgabe automatisch ab (Marker termin:onboarding_call / termin:kickoff_call).
-    await completeAppointmentTask(supabase, invitee.email, eventType?.name || scheduledEvent.name || '');
+    await completeAppointmentTask(supabase, invitee.email || null, eventTypeName || scheduledEvent.name || '');
 
     return NextResponse.json({
       ok: true,

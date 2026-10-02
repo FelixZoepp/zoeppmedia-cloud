@@ -22,6 +22,7 @@ const COLUMNS: {
   { key: 'fulfillment', label: 'Einrichtung', dot: 'bg-violet-500' },
   { key: 'warten_zugaenge', label: 'Warten auf Zugänge', dot: 'bg-orange-500' },
   { key: 'warten_starttermin', label: 'Warten auf Starttermin', dot: 'bg-sky-500' },
+  { key: 'kampagne_starten', label: 'Kampagne starten', dot: 'bg-amber-500' },
   { key: 'kampagne_live', label: 'Kampagne Live', dot: 'bg-green-500' },
   { key: 'kickoff_14d', label: 'Kickoff (14 Tage)', dot: 'bg-blue-500' },
   { key: 'bestandskunde', label: 'Bestandskunde', dot: 'bg-teal-500' },

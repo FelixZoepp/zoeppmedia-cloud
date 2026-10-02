@@ -1,0 +1,202 @@
+/**
+ * Sales-Kette (Zoepp Media intern): Calendly-Buchung → WhatsApp-Reminder-Jobs.
+ *
+ * Wird nur aktiv wenn SALES_REMINDERS_ENABLED === 'true' und die Buchung
+ * einen der beiden Sales-Event-Types trifft (Setting 15min / Beratung 60min).
+ *
+ * Kette pro Buchung (dedupe über calendly_event_id):
+ *   sales.booking      — sofort (Buchungs-Template)
+ *   sales.confirmation — start−24h, Fallback start−3h, sonst skip
+ *   sales.reminder     — setting: start−15min | beratung: start−1h
+ *   sales.noshow_check — end_time+30min (Notification, kein Auto-Versand)
+ *
+ * Storno (invitee.canceled) cancelt alle pending Jobs der Buchung.
+ */
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+export type SalesChain = 'setting' | 'beratung';
+
+export const SALES_AGENCY_ID = '2e4140ec-efc5-46db-9746-0ce3c32dc558';
+export const SALES_WA_ACCOUNT_ID = 'cbec5ce7-e282-4de1-a10f-01085fe3d120';
+
+/** Calendly Event-Type-UUIDs → Kette */
+export const SALES_EVENT_TYPES: Record<string, SalesChain> = {
+  // "Analysegespräch mit Zoepp Media" (15 min)
+  'da8d1726-8fa6-467e-88d0-51f1cf0fd67c': 'setting',
+  // "60min Beratungsgespräch mit Felix Zoepp"
+  'bd63a241-57da-425c-a4c0-f4d43a1010f4': 'beratung',
+};
+
+export function salesRemindersEnabled(): boolean {
+  return process.env.SALES_REMINDERS_ENABLED === 'true';
+}
+
+/** Telefonnummer aus Calendly-Antworten in E.164 normalisieren (DE-Default). */
+export function normalizeToE164(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^\d+]/g, '');
+  if (!cleaned) return null;
+  let digits: string;
+  if (cleaned.startsWith('+')) digits = cleaned.slice(1);
+  else if (cleaned.startsWith('00')) digits = cleaned.slice(2);
+  else if (cleaned.startsWith('0')) digits = `49${cleaned.slice(1)}`;
+  else digits = cleaned;
+  if (digits.length < 8 || digits.length > 15) return null;
+  return `+${digits}`;
+}
+
+/** Bestätigungszeitpunkt: start−24h, Fallback start−3h, sonst null (skip). */
+export function computeConfirmationTime(start: Date, now: Date): Date | null {
+  const dayBefore = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+  if (dayBefore.getTime() > now.getTime() + 30 * 60 * 1000) return dayBefore;
+  const threeHours = new Date(start.getTime() - 3 * 60 * 60 * 1000);
+  if (threeHours.getTime() > now.getTime() + 30 * 60 * 1000) return threeHours;
+  return null;
+}
+
+/** Reminder-Zeitpunkt: setting start−15min, beratung start−1h; null wenn in der Vergangenheit. */
+export function computeReminderTime(chain: SalesChain, start: Date, now: Date): Date | null {
+  const offsetMs = chain === 'setting' ? 15 * 60 * 1000 : 60 * 60 * 1000;
+  const runAt = new Date(start.getTime() - offsetMs);
+  return runAt.getTime() > now.getTime() ? runAt : null;
+}
+
+export interface SalesBookingInput {
+  chain: SalesChain;
+  calendlyEventId: string;
+  startTime: string; // ISO
+  endTime: string | null; // ISO
+  inviteeName: string;
+  inviteeEmail: string | null;
+  phone: string | null;
+}
+
+export interface SalesBookingResult {
+  candidateId: string;
+  agencyId: string;
+}
+
+/**
+ * Prospect als Candidate + Conversation anlegen und die Reminder-Jobs planen.
+ * Gibt null zurück wenn keine verwertbare Telefonnummer vorliegt.
+ */
+export async function handleSalesBooking(
+  svc: SupabaseClient,
+  input: SalesBookingInput,
+): Promise<SalesBookingResult | null> {
+  const phoneE164 = normalizeToE164(input.phone);
+  if (!phoneE164) return null;
+
+  // 1. Candidate finden oder anlegen (unique: agency_id + phone_e164)
+  const { data: existing } = await svc
+    .from('candidates')
+    .select('id')
+    .eq('agency_id', SALES_AGENCY_ID)
+    .eq('phone_e164', phoneE164)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+
+  let candidateId: string;
+  if (existing) {
+    candidateId = (existing as { id: string }).id;
+    // Buchung mit Nummer = Kontaktbasis — Opt-in sicherstellen
+    await svc
+      .from('candidates')
+      .update({ whatsapp_opt_in: true })
+      .eq('id', candidateId)
+      .eq('agency_id', SALES_AGENCY_ID);
+  } else {
+    // Erste Pipeline-Stage als Pflichtfeld
+    const { data: stage } = await svc
+      .from('pipeline_stages')
+      .select('id')
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!stage) return null;
+
+    const { data: created, error: insertErr } = await svc
+      .from('candidates')
+      .insert({
+        agency_id: SALES_AGENCY_ID,
+        name: input.inviteeName || 'Unbekannt',
+        email: input.inviteeEmail,
+        phone: phoneE164,
+        phone_e164: phoneE164,
+        source: 'manual',
+        current_stage_id: (stage as { id: string }).id,
+        whatsapp_opt_in: true,
+      })
+      .select('id')
+      .single();
+    if (insertErr || !created) return null;
+    candidateId = (created as { id: string }).id;
+  }
+
+  // 2. Conversation sicherstellen — state 'human_active', damit der Recruiting-Bot
+  // (der nur bei state 'bot_active' triggert) für Sales-Prospects nie anspringt.
+  await svc
+    .from('conversations')
+    .upsert(
+      {
+        agency_id: SALES_AGENCY_ID,
+        candidate_id: candidateId,
+        wa_account_id: SALES_WA_ACCOUNT_ID,
+        state: 'human_active',
+      },
+      { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true },
+    );
+
+  // 3. Jobs planen (dedupe über calendly_event_id — Doppel-Webhooks sind idempotent)
+  const now = new Date();
+  const start = new Date(input.startTime);
+  const end = input.endTime ? new Date(input.endTime) : start;
+  const payload = { calendly_event_id: input.calendlyEventId, chain: input.chain };
+
+  const jobs: Array<{ type: string; run_at: Date; dedupe: string }> = [
+    { type: 'sales.booking', run_at: now, dedupe: `sales.booking:${input.calendlyEventId}` },
+  ];
+
+  const confirmAt = computeConfirmationTime(start, now);
+  if (confirmAt) {
+    jobs.push({ type: 'sales.confirmation', run_at: confirmAt, dedupe: `sales.confirmation:${input.calendlyEventId}` });
+  }
+
+  const reminderAt = computeReminderTime(input.chain, start, now);
+  if (reminderAt) {
+    jobs.push({ type: 'sales.reminder', run_at: reminderAt, dedupe: `sales.reminder:${input.calendlyEventId}` });
+  }
+
+  const noShowAt = new Date(end.getTime() + 30 * 60 * 1000);
+  jobs.push({ type: 'sales.noshow_check', run_at: noShowAt, dedupe: `sales.noshow_check:${input.calendlyEventId}` });
+
+  // Einzeln inserten: der Dedupe-Index ist partiell (WHERE dedupe_key IS NOT NULL),
+  // ON CONFLICT (dedupe_key) via PostgREST greift dort nicht — 23505 gilt als "schon geplant".
+  for (const j of jobs) {
+    const { error } = await svc.from('scheduled_jobs').insert({
+      agency_id: SALES_AGENCY_ID,
+      type: j.type,
+      run_at: j.run_at.toISOString(),
+      payload,
+      status: 'pending',
+      dedupe_key: j.dedupe,
+    });
+    if (error && error.code !== '23505') {
+      throw new Error(`Sales-Job ${j.type} konnte nicht geplant werden: ${error.message}`);
+    }
+  }
+
+  return { candidateId, agencyId: SALES_AGENCY_ID };
+}
+
+/** Storno: alle noch offenen Jobs dieser Buchung canceln. */
+export async function cancelSalesJobs(svc: SupabaseClient, calendlyEventId: string): Promise<void> {
+  await svc
+    .from('scheduled_jobs')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('agency_id', SALES_AGENCY_ID)
+    .eq('status', 'pending')
+    .like('dedupe_key', `sales.%:${calendlyEventId}`);
+}

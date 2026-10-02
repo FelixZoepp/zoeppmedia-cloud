@@ -3,7 +3,12 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
-export type ClientPhase = 'onboarding_termin' | 'fulfillment' | 'warten_zugaenge' | 'warten_starttermin' | 'kampagne_live' | 'kickoff_14d' | 'bestandskunde';
+export type ClientPhase = 'onboarding_termin' | 'fulfillment' | 'warten_zugaenge' | 'warten_starttermin' | 'kampagne_starten' | 'kampagne_live' | 'kickoff_14d' | 'bestandskunde';
+
+// Zoepp Media (Intern) — trägt den Sales-WhatsApp-Kanal, ist kein Kunde.
+// Wird aus der Kunden-Pipeline ausgeblendet (nicht löschen: FK-Ziel für
+// wa_account, Prospects und Reminder-Jobs der Sales-Kette).
+const HIDDEN_AGENCY_IDS = ['2e4140ec-efc5-46db-9746-0ce3c32dc558'];
 
 export interface PipelineClient {
   id: string;
@@ -46,10 +51,11 @@ export async function GET() {
     }
   }
 
-  // Fetch agencies
+  // Fetch agencies (interne Agencies ausblenden)
   let agencyQuery = admin
     .from('agencies')
     .select('id, name, contact_name, created_at, onboarding_completed, phase_override, phase_override_at')
+    .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
     .order('created_at', { ascending: false });
 
   if (agencyIds !== null) {
