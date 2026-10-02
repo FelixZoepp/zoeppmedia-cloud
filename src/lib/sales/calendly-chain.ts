@@ -245,6 +245,13 @@ export async function handleSalesBooking(
     return { prospectId: null, jobsScheduled: false };
   }
 
+  // Konversation sicherstellen — ohne sie bricht der Versand in sales-reminders ab.
+  // state 'human_active': der Sales-Bot führt keinen Bot-Dialog.
+  await svc.from('conversations').upsert(
+    { agency_id: SALES_AGENCY_ID, candidate_id: prospectId, wa_account_id: SALES_WA_ACCOUNT_ID, state: 'human_active' },
+    { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true },
+  );
+
   if (!salesRemindersEnabled()) return { prospectId, jobsScheduled: false };
 
   await scheduleSalesJobs(svc, input, now);

@@ -81,6 +81,10 @@ describe('handleSalesBooking', () => {
     const row = calls[eventUpsert].args[0] as Record<string, unknown>;
     expect(row).toMatchObject({ agency_id: SALES_AGENCY_ID, candidate_id: 'prospect-1', invitee_phone: '+491771908503' });
 
+    const convUpsert = calls.find((c) => c.table === 'conversations' && c.method === 'upsert');
+    expect(convUpsert?.args[0]).toMatchObject({ agency_id: SALES_AGENCY_ID, candidate_id: 'prospect-1', state: 'human_active' });
+    expect(calls.indexOf(convUpsert!)).toBeLessThan(firstJob);
+
     const jobTypes = calls.filter((c) => c.table === 'scheduled_jobs').map((c) => (c.args[0] as { type: string }).type);
     expect(jobTypes).toEqual(['sales.booking', 'sales.confirmation', 'sales.reminder', 'sales.noshow_check']);
   });
