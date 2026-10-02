@@ -6,7 +6,8 @@
  * Templates pro Kette:
  *   setting:  setting_buchung → setting_bestaetigung → setting_reminder_15min
  *   beratung: beratung_buchung → beratung_bestaetigung → beratung_reminder_1h
- * noshow_check: nur Notification an Felix (kein Auto-Versand, Spec: Anruf zuerst).
+ * noshow_check: nur Notification an Felix. Der No-Show-Versand kommt aus Close
+ * (Opportunity → "Setting - No Show", siehe sales/noshow.ts).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -146,6 +147,11 @@ interface SendTemplateOpts {
   /** Text-Parameter für den URL-Button (index 0), z.B. Calendly-Event-ID */
   urlButtonParam?: string;
   bypassQuietHours: boolean;
+  /**
+   * Parameter für die Utility-Neufassung `${presetKey}_v2`. Ist sie bei Meta freigegeben,
+   * wird sie bevorzugt; sonst greift die ursprüngliche Vorlage mit bodyParams.
+   */
+  v2BodyParams?: string[];
 }
 
 async function sendSalesTemplate(
@@ -155,7 +161,13 @@ async function sendSalesTemplate(
   presetKey: string,
   opts: SendTemplateOpts,
 ): Promise<boolean> {
-  const tmpl = await loadTemplate(svc, agencyId, ctx.conversation.wa_account_id, presetKey);
+  let tmpl: { id: string; name: string } | null = null;
+  let bodyParams = opts.bodyParams;
+  if (opts.v2BodyParams) {
+    tmpl = await loadTemplate(svc, agencyId, ctx.conversation.wa_account_id, `${presetKey}_v2`);
+    if (tmpl) bodyParams = opts.v2BodyParams;
+  }
+  if (!tmpl) tmpl = await loadTemplate(svc, agencyId, ctx.conversation.wa_account_id, presetKey);
   if (!tmpl) {
     await createNotificationForInternals(svc, {
       agency_id: agencyId,
@@ -170,7 +182,7 @@ async function sendSalesTemplate(
   const components: Array<Record<string, unknown>> = [
     {
       type: 'body',
-      parameters: opts.bodyParams.map((text) => ({ type: 'text', text })),
+      parameters: bodyParams.map((text) => ({ type: 'text', text })),
     },
   ];
   if (opts.urlButtonParam) {
@@ -235,9 +247,10 @@ export async function processSalesBooking(
       bypassQuietHours: true,
     });
   } else {
-    // beratung_buchung: {{1}} vorname, {{2}} datum, {{3}} uhrzeit + Kalender-Button
+    // beratung_buchung(_v2): {{1}} vorname, {{2}} datum, {{3}} uhrzeit + Kalender-Button
     await sendSalesTemplate(svc, agencyId, ctx, 'beratung_buchung', {
       bodyParams: [vorname, datum, uhrzeit],
+      v2BodyParams: [vorname, datum, uhrzeit],
       urlButtonParam: payload.calendly_event_id,
       bypassQuietHours: true,
     });
@@ -296,9 +309,10 @@ export async function processSalesReminder(
   const { vorname, uhrzeit } = formatVars(ctx.candidate.name, ctx.event.start_time);
 
   if (payload.chain === 'setting') {
-    // setting_reminder_15min: {{1}} vorname, keine Buttons
+    // setting_reminder_15min: {{1}} vorname | _v2 (Utility): {{1}} vorname, {{2}} uhrzeit
     await sendSalesTemplate(svc, agencyId, ctx, 'setting_reminder_15min', {
       bodyParams: [vorname],
+      v2BodyParams: [vorname, uhrzeit],
       bypassQuietHours: true,
     });
   } else {
@@ -327,7 +341,7 @@ export async function processSalesNoShowCheck(
   await createNotificationForInternals(svc, {
     agency_id: agencyId,
     title: `Sales: ${label} nachfassen`,
-    body: `${ctx.candidate.name}: ${label} ist vorbei — hat es stattgefunden? Bei No-Show zuerst anrufen, dann noshow_1_anruf senden.`,
+    body: `${ctx.candidate.name}: ${label} ist vorbei — hat es stattgefunden? Bei No-Show zuerst anrufen, dann in Close auf "Setting - No Show" setzen: die WhatsApp geht automatisch raus.`,
     type: 'noshow',
     push_url: `/inbox?conversation=${ctx.conversation.id}`,
   });
