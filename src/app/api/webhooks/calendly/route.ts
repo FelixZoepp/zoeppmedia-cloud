@@ -7,6 +7,7 @@ import {
   salesRemindersEnabled,
   handleSalesBooking,
   cancelSalesJobs,
+  extractInviteePhone,
 } from '@/lib/sales/calendly-chain';
 
 /**
@@ -173,15 +174,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing scheduled_event or invitee' }, { status: 400 });
   }
 
-  // Extract phone number: SMS-Reminder-Feld hat Vorrang, dann Fragen
-  const phoneAnswer = invitee.questions_and_answers?.find(
-    (qa) =>
-      qa.question.toLowerCase().includes('telefon') ||
-      qa.question.toLowerCase().includes('phone') ||
-      qa.question.toLowerCase().includes('handy') ||
-      qa.question.toLowerCase().includes('mobil')
-  );
-  const phone = invitee.text_reminder_number || phoneAnswer?.answer || null;
+  // Telefonnummer: SMS-Reminder-Feld, dann "Ich rufe an"-Ort, dann Fragen
+  const phone = extractInviteePhone(invitee, scheduledEvent.location);
 
   // Extract Calendly event UUID for deduplication
   const calendlyEventId = scheduledEvent.uuid || scheduledEvent.uri?.split('/').pop() || null;

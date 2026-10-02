@@ -14,6 +14,7 @@ export default function InboxPage() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const deepLinkHandled = useRef(false);
 
   // C1: stable client instance — never re-created on render
   const supabase = useMemo(() => createClient(), []);
@@ -27,6 +28,12 @@ export default function InboxPage() {
       setConversations(Array.isArray(data) ? data : []);
     }
     setLoading(false);
+    // Deep-Link aus Push-Benachrichtigungen: /inbox?conversation=<id> einmalig öffnen
+    if (!deepLinkHandled.current) {
+      deepLinkHandled.current = true;
+      const fromUrl = new URLSearchParams(window.location.search).get('conversation');
+      if (fromUrl) setSelectedId(fromUrl);
+    }
   }, [filter, search]);
 
   const loadMessages = useCallback(async (convId: string) => {

@@ -46,6 +46,30 @@ export function normalizeToE164(raw: string | null | undefined): string | null {
   return `+${digits}`;
 }
 
+const PHONE_QUESTION_KEYWORDS = ['telefon', 'phone', 'handy', 'mobil', 'whatsapp', 'nummer'];
+
+/**
+ * Telefonnummer aus einer Calendly-Buchung ermitteln. Reihenfolge:
+ * 1. SMS-Reminder-Nummer (text_reminder_number)
+ * 2. Ort bei "Ich rufe an" (location.type === 'outbound_call' → location.location ist die Nummer des Gasts)
+ * 3. Antwort auf eine Frage nach Telefon/Handy/WhatsApp
+ */
+export function extractInviteePhone(
+  invitee: {
+    text_reminder_number?: string | null;
+    questions_and_answers?: { question: string; answer: string }[];
+  },
+  location: { type?: string; location?: string } | null | undefined,
+): string | null {
+  if (invitee.text_reminder_number) return invitee.text_reminder_number;
+  if (location?.type === 'outbound_call' && location.location) return location.location;
+  const answer = invitee.questions_and_answers?.find((qa) => {
+    const q = qa.question.toLowerCase();
+    return PHONE_QUESTION_KEYWORDS.some((k) => q.includes(k));
+  });
+  return answer?.answer || null;
+}
+
 /** Bestätigungszeitpunkt: start−24h, Fallback start−3h, sonst null (skip). */
 export function computeConfirmationTime(start: Date, now: Date): Date | null {
   const dayBefore = new Date(start.getTime() - 24 * 60 * 60 * 1000);

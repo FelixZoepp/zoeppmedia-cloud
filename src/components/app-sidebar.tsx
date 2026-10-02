@@ -68,6 +68,7 @@ const adminGroups: SidebarGroup[] = [
     items: [
       { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
       { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
+      { id: 'sales-inbox', label: 'Sales-WhatsApp', icon: <MessageSquare className="w-5 h-5" />, href: '/api/admin/sales-inbox' },
       { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
       { id: 'wochenbericht', label: 'Wochenbericht', icon: <CalendarDays className="w-5 h-5" />, href: '/admin/wochenbericht' },
     ],

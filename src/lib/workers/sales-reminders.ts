@@ -12,7 +12,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { isQuietHours, nextAllowedTime } from '@/lib/whatsapp/window';
-import { createNotificationForAgency } from '@/lib/notifications/create';
+import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import type { SalesChain } from '@/lib/sales/calendly-chain';
 
@@ -157,7 +157,8 @@ async function sendSalesTemplate(
 ): Promise<boolean> {
   const tmpl = await loadTemplate(svc, agencyId, ctx.conversation.wa_account_id, presetKey);
   if (!tmpl) {
-    await createNotificationForAgency(svc, agencyId, {
+    await createNotificationForInternals(svc, {
+      agency_id: agencyId,
       title: 'Sales-Template fehlt',
       body: `Template ${presetKey} ist nicht approved — Nachricht an ${ctx.candidate.name} wurde nicht gesendet.`,
       type: 'system',
@@ -204,8 +205,9 @@ async function sendSalesTemplate(
     agency_id: agencyId,
     candidate_id: ctx.candidate.id,
     action: `Sales-Nachricht gesendet (${presetKey})`,
-    action_type: 'appointment_reminder_sent',
-    metadata: { calendly_event_id: ctx.event.id, preset_key: presetKey },
+    // activity_log.action_type hat eine CHECK-Liste — Sales-Typ steht in metadata.kind
+    action_type: 'other',
+    metadata: { kind: 'sales_message_sent', calendly_event_id: ctx.event.id, preset_key: presetKey },
   });
 
   return true;
@@ -322,7 +324,8 @@ export async function processSalesNoShowCheck(
   if (!ctx) return;
 
   const label = payload.chain === 'setting' ? 'Erstgespräch' : 'Beratungsgespräch';
-  await createNotificationForAgency(svc, agencyId, {
+  await createNotificationForInternals(svc, {
+    agency_id: agencyId,
     title: `Sales: ${label} nachfassen`,
     body: `${ctx.candidate.name}: ${label} ist vorbei — hat es stattgefunden? Bei No-Show zuerst anrufen, dann noshow_1_anruf senden.`,
     type: 'noshow',
@@ -333,7 +336,7 @@ export async function processSalesNoShowCheck(
     agency_id: agencyId,
     candidate_id: ctx.candidate.id,
     action: `Sales No-Show-Check (${label})`,
-    action_type: 'appointment_no_show',
-    metadata: { calendly_event_id: ctx.event.id, chain: payload.chain },
+    action_type: 'other',
+    metadata: { kind: 'sales_noshow_check', calendly_event_id: ctx.event.id, chain: payload.chain },
   });
 }

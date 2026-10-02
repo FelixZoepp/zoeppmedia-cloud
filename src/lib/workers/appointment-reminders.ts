@@ -151,6 +151,11 @@ async function sendReminderTemplate(
   const uhrzeit = startsAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: timezone });
   const ortOderLink = appt.location || 'wird noch mitgeteilt';
 
+  // Parameter exakt passend zur Vorlage (template-presets.ts) — Meta lehnt abweichende Anzahl ab
+  const bodyParams = presetKey === 'appointment_reminder_2h'
+    ? [vorname, uhrzeit, ortOderLink]
+    : [vorname, datum, uhrzeit];
+
   await sendWhatsAppMessage(svc, {
     agencyId,
     conversationId: convData.id,
@@ -164,12 +169,7 @@ async function sendReminderTemplate(
         language: { code: 'de' },
         components: [{
           type: 'body',
-          parameters: [
-            { type: 'text', text: vorname },
-            { type: 'text', text: datum },
-            { type: 'text', text: uhrzeit },
-            { type: 'text', text: ortOderLink },
-          ],
+          parameters: bodyParams.map((text) => ({ type: 'text', text })),
         }],
       },
     },
