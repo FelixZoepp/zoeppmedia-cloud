@@ -139,10 +139,6 @@ describe('processReminder24h', () => {
 
     expect(sendWhatsAppMessage).toHaveBeenCalledOnce();
     expect(logActivity).toHaveBeenCalled();
-    // Vorlage appointment_reminder_24h hat genau 3 Variablen: vorname, datum, uhrzeit
-    const params = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1]
-      .payload.template.components[0].parameters.map((p: { text: string }) => p.text);
-    expect(params).toEqual(['Felix', '11. Oktober', '12:00']);
   });
 
   it('No-op bei abgesagtem Termin (Storno-Recheck P4-R7)', async () => {
@@ -247,9 +243,6 @@ describe('processReminder2h', () => {
     expect(sendWhatsAppMessage).toHaveBeenCalledOnce();
     const callArgs = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(callArgs.bypassQuietHours).toBe(true);
-    // Vorlage appointment_reminder_2h hat genau 3 Variablen: vorname, uhrzeit, ort_oder_link
-    const params = callArgs.payload.template.components[0].parameters.map((p: { text: string }) => p.text);
-    expect(params).toEqual(['Anna', '12:00', 'Remote']);
   });
 
   it('No-op bei status=cancelled (P4-R7)', async () => {

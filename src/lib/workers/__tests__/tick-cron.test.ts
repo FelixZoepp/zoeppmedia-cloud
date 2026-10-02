@@ -149,3 +149,45 @@ describe('GET Handler — Auth-Guard', () => {
     );
   });
 });
+
+vi.mock('@/lib/sales/inbound', () => ({
+  processSalesInbound: vi.fn(),
+}));
+
+describe('GET Handler — Weiche Sales-Bot / Recruiting', () => {
+  const SALES_AGENCY = '2e4140ec-efc5-46db-9746-0ce3c32dc558';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('CRON_SECRET', 'test-secret-123');
+  });
+
+  async function runTickWith(event: { id: string; agency_id: string; attempts: number; payload: Record<string, unknown> }) {
+    const chain: Record<string, unknown> = {};
+    for (const m of ['update', 'eq', 'in', 'select', 'insert', 'lt']) chain[m] = vi.fn(() => chain);
+    chain.then = (resolve: (v: unknown) => void) => resolve({ data: null, error: null });
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    (createAdminClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      rpc: vi.fn((fn: string) => Promise.resolve({ data: fn === 'claim_inbox_events' ? [event] : [] })),
+      from: vi.fn(() => chain),
+    });
+    const { GET } = await import('@/app/api/cron/tick/route');
+    await GET({ headers: { get: vi.fn().mockReturnValue('Bearer test-secret-123') } } as unknown as import('next/server').NextRequest);
+  }
+
+  it('Nachricht auf der Sales-Nummer geht nur an den Sales-Bot', async () => {
+    const { processSalesInbound } = await import('@/lib/sales/inbound');
+    const { processInbound } = await import('@/lib/workers/whatsapp-inbound');
+    await runTickWith({ id: 'ev-1', agency_id: SALES_AGENCY, attempts: 1, payload: { type: 'whatsapp.inbound', phone_number_id: 'pn' } });
+    expect(processSalesInbound).toHaveBeenCalledOnce();
+    expect(processInbound).not.toHaveBeenCalled();
+  });
+
+  it('Nachricht einer Kunden-Agentur geht nur an den Recruiting-Worker', async () => {
+    const { processSalesInbound } = await import('@/lib/sales/inbound');
+    const { processInbound } = await import('@/lib/workers/whatsapp-inbound');
+    await runTickWith({ id: 'ev-2', agency_id: 'kunde-1', attempts: 1, payload: { type: 'whatsapp.inbound', phone_number_id: 'pn' } });
+    expect(processInbound).toHaveBeenCalledOnce();
+    expect(processSalesInbound).not.toHaveBeenCalled();
+  });
+});

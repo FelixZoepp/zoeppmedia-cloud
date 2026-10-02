@@ -20,11 +20,6 @@ vi.mock('@/lib/whatsapp/send', () => ({
 vi.mock('@/lib/notifications/create', () => ({
   createNotification: vi.fn().mockResolvedValue(undefined),
   createNotificationForAgency: vi.fn().mockResolvedValue(undefined),
-  createNotificationForInternals: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('@/lib/sales/replies', () => ({
-  handleSalesReply: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/automations/fire', () => ({
@@ -294,68 +289,5 @@ describe('processInbound', () => {
     // Keine ASCII-Ersetzungen
     expect(body).not.toContain('ae');
     expect(body).not.toContain('ue');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Button-Antworten + Sales-Kette
-// ---------------------------------------------------------------------------
-
-const SALES_AGENCY = '2e4140ec-efc5-46db-9746-0ce3c32dc558';
-
-function insertedMessageBody(svc: Parameters<typeof processInbound>[0]): unknown {
-  const fromMock = svc.from as unknown as ReturnType<typeof vi.fn>;
-  const idx = fromMock.mock.calls.findIndex((args: unknown[]) => args[0] === 'messages');
-  const chain = fromMock.mock.results[idx].value as { insert: ReturnType<typeof vi.fn> };
-  return (chain.insert.mock.calls[0][0] as { body: unknown }).body;
-}
-
-describe('processInbound — Button-Antworten', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('speichert den Text eines Quick-Reply-Buttons statt einer leeren Nachricht', async () => {
-    const svc = makeSvc();
-    await processInbound(svc, 'agency-1', {
-      ...basePayload,
-      message: { id: 'wamid.b1', from: '491761234567', timestamp: '1', type: 'button', button: { text: 'Ja, ich bin dabei', payload: 'x' } },
-    });
-    expect(insertedMessageBody(svc)).toBe('Ja, ich bin dabei');
-  });
-
-  it('speichert den Titel einer interaktiven Button-Antwort', async () => {
-    const svc = makeSvc();
-    await processInbound(svc, 'agency-1', {
-      ...basePayload,
-      message: {
-        id: 'wamid.b2', from: '491761234567', timestamp: '1', type: 'interactive',
-        interactive: { type: 'button_reply', button_reply: { id: 'b', title: "Los geht's" } },
-      },
-    });
-    expect(insertedMessageBody(svc)).toBe("Los geht's");
-  });
-
-  it('Sales-Agency: Antwort geht an handleSalesReply und Benachrichtigung an das interne Team', async () => {
-    const { handleSalesReply } = await import('@/lib/sales/replies');
-    const { createNotificationForInternals, createNotificationForAgency } = await import('@/lib/notifications/create');
-    const svc = makeSvc({ whatsapp_accounts: { data: { id: 'wa-1', agency_id: SALES_AGENCY }, error: null } });
-    await processInbound(svc, SALES_AGENCY, {
-      ...basePayload,
-      message: { id: 'wamid.b3', from: '491761234567', timestamp: '1', type: 'button', button: { text: 'Ja, ich bin dabei' } },
-    });
-    expect(handleSalesReply).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ agencyId: SALES_AGENCY, candidateId: 'cand-1', text: 'Ja, ich bin dabei', candidatePhone: '+491761234567' }),
-    );
-    expect(createNotificationForInternals).toHaveBeenCalledOnce();
-    expect(createNotificationForAgency).not.toHaveBeenCalled();
-  });
-
-  it('Kunden-Agency: keine Sales-Verarbeitung', async () => {
-    const { handleSalesReply } = await import('@/lib/sales/replies');
-    const svc = makeSvc();
-    await processInbound(svc, 'agency-1', basePayload);
-    expect(handleSalesReply).not.toHaveBeenCalled();
   });
 });

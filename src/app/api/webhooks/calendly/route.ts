@@ -4,9 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { fireEvent } from '@/lib/automations/fire';
 import {
   SALES_EVENT_TYPES,
-  salesRemindersEnabled,
   handleSalesBooking,
-  cancelSalesJobs,
+  handleSalesCancellation,
   extractInviteePhone,
 } from '@/lib/sales/calendly-chain';
 
@@ -186,6 +185,37 @@ export async function POST(request: NextRequest) {
     scheduledEvent.location?.type ||
     null;
 
+  // Sales-Bot: Buchungen auf den Sales-Event-Types laufen komplett getrennt vom Recruiting
+  // (kein Kandidaten-Matching, keine Recruiting-Automationen).
+  const salesChain = eventTypeUuid ? SALES_EVENT_TYPES[eventTypeUuid] : undefined;
+  if (salesChain && calendlyEventId) {
+    try {
+      if (event === 'invitee.canceled') {
+        await handleSalesCancellation(supabase, calendlyEventId);
+        return NextResponse.json({ ok: true, action: 'cancelled', sales: true });
+      }
+      if (event === 'invitee.created' && scheduledEvent.start_time) {
+        const result = await handleSalesBooking(supabase, {
+          chain: salesChain,
+          calendlyEventId,
+          eventTypeName,
+          eventName: scheduledEvent.name || null,
+          startTime: scheduledEvent.start_time,
+          endTime: scheduledEvent.end_time || null,
+          location,
+          inviteeName: invitee.name || 'Unbekannt',
+          inviteeEmail: invitee.email || null,
+          phone,
+        });
+        return NextResponse.json({ ok: true, action: 'created', sales: true, ...result });
+      }
+    } catch (err) {
+      console.error('[calendly] Sales-Bot fehlgeschlagen:', err);
+      return NextResponse.json({ error: 'Sales-Verarbeitung fehlgeschlagen' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, action: 'ignored', sales: true, event });
+  }
+
   // Handle cancellation
   if (event === 'invitee.canceled') {
     if (calendlyEventId) {
@@ -205,12 +235,6 @@ export async function POST(request: NextRequest) {
         fireEvent('appointment_cancelled', existingEvent.agency_id, { candidate_id: existingEvent.candidate_id }).catch(() => {});
       }
 
-      // Sales-Kette: offene Reminder-Jobs dieser Buchung canceln
-      if (salesRemindersEnabled()) {
-        await cancelSalesJobs(supabase, calendlyEventId).catch((err) => {
-          console.error('[calendly] Sales-Jobs canceln fehlgeschlagen:', err);
-        });
-      }
     }
     return NextResponse.json({ ok: true, action: 'cancelled' });
   }
@@ -221,30 +245,8 @@ export async function POST(request: NextRequest) {
     let candidateId: string | null = null;
     let agencyId: string | null = null;
 
-    // Sales-Kette: Buchung auf einem Sales-Event-Type → Prospect anlegen + Jobs planen
-    const salesChain = eventTypeUuid ? SALES_EVENT_TYPES[eventTypeUuid] : undefined;
-    if (salesChain && salesRemindersEnabled() && calendlyEventId && scheduledEvent.start_time) {
-      try {
-        const result = await handleSalesBooking(supabase, {
-          chain: salesChain,
-          calendlyEventId,
-          startTime: scheduledEvent.start_time,
-          endTime: scheduledEvent.end_time || null,
-          inviteeName: invitee.name || 'Unbekannt',
-          inviteeEmail: invitee.email || null,
-          phone,
-        });
-        if (result) {
-          candidateId = result.candidateId;
-          agencyId = result.agencyId;
-        }
-      } catch (err) {
-        console.error('[calendly] Sales-Kette fehlgeschlagen:', err);
-      }
-    }
-
     // Match by email first
-    if (!candidateId && invitee.email) {
+    if (invitee.email) {
       const { data: candidateByEmail } = await supabase
         .from('candidates')
         .select('id, agency_id')

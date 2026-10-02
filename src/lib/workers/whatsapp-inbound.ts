@@ -7,11 +7,9 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { isStopMessage } from '@/lib/whatsapp/window';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
-import { createNotification, createNotificationForAgency, createNotificationForInternals } from '@/lib/notifications/create';
+import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
 import { cancelBotTimers } from '@/lib/bot/timers';
 import { fireEvent } from '@/lib/automations/fire';
-import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
-import { handleSalesReply } from '@/lib/sales/replies';
 
 interface InboundPayload {
   type: 'whatsapp.inbound';
@@ -25,14 +23,6 @@ interface InboundPayload {
     image?: { id: string; mime_type: string; caption?: string };
     document?: { id: string; mime_type: string; filename: string; caption?: string };
     audio?: { id: string; mime_type: string };
-    /** Quick-Reply-Button einer Vorlage */
-    button?: { text: string; payload?: string };
-    /** Antwort auf eine interaktive Nachricht (Button/Liste) */
-    interactive?: {
-      type: string;
-      button_reply?: { id: string; title: string };
-      list_reply?: { id: string; title: string };
-    };
   };
   contacts?: Array<{ profile: { name: string }; wa_id: string }>;
 }
@@ -139,9 +129,6 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
 
   // 4. Message speichern
   const bodyText = msg.text?.body
-    || msg.button?.text
-    || msg.interactive?.button_reply?.title
-    || msg.interactive?.list_reply?.title
     || msg.image?.caption || (msg.type === 'image' ? '[Bild]' : '')
     || msg.document?.caption || (msg.type === 'document' ? '[Dokument]' : '')
     || (msg.type === 'audio' ? '[Sprachnachricht]' : '')
@@ -229,19 +216,6 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
     }
   }
 
-  // Sales-Kette: Antworten interner Prospects auswerten (Bestätigung → Close, Kundenvideos)
-  if (effectiveAgencyId === SALES_AGENCY_ID && bodyText) {
-    await handleSalesReply(svc, {
-      agencyId: effectiveAgencyId,
-      candidateId: candidate.id,
-      candidateName: candidate.name,
-      candidatePhone: senderPhone,
-      conversationId,
-      waAccountId: waAccount.id,
-      text: bodyText,
-    }).catch((err) => console.error('[sales] Antwort-Verarbeitung fehlgeschlagen:', err));
-  }
-
   // 6. Media-Download als scheduled_job planen
   const mediaId = msg.image?.id || msg.document?.id || msg.audio?.id;
   if (mediaId) {
@@ -272,17 +246,6 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
       entity_type: 'candidate',
       entity_id: candidate.id,
       push_url: `/inbox?conversation=${conversationId}`,
-    }).catch(() => {});
-  } else if (effectiveAgencyId === SALES_AGENCY_ID) {
-    // Die interne Sales-Agency hat keine eigenen User — Antworten von Prospects an das interne Team
-    await createNotificationForInternals(svc, {
-      agency_id: effectiveAgencyId,
-      title: `Sales: Neue WhatsApp-Nachricht von ${candidate.name}`,
-      body: bodyText.slice(0, 100),
-      type: 'whatsapp_inbound',
-      entity_type: 'candidate',
-      entity_id: candidate.id,
-      push_url: `/api/admin/sales-inbox?conversation=${conversationId}`,
     }).catch(() => {});
   } else {
     // I2: Unzugewiesene Konversation (neu ODER bestehend ohne assigned_to) —

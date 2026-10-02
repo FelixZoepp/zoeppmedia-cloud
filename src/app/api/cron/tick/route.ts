@@ -39,6 +39,8 @@ import {
   processSalesNoShowCheck,
   type SalesJobPayload,
 } from '@/lib/workers/sales-reminders';
+import { processSalesInbound, type SalesInboundPayload } from '@/lib/sales/inbound';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
 export const maxDuration = 60;
@@ -93,7 +95,12 @@ export async function GET(request: NextRequest) {
       const payload = event.payload as { type: string; [key: string]: unknown };
       switch (payload.type) {
         case 'whatsapp.inbound':
-          await processInbound(svc, event.agency_id, payload as unknown as Parameters<typeof processInbound>[2]);
+          // Sales-Nummer → eigener Sales-Bot, alles andere → Recruiting
+          if (event.agency_id === SALES_AGENCY_ID) {
+            await processSalesInbound(svc, payload as unknown as SalesInboundPayload);
+          } else {
+            await processInbound(svc, event.agency_id, payload as unknown as Parameters<typeof processInbound>[2]);
+          }
           break;
         case 'whatsapp.status':
           await processStatus(svc, event.agency_id, payload as unknown as Parameters<typeof processStatus>[2]);

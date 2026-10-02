@@ -14,6 +14,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createNotificationForInternals } from '@/lib/notifications/create';
 
 export type SalesChain = 'setting' | 'beratung';
 
@@ -86,33 +87,32 @@ export function computeReminderTime(chain: SalesChain, start: Date, now: Date): 
   return runAt.getTime() > now.getTime() ? runAt : null;
 }
 
-export interface SalesBookingInput {
+export interface SalesCalendlyEvent {
   chain: SalesChain;
   calendlyEventId: string;
+  eventTypeName: string | null;
+  eventName: string | null;
   startTime: string; // ISO
   endTime: string | null; // ISO
+  location: string | null;
   inviteeName: string;
   inviteeEmail: string | null;
   phone: string | null;
 }
 
 export interface SalesBookingResult {
-  candidateId: string;
-  agencyId: string;
+  /** Prospect-ID oder null, wenn die Buchung keine verwertbare Nummer hat */
+  prospectId: string | null;
+  jobsScheduled: boolean;
 }
 
-/**
- * Prospect als Candidate + Conversation anlegen und die Reminder-Jobs planen.
- * Gibt null zurück wenn keine verwertbare Telefonnummer vorliegt.
- */
-export async function handleSalesBooking(
+/** Prospect zur Nummer finden oder anlegen (unique: agency_id + phone_e164). */
+async function ensureSalesProspect(
   svc: SupabaseClient,
-  input: SalesBookingInput,
-): Promise<SalesBookingResult | null> {
-  const phoneE164 = normalizeToE164(input.phone);
-  if (!phoneE164) return null;
-
-  // 1. Candidate finden oder anlegen (unique: agency_id + phone_e164)
+  phoneE164: string,
+  name: string,
+  email: string | null,
+): Promise<string | null> {
   const { data: existing } = await svc
     .from('candidates')
     .select('id')
@@ -122,59 +122,42 @@ export async function handleSalesBooking(
     .limit(1)
     .maybeSingle();
 
-  let candidateId: string;
   if (existing) {
-    candidateId = (existing as { id: string }).id;
+    const id = (existing as { id: string }).id;
     // Buchung mit Nummer = Kontaktbasis — Opt-in sicherstellen
-    await svc
-      .from('candidates')
-      .update({ whatsapp_opt_in: true })
-      .eq('id', candidateId)
-      .eq('agency_id', SALES_AGENCY_ID);
-  } else {
-    // Erste Pipeline-Stage als Pflichtfeld
-    const { data: stage } = await svc
-      .from('pipeline_stages')
-      .select('id')
-      .order('sort_order', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (!stage) return null;
-
-    const { data: created, error: insertErr } = await svc
-      .from('candidates')
-      .insert({
-        agency_id: SALES_AGENCY_ID,
-        name: input.inviteeName || 'Unbekannt',
-        email: input.inviteeEmail,
-        phone: phoneE164,
-        phone_e164: phoneE164,
-        source: 'manual',
-        current_stage_id: (stage as { id: string }).id,
-        whatsapp_opt_in: true,
-      })
-      .select('id')
-      .single();
-    if (insertErr || !created) return null;
-    candidateId = (created as { id: string }).id;
+    await svc.from('candidates').update({ whatsapp_opt_in: true }).eq('id', id).eq('agency_id', SALES_AGENCY_ID);
+    return id;
   }
 
-  // 2. Conversation sicherstellen — state 'human_active', damit der Recruiting-Bot
-  // (der nur bei state 'bot_active' triggert) für Sales-Prospects nie anspringt.
-  await svc
-    .from('conversations')
-    .upsert(
-      {
-        agency_id: SALES_AGENCY_ID,
-        candidate_id: candidateId,
-        wa_account_id: SALES_WA_ACCOUNT_ID,
-        state: 'human_active',
-      },
-      { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true },
-    );
+  // candidates.current_stage_id ist Pflicht — erste Stage als Platzhalter
+  const { data: stage } = await svc
+    .from('pipeline_stages')
+    .select('id')
+    .order('sort_order', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!stage) return null;
 
-  // 3. Jobs planen (dedupe über calendly_event_id — Doppel-Webhooks sind idempotent)
-  const now = new Date();
+  const { data: created, error } = await svc
+    .from('candidates')
+    .insert({
+      agency_id: SALES_AGENCY_ID,
+      name: name || 'Unbekannt',
+      email,
+      phone: phoneE164,
+      phone_e164: phoneE164,
+      source: 'manual',
+      current_stage_id: (stage as { id: string }).id,
+      whatsapp_opt_in: true,
+    })
+    .select('id')
+    .single();
+  if (error || !created) return null;
+  return (created as { id: string }).id;
+}
+
+/** Reminder-Jobs der Kette planen (dedupe über calendly_event_id — Doppel-Webhooks sind idempotent). */
+async function scheduleSalesJobs(svc: SupabaseClient, input: SalesCalendlyEvent, now: Date): Promise<void> {
   const start = new Date(input.startTime);
   const end = input.endTime ? new Date(input.endTime) : start;
   const payload = { calendly_event_id: input.calendlyEventId, chain: input.chain };
@@ -193,8 +176,11 @@ export async function handleSalesBooking(
     jobs.push({ type: 'sales.reminder', run_at: reminderAt, dedupe: `sales.reminder:${input.calendlyEventId}` });
   }
 
-  const noShowAt = new Date(end.getTime() + 30 * 60 * 1000);
-  jobs.push({ type: 'sales.noshow_check', run_at: noShowAt, dedupe: `sales.noshow_check:${input.calendlyEventId}` });
+  jobs.push({
+    type: 'sales.noshow_check',
+    run_at: new Date(end.getTime() + 30 * 60 * 1000),
+    dedupe: `sales.noshow_check:${input.calendlyEventId}`,
+  });
 
   // Einzeln inserten: der Dedupe-Index ist partiell (WHERE dedupe_key IS NOT NULL),
   // ON CONFLICT (dedupe_key) via PostgREST greift dort nicht — 23505 gilt als "schon geplant".
@@ -211,8 +197,68 @@ export async function handleSalesBooking(
       throw new Error(`Sales-Job ${j.type} konnte nicht geplant werden: ${error.message}`);
     }
   }
+}
 
-  return { candidateId, agencyId: SALES_AGENCY_ID };
+/**
+ * Neue Sales-Buchung aus Calendly — eigener Pfad, unabhängig vom Recruiting:
+ * 1. Prospect anlegen (nur mit verwertbarer Nummer)
+ * 2. Buchung in calendly_events speichern (vor den Jobs, damit sales.booking sie findet)
+ * 3. Reminder-Jobs planen (nur wenn SALES_REMINDERS_ENABLED)
+ * Ohne Nummer: Buchung trotzdem speichern und das interne Team benachrichtigen.
+ */
+export async function handleSalesBooking(
+  svc: SupabaseClient,
+  input: SalesCalendlyEvent,
+  now: Date = new Date(),
+): Promise<SalesBookingResult> {
+  const phoneE164 = normalizeToE164(input.phone);
+  const prospectId = phoneE164
+    ? await ensureSalesProspect(svc, phoneE164, input.inviteeName, input.inviteeEmail)
+    : null;
+
+  const { error } = await svc.from('calendly_events').upsert(
+    {
+      agency_id: SALES_AGENCY_ID,
+      candidate_id: prospectId,
+      calendly_event_id: input.calendlyEventId,
+      event_type: input.eventTypeName,
+      event_name: input.eventName,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      invitee_name: input.inviteeName,
+      invitee_email: input.inviteeEmail,
+      invitee_phone: phoneE164 ?? input.phone,
+      status: 'scheduled',
+      location: input.location,
+    },
+    { onConflict: 'calendly_event_id' },
+  );
+  if (error) throw new Error(`Sales-Buchung konnte nicht gespeichert werden: ${error.message}`);
+
+  if (!prospectId) {
+    await createNotificationForInternals(svc, {
+      agency_id: SALES_AGENCY_ID,
+      title: `Sales: Buchung ohne WhatsApp-Nummer`,
+      body: `${input.inviteeName} hat ${input.eventTypeName ?? 'einen Termin'} gebucht, aber keine Handynummer angegeben — keine WhatsApp-Erinnerungen.`,
+      type: 'system',
+    }).catch(() => {});
+    return { prospectId: null, jobsScheduled: false };
+  }
+
+  if (!salesRemindersEnabled()) return { prospectId, jobsScheduled: false };
+
+  await scheduleSalesJobs(svc, input, now);
+  return { prospectId, jobsScheduled: true };
+}
+
+/** Storno einer Sales-Buchung: Status setzen und alle offenen Jobs canceln. */
+export async function handleSalesCancellation(svc: SupabaseClient, calendlyEventId: string): Promise<void> {
+  await svc
+    .from('calendly_events')
+    .update({ status: 'cancelled' })
+    .eq('calendly_event_id', calendlyEventId)
+    .eq('agency_id', SALES_AGENCY_ID);
+  await cancelSalesJobs(svc, calendlyEventId);
 }
 
 /** Storno: alle noch offenen Jobs dieser Buchung canceln. */
