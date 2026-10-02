@@ -125,5 +125,6 @@ describe('findCloseLeadIdByPhone', () => {
       ] }),
     );
     expect(await findCloseLeadIdByPhone('+491771908503')).toBe('lead_match');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('query=1771908503');
   });
 });

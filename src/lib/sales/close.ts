@@ -50,7 +50,8 @@ export async function findCloseLeadIdByPhone(phone: string): Promise<string | nu
   if (!apiKey || !phone) return null;
   const needle = digits(phone);
   if (needle.length < 6) return null;
-  const leads = await searchLeads(apiKey, `"${phone}"`);
+  // Nationale Ziffern (ohne +49/0) — so findet die Close-Volltextsuche Nummern in jedem Format
+  const leads = await searchLeads(apiKey, needle);
   return leads.find((l) => l.contacts?.some((c) => c.phones?.some((p) => digits(p.phone) === needle)))?.id ?? null;
 }
 
