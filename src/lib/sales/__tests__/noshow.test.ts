@@ -37,6 +37,10 @@ function makeSvc(responses: Record<string, unknown>) {
         return { data: typeof r === 'function' ? r(inCalls) : r ?? null, error: null };
       });
       chain.single = vi.fn().mockResolvedValue({ data: responses[`${table}.single`] ?? null, error: null });
+      chain.then = (resolve: (v: unknown) => void) => {
+        const r = responses[table];
+        resolve({ data: Array.isArray(r) ? r : r ? [r] : [], error: null });
+      };
       return chain;
     }),
   };
@@ -44,7 +48,7 @@ function makeSvc(responses: Record<string, unknown>) {
 }
 
 const prospect = { id: 'p-1', name: 'Riccardo Marini', phone_e164: '+491771908503', whatsapp_opt_in: true };
-const approved = { id: 'tmpl-ns', name: 'noshow_1_anruf' };
+const approved = { id: 'tmpl-ns', name: 'noshow_1_anruf', preset_key: 'noshow_1_anruf' };
 
 describe('handleCloseSettingNoShow', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -71,6 +75,25 @@ describe('handleCloseSettingNoShow', () => {
       expect.anything(),
       expect.objectContaining({ metadata: expect.objectContaining({ kind: 'sales_noshow_sent', close_opportunity_id: 'oppo_1' }) }),
     );
+  });
+
+  it('bevorzugt noshow_1_anruf_v2 mit Tracking-Link am Button "Neuen Termin wählen"', async () => {
+    vi.stubEnv('CRON_SECRET', 'test-secret');
+    (getCloseLeadContacts as ReturnType<typeof vi.fn>).mockResolvedValue({
+      leadName: null, contactName: 'Riccardo Marini', phones: ['+491771908503'], emails: [],
+    });
+    const { svc } = makeSvc({
+      candidates: prospect,
+      whatsapp_templates: [approved, { id: 'tmpl-v2', name: 'noshow_1_anruf_v2', preset_key: 'noshow_1_anruf_v2' }],
+      'conversations.single': { id: 'conv-1' },
+    });
+    expect(await handleCloseSettingNoShow(svc, { opportunityId: 'oppo_2', leadId: 'lead_1' })).toBe('sent');
+    const send = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(send.payload.template.name).toBe('noshow_1_anruf_v2');
+    const btn = send.payload.template.components[1];
+    expect(btn).toMatchObject({ type: 'button', sub_type: 'url', index: '1' });
+    expect(btn.parameters[0].text).toMatch(/^p-1\.s\.noshow_1_anruf_v2\./);
+    vi.unstubAllEnvs();
   });
 
   it('kein passender WhatsApp-Kontakt → Hinweis an das Team, nichts senden', async () => {

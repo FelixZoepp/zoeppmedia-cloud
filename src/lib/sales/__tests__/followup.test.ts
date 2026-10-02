@@ -23,6 +23,7 @@ import {
   syncFollowupForOpportunity,
   processSalesFollowup,
   pauseFollowupsOnReply,
+  SALES_ERFOLGE,
 } from '../followup';
 import { getCloseOpportunity, getCloseLeadContacts, addCloseTask } from '../close';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
@@ -68,6 +69,7 @@ const opp = (over: Partial<Record<string, unknown>> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv('CRON_SECRET', 'test-secret');
   (getCloseLeadContacts as ReturnType<typeof vi.fn>).mockResolvedValue({
     leadName: 'Energietarifmarini', contactName: 'Riccardo Marini', phones: ['+49 177 1908503'], emails: ['r@example.com'],
   });
@@ -149,9 +151,9 @@ describe('processSalesFollowup', () => {
     const { svc, ops } = makeSvc({
       candidates: prospect,
       activity_log: [],
-      // fu_1..fu_3 noch nicht freigegeben → zuerst fu_4_frage
+      // fu_1..fu_3 noch nicht freigegeben → zuerst fu_4_slot
       whatsapp_templates: [
-        { id: 't4', name: 'fu_4_frage', preset_key: 'fu_4_frage' },
+        { id: 't4', name: 'fu_4_slot', preset_key: 'fu_4_slot' },
         { id: 't6', name: 'fu_6_abschied', preset_key: 'fu_6_abschied' },
       ],
       conversations: { id: 'conv-1' },
@@ -159,8 +161,14 @@ describe('processSalesFollowup', () => {
 
     expect(await processSalesFollowup(svc, payload, now)).toBe('sent');
     const send = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
-    expect(send.payload.template.name).toBe('fu_4_frage');
-    expect(send.payload.template.components[0].parameters.map((p: { text: string }) => p.text)).toEqual(['Riccardo', 'Energietarifmarini']);
+    expect(send.payload.template.name).toBe('fu_4_slot');
+    // Schritt 3 → Erfolg 3 % 3 = 0 (B&C)
+    expect(send.payload.template.components[0].parameters.map((p: { text: string }) => p.text)).toEqual([
+      'Riccardo', SALES_ERFOLGE[0],
+    ]);
+    // Button "Termin buchen" mit signiertem Tracking-Token (Setting-Follow-up → Analysegespräch)
+    expect(send.payload.template.components[1]).toMatchObject({ type: 'button', sub_type: 'url', index: '0' });
+    expect(send.payload.template.components[1].parameters[0].text).toMatch(/^p-1\.s\.fu_4_slot\./);
     const next = ops.find((o) => o.table === 'scheduled_jobs' && o.op === 'insert')!.args[0] as { run_at: string };
     expect(next.run_at).toBe('2026-10-30T08:00:00.000Z');
   });

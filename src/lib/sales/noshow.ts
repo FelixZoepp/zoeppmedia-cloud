@@ -7,6 +7,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { notifySales } from './notify';
+import { buildClickToken } from './tracking';
 import { logActivity } from '@/lib/activity/log';
 import { SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID, normalizeToE164 } from './calendly-chain';
 import { getCloseLeadContacts, addCloseNoteByEmail } from './close';
@@ -84,14 +85,19 @@ export async function handleCloseSettingNoShow(
     .maybeSingle();
   if (already) return 'already_sent';
 
-  const { data: tmpl } = await svc
+  // noshow_1_anruf_v2 (Button mit Klick-Tracking) bevorzugen, sonst die ursprüngliche Vorlage
+  const { data: approvedNoShow } = await svc
     .from('whatsapp_templates')
-    .select('id, name')
+    .select('id, name, preset_key')
     .eq('agency_id', SALES_AGENCY_ID)
     .eq('wa_account_id', SALES_WA_ACCOUNT_ID)
-    .eq('preset_key', 'noshow_1_anruf')
-    .eq('status', 'approved')
-    .maybeSingle();
+    .in('preset_key', ['noshow_1_anruf_v2', 'noshow_1_anruf'])
+    .eq('status', 'approved');
+  const noShowTemplates = (approvedNoShow ?? []) as Array<{ id: string; name: string; preset_key: string }>;
+  const tmpl =
+    noShowTemplates.find((t) => t.preset_key === 'noshow_1_anruf_v2') ??
+    noShowTemplates.find((t) => t.preset_key === 'noshow_1_anruf') ??
+    null;
   if (!tmpl) {
     await notifySales(svc, {
       emoji: '⚠️',
@@ -131,7 +137,18 @@ export async function handleCloseSettingNoShow(
       template: {
         name: template.name,
         language: { code: 'de' },
-        components: [{ type: 'body', parameters: [{ type: 'text', text: vorname }] }],
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: vorname }] },
+          // v2: URL-Button (index 1, nach dem Quick-Reply) → Tracking-Link zum Analysegespräch
+          ...(template.name === 'noshow_1_anruf_v2'
+            ? [{
+                type: 'button',
+                sub_type: 'url',
+                index: '1',
+                parameters: [{ type: 'text', text: buildClickToken(prospect.id, 'setting', 'noshow_1_anruf_v2') }],
+              }]
+            : []),
+        ],
       },
     },
     senderType: 'system',

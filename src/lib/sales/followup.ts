@@ -4,7 +4,8 @@
  * Läuft, solange die Opportunity auf "Setting - Follow Up" / "Closing - Follow Up"
  * steht UND im Feld "Follow-up-Rhythmus" ein Abstand gewählt ist (1 Woche,
  * 2 Wochen, 1 Monat, 3 Monate). Pro Abstand geht die nächste Vorlage der Reihe raus:
- *   fu_1 → fu_2 → fu_3 → fu_4_frage → fu_5 → fu_6_abschied
+ *   fu_1 → fu_2 → fu_3 → fu_4_slot → fu_5 → fu_6_abschied
+ * fu_1 … fu_5: "gerade an dich gedacht" + Kundenerfolg + Button "Termin buchen" (Klick-Tracking).
  * Vorlagen, die (noch) nicht freigegeben sind, werden übersprungen.
  *
  * Stopp: Status weg von "Follow Up", Rhythmus "Aus"/leer, STOP, Kette durch.
@@ -25,8 +26,25 @@ import {
   type CloseOpportunity,
 } from './close';
 import { notifySales } from './notify';
+import { buildClickToken } from './tracking';
 
-export const FOLLOWUP_SEQUENCE = ['fu_1', 'fu_2', 'fu_3', 'fu_4_frage', 'fu_5', 'fu_6_abschied'] as const;
+export const FOLLOWUP_SEQUENCE = ['fu_1', 'fu_2', 'fu_3', 'fu_4_slot', 'fu_5', 'fu_6_abschied'] as const;
+
+/**
+ * Kundenerfolge für {{2}} in fu_1 … fu_5 ("Ich habe gerade an dich gedacht: …").
+ * Jeder Schritt nimmt einen anderen, damit ein Lead keinen doppelt bekommt.
+ */
+export const SALES_ERFOLGE = [
+  'B&C Direct Sales, eine PV-D2D-Agentur, ist mit uns in 3 Monaten von 2 auf 15 Leute gewachsen und macht jetzt 6-stellige Monatsumsätze',
+  'die CGMS GmbH, eine Glasfaser-Agentur aus Köln, ist mit uns in unter 3 Monaten von 4 auf 12 Leute gewachsen',
+  'Maxprom hat mit 10 bis 20 neuen Partnern pro Monat im besten Monat 1 Mio. € Umsatz gemacht',
+];
+
+/** Vorlagen mit Erfolg ({{2}}) und "Termin buchen"-Button (Tracking-Link) */
+const WITH_ERFOLG_AND_BUTTON = new Set<string>(['fu_1', 'fu_2', 'fu_3', 'fu_4_slot', 'fu_5']);
+
+/** Setting-Follow-up → Analysegespräch, Closing-Follow-up → Beratungsgespräch */
+const CLOSING_FOLLOW_UP = 'stat_qdOAuGHxRx66Mk45E58gOOXnceL04Iouh6nAuoEXyjy';
 
 const RHYTHMS: Record<string, { days?: number; months?: number }> = {
   '1 Woche': { days: 7 },
@@ -229,8 +247,21 @@ export async function processSalesFollowup(
   const template = byKey.get(FOLLOWUP_SEQUENCE[step])!;
   const contacts = await getCloseLeadContacts(opp.leadId).catch(() => null);
   const vorname = (contacts?.contactName ?? prospect.name ?? '').split(' ')[0] || 'du';
-  const firma = opp.leadName || contacts?.leadName || 'euer Unternehmen';
-  const params = FOLLOWUP_SEQUENCE[step] === 'fu_4_frage' ? [vorname, firma] : [vorname];
+  const key = FOLLOWUP_SEQUENCE[step];
+  const components: Array<Record<string, unknown>> = [];
+  if (WITH_ERFOLG_AND_BUTTON.has(key)) {
+    const erfolg = SALES_ERFOLGE[step % SALES_ERFOLGE.length];
+    components.push({ type: 'body', parameters: [vorname, erfolg].map((text) => ({ type: 'text', text })) });
+    const target = opp.statusId === CLOSING_FOLLOW_UP ? 'beratung' : 'setting';
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: '0',
+      parameters: [{ type: 'text', text: buildClickToken(prospect.id, target, key) }],
+    });
+  } else {
+    components.push({ type: 'body', parameters: [{ type: 'text', text: vorname }] });
+  }
 
   await svc.from('conversations').upsert(
     { agency_id: SALES_AGENCY_ID, candidate_id: prospect.id, wa_account_id: SALES_WA_ACCOUNT_ID, state: 'human_active' },
@@ -255,7 +286,7 @@ export async function processSalesFollowup(
       template: {
         name: template.name,
         language: { code: 'de' },
-        components: [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text })) }],
+        components,
       },
     },
     senderType: 'system',

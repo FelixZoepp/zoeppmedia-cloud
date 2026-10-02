@@ -282,6 +282,17 @@ export async function handleSalesBooking(
 
   await scheduleSalesJobs(svc, input, now);
 
+  // Gebucht → laufende WhatsApp-Follow-ups dieses Leads stoppen
+  const { data: stoppedFollowups } = await svc
+    .from('scheduled_jobs')
+    .update({ status: 'cancelled', updated_at: now.toISOString() })
+    .eq('agency_id', SALES_AGENCY_ID)
+    .eq('type', 'sales.followup')
+    .eq('status', 'pending')
+    .eq('payload->>prospect_id', prospectId)
+    .select('id');
+  const followupsStopped = ((stoppedFollowups ?? []) as unknown[]).length > 0;
+
   const { data: conv } = await svc
     .from('conversations')
     .select('id')
@@ -291,7 +302,7 @@ export async function handleSalesBooking(
   await notifySales(svc, {
     emoji: '📅',
     title: `Neue Buchung: ${input.inviteeName}`,
-    body: `${input.chain === 'beratung' ? 'Beratungsgespräch' : 'Analysegespräch'} am ${formatTermin(input.startTime)}${input.company ? ` · ${input.company}` : ''}`,
+    body: `${input.chain === 'beratung' ? 'Beratungsgespräch' : 'Analysegespräch'} am ${formatTermin(input.startTime)}${input.company ? ` · ${input.company}` : ''}${followupsStopped ? '\nWhatsApp-Follow-ups für diesen Lead sind gestoppt.' : ''}`,
     type: 'new_candidate',
     phone: phoneE164,
     conversationId: (conv as { id: string } | null)?.id ?? null,

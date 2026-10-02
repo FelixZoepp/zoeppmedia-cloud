@@ -43,6 +43,8 @@ import {
 import { processSalesInbound, type SalesInboundPayload } from '@/lib/sales/inbound';
 import { processSalesCloseLog, type SalesCloseLogPayload } from '@/lib/sales/close-log';
 import { processSalesFollowup, type FollowupJobPayload } from '@/lib/sales/followup';
+import { processSalesClickCheck } from '@/lib/sales/tracking';
+import { todayBerlin } from '@/lib/sales/replies';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
@@ -230,6 +232,9 @@ export async function GET(request: NextRequest) {
           break;
         case 'sales.noshow_check':
           await processSalesNoShowCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
+          break;
+        case 'sales.click_check':
+          await processSalesClickCheck(svc, payload as unknown as Parameters<typeof processSalesClickCheck>[1], todayBerlin());
           break;
         case 'sales.followup':
           await processSalesFollowup(svc, payload as unknown as FollowupJobPayload);
