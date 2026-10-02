@@ -173,6 +173,19 @@ describe('processSalesFollowup', () => {
     expect(next.run_at).toBe('2026-10-30T08:00:00.000Z');
   });
 
+  it('nur fu_6 freigegeben und noch nichts gesendet → nicht mit dem Abschied starten, morgen erneut', async () => {
+    (getCloseOpportunity as ReturnType<typeof vi.fn>).mockResolvedValue(opp());
+    const { svc, ops } = makeSvc({
+      candidates: prospect,
+      activity_log: [],
+      whatsapp_templates: [{ id: 't6', name: 'fu_6_abschied', preset_key: 'fu_6_abschied' }],
+    });
+    expect(await processSalesFollowup(svc, payload, now)).toBe('waiting');
+    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+    const retry = ops.find((o) => o.table === 'scheduled_jobs' && o.op === 'insert')!.args[0] as { run_at: string };
+    expect(retry.run_at).toBe('2026-10-17T08:00:00.000Z');
+  });
+
   it('Opportunity nicht mehr im Follow-up → nichts senden', async () => {
     (getCloseOpportunity as ReturnType<typeof vi.fn>).mockResolvedValue(opp({ rhythm: 'Aus' }));
     const { svc } = makeSvc({});

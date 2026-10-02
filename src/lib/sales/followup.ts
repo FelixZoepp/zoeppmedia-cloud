@@ -208,7 +208,7 @@ export async function processSalesFollowup(
   svc: SupabaseClient,
   payload: FollowupJobPayload,
   now: Date = new Date(),
-): Promise<'sent' | 'inactive' | 'opted_out' | 'completed'> {
+): Promise<'sent' | 'inactive' | 'opted_out' | 'completed' | 'waiting'> {
   const opp = await getCloseOpportunity(payload.opportunity_id);
   if (!opp || !isActiveFollowup(opp)) return 'inactive';
 
@@ -232,6 +232,26 @@ export async function processSalesFollowup(
     .in('preset_key', [...FOLLOWUP_SEQUENCE]);
   const byKey = new Map(((approved ?? []) as Array<{ id: string; name: string; preset_key: string }>).map((t) => [t.preset_key, t]));
   const step = FOLLOWUP_SEQUENCE.findIndex((key, i) => i > last && byKey.has(key));
+
+  // Abschied nie als erste Nachricht: sind fu_1 … fu_5 noch nicht freigegeben, einen Tag warten
+  if (step !== -1 && FOLLOWUP_SEQUENCE[step] === 'fu_6_abschied' && last < 0) {
+    const retry = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    await svc.from('scheduled_jobs').insert({
+      agency_id: SALES_AGENCY_ID,
+      type: 'sales.followup',
+      run_at: retry.toISOString(),
+      payload,
+      status: 'pending',
+    });
+    await notifySales(svc, {
+      emoji: '⏳',
+      title: `Follow-up für ${prospect.name} wartet`,
+      body: 'Die Follow-up-Vorlagen sind bei Meta noch nicht freigegeben — neuer Versuch morgen.',
+      type: 'system',
+      phone: prospect.phone_e164,
+    });
+    return 'waiting';
+  }
 
   if (step === -1) {
     await notifySales(svc, {
