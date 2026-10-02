@@ -123,7 +123,7 @@ export interface SalesBookingResult {
 }
 
 /** Prospect zur Nummer finden oder anlegen (unique: agency_id + phone_e164). */
-async function ensureSalesProspect(
+export async function ensureSalesProspect(
   svc: SupabaseClient,
   phoneE164: string,
   name: string,

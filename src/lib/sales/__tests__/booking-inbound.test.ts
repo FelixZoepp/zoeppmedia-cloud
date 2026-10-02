@@ -10,7 +10,14 @@ vi.mock('@/lib/whatsapp/window', () => ({
   isStopMessage: vi.fn((t?: string) => (t ?? '').trim().toLowerCase() === 'stop'),
 }));
 vi.mock('../replies', () => ({
-  handleSalesReply: vi.fn().mockResolvedValue(undefined),
+  handleSalesReply: vi.fn().mockResolvedValue(null),
+  todayBerlin: vi.fn(() => '2026-10-02'),
+}));
+vi.mock('../followup', () => ({
+  pauseFollowupsOnReply: vi.fn().mockResolvedValue(false),
+}));
+vi.mock('../close-log', () => ({
+  enqueueSalesCloseLog: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { handleSalesBooking, handleSalesCancellation, SALES_AGENCY_ID } from '../calendly-chain';

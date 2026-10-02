@@ -116,6 +116,7 @@ describe('Close-Webhook-Route', () => {
   async function post(token: string | null, event: Record<string, unknown>) {
     vi.doMock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) }));
     vi.doMock('../noshow', () => ({ handleCloseSettingNoShow: vi.fn().mockResolvedValue('sent') }));
+    vi.doMock('../followup', () => ({ syncFollowupForOpportunity: vi.fn().mockResolvedValue('inactive') }));
     const { POST } = await import('@/app/api/webhooks/close/route');
     const { handleCloseSettingNoShow: handler } = await import('../noshow');
     const url = new URL(`https://cloud.zoeppmedia.de/api/webhooks/close${token ? `?token=${token}` : ''}`);

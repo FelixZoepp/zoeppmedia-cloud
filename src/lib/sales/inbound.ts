@@ -11,7 +11,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { isStopMessage } from '@/lib/whatsapp/window';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { notifySales } from './notify';
-import { handleSalesReply } from './replies';
+import { enqueueSalesCloseLog } from './close-log';
+import { handleSalesReply, todayBerlin } from './replies';
+import { pauseFollowupsOnReply } from './followup';
 import { SALES_AGENCY_ID } from './calendly-chain';
 
 export interface SalesInboundMessage {
@@ -129,6 +131,15 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     status: 'delivered',
   });
 
+  // Eingehende Nachricht auch am Close-Lead ablegen (inkl. Close-Inbox)
+  await enqueueSalesCloseLog(svc, {
+    direction: 'incoming',
+    text: text || '[Nachricht]',
+    phone: senderPhone,
+    waMessageId: msg.id,
+    at: now,
+  }).catch((e) => console.error('[sales] Close-Log einplanen fehlgeschlagen:', e));
+
   // Medien in die Inbox laden (gemeinsamer WhatsApp-Media-Job)
   const mediaId = msg.image?.id || msg.document?.id || msg.audio?.id;
   if (mediaId) {
@@ -183,8 +194,21 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     return null;
   });
 
-  // Bestätigung/Rückruf melden sich selbst — sonst als normale Antwort ans Team
-  if (kind) return;
+  // Antwort während laufender Follow-ups → Kette pausieren (meldet sich selbst)
+  const { data: pe } = await svc.from('candidates').select('email').eq('id', prospect.id).maybeSingle();
+  const paused = await pauseFollowupsOnReply(
+    svc,
+    { id: prospect.id, name: prospect.name, phone: senderPhone, email: (pe as { email: string | null } | null)?.email ?? null },
+    text,
+    conversationId,
+    todayBerlin(),
+  ).catch((err) => {
+    console.error('[sales] Follow-up-Pause fehlgeschlagen:', err);
+    return false;
+  });
+
+  // Bestätigung/Rückruf/Follow-up-Antwort melden sich selbst — sonst als normale Antwort ans Team
+  if (kind || paused) return;
   await notifySales(svc, {
     emoji: '💬',
     title: `Neue WhatsApp von ${prospect.name}`,

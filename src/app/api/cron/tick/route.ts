@@ -41,6 +41,8 @@ import {
   type SalesJobPayload,
 } from '@/lib/workers/sales-reminders';
 import { processSalesInbound, type SalesInboundPayload } from '@/lib/sales/inbound';
+import { processSalesCloseLog, type SalesCloseLogPayload } from '@/lib/sales/close-log';
+import { processSalesFollowup, type FollowupJobPayload } from '@/lib/sales/followup';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
@@ -228,6 +230,12 @@ export async function GET(request: NextRequest) {
           break;
         case 'sales.noshow_check':
           await processSalesNoShowCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
+          break;
+        case 'sales.followup':
+          await processSalesFollowup(svc, payload as unknown as FollowupJobPayload);
+          break;
+        case 'sales.close_log':
+          await processSalesCloseLog(payload as unknown as SalesCloseLogPayload);
           break;
         case 'sales.unconfirmed_check':
           await processSalesUnconfirmedCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);

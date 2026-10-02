@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { closeWebhookToken, ensureCloseWebhook } from '@/lib/sales/close';
+import { closeWebhookToken, ensureCloseWebhook, ensureFollowupField } from '@/lib/sales/close';
 
 /**
- * Richtet den Close-Webhook für den Sales-Bot ein (idempotent).
+ * Richtet den Close-Webhook und das Opportunity-Feld "Follow-up-Rhythmus" für den Sales-Bot ein (idempotent).
  * Auth wie die Cron-Routen: Authorization: Bearer <CRON_SECRET>.
  */
 export async function POST(request: NextRequest) {
@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
   const url = `${base}/api/webhooks/close?token=${token}`;
 
   try {
-    const result = await ensureCloseWebhook(url);
-    return NextResponse.json({ ok: true, ...result });
+    const webhook = await ensureCloseWebhook(url);
+    const field = await ensureFollowupField();
+    return NextResponse.json({ ok: true, webhook, field });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Fehler' }, { status: 500 });
   }

@@ -10,6 +10,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { checkPreflight } from './window';
 import { getProvider, type SendMessagePayload } from './provider';
 import { decryptSecret } from '@/lib/crypto';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
+import { enqueueSalesCloseLog, outgoingText } from '@/lib/sales/close-log';
 
 export interface SendOpts {
   agencyId: string;
@@ -139,6 +141,17 @@ export async function sendWhatsAppMessage(
       .from('conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', opts.conversationId);
+
+    // Sales-Bot: ausgehende Nachricht auch am Close-Lead ablegen (best effort, eigener Job)
+    if (opts.agencyId === SALES_AGENCY_ID) {
+      await enqueueSalesCloseLog(svc, {
+        direction: 'outgoing',
+        text: await outgoingText(svc, opts.payload, opts.templateId),
+        phone: opts.candidatePhone,
+        waMessageId: result.messageId,
+        at: new Date().toISOString(),
+      }).catch((e) => console.error('[sales] Close-Log einplanen fehlgeschlagen:', e));
+    }
 
     return { messageId: result.messageId, messageRowId: msgRow.id };
   } catch (err) {

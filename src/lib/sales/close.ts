@@ -17,7 +17,7 @@ function closeHeaders(apiKey: string): HeadersInit {
 
 interface CloseLead {
   id: string;
-  contacts?: Array<{ emails?: Array<{ email: string }>; phones?: Array<{ phone: string }> }>;
+  contacts?: Array<{ id?: string; emails?: Array<{ email: string }>; phones?: Array<{ phone: string }> }>;
 }
 
 function digits(phone: string): string {
@@ -28,6 +28,7 @@ function digits(phone: string): string {
 
 async function searchLeads(apiKey: string, query: string): Promise<CloseLead[]> {
   const params = new URLSearchParams({ query, _fields: 'id,contacts', _limit: '10' });
+  // contacts enthält id, phones, emails — für die Zuordnung von WhatsApp-Aktivitäten
   const res = await fetch(`${CLOSE_BASE}/lead/?${params}`, { headers: closeHeaders(apiKey) });
   if (!res.ok) throw new Error(`Close-Suche fehlgeschlagen (${res.status})`);
   return ((await res.json()) as { data: CloseLead[] }).data;
@@ -53,6 +54,66 @@ export async function findCloseLeadIdByPhone(phone: string): Promise<string | nu
   // Nationale Ziffern (ohne +49/0) — so findet die Close-Volltextsuche Nummern in jedem Format
   const leads = await searchLeads(apiKey, needle);
   return leads.find((l) => l.contacts?.some((c) => c.phones?.some((p) => digits(p.phone) === needle)))?.id ?? null;
+}
+
+/** Lead + Kontakt zur Telefonnummer (sonst E-Mail) finden — Ziel für WhatsApp-Aktivitäten. */
+export async function findCloseContact(contact: {
+  phone?: string | null;
+  email?: string | null;
+}): Promise<{ leadId: string; contactId: string } | null> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return null;
+
+  if (contact.phone) {
+    const needle = digits(contact.phone);
+    if (needle.length >= 6) {
+      for (const lead of await searchLeads(apiKey, needle)) {
+        const c = lead.contacts?.find((x) => x.phones?.some((p) => digits(p.phone) === needle));
+        if (c?.id) return { leadId: lead.id, contactId: c.id };
+      }
+    }
+  }
+  if (contact.email) {
+    const needle = contact.email.toLowerCase();
+    for (const lead of await searchLeads(apiKey, `"${contact.email}"`)) {
+      const c = lead.contacts?.find((x) => x.emails?.some((e) => e.email.toLowerCase() === needle));
+      if (c?.id) return { leadId: lead.id, contactId: c.id };
+    }
+  }
+  return null;
+}
+
+/** WhatsApp-Nachricht als Aktivität am Close-Lead ablegen (eingehend → auch in die Close-Inbox). */
+export async function createCloseWhatsAppActivity(input: {
+  leadId: string;
+  contactId: string;
+  direction: 'incoming' | 'outgoing';
+  externalId: string;
+  text: string;
+  localPhone: string;
+  remotePhone: string;
+  at: string;
+}): Promise<string> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+
+  const query = input.direction === 'incoming' ? '?send_to_inbox=true' : '';
+  const res = await fetch(`${CLOSE_BASE}/activity/whatsapp_message/${query}`, {
+    method: 'POST',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({
+      lead_id: input.leadId,
+      contact_id: input.contactId,
+      direction: input.direction,
+      external_whatsapp_message_id: input.externalId,
+      message_markdown: input.text,
+      local_phone: input.localPhone.replace(/\D/g, ''),
+      remote_phone: input.remotePhone.replace(/\D/g, ''),
+      activity_at: input.at,
+    }),
+  });
+  if (!res.ok) throw new Error(`Close-WhatsApp-Aktivität fehlgeschlagen (${res.status}): ${await res.text()}`);
+  return ((await res.json()) as { id: string }).id;
 }
 
 /** Lead über E-Mail, sonst Telefon finden. */
@@ -145,7 +206,12 @@ export async function getCloseLeadContacts(leadId: string): Promise<CloseLeadCon
   };
 }
 
-/** Webhook-Abo in Close anlegen (idempotent: existiert die URL schon, wird nichts doppelt angelegt). */
+const WEBHOOK_EVENTS = [
+  { object_type: 'opportunity', action: 'created' },
+  { object_type: 'opportunity', action: 'updated' },
+];
+
+/** Webhook-Abo in Close anlegen bzw. auf die aktuellen Events bringen (idempotent). */
 export async function ensureCloseWebhook(url: string): Promise<{ id: string; created: boolean }> {
   const apiKey = process.env.CLOSE_API_KEY;
   if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
@@ -154,17 +220,108 @@ export async function ensureCloseWebhook(url: string): Promise<{ id: string; cre
   if (!list.ok) throw new Error(`Close-Webhooks nicht lesbar (${list.status})`);
   const { data } = (await list.json()) as { data: Array<{ id: string; url: string; status: string }> };
   const existing = data.find((w) => w.url === url);
-  if (existing) return { id: existing.id, created: false };
+  if (existing) {
+    const upd = await fetch(`${CLOSE_BASE}/webhook/${existing.id}/`, {
+      method: 'PUT',
+      headers: closeHeaders(apiKey),
+      body: JSON.stringify({ events: WEBHOOK_EVENTS, status: 'active' }),
+    });
+    if (!upd.ok) throw new Error(`Close-Webhook aktualisieren fehlgeschlagen (${upd.status}): ${await upd.text()}`);
+    return { id: existing.id, created: false };
+  }
 
   const res = await fetch(`${CLOSE_BASE}/webhook/`, {
     method: 'POST',
     headers: closeHeaders(apiKey),
-    body: JSON.stringify({
-      url,
-      events: [{ object_type: 'opportunity', action: 'updated' }],
-    }),
+    body: JSON.stringify({ url, events: WEBHOOK_EVENTS }),
   });
   if (!res.ok) throw new Error(`Close-Webhook anlegen fehlgeschlagen (${res.status}): ${await res.text()}`);
   const created = (await res.json()) as { id: string };
   return { id: created.id, created: true };
+}
+
+// ---------------------------------------------------------------------------
+// Follow-ups: Opportunity-Feld "Follow-up-Rhythmus"
+// ---------------------------------------------------------------------------
+
+export const FOLLOWUP_FIELD_NAME = 'Follow-up-Rhythmus';
+export const FOLLOWUP_CHOICES = ['1 Woche', '2 Wochen', '1 Monat', '3 Monate', 'Aus'] as const;
+
+/** Opportunity-Status, in denen die Follow-up-Kette läuft. */
+export const CLOSE_FOLLOWUP_STATUS_IDS = [
+  'stat_EWpujNpwdtq5HSFAMO6c0awZUVgsz6TfO1ZXe5Ff8IT', // Setting - Follow Up
+  'stat_qdOAuGHxRx66Mk45E58gOOXnceL04Iouh6nAuoEXyjy', // Closing - Follow Up
+];
+
+let followupFieldIdCache: string | null = null;
+
+async function listOpportunityFields(apiKey: string): Promise<Array<{ id: string; name: string }>> {
+  const res = await fetch(`${CLOSE_BASE}/custom_field/opportunity/`, { headers: closeHeaders(apiKey) });
+  if (!res.ok) throw new Error(`Close-Felder nicht lesbar (${res.status})`);
+  return ((await res.json()) as { data: Array<{ id: string; name: string }> }).data;
+}
+
+/** ID des Feldes "Follow-up-Rhythmus" (gecacht). */
+export async function getFollowupFieldId(): Promise<string | null> {
+  if (followupFieldIdCache) return followupFieldIdCache;
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return null;
+  const field = (await listOpportunityFields(apiKey)).find((f) => f.name === FOLLOWUP_FIELD_NAME);
+  followupFieldIdCache = field?.id ?? null;
+  return followupFieldIdCache;
+}
+
+/** Feld "Follow-up-Rhythmus" an Opportunities anlegen, falls es fehlt. */
+export async function ensureFollowupField(): Promise<{ id: string; created: boolean }> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const existing = (await listOpportunityFields(apiKey)).find((f) => f.name === FOLLOWUP_FIELD_NAME);
+  if (existing) return { id: existing.id, created: false };
+
+  const res = await fetch(`${CLOSE_BASE}/custom_field/opportunity/`, {
+    method: 'POST',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({
+      name: FOLLOWUP_FIELD_NAME,
+      type: 'choices',
+      choices: FOLLOWUP_CHOICES,
+      accepts_multiple_values: false,
+      description: 'WhatsApp-Follow-ups (Zoepp Cloud): läuft, solange die Opportunity auf "… - Follow Up" steht.',
+    }),
+  });
+  if (!res.ok) throw new Error(`Close-Feld anlegen fehlgeschlagen (${res.status}): ${await res.text()}`);
+  const created = (await res.json()) as { id: string };
+  followupFieldIdCache = created.id;
+  return { id: created.id, created: true };
+}
+
+export interface CloseOpportunity {
+  id: string;
+  leadId: string;
+  leadName: string | null;
+  statusId: string;
+  statusLabel: string | null;
+  rhythm: string | null;
+}
+
+/** Opportunity mit Status und Follow-up-Rhythmus laden. */
+export async function getCloseOpportunity(opportunityId: string): Promise<CloseOpportunity | null> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return null;
+  const res = await fetch(`${CLOSE_BASE}/opportunity/${encodeURIComponent(opportunityId)}/`, {
+    headers: closeHeaders(apiKey),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Close-Opportunity ${opportunityId} nicht lesbar (${res.status})`);
+  const o = (await res.json()) as Record<string, unknown>;
+  const fieldId = await getFollowupFieldId();
+  const raw = fieldId ? o[`custom.${fieldId}`] : null;
+  return {
+    id: o.id as string,
+    leadId: o.lead_id as string,
+    leadName: (o.lead_name as string) ?? null,
+    statusId: o.status_id as string,
+    statusLabel: (o.status_label as string) ?? null,
+    rhythm: typeof raw === 'string' ? raw : null,
+  };
 }
