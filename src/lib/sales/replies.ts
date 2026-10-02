@@ -5,13 +5,15 @@
  *   Bestätigung im Aktivitätslog + Close-Notiz + Benachrichtigung an Felix.
  *   Bei der Beratung zusätzlich die versprochenen Kundenerfahrungen (Videos)
  *   als Freitext senden — das 24h-Fenster ist durch die Antwort gerade offen.
+ * "Ruf mich heute an" (Quick-Reply aus noshow_1_anruf) →
+ *   Aufgabe "Heute anrufen" am Close-Lead + Slack #03-sales.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
-import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
-import { addCloseNoteByEmail } from './close';
+import { addCloseNoteByEmail, addCloseTask } from './close';
+import { notifySales } from './notify';
 
 const TIMEZONE = 'Europe/Berlin';
 
@@ -63,8 +65,70 @@ export interface SalesReplyInput {
   text: string;
 }
 
-export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInput): Promise<void> {
-  if (!isConfirmationReply(input.text)) return;
+/** Erkennt den Rückrufwunsch (Button "Ruf mich heute an" aus noshow_1_anruf oder sinngleicher Text). */
+export function isCallbackReply(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const t = text.trim().toLowerCase();
+  return /ruf(e|t)?\s+(mich|uns)\b.*\b(an|zurück)\b/.test(t) || t.includes('rückruf');
+}
+
+/** Heutiges Datum in Berlin als YYYY-MM-DD (für Close-Aufgaben). */
+export function todayBerlin(now: Date = new Date()): string {
+  return now.toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
+}
+
+export type SalesReplyKind = 'confirmed' | 'callback' | null;
+
+/**
+ * Antwort eines Prospects auswerten. Gibt zurück, was erkannt wurde — bei null
+ * meldet der Inbound-Handler die Nachricht als normale Antwort ans Team.
+ */
+export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInput): Promise<SalesReplyKind> {
+  if (isCallbackReply(input.text)) {
+    await handleCallback(svc, input);
+    return 'callback';
+  }
+  if (isConfirmationReply(input.text)) {
+    return (await handleConfirmation(svc, input)) ? 'confirmed' : null;
+  }
+  return null;
+}
+
+async function handleCallback(svc: SupabaseClient, input: SalesReplyInput): Promise<void> {
+  const { data: p } = await svc.from('candidates').select('email').eq('id', input.candidateId).maybeSingle();
+  const email = (p as { email: string | null } | null)?.email ?? null;
+
+  let closeLeadId: string | null = null;
+  try {
+    closeLeadId = await addCloseTask(
+      { email, phone: input.candidatePhone },
+      `Heute anrufen: ${input.candidateName} wünscht Rückruf (WhatsApp: "${input.text.trim()}") – ${input.candidatePhone}`,
+      todayBerlin(),
+    );
+  } catch (err) {
+    console.error('[sales] Close-Aufgabe fehlgeschlagen:', err);
+  }
+
+  await notifySales(svc, {
+    emoji: '📞',
+    title: `Rückruf gewünscht: ${input.candidateName}`,
+    body: `Möchte heute angerufen werden. ${closeLeadId ? 'Aufgabe "Heute anrufen" ist in Close angelegt.' : '⚠️ Lead nicht in Close gefunden — keine Aufgabe angelegt.'}`,
+    type: 'task_due',
+    phone: input.candidatePhone,
+    conversationId: input.conversationId,
+  });
+
+  await logActivity(svc, {
+    agency_id: input.agencyId,
+    candidate_id: input.candidateId,
+    action: 'Rückruf per WhatsApp gewünscht',
+    action_type: 'other',
+    metadata: { kind: 'sales_callback_requested', close_lead_id: closeLeadId },
+  });
+}
+
+/** Bestätigung verarbeiten. false = kein offener Termin oder schon bestätigt. */
+async function handleConfirmation(svc: SupabaseClient, input: SalesReplyInput): Promise<boolean> {
 
   // Nächster noch offener Termin dieses Prospects
   const { data: evt } = await svc
@@ -78,7 +142,7 @@ export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInp
     .limit(1)
     .maybeSingle();
 
-  if (!evt) return;
+  if (!evt) return false;
   const event = evt as {
     id: string;
     calendly_event_id: string;
@@ -96,7 +160,7 @@ export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInp
     .eq('metadata->>calendly_event_id', event.calendly_event_id)
     .limit(1)
     .maybeSingle();
-  if (already) return;
+  if (already) return false;
 
   const isBeratung = (event.event_type ?? '').toLowerCase().includes('beratung');
   const label = isBeratung ? 'Beratungsgespräch' : 'Erstgespräch';
@@ -112,23 +176,25 @@ export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInp
     metadata: { kind: 'sales_confirmed', calendly_event_id: event.calendly_event_id },
   });
 
-  await createNotificationForInternals(svc, {
-    agency_id: input.agencyId,
-    title: `Sales: ${input.candidateName} hat bestätigt`,
+  await notifySales(svc, {
+    emoji: '✅',
+    title: `${input.candidateName} hat bestätigt`,
     body: `${label} am ${wann} ist per WhatsApp bestätigt.`,
     type: 'system',
-    push_url: `/api/admin/sales-inbox?conversation=${input.conversationId}`,
-  }).catch(() => {});
+    phone: input.candidatePhone,
+    conversationId: input.conversationId,
+  });
 
   await addCloseNoteByEmail(
     event.invitee_email,
     `WhatsApp: ${label} am ${wann} vom Kunden bestätigt ("${input.text.trim()}").`,
+    input.candidatePhone,
   ).catch((err) => console.error('[sales] Close-Notiz fehlgeschlagen:', err));
 
-  if (!isBeratung) return;
+  if (!isBeratung) return true;
 
   const videos = parseKundenVideos(process.env.SALES_KUNDENVIDEOS);
-  if (videos.length === 0) return;
+  if (videos.length === 0) return true;
 
   const vorname = input.candidateName.split(' ')[0] || 'du';
   await sendWhatsAppMessage(svc, {
@@ -143,4 +209,5 @@ export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInp
     },
     senderType: 'system',
   });
+  return true;
 }

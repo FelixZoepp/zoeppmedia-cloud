@@ -17,32 +17,78 @@ function closeHeaders(apiKey: string): HeadersInit {
 
 interface CloseLead {
   id: string;
-  contacts?: Array<{ emails?: Array<{ email: string }> }>;
+  contacts?: Array<{ emails?: Array<{ email: string }>; phones?: Array<{ phone: string }> }>;
+}
+
+function digits(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  // 0049… / 49… / 0… auf die nationale Nummer ohne führende 0 reduzieren (für den Vergleich)
+  return d.replace(/^00/, '').replace(/^49/, '').replace(/^0/, '');
+}
+
+async function searchLeads(apiKey: string, query: string): Promise<CloseLead[]> {
+  const params = new URLSearchParams({ query, _fields: 'id,contacts', _limit: '10' });
+  const res = await fetch(`${CLOSE_BASE}/lead/?${params}`, { headers: closeHeaders(apiKey) });
+  if (!res.ok) throw new Error(`Close-Suche fehlgeschlagen (${res.status})`);
+  return ((await res.json()) as { data: CloseLead[] }).data;
 }
 
 /** Lead-ID zur E-Mail finden (Volltextsuche, danach exakter Abgleich der Kontakt-E-Mails). */
 export async function findCloseLeadIdByEmail(email: string): Promise<string | null> {
   const apiKey = process.env.CLOSE_API_KEY;
   if (!apiKey || !email) return null;
-
-  const params = new URLSearchParams({ query: `"${email}"`, _fields: 'id,contacts', _limit: '5' });
-  const res = await fetch(`${CLOSE_BASE}/lead/?${params}`, { headers: closeHeaders(apiKey) });
-  if (!res.ok) throw new Error(`Close-Suche fehlgeschlagen (${res.status})`);
-
-  const { data } = (await res.json()) as { data: CloseLead[] };
   const needle = email.toLowerCase();
-  const match = data.find((lead) =>
-    lead.contacts?.some((c) => c.emails?.some((e) => e.email.toLowerCase() === needle)),
+  const leads = await searchLeads(apiKey, `"${email}"`);
+  return (
+    leads.find((l) => l.contacts?.some((c) => c.emails?.some((e) => e.email.toLowerCase() === needle)))?.id ?? null
   );
-  return match?.id ?? null;
+}
+
+/** Lead-ID zur Telefonnummer finden (Volltextsuche, danach Abgleich der Ziffern). */
+export async function findCloseLeadIdByPhone(phone: string): Promise<string | null> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey || !phone) return null;
+  const needle = digits(phone);
+  if (needle.length < 6) return null;
+  const leads = await searchLeads(apiKey, `"${phone}"`);
+  return leads.find((l) => l.contacts?.some((c) => c.phones?.some((p) => digits(p.phone) === needle)))?.id ?? null;
+}
+
+/** Lead über E-Mail, sonst Telefon finden. */
+export async function findCloseLeadId(contact: { email?: string | null; phone?: string | null }): Promise<string | null> {
+  if (contact.email) {
+    const byEmail = await findCloseLeadIdByEmail(contact.email);
+    if (byEmail) return byEmail;
+  }
+  return contact.phone ? findCloseLeadIdByPhone(contact.phone) : null;
+}
+
+/** Aufgabe am Close-Lead anlegen (fällig an `date`, YYYY-MM-DD). Gibt die Lead-ID zurück oder null. */
+export async function addCloseTask(
+  contact: { email?: string | null; phone?: string | null },
+  text: string,
+  date: string,
+): Promise<string | null> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return null;
+  const leadId = await findCloseLeadId(contact);
+  if (!leadId) return null;
+
+  const res = await fetch(`${CLOSE_BASE}/task/`, {
+    method: 'POST',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({ _type: 'lead', lead_id: leadId, text, date }),
+  });
+  if (!res.ok) throw new Error(`Close-Aufgabe fehlgeschlagen (${res.status})`);
+  return leadId;
 }
 
 /** Notiz am Close-Lead des Prospects anlegen. Gibt true zurück, wenn eine Notiz geschrieben wurde. */
-export async function addCloseNoteByEmail(email: string | null, note: string): Promise<boolean> {
+export async function addCloseNoteByEmail(email: string | null, note: string, phone?: string | null): Promise<boolean> {
   const apiKey = process.env.CLOSE_API_KEY;
-  if (!apiKey || !email) return false;
+  if (!apiKey || (!email && !phone)) return false;
 
-  const leadId = await findCloseLeadIdByEmail(email);
+  const leadId = await findCloseLeadId({ email, phone });
   if (!leadId) return false;
 
   const res = await fetch(`${CLOSE_BASE}/activity/note/`, {

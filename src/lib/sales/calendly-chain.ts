@@ -14,7 +14,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createNotificationForInternals } from '@/lib/notifications/create';
+import { notifySales } from './notify';
 
 export type SalesChain = 'setting' | 'beratung';
 
@@ -71,6 +71,20 @@ export function extractInviteePhone(
   return answer?.answer || null;
 }
 
+/** Firmenname aus den Calendly-Antworten (Frage enthält "Unternehmen" oder "Firma"). */
+export function extractCompany(invitee: { questions_and_answers?: { question: string; answer: string }[] }): string | null {
+  const qa = invitee.questions_and_answers?.find((x) => /unternehmen|firma/i.test(x.question));
+  return qa?.answer?.trim() || null;
+}
+
+/** "Fr. 05.10., 18:00 Uhr" in Berliner Zeit */
+export function formatTermin(iso: string): string {
+  const d = new Date(iso);
+  const tag = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
+  const zeit = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+  return `${tag}, ${zeit} Uhr`;
+}
+
 /** Bestätigungszeitpunkt: start−24h, Fallback start−3h, sonst null (skip). */
 export function computeConfirmationTime(start: Date, now: Date): Date | null {
   const dayBefore = new Date(start.getTime() - 24 * 60 * 60 * 1000);
@@ -98,6 +112,8 @@ export interface SalesCalendlyEvent {
   inviteeName: string;
   inviteeEmail: string | null;
   phone: string | null;
+  /** Antwort auf die Calendly-Frage "Unternehmensname" (falls vorhanden) */
+  company?: string | null;
 }
 
 export interface SalesBookingResult {
@@ -176,6 +192,16 @@ async function scheduleSalesJobs(svc: SupabaseClient, input: SalesCalendlyEvent,
     jobs.push({ type: 'sales.reminder', run_at: reminderAt, dedupe: `sales.reminder:${input.calendlyEventId}` });
   }
 
+  // Nicht bestätigt? 2h vor dem Termin prüfen → "Lead anrufen" (nur wenn eine Bestätigung angefragt wird)
+  const unconfirmedAt = new Date(start.getTime() - 2 * 60 * 60 * 1000);
+  if (confirmAt && unconfirmedAt.getTime() > confirmAt.getTime()) {
+    jobs.push({
+      type: 'sales.unconfirmed_check',
+      run_at: unconfirmedAt,
+      dedupe: `sales.unconfirmed_check:${input.calendlyEventId}`,
+    });
+  }
+
   jobs.push({
     type: 'sales.noshow_check',
     run_at: new Date(end.getTime() + 30 * 60 * 1000),
@@ -236,12 +262,12 @@ export async function handleSalesBooking(
   if (error) throw new Error(`Sales-Buchung konnte nicht gespeichert werden: ${error.message}`);
 
   if (!prospectId) {
-    await createNotificationForInternals(svc, {
-      agency_id: SALES_AGENCY_ID,
-      title: `Sales: Buchung ohne WhatsApp-Nummer`,
-      body: `${input.inviteeName} hat ${input.eventTypeName ?? 'einen Termin'} gebucht, aber keine Handynummer angegeben — keine WhatsApp-Erinnerungen.`,
+    await notifySales(svc, {
+      emoji: '⚠️',
+      title: `Buchung ohne Handynummer: ${input.inviteeName}`,
+      body: `${input.eventTypeName ?? 'Termin'} am ${formatTermin(input.startTime)}${input.company ? ` · ${input.company}` : ''} — keine WhatsApp-Erinnerungen möglich.${input.inviteeEmail ? ` E-Mail: ${input.inviteeEmail}` : ''}`,
       type: 'system',
-    }).catch(() => {});
+    });
     return { prospectId: null, jobsScheduled: false };
   }
 
@@ -255,17 +281,47 @@ export async function handleSalesBooking(
   if (!salesRemindersEnabled()) return { prospectId, jobsScheduled: false };
 
   await scheduleSalesJobs(svc, input, now);
+
+  const { data: conv } = await svc
+    .from('conversations')
+    .select('id')
+    .eq('wa_account_id', SALES_WA_ACCOUNT_ID)
+    .eq('candidate_id', prospectId)
+    .maybeSingle();
+  await notifySales(svc, {
+    emoji: '📅',
+    title: `Neue Buchung: ${input.inviteeName}`,
+    body: `${input.chain === 'beratung' ? 'Beratungsgespräch' : 'Analysegespräch'} am ${formatTermin(input.startTime)}${input.company ? ` · ${input.company}` : ''}`,
+    type: 'new_candidate',
+    phone: phoneE164,
+    conversationId: (conv as { id: string } | null)?.id ?? null,
+  });
+
   return { prospectId, jobsScheduled: true };
 }
 
 /** Storno einer Sales-Buchung: Status setzen und alle offenen Jobs canceln. */
-export async function handleSalesCancellation(svc: SupabaseClient, calendlyEventId: string): Promise<void> {
+export async function handleSalesCancellation(
+  svc: SupabaseClient,
+  calendlyEventId: string,
+  info?: { inviteeName: string; startTime: string | null; rescheduled?: boolean },
+): Promise<void> {
   await svc
     .from('calendly_events')
     .update({ status: 'cancelled' })
     .eq('calendly_event_id', calendlyEventId)
     .eq('agency_id', SALES_AGENCY_ID);
   await cancelSalesJobs(svc, calendlyEventId);
+
+  // Verschiebung = Storno + neue Buchung → nur die neue Buchung melden
+  if (info && !info.rescheduled) {
+    await notifySales(svc, {
+      emoji: '❌',
+      title: `Storniert: ${info.inviteeName}`,
+      body: info.startTime ? `Termin am ${formatTermin(info.startTime)} wurde in Calendly abgesagt.` : 'Termin wurde in Calendly abgesagt.',
+      type: 'system',
+    });
+  }
 }
 
 /** Storno: alle noch offenen Jobs dieser Buchung canceln. */

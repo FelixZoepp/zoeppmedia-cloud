@@ -13,7 +13,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { isQuietHours, nextAllowedTime } from '@/lib/whatsapp/window';
-import { createNotificationForInternals } from '@/lib/notifications/create';
+import { notifySales } from '@/lib/sales/notify';
 import { logActivity } from '@/lib/activity/log';
 import type { SalesChain } from '@/lib/sales/calendly-chain';
 
@@ -169,13 +169,14 @@ async function sendSalesTemplate(
   }
   if (!tmpl) tmpl = await loadTemplate(svc, agencyId, ctx.conversation.wa_account_id, presetKey);
   if (!tmpl) {
-    await createNotificationForInternals(svc, {
-      agency_id: agencyId,
-      title: 'Sales-Template fehlt',
-      body: `Template ${presetKey} ist nicht approved — Nachricht an ${ctx.candidate.name} wurde nicht gesendet.`,
+    await notifySales(svc, {
+      emoji: '⚠️',
+      title: 'WhatsApp-Vorlage fehlt',
+      body: `${presetKey} ist bei Meta nicht freigegeben — Nachricht an ${ctx.candidate.name} wurde nicht gesendet.`,
       type: 'system',
-      push_url: '/settings',
-    }).catch(() => {});
+      phone: ctx.candidate.phone_e164,
+      conversationId: ctx.conversation.id,
+    });
     return false;
   }
 
@@ -338,12 +339,13 @@ export async function processSalesNoShowCheck(
   if (!ctx) return;
 
   const label = payload.chain === 'setting' ? 'Erstgespräch' : 'Beratungsgespräch';
-  await createNotificationForInternals(svc, {
-    agency_id: agencyId,
-    title: `Sales: ${label} nachfassen`,
-    body: `${ctx.candidate.name}: ${label} ist vorbei — hat es stattgefunden? Bei No-Show zuerst anrufen, dann in Close auf "Setting - No Show" setzen: die WhatsApp geht automatisch raus.`,
+  await notifySales(svc, {
+    emoji: '❓',
+    title: `${label} mit ${ctx.candidate.name} — hat es stattgefunden?`,
+    body: 'Bei No-Show zuerst anrufen, dann in Close auf "Setting - No Show" setzen: die WhatsApp geht automatisch raus.',
     type: 'noshow',
-    push_url: `/inbox?conversation=${ctx.conversation.id}`,
+    phone: ctx.candidate.phone_e164,
+    conversationId: ctx.conversation.id,
   });
 
   await logActivity(svc, {
@@ -352,5 +354,39 @@ export async function processSalesNoShowCheck(
     action: `Sales No-Show-Check (${label})`,
     action_type: 'other',
     metadata: { kind: 'sales_noshow_check', calendly_event_id: ctx.event.id, chain: payload.chain },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// sales.unconfirmed_check — 2h vorher: nicht bestätigt → "Lead anrufen" (Slack + Push)
+// ---------------------------------------------------------------------------
+
+export async function processSalesUnconfirmedCheck(
+  svc: SupabaseClient,
+  agencyId: string,
+  payload: SalesJobPayload,
+): Promise<void> {
+  const ctx = await loadContext(svc, agencyId, payload.calendly_event_id);
+  if (!ctx) return;
+
+  const { data: confirmed } = await svc
+    .from('activity_log')
+    .select('id')
+    .eq('candidate_id', ctx.candidate.id)
+    .eq('metadata->>kind', 'sales_confirmed')
+    .eq('metadata->>calendly_event_id', payload.calendly_event_id)
+    .limit(1)
+    .maybeSingle();
+  if (confirmed) return;
+
+  const label = payload.chain === 'setting' ? 'Erstgespräch' : 'Beratungsgespräch';
+  const { uhrzeit } = formatVars(ctx.candidate.name, ctx.event.start_time);
+  await notifySales(svc, {
+    emoji: '📞',
+    title: `Lead anrufen: ${ctx.candidate.name}`,
+    body: `${label} heute um ${uhrzeit} Uhr ist nicht per WhatsApp bestätigt — kurz anrufen und Termin sichern.`,
+    type: 'task_due',
+    phone: ctx.candidate.phone_e164,
+    conversationId: ctx.conversation.id,
   });
 }

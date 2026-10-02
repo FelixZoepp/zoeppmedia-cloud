@@ -66,7 +66,7 @@ describe('handleSalesBooking', () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.unstubAllEnvs());
 
-  it('legt Prospect an, speichert die Buchung VOR den Jobs und plant 4 Jobs', async () => {
+  it('legt Prospect an, speichert die Buchung VOR den Jobs und plant 5 Jobs', async () => {
     vi.stubEnv('SALES_REMINDERS_ENABLED', 'true');
     const { svc, calls } = makeSvc({ pipeline_stages: { id: 'stage-1' }, 'candidates.insert': { id: 'prospect-1' } });
 
@@ -86,7 +86,11 @@ describe('handleSalesBooking', () => {
     expect(calls.indexOf(convUpsert!)).toBeLessThan(firstJob);
 
     const jobTypes = calls.filter((c) => c.table === 'scheduled_jobs').map((c) => (c.args[0] as { type: string }).type);
-    expect(jobTypes).toEqual(['sales.booking', 'sales.confirmation', 'sales.reminder', 'sales.noshow_check']);
+    expect(jobTypes).toEqual([
+      'sales.booking', 'sales.confirmation', 'sales.reminder', 'sales.unconfirmed_check', 'sales.noshow_check',
+    ]);
+    const unconfirmed = calls.find((c) => c.table === 'scheduled_jobs' && (c.args[0] as { type: string }).type === 'sales.unconfirmed_check');
+    expect((unconfirmed?.args[0] as { run_at: string }).run_at).toBe('2026-10-05T14:00:00.000Z'); // 2h vorher
   });
 
   it('ohne Nummer: Buchung speichern, Team benachrichtigen, keine Jobs', async () => {
@@ -100,7 +104,7 @@ describe('handleSalesBooking', () => {
     expect(calls.some((c) => c.table === 'scheduled_jobs')).toBe(false);
     expect(createNotificationForInternals).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ title: 'Sales: Buchung ohne WhatsApp-Nummer' }),
+      expect.objectContaining({ title: 'Sales: Buchung ohne Handynummer: Riccardo Marini' }),
     );
   });
 

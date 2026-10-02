@@ -105,7 +105,7 @@ describe('handleSalesReply', () => {
       }),
     );
     expect(createNotificationForInternals).toHaveBeenCalledOnce();
-    expect(addCloseNoteByEmail).toHaveBeenCalledWith('miro@example.com', expect.stringContaining('bestätigt'));
+    expect(addCloseNoteByEmail).toHaveBeenCalledWith('miro@example.com', expect.stringContaining('bestätigt'), '+491511234567');
     expect(sendWhatsAppMessage).toHaveBeenCalledOnce();
     const send = (sendWhatsAppMessage as ReturnType<typeof vi.fn>).mock.calls[0][1];
     expect(send.payload.type).toBe('text');

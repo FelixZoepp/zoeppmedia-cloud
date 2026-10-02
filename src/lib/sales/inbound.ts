@@ -10,7 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isStopMessage } from '@/lib/whatsapp/window';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
-import { createNotificationForInternals } from '@/lib/notifications/create';
+import { notifySales } from './notify';
 import { handleSalesReply } from './replies';
 import { SALES_AGENCY_ID } from './calendly-chain';
 
@@ -81,12 +81,13 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
 
   if (!prospect) {
     // Unbekannte Nummer schreibt die Sales-Nummer an → Felix Bescheid geben, nichts speichern
-    await createNotificationForInternals(svc, {
-      agency_id: agencyId,
-      title: `Sales: WhatsApp von unbekannter Nummer ${senderPhone}`,
-      body: `${profileName ? `${profileName}: ` : ''}${text.slice(0, 100)}`,
+    await notifySales(svc, {
+      emoji: '❔',
+      title: `WhatsApp von unbekannter Nummer`,
+      body: `${profileName ? `${profileName}: ` : ''}${text.slice(0, 300)}`,
       type: 'whatsapp_inbound',
-    }).catch(() => {});
+      phone: senderPhone,
+    });
     return;
   }
 
@@ -158,10 +159,18 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
 
     // Offene Sales-Jobs laufen leer: sales-reminders prüft whatsapp_opt_in vor jedem Versand
     await svc.from('candidates').update({ whatsapp_opt_in: false }).eq('id', prospect.id).eq('agency_id', agencyId);
+    await notifySales(svc, {
+      emoji: '🚫',
+      title: `${prospect.name} hat sich abgemeldet (STOP)`,
+      body: 'Bekommt keine WhatsApp-Nachrichten mehr.',
+      type: 'opt_out',
+      phone: senderPhone,
+      conversationId,
+    });
     return;
   }
 
-  await handleSalesReply(svc, {
+  const kind = await handleSalesReply(svc, {
     agencyId,
     candidateId: prospect.id,
     candidateName: prospect.name,
@@ -169,15 +178,19 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     conversationId,
     waAccountId: waAccount.id,
     text,
-  }).catch((err) => console.error('[sales] Antwort-Verarbeitung fehlgeschlagen:', err));
+  }).catch((err) => {
+    console.error('[sales] Antwort-Verarbeitung fehlgeschlagen:', err);
+    return null;
+  });
 
-  await createNotificationForInternals(svc, {
-    agency_id: agencyId,
-    title: `Sales: Neue WhatsApp-Nachricht von ${prospect.name}`,
-    body: text.slice(0, 100),
+  // Bestätigung/Rückruf melden sich selbst — sonst als normale Antwort ans Team
+  if (kind) return;
+  await notifySales(svc, {
+    emoji: '💬',
+    title: `Neue WhatsApp von ${prospect.name}`,
+    body: text.slice(0, 500),
     type: 'whatsapp_inbound',
-    entity_type: 'candidate',
-    entity_id: prospect.id,
-    push_url: `/api/admin/sales-inbox?conversation=${conversationId}`,
-  }).catch(() => {});
+    phone: senderPhone,
+    conversationId,
+  });
 }

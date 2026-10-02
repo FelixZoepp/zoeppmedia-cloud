@@ -77,3 +77,37 @@ describe('processSalesReminder — Utility-Neufassung (_v2)', () => {
     expect(sentTemplate()).toEqual({ name: 'setting_reminder_15min', params: ['Felix'] });
   });
 });
+
+describe('processSalesUnconfirmedCheck', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  function svcWith(confirmed: boolean) {
+    const base = makeSvc({}) as unknown as { from: ReturnType<typeof vi.fn> };
+    const origFrom = base.from.getMockImplementation() as (table: string) => unknown;
+    base.from.mockImplementation((table: string) => {
+      if (table !== 'activity_log') return origFrom(table);
+      const chain: Record<string, unknown> = {};
+      for (const m of ['select', 'eq', 'limit']) chain[m] = vi.fn(() => chain);
+      chain.maybeSingle = vi.fn().mockResolvedValue({ data: confirmed ? { id: 'log' } : null, error: null });
+      return chain;
+    });
+    return base as never;
+  }
+
+  it('nicht bestätigt → "Lead anrufen" an das Team', async () => {
+    const { createNotificationForInternals } = await import('@/lib/notifications/create');
+    const { processSalesUnconfirmedCheck } = await import('../sales-reminders');
+    await processSalesUnconfirmedCheck(svcWith(false), 'sales', { calendly_event_id: 'evt-1', chain: 'setting' });
+    expect(createNotificationForInternals).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ title: 'Sales: Lead anrufen: Felix Testkunde', type: 'task_due' }),
+    );
+  });
+
+  it('bestätigt → kein Hinweis', async () => {
+    const { createNotificationForInternals } = await import('@/lib/notifications/create');
+    const { processSalesUnconfirmedCheck } = await import('../sales-reminders');
+    await processSalesUnconfirmedCheck(svcWith(true), 'sales', { calendly_event_id: 'evt-1', chain: 'setting' });
+    expect(createNotificationForInternals).not.toHaveBeenCalled();
+  });
+});

@@ -82,7 +82,7 @@ describe('handleCloseSettingNoShow', () => {
     expect(sendWhatsAppMessage).not.toHaveBeenCalled();
     expect(createNotificationForInternals).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ title: 'Sales: No-Show ohne WhatsApp-Kontakt' }),
+      expect.objectContaining({ title: 'Sales: No-Show ohne WhatsApp-Kontakt: X' }),
     );
   });
 

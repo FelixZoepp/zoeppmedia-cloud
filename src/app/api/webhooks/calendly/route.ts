@@ -7,6 +7,7 @@ import {
   handleSalesBooking,
   handleSalesCancellation,
   extractInviteePhone,
+  extractCompany,
 } from '@/lib/sales/calendly-chain';
 
 /**
@@ -63,6 +64,8 @@ interface CalendlyInvitee {
   timezone?: string;
   created_at?: string;
   canceled?: boolean;
+  /** true, wenn die Absage Teil einer Verschiebung ist */
+  rescheduled?: boolean;
   text_reminder_number?: string | null;
   questions_and_answers?: { question: string; answer: string; position: number }[];
 }
@@ -191,7 +194,11 @@ export async function POST(request: NextRequest) {
   if (salesChain && calendlyEventId) {
     try {
       if (event === 'invitee.canceled') {
-        await handleSalesCancellation(supabase, calendlyEventId);
+        await handleSalesCancellation(supabase, calendlyEventId, {
+          inviteeName: invitee.name || 'Unbekannt',
+          startTime: scheduledEvent.start_time ?? null,
+          rescheduled: invitee.rescheduled === true,
+        });
         return NextResponse.json({ ok: true, action: 'cancelled', sales: true });
       }
       if (event === 'invitee.created' && scheduledEvent.start_time) {
@@ -206,6 +213,7 @@ export async function POST(request: NextRequest) {
           inviteeName: invitee.name || 'Unbekannt',
           inviteeEmail: invitee.email || null,
           phone,
+          company: extractCompany(invitee),
         });
         return NextResponse.json({ ok: true, action: 'created', sales: true, ...result });
       }

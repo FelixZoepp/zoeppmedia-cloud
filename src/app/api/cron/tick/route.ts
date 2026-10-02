@@ -37,6 +37,7 @@ import {
   processSalesConfirmation,
   processSalesReminder,
   processSalesNoShowCheck,
+  processSalesUnconfirmedCheck,
   type SalesJobPayload,
 } from '@/lib/workers/sales-reminders';
 import { processSalesInbound, type SalesInboundPayload } from '@/lib/sales/inbound';
@@ -227,6 +228,9 @@ export async function GET(request: NextRequest) {
           break;
         case 'sales.noshow_check':
           await processSalesNoShowCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
+          break;
+        case 'sales.unconfirmed_check':
+          await processSalesUnconfirmedCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
           break;
         default:
           break;

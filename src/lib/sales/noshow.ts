@@ -6,7 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
-import { createNotificationForInternals } from '@/lib/notifications/create';
+import { notifySales } from './notify';
 import { logActivity } from '@/lib/activity/log';
 import { SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID, normalizeToE164 } from './calendly-chain';
 import { getCloseLeadContacts, addCloseNoteByEmail } from './close';
@@ -63,12 +63,12 @@ export async function handleCloseSettingNoShow(
   const leadLabel = contacts.contactName ?? contacts.leadName ?? input.leadId;
 
   if (!prospect?.phone_e164) {
-    await createNotificationForInternals(svc, {
-      agency_id: SALES_AGENCY_ID,
-      title: 'Sales: No-Show ohne WhatsApp-Kontakt',
-      body: `${leadLabel} steht in Close auf "Setting - No Show", ist aber keinem WhatsApp-Kontakt zugeordnet (Telefon/E-Mail in Close prüfen). Keine Nachricht gesendet.`,
+    await notifySales(svc, {
+      emoji: '⚠️',
+      title: `No-Show ohne WhatsApp-Kontakt: ${leadLabel}`,
+      body: 'Steht in Close auf "Setting - No Show", ist aber keinem WhatsApp-Kontakt zugeordnet (Telefon/E-Mail in Close prüfen). Keine Nachricht gesendet.',
       type: 'noshow',
-    }).catch(() => {});
+    });
     return 'prospect_not_found';
   }
   if (!prospect.whatsapp_opt_in) return 'opted_out';
@@ -93,12 +93,13 @@ export async function handleCloseSettingNoShow(
     .eq('status', 'approved')
     .maybeSingle();
   if (!tmpl) {
-    await createNotificationForInternals(svc, {
-      agency_id: SALES_AGENCY_ID,
-      title: 'Sales-Template fehlt',
-      body: `noshow_1_anruf ist nicht approved — No-Show-Nachricht an ${prospect.name} wurde nicht gesendet.`,
+    await notifySales(svc, {
+      emoji: '⚠️',
+      title: 'WhatsApp-Vorlage fehlt',
+      body: `noshow_1_anruf ist nicht freigegeben — No-Show-Nachricht an ${prospect.name} wurde nicht gesendet.`,
       type: 'system',
-    }).catch(() => {});
+      phone: prospect.phone_e164,
+    });
     return 'template_missing';
   }
   const template = tmpl as { id: string; name: string };
@@ -151,6 +152,15 @@ export async function handleCloseSettingNoShow(
     (p as { email: string | null } | null)?.email ?? contacts.emails[0] ?? null,
     'WhatsApp: No-Show-Nachricht (noshow_1_anruf) automatisch gesendet.',
   ).catch(() => {});
+
+  await notifySales(svc, {
+    emoji: '👻',
+    title: `No-Show: ${prospect.name}`,
+    body: 'In Close auf "Setting - No Show" gesetzt — WhatsApp noshow_1_anruf ist raus.',
+    type: 'noshow',
+    phone: prospect.phone_e164,
+    conversationId,
+  });
 
   return 'sent';
 }
