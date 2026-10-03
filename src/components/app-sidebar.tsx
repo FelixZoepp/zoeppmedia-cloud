@@ -43,6 +43,7 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Cockpit',
     items: [
+      { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'heute', label: 'Heute', icon: <CalendarCheck className="w-5 h-5" />, href: '/heute' },
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
@@ -100,6 +101,7 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Meine Arbeit',
     items: [
+      { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
       { id: 'dialer', label: 'Dialer', icon: <PhoneCall className="w-5 h-5" />, href: '/dialer' },
       { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },
@@ -142,6 +144,7 @@ const agencyGroups: SidebarGroup[] = [
   {
     label: 'Zusammenarbeit',
     items: [
+      { id: 'deine-aufgaben', label: 'Deine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/deine-aufgaben' },
       { id: 'status', label: 'Projektstatus', icon: <ListChecks className="w-5 h-5" />, href: '/status' },
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/masterclass' },
     ],

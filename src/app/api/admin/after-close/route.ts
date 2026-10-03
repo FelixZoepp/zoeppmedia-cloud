@@ -5,6 +5,7 @@ import { isAdmin } from '@/lib/admin';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { createProjectFromClose } from '@/lib/fulfillment/create-project';
+import { startPhase, setStepStatus } from '@/lib/fulfillment/engine';
 
 interface AfterCloseBody {
   // Kunde
@@ -122,6 +123,16 @@ export async function POST(request: Request) {
       agencyId,
       produkt
     );
+
+    // --- 4a. Fulfillment v2: Kunde startet in der Phase "Zahlung", Vertrag ist unterschrieben ---
+    try {
+      await startPhase(admin, agencyId, 'zahlung');
+      const { data: vertrag } = await admin
+        .from('client_steps').select('id').eq('agency_id', agencyId).eq('step_key', 'z_vertrag').maybeSingle();
+      if (vertrag) await setStepStatus(admin, (vertrag as { id: string }).id, 'erledigt', { kommentar: 'Abschluss erfasst' });
+    } catch (err) {
+      console.error('[after-close] Fulfillment-Start fehlgeschlagen:', err);
+    }
 
     // --- 4b. Create billing plan from paket ---
     let billingPlanId: string | null = null;

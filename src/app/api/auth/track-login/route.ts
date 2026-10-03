@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
+import { signalSafe } from '@/lib/fulfillment/engine';
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
     .from('users')
     .update({ last_login: new Date().toISOString() })
     .eq('id', user.id);
+
+  // Fulfillment v2: Kunde hat sich in der Cloud eingeloggt
+  await signalSafe(admin, agency_id, 'kunde_eingeloggt');
 
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fireEvent } from '@/lib/automations/fire';
+import { signalSafe } from '@/lib/fulfillment/engine';
 import {
   SALES_EVENT_TYPES,
   handleSalesBooking,
@@ -135,6 +136,9 @@ async function completeAppointmentTask(
     .maybeSingle();
 
   if (!clientUser?.agency_id) return;
+
+  // Fulfillment v2: Kick-off/Onboarding-Termin gebucht
+  await signalSafe(supabase, clientUser.agency_id, 'kickoff_gebucht');
 
   await supabase
     .from('project_tasks')

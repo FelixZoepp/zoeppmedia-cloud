@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getProvider } from '@/lib/whatsapp/provider';
 import { encryptSecret } from '@/lib/crypto';
 import { seedTemplatesForAccount } from '@/lib/whatsapp/template-presets';
+import { signalSafe } from '@/lib/fulfillment/engine';
 import { z } from 'zod';
 
 const CallbackSchema = z.object({
@@ -90,6 +91,8 @@ export async function POST(request: NextRequest) {
 
     // 5. Vorlagen seeden + submitten
     await seedTemplatesForAccount(svc, waAccount.id, agencyId);
+    // Fulfillment v2: WhatsApp-Nummer verbunden
+    await signalSafe(svc, agencyId, 'whatsapp_verbunden');
 
     // 6. Audit-Log
     await svc.from('audit_log').insert({

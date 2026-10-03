@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendWelcomeEmail } from '@/lib/email/resend';
+import { reassignOpenStepsToFunktion } from '@/lib/fulfillment/engine';
 
 export async function POST(request: NextRequest) {
   const { token, name, email, password, position, phone } = await request.json();
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
     email,
     name,
     role: 'employee',
+    funktion: invite.funktion ?? null,
     position: position?.trim() || null,
     phone: phone?.trim() || null,
   });
@@ -67,6 +69,13 @@ export async function POST(request: NextRequest) {
     name,
     position: position?.trim() || null,
   });
+
+  // Fulfillment v2: offene Schritte der eigenen Funktion übernehmen (z.B. Nils = Ads/Funnel)
+  if (invite.funktion) {
+    await reassignOpenStepsToFunktion(supabase, authData.user.id, invite.funktion).catch((err) =>
+      console.error('[register-employee] Schritte übernehmen fehlgeschlagen:', err),
+    );
+  }
 
   // Mark invite as redeemed
   await supabase

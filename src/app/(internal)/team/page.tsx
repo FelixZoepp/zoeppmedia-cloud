@@ -20,7 +20,7 @@ export default function TeamPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMemberWithAssignments | null>(null);
   const [form, setForm] = useState({ name: '', position: '', agency_ids: [] as string[] });
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '', position: '' });
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', position: '', funktion: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
@@ -66,7 +66,7 @@ export default function TeamPage() {
   }
 
   function openInviteModal() {
-    setInviteForm({ name: '', email: '', position: '' });
+    setInviteForm({ name: '', email: '', position: '', funktion: '' });
     setInviteError(null);
     setLastInviteUrl(null);
     setShowInviteModal(true);
@@ -372,6 +372,18 @@ export default function TeamPage() {
                 onChange={(e) => setInviteForm((f) => ({ ...f, position: e.target.value }))}
                 placeholder="Position (optional)"
               />
+              <select
+                value={inviteForm.funktion}
+                onChange={(e) => setInviteForm((f) => ({ ...f, funktion: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700"
+              >
+                <option value="">Zuständig für … (optional)</option>
+                <option value="media_buyer">Ads, Videos, Funnel & Tracking</option>
+                <option value="backoffice">Buchhaltung & Mahnwesen</option>
+                <option value="csm">Kundenbetreuung & Calls</option>
+                <option value="content">Content & Skripte</option>
+                <option value="ops">Operations</option>
+              </select>
 
               {inviteError && (
                 <p className="text-sm text-red-600">{inviteError}</p>

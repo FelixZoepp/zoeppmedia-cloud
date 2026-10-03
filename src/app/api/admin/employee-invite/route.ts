@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const { name, email, position } = await request.json();
+  const { name, email, position, funktion } = await request.json();
+  const FUNKTIONEN = ['ops', 'content', 'media_buyer', 'csm', 'backoffice'];
 
   if (!name || !email) {
     return NextResponse.json({ error: 'Name und E-Mail sind erforderlich.' }, { status: 400 });
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const { data: invite, error } = await admin
     .from('employee_invites')
-    .insert({ name, email, position: position || null })
+    .insert({ name, email, position: position || null, funktion: FUNKTIONEN.includes(funktion) ? funktion : null })
     .select()
     .single();
 

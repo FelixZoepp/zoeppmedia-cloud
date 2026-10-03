@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import { processTranscript } from '@/lib/transcripts/process';
+import { signalSafe } from '@/lib/fulfillment/engine';
 
 export async function GET(req: Request) {
   const supabase = await createServerClient();
@@ -70,6 +71,9 @@ export async function POST(req: Request) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Fulfillment v2: Transkript hochgeladen
+    await signalSafe(createAdminClient(), agency_id, 'transkript_hochgeladen');
 
     // If we have text, start processing async
     if (volltext) {
@@ -174,6 +178,9 @@ export async function POST(req: Request) {
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
+
+    // Fulfillment v2: Transkript hochgeladen
+    await signalSafe(createAdminClient(), agencyId, 'transkript_hochgeladen');
 
     // Start async processing
     processTranscript(admin, transcript.id).catch((err) => {

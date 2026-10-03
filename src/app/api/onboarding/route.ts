@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
 import { generateContent, type OnboardingContext } from '@/lib/ai/claude';
+import { signalSafe } from '@/lib/fulfillment/engine';
 
 // Auto-generate all content types after onboarding completes
 async function autoGenerateContent(agencyId: string, onboarding: Record<string, unknown>) {
@@ -145,6 +146,9 @@ export async function POST(req: Request) {
       reels_per_month: body.reels_per_month || 0,
     })
     .eq('id', profile.agency_id);
+
+  // Fulfillment v2: Inhaltsfunnel ausgefüllt
+  await signalSafe(admin, profile.agency_id, 'onboarding_formular');
 
   // Auto-create fulfillment tasks
   // Telefon-Skripte + VG-Leitfaden sind Masterclass-Content, nicht individuell generiert
