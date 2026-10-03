@@ -129,10 +129,11 @@ export async function loadBoard(svc: SupabaseClient, agencyIds: string[] | null,
 
 export async function loadAgencySteps(svc: SupabaseClient, agencyId: string, now: Date = new Date()) {
   const phase = await ensureFulfillment(svc, agencyId, now);
-  const [{ data: agency }, { data: rows }, owners] = await Promise.all([
+  const [{ data: agency }, { data: rows }, owners, { data: verzoegerungen }] = await Promise.all([
     svc.from('agencies').select('id, name, contact_name, fulfillment_phase, fulfillment_phase_seit, launch_datum, pausiert_grund').eq('id', agencyId).maybeSingle(),
     svc.from('client_steps').select('*').eq('agency_id', agencyId),
     ownerNames(svc),
+    svc.from('start_verzoegerungen').select('id, tage, wer, grund, created_at').eq('agency_id', agencyId).order('created_at'),
   ]);
   const steps = ((rows ?? []) as ClientStepRow[])
     .map((r) => toStepView(r, owners, now))
@@ -141,6 +142,7 @@ export async function loadAgencySteps(svc: SupabaseClient, agencyId: string, now
     agency,
     phase,
     team: [...owners.entries()].map(([id, name]) => ({ id, name })),
+    verzoegerungen: verzoegerungen ?? [],
     phases: PHASES.map((p) => ({ ...p, schritte: steps.filter((s) => s.phase === p.key) })),
   };
 }

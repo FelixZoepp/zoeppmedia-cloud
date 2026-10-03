@@ -13,7 +13,9 @@ interface Analyse {
   kunden: Array<{
     agency_id: string; name: string; phase: string; tage_kunde: number; tage_zoepp: number; tage_ueber_frist: number;
     bremse: 'kunde' | 'zoepp' | null; langsamste: Array<{ titel: string; wer: 'kunde' | 'zoepp'; tage_ueber_frist: number }>;
+    erfasst: Array<{ tage: number; wer: 'kunde' | 'zoepp'; grund: string }>;
   }>;
+  gruende: Array<{ grund: string; wer: 'kunde' | 'zoepp'; tage: number; anzahl: number }>;
   schritte: Array<{ step_key: string; titel: string; wer: 'kunde' | 'zoepp'; anzahl: number; davon_verspaetet: number; schnitt_ueber_frist: number }>;
 }
 
@@ -99,6 +101,20 @@ export default function StartAnalysePage() {
             ))}
             {!a.schritte.length && <p className="py-6 text-sm text-gray-500 text-center">Noch keine verspäteten Schritte.</p>}
           </div>
+          {a.gruende.length > 0 && (
+            <>
+              <div className="px-4 py-2.5 bg-gray-50 text-sm font-bold border-t border-gray-100">Erfasste Gründe</div>
+              <div className="px-4 divide-y divide-gray-100">
+                {a.gruende.map((g) => (
+                  <div key={`${g.wer}-${g.grund}`} className="py-2.5 flex items-center gap-3">
+                    <p className="text-sm text-gray-900 flex-1">{g.grund}</p>
+                    <span className="text-xs text-gray-500">{g.anzahl}× · {g.tage} Tage</span>
+                    <WerBadge wer={g.wer} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </Card>
 
         <Card padding="none" className="overflow-hidden">
@@ -118,6 +134,11 @@ export default function StartAnalysePage() {
                   {k.tage_ueber_frist > 0 && <span className="text-xs font-semibold text-red-600">+{k.tage_ueber_frist} T.</span>}
                 </div>
                 <Balken kunde={k.tage_kunde} zoepp={k.tage_zoepp} />
+                {k.erfasst.length > 0 && (
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Erfasst: {k.erfasst.map((e) => `${e.grund} (${e.tage} T., ${e.wer === 'kunde' ? 'Kunde' : 'wir'})`).join(' · ')}
+                  </p>
+                )}
                 {k.langsamste.length > 0 && (
                   <p className="text-[11px] text-gray-500 mt-1">
                     Bremst: {k.langsamste.map((l) => `${l.titel} (+${l.tage_ueber_frist} T., ${l.wer === 'kunde' ? 'Kunde' : 'wir'})`).join(' · ')}

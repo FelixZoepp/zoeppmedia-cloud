@@ -15,6 +15,53 @@ interface AgencyAblauf {
   phase: Phase;
   team: Array<{ id: string; name: string }>;
   phases: Array<{ key: Phase; label: string; farbe: string; beschreibung: string; schritte: StepView[] }>;
+  verzoegerungen: Array<{ id: string; tage: number; wer: 'kunde' | 'zoepp'; grund: string; created_at: string }>;
+}
+
+function Verzoegerungen({
+  liste,
+  onAdd,
+  onDelete,
+}: {
+  liste: AgencyAblauf['verzoegerungen'];
+  onAdd: (v: { tage: number; wer: string; grund: string }) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const [f, setF] = useState({ tage: '', wer: 'kunde', grund: '' });
+  return (
+    <Card padding="none" className="p-4 mb-4">
+      <p className="text-sm font-bold text-gray-900 mb-1">Verzögerungen</p>
+      <p className="text-xs text-gray-500 mb-3">Für die Start-Analyse: Wie viele Tage hat sich der Start verzögert – und lag es an uns oder am Kunden?</p>
+      {liste.map((v) => (
+        <div key={v.id} className="flex items-center gap-2 text-sm py-1">
+          <span className={`text-[11px] px-1.5 py-0.5 rounded ${v.wer === 'kunde' ? 'bg-amber-50 text-amber-800' : 'bg-sky-50 text-sky-800'}`}>
+            {v.wer === 'kunde' ? 'Kunde' : 'wir'}
+          </span>
+          <span className="font-semibold">{Number(v.tage)} Tage</span>
+          <span className="text-gray-600 flex-1">{v.grund}</span>
+          <button onClick={() => onDelete(v.id)} className="text-xs text-gray-400 hover:text-red-600">entfernen</button>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-2 mt-2">
+        <input className="h-9 w-20 rounded-lg border border-gray-300 px-2.5 text-sm" placeholder="Tage" value={f.tage} onChange={(e) => setF({ ...f, tage: e.target.value })} />
+        <select className="h-9 rounded-lg border border-gray-300 bg-white px-2.5 text-sm" value={f.wer} onChange={(e) => setF({ ...f, wer: e.target.value })}>
+          <option value="kunde">beim Kunden</option>
+          <option value="zoepp">bei uns</option>
+        </select>
+        <input className="h-9 flex-1 min-w-[200px] rounded-lg border border-gray-300 px-2.5 text-sm" placeholder="Grund, z.B. Zahlungsmethode fehlte" value={f.grund} onChange={(e) => setF({ ...f, grund: e.target.value })} />
+        <button
+          disabled={!Number(f.tage.replace(',', '.')) || !f.grund.trim()}
+          onClick={async () => {
+            await onAdd({ tage: Number(f.tage.replace(',', '.')), wer: f.wer, grund: f.grund });
+            setF({ tage: '', wer: 'kunde', grund: '' });
+          }}
+          className="h-9 px-3 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50"
+        >
+          Erfassen
+        </button>
+      </div>
+    </Card>
+  );
 }
 
 export default function AblaufPage({ params }: { params: Promise<{ id: string }> }) {
@@ -86,12 +133,12 @@ export default function AblaufPage({ params }: { params: Promise<{ id: string }>
           <div className="flex gap-2">
             <button
               onClick={() => {
-                const grund = window.prompt('Warum ist der Kunde pausiert? (leer = Pause aufheben)', data.agency?.pausiert_grund ?? '');
+                const grund = window.prompt('Worauf wartet ihr / was blockiert? (leer = Blocker aufheben)', data.agency?.pausiert_grund ?? '');
                 if (grund !== null) void patchAgency({ pausiert_grund: grund });
               }}
               className="h-9 px-3 rounded-lg border border-gray-300 bg-white text-sm inline-flex items-center gap-1.5 hover:bg-gray-50"
             >
-              <PauseCircle className="w-4 h-4" /> {data.agency.pausiert_grund ? 'Pause bearbeiten' : 'Pausieren'}
+              <PauseCircle className="w-4 h-4" /> {data.agency.pausiert_grund ? 'Blocker bearbeiten' : 'Blocker setzen'}
             </button>
             {data.phase !== 'offboarding' && data.phase !== 'beendet' && (
               <button
@@ -109,9 +156,24 @@ export default function AblaufPage({ params }: { params: Promise<{ id: string }>
 
       {data.agency.pausiert_grund && (
         <Card padding="none" className="p-4 mb-4 bg-gray-50 text-sm text-gray-700 flex items-center gap-2">
-          <PauseCircle className="w-4 h-4" /> Pausiert: {data.agency.pausiert_grund}
+          <PauseCircle className="w-4 h-4" /> Blockiert: {data.agency.pausiert_grund}
         </Card>
       )}
+
+      <Verzoegerungen
+        liste={data.verzoegerungen ?? []}
+        onAdd={async (v) => {
+          const res = await fetch(`/api/fulfillment/agencies/${id}/verzoegerungen`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v),
+          });
+          if (!res.ok) toast.error('Konnte nicht gespeichert werden');
+          await load();
+        }}
+        onDelete={async (eintrag) => {
+          await fetch(`/api/fulfillment/agencies/${id}/verzoegerungen?eintrag=${eintrag}`, { method: 'DELETE' });
+          await load();
+        }}
+      />
 
       <div className="space-y-4">
         {data.phases.map((p, i) => {
