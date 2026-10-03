@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle2, Copy, FileDown, Clock, MessageSquare, ChevronDown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { AssetPreview } from '@/components/ads/asset-preview';
 import { PageHeader } from '@/components/ui/page-header';
 import { META_PARTNER_ID, META_CHECKLISTE_PDF, phaseLabel, type Phase } from '@/lib/fulfillment/catalog';
 import type { StepView } from '@/lib/fulfillment/views';
@@ -108,19 +109,13 @@ function FreigabeCard({ ad, onDecide }: { ad: FreigabeAd; onDecide: (aktion: 'fr
       setBusy(false);
     }
   };
-  const video = !!ad.vorschau_url && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(ad.vorschau_url);
   return (
     <Card padding="none" className="p-4">
       <p className="font-semibold text-gray-900">{ad.titel}</p>
       {ad.idee && <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{ad.idee}</p>}
       {ad.vorschau_url && (
         <div className="mt-3">
-          {video ? (
-            <video src={ad.vorschau_url} controls className="w-full max-h-[480px] rounded-lg bg-black" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={ad.vorschau_url} alt={ad.titel} className="w-full max-h-[480px] object-contain rounded-lg bg-gray-50" />
-          )}
+          <AssetPreview url={ad.vorschau_url} titel={ad.titel} />
         </div>
       )}
       {aendern ? (

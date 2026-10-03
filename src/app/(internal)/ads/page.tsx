@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Upload, Link2, MessageSquare, Clock, Image as ImageIcon, Film, ExternalLink, Trash2 } from 'lucide-react';
+import { Plus, Upload, Link2, MessageSquare, Clock, Image as ImageIcon, Film, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import { createClient } from '@/lib/supabase/client';
+import { AssetPreview, isLinkErlaubt } from '@/components/ads/asset-preview';
 import { AD_STAGES, AD_TYPEN, AD_ASSET_BUCKET, type AdItem, type AdStage } from '@/lib/ads/constants';
 
 type AdRow = AdItem & { agency_name: string; assignee_name: string | null; vorschau_url: string | null };
@@ -19,24 +20,6 @@ interface BoardData {
 const inputCls = 'w-full h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm';
 /** Supabase-Free-Plan: max. 50 MB pro Datei. Größere Rohvideos als Link. */
 const MAX_UPLOAD_MB = 50;
-
-function isVideo(url: string | null): boolean {
-  return !!url && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
-}
-
-function Preview({ url, small = false }: { url: string | null; small?: boolean }) {
-  if (!url) return null;
-  if (isVideo(url)) return <video src={url} controls={!small} muted className={`w-full rounded-lg bg-black ${small ? 'h-28 object-cover' : 'max-h-96'}`} />;
-  if (/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url) || url.includes('/storage/')) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} alt="" className={`w-full rounded-lg object-cover ${small ? 'h-28' : 'max-h-96 object-contain bg-gray-50'}`} />;
-  }
-  return (
-    <a href={url} target="_blank" rel="noreferrer" className="text-xs text-red-600 inline-flex items-center gap-1">
-      <ExternalLink className="w-3 h-3" /> Datei öffnen
-    </a>
-  );
-}
 
 function AdDetail({
   ad,
@@ -51,6 +34,7 @@ function AdDetail({
 }) {
   const [form, setForm] = useState({ titel: ad.titel, idee: ad.idee ?? '', typ: ad.typ, assignee_id: ad.assignee_id ?? '', faellig_am: ad.faellig_am ?? '' });
   const [link, setLink] = useState('');
+  const [assetLink, setAssetLink] = useState(ad.asset_url ?? '');
   const [uploading, setUploading] = useState(false);
 
   const upload = async (file: File) => {
@@ -113,16 +97,37 @@ function AdDetail({
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Fertige Ad</p>
-          <Preview url={ad.vorschau_url} />
-          <label className="mt-2 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer hover:bg-gray-50">
-            <Upload className="w-4 h-4" /> {uploading ? 'Lädt hoch …' : ad.vorschau_url ? 'Ersetzen' : `Datei hochladen (max. ${MAX_UPLOAD_MB} MB)`}
+          <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Fertige Ad (Google Drive / Dropbox)</p>
+          <AssetPreview url={ad.vorschau_url} titel={ad.titel} />
+          <div className="flex gap-2 mt-2">
+            <input
+              className={inputCls}
+              placeholder="https://drive.google.com/… oder https://www.dropbox.com/…"
+              value={assetLink}
+              onChange={(e) => setAssetLink(e.target.value)}
+            />
+            <button
+              disabled={!assetLink || assetLink === (ad.asset_url ?? '')}
+              onClick={async () => {
+                if (!isLinkErlaubt(assetLink) && !window.confirm('Das ist kein Drive- oder Dropbox-Link. Trotzdem speichern?')) return;
+                await onSave({ asset_url: assetLink, asset_path: null });
+              }}
+              className="h-10 px-3 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              Link speichern
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Freigabe in Drive/Dropbox auf „Jeder mit dem Link“ stellen, sonst sieht der Kunde keine Vorschau.
+          </p>
+          <label className="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer hover:text-red-600">
+            <Upload className="w-3 h-3" /> {uploading ? 'Lädt hoch …' : `oder Datei hochladen (max. ${MAX_UPLOAD_MB} MB)`}
             <input type="file" className="hidden" accept="image/*,video/*" disabled={uploading} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
           </label>
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Material / Links (Rohvideo, Drive, Canva …)</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Material (Rohvideos, Fotos – Drive/Dropbox-Links)</p>
           <div className="space-y-1">
             {ad.material_urls.map((u, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
@@ -290,7 +295,7 @@ export default function AdsPage() {
                     onDragStart={() => setDragging(a.id)}
                     onClick={() => setOpenId(a.id)}
                   >
-                    {a.vorschau_url && <Preview url={a.vorschau_url} small />}
+                    {a.vorschau_url && <AssetPreview url={a.vorschau_url} small titel={a.titel} />}
                     <p className="text-xs font-semibold text-red-600">{a.agency_name}</p>
                     <p className="text-sm font-medium text-gray-900 leading-snug">{a.titel}</p>
                     <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
