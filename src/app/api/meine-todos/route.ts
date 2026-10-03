@@ -39,8 +39,42 @@ export async function GET() {
     };
   }
 
+  // Weitere Aufgaben aus den bisherigen Systemen: Projekt-Aufgaben (Transkripte/manuell) + interne Tasks.
+  // Eigene plus – für Admins – alle ohne Zuständigen.
+  const istAdmin = user.role === 'admin';
+  const [{ data: projekt }, { data: intern }] = await Promise.all([
+    svc.from('project_tasks').select('id, agency_id, titel, status, faellig_am, owner_user_id')
+      .in('status', ['offen', 'in_arbeit', 'blockiert', 'zur_freigabe']),
+    svc.from('internal_tasks').select('id, agency_id, title, status, due_date, assigned_to')
+      .in('status', ['backlog', 'todo', 'in_progress', 'review']),
+  ]);
+  const meins = (owner: string | null) => owner === user.id || (istAdmin && !owner);
+  const weitereAgencyIds = [
+    ...((projekt ?? []) as Array<{ agency_id: string | null }>).map((t) => t.agency_id),
+    ...((intern ?? []) as Array<{ agency_id: string | null }>).map((t) => t.agency_id),
+  ].filter((x): x is string => !!x && !names.has(x));
+  if (weitereAgencyIds.length) {
+    const { data: more } = await svc.from('agencies').select('id, name').in('id', [...new Set(weitereAgencyIds)]);
+    for (const a of (more ?? []) as Array<{ id: string; name: string }>) names.set(a.id, a.name);
+  }
+  const weitere = [
+    ...((projekt ?? []) as Array<{ id: string; agency_id: string | null; titel: string; status: string; faellig_am: string | null; owner_user_id: string | null }>)
+      .filter((t) => meins(t.owner_user_id))
+      .map((t) => ({
+        quelle: 'projekt' as const, id: t.id, titel: t.titel, status: t.status, faellig_am: t.faellig_am,
+        agency_name: t.agency_id ? names.get(t.agency_id) ?? null : null, link: `/aufgaben/${t.id}`, zugewiesen: !!t.owner_user_id,
+      })),
+    ...((intern ?? []) as Array<{ id: string; agency_id: string | null; title: string; status: string; due_date: string | null; assigned_to: string | null }>)
+      .filter((t) => meins(t.assigned_to))
+      .map((t) => ({
+        quelle: 'intern' as const, id: t.id, titel: t.title, status: t.status, faellig_am: t.due_date,
+        agency_name: t.agency_id ? names.get(t.agency_id) ?? null : null, link: '/tasks', zugewiesen: !!t.assigned_to,
+      })),
+  ].sort((a, b) => String(a.faellig_am ?? '9999').localeCompare(String(b.faellig_am ?? '9999')));
+
   return NextResponse.json({
     buchhaltung,
+    weitere,
     schritte,
     ads: ((ads ?? []) as Array<{ agency_id: string }>).map((a) => ({ ...a, agency_name: names.get(a.agency_id) ?? '–' })),
   });

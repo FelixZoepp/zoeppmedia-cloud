@@ -29,6 +29,17 @@ interface MeineAd {
   kunden_kommentar: string | null;
 }
 
+interface WeitereAufgabe {
+  quelle: 'projekt' | 'intern';
+  id: string;
+  titel: string;
+  status: string;
+  faellig_am: string | null;
+  agency_name: string | null;
+  link: string;
+  zugewiesen: boolean;
+}
+
 const AD_STAGE_LABEL: Record<string, string> = {
   idee: 'Idee',
   material: 'Material',
@@ -39,6 +50,7 @@ const AD_STAGE_LABEL: Record<string, string> = {
 export default function MeineTodosPage() {
   const [steps, setSteps] = useState<StepView[] | null>(null);
   const [ads, setAds] = useState<MeineAd[]>([]);
+  const [weitere, setWeitere] = useState<WeitereAufgabe[]>([]);
   const [buchhaltung, setBuchhaltung] = useState<{ rechnungen: number; mahnanrufe: number } | null>(null);
 
   const load = () =>
@@ -48,6 +60,7 @@ export default function MeineTodosPage() {
         setSteps(d.schritte ?? []);
         setAds(d.ads ?? []);
         setBuchhaltung(d.buchhaltung ?? null);
+        setWeitere(d.weitere ?? []);
       });
 
   useEffect(() => {
@@ -59,6 +72,7 @@ export default function MeineTodosPage() {
         setSteps(d.schritte ?? []);
         setAds(d.ads ?? []);
         setBuchhaltung(d.buchhaltung ?? null);
+        setWeitere(d.weitere ?? []);
       });
     return () => {
       cancelled = true;
@@ -85,8 +99,14 @@ export default function MeineTodosPage() {
 
   return (
     <div>
-      <PageHeader label="MEINE ARBEIT" title="Meine Aufgaben" counter={`${steps.length + ads.length} offen`} />
-      {!steps.length && !ads.length && (
+      <PageHeader label="MEINE ARBEIT" title="Meine Aufgaben" counter={`${steps.length + ads.length + weitere.length} offen`}
+        action={
+          <Link href="/tasks" className="h-9 px-3 rounded-lg border border-gray-300 bg-white text-sm font-semibold inline-flex items-center hover:bg-gray-50">
+            + Interne Aufgabe
+          </Link>
+        }
+      />
+      {!steps.length && !ads.length && !weitere.length && (
         <Card padding="lg" className="text-center">
           <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />
           <p className="text-gray-700 font-medium">Alles erledigt. Nichts liegt gerade bei dir.</p>
@@ -127,6 +147,45 @@ export default function MeineTodosPage() {
             </Card>
           );
         })}
+
+        {weitere.length > 0 && (
+          <Card padding="none" className="overflow-hidden">
+            <div className="px-4 py-2.5 text-sm font-bold bg-gray-50 text-gray-800">
+              Weitere Aufgaben <span className="font-normal opacity-70">({weitere.length})</span>
+            </div>
+            <div className="px-4 divide-y divide-gray-100">
+              {weitere.map((t) => (
+                <div key={`${t.quelle}-${t.id}`} className="flex items-center gap-3 py-2.5">
+                  <button
+                    title="Erledigt"
+                    onClick={async () => {
+                      const res = await fetch(t.quelle === 'projekt' ? `/api/project-tasks/${t.id}` : `/api/tasks/${t.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: t.quelle === 'projekt' ? 'erledigt' : 'done' }),
+                      });
+                      if (!res.ok) {
+                        toast.error((await res.json().catch(() => ({}))).error ?? 'Bitte in der Aufgabe abschließen');
+                        return;
+                      }
+                      await load();
+                    }}
+                    className="w-5 h-5 rounded border-2 border-gray-300 hover:border-red-500 flex-shrink-0"
+                  />
+                  <Link href={t.link} className="flex-1 min-w-0 hover:text-red-600">
+                    <p className="text-sm">
+                      {t.agency_name && <span className="text-xs font-semibold text-red-600 mr-2">{t.agency_name}</span>}
+                      <span className="text-gray-900">{t.titel}</span>
+                    </p>
+                  </Link>
+                  {!t.zugewiesen && <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">ohne Zuständigen</span>}
+                  {t.status === 'blockiert' && <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">blockiert</span>}
+                  {t.faellig_am && <span className="text-xs text-gray-500">{new Date(`${t.faellig_am.slice(0, 10)}T00:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {ads.length > 0 && (
           <Card padding="none" className="overflow-hidden">

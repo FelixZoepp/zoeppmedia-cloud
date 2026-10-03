@@ -13,10 +13,7 @@ import {
   GraduationCap,
   BarChart3,
   Building2,
-  ListTodo,
-  ListChecks,
   Target,
-  BookOpen,
   FileText,
   UserCircle,
   LogOut,
@@ -24,7 +21,6 @@ import {
   Handshake,
   BarChart3 as ChartBar,
   CalendarDays,
-  CalendarCheck,
   Timer,
   Shield,
   CheckSquare,
@@ -44,7 +40,6 @@ const adminGroups: SidebarGroup[] = [
     label: 'Cockpit',
     items: [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
-      { id: 'heute', label: 'Heute', icon: <CalendarCheck className="w-5 h-5" />, href: '/heute' },
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'start-analyse', label: 'Start-Analyse', icon: <Timer className="w-5 h-5" />, href: '/start-analyse' },
@@ -55,8 +50,6 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
-      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
-      { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
   {
@@ -87,7 +80,6 @@ const adminGroups: SidebarGroup[] = [
     label: 'Verwaltung',
     items: [
       { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
-      { id: 'freigaben', label: 'Aufgaben-Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
       { id: 'after-close', label: 'After-Close', icon: <PlusCircle className="w-5 h-5" />, href: '/admin/after-close' },
       { id: 'admin-reports', label: 'Reports', icon: <FileBarChart className="w-5 h-5" />, href: '/admin/reports' },
       { id: 'health', label: 'Health', icon: <Activity className="w-5 h-5" />, href: '/admin/health' },
@@ -107,10 +99,8 @@ const employeeGroups: SidebarGroup[] = [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
       { id: 'rechnungen-mahnwesen', label: 'Buchhaltung', icon: <Receipt className="w-5 h-5" />, href: '/buchhaltung' },
-      { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
       { id: 'dialer', label: 'Dialer', icon: <PhoneCall className="w-5 h-5" />, href: '/dialer' },
       { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },
-      { id: 'meine-aufgaben', label: 'Meine Aufgaben (alt)', icon: <ListTodo className="w-5 h-5" />, href: '/meine-aufgaben' },
     ],
   },
   {
@@ -125,11 +115,8 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
-      { id: 'freigaben', label: 'Aufgaben-Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
-      { id: 'tasks', label: 'Interne Tasks', icon: <ListTodo className="w-5 h-5" />, href: '/tasks' },
       { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
-      { id: 'playbook', label: 'Playbook', icon: <BookOpen className="w-5 h-5" />, href: '/playbook' },
     ],
   },
 ];
@@ -150,7 +137,6 @@ const agencyGroups: SidebarGroup[] = [
     label: 'Zusammenarbeit',
     items: [
       { id: 'deine-aufgaben', label: 'Deine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/deine-aufgaben' },
-      { id: 'status', label: 'Projektstatus', icon: <ListChecks className="w-5 h-5" />, href: '/status' },
       { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/masterclass' },
     ],
   },
