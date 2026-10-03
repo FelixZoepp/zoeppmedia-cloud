@@ -232,6 +232,10 @@ export async function isSignalSatisfied(svc: SupabaseClient, agencyId: string, s
       const { data } = await svc.from('agencies').select('meta_ad_account_id').eq('id', agencyId).maybeSingle();
       return !!(data as { meta_ad_account_id?: string | null } | null)?.meta_ad_account_id;
     }
+    case 'ad_ideen_angelegt': {
+      const { data } = await svc.from('ad_items').select('id').eq('agency_id', agencyId).limit(1).maybeSingle();
+      return !!data;
+    }
     case 'kickoff_gebucht':
     case 'testimonial_gebucht':
       return false; // kommen nur live über den Calendly-Webhook

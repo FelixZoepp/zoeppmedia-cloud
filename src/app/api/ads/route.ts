@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AD_TYPEN, withPreviewUrls, type AdItem } from '@/lib/ads/ads';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+import { signalSafe } from '@/lib/fulfillment/engine';
 
 /** Ads-Board: alle Ads (ohne Verworfene/alte Live-Ads), plus Kunden und Team für Formulare. */
 export async function GET(req: NextRequest) {
@@ -57,5 +58,7 @@ export async function POST(req: NextRequest) {
     .select('id')
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Fulfillment v2: erste Ad-Idee angelegt → Setup-Schritt "Ad-Ideen angelegt" erledigt
+  await signalSafe(svc, body.agency_id, 'ad_ideen_angelegt');
   return NextResponse.json({ id: (data as { id: string }).id });
 }

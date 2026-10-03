@@ -181,3 +181,11 @@ describe('Testimonial und Systemnutzer', () => {
     expect(tables.client_steps.find((s) => s.step_key === 'o_systemnutzer')).toMatchObject({ status: 'erledigt', owner_user_id: 'nils' });
   });
 });
+
+describe('Ad-Ideen', () => {
+  it('erste Ad-Idee im Ads-Board → Setup-Schritt "Ad-Ideen angelegt" erledigt', async () => {
+    const { client, tables } = db({ ad_items: [{ id: 'ad-1', agency_id: AG }] });
+    await startPhase(client, AG, 'setup', now);
+    expect(tables.client_steps.find((s) => s.step_key === 's_ideen')).toMatchObject({ status: 'erledigt', owner_user_id: 'nils' });
+  });
+});

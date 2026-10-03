@@ -24,7 +24,8 @@ export type AutoSignal =
   | 'onboarding_formular'
   | 'whatsapp_verbunden'
   | 'werbekonto_verbunden'
-  | 'testimonial_gebucht';
+  | 'testimonial_gebucht'
+  | 'ad_ideen_angelegt';
 
 export interface StepDef {
   key: string;
@@ -135,7 +136,11 @@ export const STEPS: StepDef[] = [
   },
 
   // ── 3 · Setup ────────────────────────────────────────────────────────────
-  { key: 's_skripte', phase: 'setup', titel: 'Skripte geschrieben', beschreibung: 'Erstansprache, Follow-up, Absage (und Videodreh, falls geplant).', wer: 'zoepp', funktion: 'csm', frist_tage: 2 },
+  {
+    key: 's_ideen', phase: 'setup', titel: 'Ad-Ideen angelegt (Video-Skripte oder Grafik-Ideen)',
+    beschreibung: 'Im Ads-Board pro Idee eine Karte anlegen. Video-Skripte nur, wenn der Kunde Videos macht – sonst Grafik-Ideen.',
+    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 2, auto: 'ad_ideen_angelegt',
+  },
   { key: 's_grafiken', phase: 'setup', titel: 'Grafiken gebaut', beschreibung: '3–5 Bild-Ads.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 3 },
   { key: 's_funnel', phase: 'setup', titel: 'Funnel aufgebaut', beschreibung: 'Perspective-Template, Branding, Texte, Formular, Danke-Seite.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
   { key: 's_funnel_tracking', phase: 'setup', titel: 'Funnel-Domain & Pixel eingerichtet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
