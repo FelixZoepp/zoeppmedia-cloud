@@ -315,6 +315,14 @@ async function runDailyJobs() {
     overdueTasksCreated = await checkOverdueBillingRuns(supabase);
   } catch { /* silent */ }
 
+  // 14b. Mahnwesen (Zoepp System): offene Rechnungen aus Lexoffice abgleichen – nur wenn eingeschaltet
+  try {
+    const { mahnwesenAktiv, syncMahnfaelle } = await import('@/lib/billing/mahnwesen');
+    if (mahnwesenAktiv()) await syncMahnfaelle(supabase);
+  } catch (err) {
+    console.error('[cron/daily] Mahnwesen-Abgleich fehlgeschlagen:', err);
+  }
+
   // 15. Slack Daily Reports (Marketing + Sales)
   try {
     const { sendDailySlackReports } = await import('@/lib/slack/daily-reports');

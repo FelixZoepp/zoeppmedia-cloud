@@ -77,6 +77,7 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Buchhaltung',
     items: [
+      { id: 'rechnungen-mahnwesen', label: 'Rechnungen & Mahnwesen', icon: <Receipt className="w-5 h-5" />, href: '/buchhaltung' },
       { id: 'buchhaltung', label: 'Übersicht & Freigaben', icon: <Receipt className="w-5 h-5" />, href: '/admin/buchhaltung' },
       { id: 'finanzen-kunden', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/admin/finanzen/kunden' },
     ],
@@ -104,6 +105,7 @@ const employeeGroups: SidebarGroup[] = [
     items: [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
+      { id: 'rechnungen-mahnwesen', label: 'Buchhaltung', icon: <Receipt className="w-5 h-5" />, href: '/buchhaltung' },
       { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
       { id: 'dialer', label: 'Dialer', icon: <PhoneCall className="w-5 h-5" />, href: '/dialer' },
       { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },

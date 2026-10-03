@@ -39,6 +39,7 @@ const AD_STAGE_LABEL: Record<string, string> = {
 export default function MeineTodosPage() {
   const [steps, setSteps] = useState<StepView[] | null>(null);
   const [ads, setAds] = useState<MeineAd[]>([]);
+  const [buchhaltung, setBuchhaltung] = useState<{ rechnungen: number; mahnanrufe: number } | null>(null);
 
   const load = () =>
     fetch('/api/meine-todos')
@@ -46,6 +47,7 @@ export default function MeineTodosPage() {
       .then((d) => {
         setSteps(d.schritte ?? []);
         setAds(d.ads ?? []);
+        setBuchhaltung(d.buchhaltung ?? null);
       });
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function MeineTodosPage() {
         if (cancelled) return;
         setSteps(d.schritte ?? []);
         setAds(d.ads ?? []);
+        setBuchhaltung(d.buchhaltung ?? null);
       });
     return () => {
       cancelled = true;
@@ -90,6 +93,19 @@ export default function MeineTodosPage() {
         </Card>
       )}
       <div className="space-y-4">
+        {buchhaltung && (buchhaltung.rechnungen > 0 || buchhaltung.mahnanrufe > 0) && (
+          <Link href="/buchhaltung">
+            <Card padding="none" className="p-4 bg-yellow-50 border-yellow-200 hover:shadow-md">
+              <p className="text-sm font-bold text-yellow-900">Buchhaltung</p>
+              <p className="text-sm text-yellow-900 mt-0.5">
+                {buchhaltung.rechnungen > 0 && <>{buchhaltung.rechnungen} Rechnung{buchhaltung.rechnungen === 1 ? '' : 'en'} schreiben</>}
+                {buchhaltung.rechnungen > 0 && buchhaltung.mahnanrufe > 0 && ' · '}
+                {buchhaltung.mahnanrufe > 0 && <>{buchhaltung.mahnanrufe} Mahnanruf{buchhaltung.mahnanrufe === 1 ? '' : 'e'}</>}
+                {' →'}
+              </p>
+            </Card>
+          </Link>
+        )}
         {GRUPPEN.map((g) => {
           const list = steps.filter(g.filter);
           if (!list.length) return null;

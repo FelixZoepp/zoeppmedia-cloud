@@ -190,3 +190,16 @@ export async function sendOptInFallbackEmail(to: string, firstName: string, appl
     html: `<p>Hallo ${safeFirstName},</p><p>danke für deine Bewerbung! Damit wir dich schnell erreichen können, bestätige bitte kurz deine Telefonnummer und die Kontaktaufnahme über unser Formular:</p><p><a href="${safeApplyUrl}">${safeApplyUrl}</a></p><p>Viele Grüße<br/>Dein Recruiting-Team</p>`,
   });
 }
+
+/** Mahnwesen: Mail aus der Vorlage (Klartext), Antworten gehen an die Buchhaltung. */
+export async function sendMahnMail(to: string, betreff: string, text: string, replyTo = 'assistenz@zoeppmedia.de') {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return getResend().emails.send({
+    from: 'Zoepp Media <noreply@zoepp-gruppe.de>',
+    to,
+    replyTo,
+    subject: betreff,
+    text,
+    html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap">${escaped}</div>`,
+  });
+}
