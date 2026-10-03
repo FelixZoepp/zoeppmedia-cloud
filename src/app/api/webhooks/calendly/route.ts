@@ -123,9 +123,10 @@ async function completeAppointmentTask(
 
   const name = eventName.toLowerCase();
   let marker: string | null = null;
+  const isTestimonial = name.includes('testimonial');
   if (name.includes('onboarding')) marker = 'termin:onboarding_call';
   else if (name.includes('kickoff') || name.includes('kick-off') || name.includes('kick off')) marker = 'termin:kickoff_call';
-  if (!marker) return;
+  if (!marker && !isTestimonial) return;
 
   const { data: clientUser } = await supabase
     .from('users')
@@ -137,7 +138,11 @@ async function completeAppointmentTask(
 
   if (!clientUser?.agency_id) return;
 
-  // Fulfillment v2: Kick-off/Onboarding-Termin gebucht
+  // Fulfillment v2: Testimonial-Termin bzw. Kick-off/Onboarding-Termin gebucht
+  if (isTestimonial) {
+    await signalSafe(supabase, clientUser.agency_id, 'testimonial_gebucht');
+    return;
+  }
   await signalSafe(supabase, clientUser.agency_id, 'kickoff_gebucht');
 
   await supabase

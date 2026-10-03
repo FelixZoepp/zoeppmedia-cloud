@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isInternalUser } from '@/lib/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
+import { signalSafe } from '@/lib/fulfillment/engine';
 
 export async function GET(
   _request: NextRequest,
@@ -90,6 +91,8 @@ export async function PATCH(
     if (error) {
       return NextResponse.json({ error: 'Meta-Konto konnte nicht gespeichert werden' }, { status: 500 });
     }
+    // Fulfillment v2: Werbekonto verbunden → Schritt "Systemnutzer zugewiesen" erledigt
+    if (body.meta_ad_account_id.trim()) await signalSafe(admin, agencyId, 'werbekonto_verbunden');
   }
 
   if (body.perspective_funnel_id !== undefined) {

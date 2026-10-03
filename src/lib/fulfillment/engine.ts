@@ -228,8 +228,13 @@ export async function isSignalSatisfied(svc: SupabaseClient, agencyId: string, s
       const { data } = await svc.from('transcripts').select('id').eq('agency_id', agencyId).limit(1).maybeSingle();
       return !!data;
     }
+    case 'werbekonto_verbunden': {
+      const { data } = await svc.from('agencies').select('meta_ad_account_id').eq('id', agencyId).maybeSingle();
+      return !!(data as { meta_ad_account_id?: string | null } | null)?.meta_ad_account_id;
+    }
     case 'kickoff_gebucht':
-      return false; // kommt nur live über den Calendly-Webhook
+    case 'testimonial_gebucht':
+      return false; // kommen nur live über den Calendly-Webhook
   }
 }
 
@@ -274,4 +279,43 @@ export async function reassignOpenStepsToFunktion(svc: SupabaseClient, userId: s
     .not('status', 'in', '(erledigt,nicht_noetig)')
     .select('id');
   return ((data ?? []) as unknown[]).length;
+}
+
+/**
+ * Neue Schritte aus dem Katalog bei einem Kunden nachtragen (z.B. nach Katalog-Änderungen),
+ * ohne Phase oder Startdatum anzufassen. Frist ab Phasenstart (Continuity: ab Kampagnenstart).
+ */
+export async function ergaenzeFehlendeSchritte(svc: SupabaseClient, agencyId: string): Promise<number> {
+  const { data: a } = await svc
+    .from('agencies')
+    .select('fulfillment_phase, fulfillment_phase_seit, launch_datum')
+    .eq('id', agencyId)
+    .maybeSingle();
+  const agency = a as { fulfillment_phase: Phase | null; fulfillment_phase_seit: string | null; launch_datum: string | null } | null;
+  if (!agency?.fulfillment_phase) return 0;
+
+  const { data: vorhanden } = await svc.from('client_steps').select('step_key').eq('agency_id', agencyId);
+  const keys = new Set(((vorhanden ?? []) as Array<{ step_key: string }>).map((r) => r.step_key));
+  const fehlend = stepsForPhase(agency.fulfillment_phase).filter((d) => !keys.has(d.key));
+  if (!fehlend.length) return 0;
+
+  const base =
+    agency.fulfillment_phase === 'continuity' && agency.launch_datum
+      ? new Date(`${agency.launch_datum}T00:00:00Z`)
+      : new Date(agency.fulfillment_phase_seit ?? Date.now());
+  const rows = [];
+  for (const d of fehlend) {
+    rows.push({
+      agency_id: agencyId,
+      step_key: d.key,
+      phase: d.phase,
+      wer: d.wer,
+      status: 'offen',
+      owner_user_id: await resolveOwner(svc, d.funktion),
+      faellig_am: addDays(base, d.frist_tage),
+    });
+  }
+  await svc.from('client_steps').upsert(rows, { onConflict: 'agency_id,step_key', ignoreDuplicates: true });
+  await applySatisfiedSignals(svc, agencyId, fehlend);
+  return rows.length;
 }

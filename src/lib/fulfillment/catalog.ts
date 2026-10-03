@@ -22,7 +22,9 @@ export type AutoSignal =
   | 'transkript_hochgeladen'
   | 'kunde_eingeloggt'
   | 'onboarding_formular'
-  | 'whatsapp_verbunden';
+  | 'whatsapp_verbunden'
+  | 'werbekonto_verbunden'
+  | 'testimonial_gebucht';
 
 export interface StepDef {
   key: string;
@@ -126,6 +128,11 @@ export const STEPS: StepDef[] = [
   { key: 'o_indeed', phase: 'onboarding', titel: 'Indeed-Zugang gegeben', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true, optional: true },
   { key: 'o_whatsapp', phase: 'onboarding', titel: 'WhatsApp-Nummer verbunden', wer: 'kunde', funktion: 'csm', frist_tage: 3, auto: 'whatsapp_verbunden', optional: true },
   { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode funktionieren.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
+  {
+    key: 'o_systemnutzer', phase: 'onboarding', titel: 'Systemnutzer zugewiesen & Werbekonto-ID eingetragen',
+    beschreibung: 'Im Business Manager unseren Systemnutzer dem Werbekonto des Kunden zuweisen, dann beim Kunden unter Integrationen die Werbekonto-ID eintragen – ab dann zieht die Cloud täglich die Werbedaten.',
+    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, auto: 'werbekonto_verbunden',
+  },
 
   // ── 3 · Setup ────────────────────────────────────────────────────────────
   { key: 's_skripte', phase: 'setup', titel: 'Skripte geschrieben', beschreibung: 'Erstansprache, Follow-up, Absage (und Videodreh, falls geplant).', wer: 'zoepp', funktion: 'csm', frist_tage: 2 },
@@ -149,6 +156,12 @@ export const STEPS: StepDef[] = [
     key: `c_check_${tag}`, phase: 'continuity', titel: `Anzeigen + Tracking prüfen (Tag ${tag})`,
     wer: 'zoepp', funktion: 'media_buyer', frist_tage: tag,
   })),
+  {
+    key: 'c_testimonial_termin', phase: 'continuity', titel: 'Testimonial-Termin gebucht',
+    beschreibung: 'Bitte buch dir einen kurzen Termin für dein Testimonial – wir nehmen es gemeinsam auf.',
+    wer: 'kunde', funktion: 'csm', frist_tage: 30, auto: 'testimonial_gebucht',
+  },
+  { key: 'c_testimonial', phase: 'continuity', titel: 'Testimonial aufgenommen', wer: 'zoepp', funktion: 'csm', frist_tage: 45 },
   { key: 'c_check_90', phase: 'continuity', titel: 'Anzeigen + Tracking prüfen + Upsell (Tag 90)', beschreibung: 'Spätestens hier Upsell/Verlängerung ansprechen.', wer: 'zoepp', funktion: 'csm', frist_tage: 90 },
 
   // ── 5 · Offboarding (manuell gestartet) ──────────────────────────────────
