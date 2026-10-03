@@ -87,21 +87,94 @@ function AufgabeCard({ step, onDone }: { step: StepView; onDone: (kommentar?: st
   );
 }
 
+
+interface FreigabeAd {
+  id: string;
+  titel: string;
+  idee: string | null;
+  typ: string;
+  vorschau_url: string | null;
+}
+
+function FreigabeCard({ ad, onDecide }: { ad: FreigabeAd; onDecide: (aktion: 'freigeben' | 'aendern', kommentar?: string) => Promise<void> }) {
+  const [aendern, setAendern] = useState(false);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const run = async (aktion: 'freigeben' | 'aendern') => {
+    setBusy(true);
+    try {
+      await onDecide(aktion, text);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const video = !!ad.vorschau_url && /\.(mp4|mov|webm|m4v)(\?|$)/i.test(ad.vorschau_url);
+  return (
+    <Card padding="none" className="p-4">
+      <p className="font-semibold text-gray-900">{ad.titel}</p>
+      {ad.idee && <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-line">{ad.idee}</p>}
+      {ad.vorschau_url && (
+        <div className="mt-3">
+          {video ? (
+            <video src={ad.vorschau_url} controls className="w-full max-h-[480px] rounded-lg bg-black" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ad.vorschau_url} alt={ad.titel} className="w-full max-h-[480px] object-contain rounded-lg bg-gray-50" />
+          )}
+        </div>
+      )}
+      {aendern ? (
+        <div className="mt-3 space-y-2">
+          <textarea
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm min-h-[80px]"
+            placeholder="Was sollen wir ändern?"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button disabled={busy || !text.trim()} onClick={() => run('aendern')} className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50">
+              Änderung schicken
+            </button>
+            <button onClick={() => setAendern(false)} className="h-9 px-4 rounded-lg border border-gray-300 bg-white text-sm">Abbrechen</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button disabled={busy} onClick={() => run('freigeben')} className="h-9 px-4 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+            Freigeben
+          </button>
+          <button onClick={() => setAendern(true)} className="h-9 px-4 rounded-lg border border-gray-300 bg-white text-sm hover:bg-gray-50">
+            Änderung wünschen
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function DeineAufgabenPage() {
   const [data, setData] = useState<Aufgaben | null>(null);
+  const [freigaben, setFreigaben] = useState<FreigabeAd[]>([]);
 
   const load = () =>
-    fetch('/api/deine-aufgaben')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setData(d));
+    Promise.all([
+      fetch('/api/deine-aufgaben').then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/deine-freigaben').then((r) => (r.ok ? r.json() : { ads: [] })),
+    ]).then(([d, f]) => {
+      if (d) setData(d);
+      setFreigaben(f.ads ?? []);
+    });
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/deine-aufgaben')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d) setData(d);
-      });
+    Promise.all([
+      fetch('/api/deine-aufgaben').then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/deine-freigaben').then((r) => (r.ok ? r.json() : { ads: [] })),
+    ]).then(([d, f]) => {
+      if (cancelled) return;
+      if (d) setData(d);
+      setFreigaben(f.ads ?? []);
+    });
     return () => {
       cancelled = true;
     };
@@ -134,7 +207,34 @@ export default function DeineAufgabenPage() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader label={`PHASE: ${phaseLabel(data.phase).toUpperCase()}`} title="Deine Aufgaben" counter={`${data.offen.length} offen`} />
+      <PageHeader label={`PHASE: ${phaseLabel(data.phase).toUpperCase()}`} title="Deine Aufgaben" counter={`${data.offen.length + freigaben.length} offen`} />
+
+      {freigaben.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ads zur Freigabe ({freigaben.length})</p>
+          <div className="space-y-3">
+            {freigaben.map((ad) => (
+              <FreigabeCard
+                key={ad.id}
+                ad={ad}
+                onDecide={async (aktion, kommentar) => {
+                  const res = await fetch(`/api/deine-freigaben/${ad.id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ aktion, kommentar }),
+                  });
+                  if (!res.ok) {
+                    toast.error((await res.json()).error ?? 'Konnte nicht gespeichert werden');
+                    return;
+                  }
+                  toast.success(aktion === 'freigeben' ? 'Danke, freigegeben!' : 'Danke, wir passen das an.');
+                  await load();
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {hatMeta && (
         <Card padding="none" className="p-4 mb-4 border-red-200 bg-red-50/40">
@@ -159,7 +259,7 @@ export default function DeineAufgabenPage() {
         </Card>
       )}
 
-      {!data.offen.length && (
+      {!data.offen.length && !freigaben.length && (
         <Card padding="lg" className="text-center mb-4">
           <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />
           <p className="text-gray-700 font-medium">Gerade gibt es nichts zu tun. Wir melden uns, sobald wir etwas von dir brauchen.</p>

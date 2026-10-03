@@ -19,20 +19,43 @@ const GRUPPEN: Gruppe[] = [
   { key: 'demnaechst', label: 'Demnächst', filter: (s) => s.status !== 'zur_pruefung' && !s.ueberfaellig && s.faellig_am !== today() },
 ];
 
+interface MeineAd {
+  id: string;
+  agency_name: string;
+  titel: string;
+  typ: string;
+  stage: string;
+  faellig_am: string | null;
+  kunden_kommentar: string | null;
+}
+
+const AD_STAGE_LABEL: Record<string, string> = {
+  idee: 'Idee',
+  material: 'Material',
+  bearbeitung: 'Bearbeitung',
+  bereit: 'Freigegeben – live schalten',
+};
+
 export default function MeineTodosPage() {
   const [steps, setSteps] = useState<StepView[] | null>(null);
+  const [ads, setAds] = useState<MeineAd[]>([]);
 
   const load = () =>
     fetch('/api/meine-todos')
       .then((r) => (r.ok ? r.json() : { schritte: [] }))
-      .then((d) => setSteps(d.schritte ?? []));
+      .then((d) => {
+        setSteps(d.schritte ?? []);
+        setAds(d.ads ?? []);
+      });
 
   useEffect(() => {
     let cancelled = false;
     fetch('/api/meine-todos')
       .then((r) => (r.ok ? r.json() : { schritte: [] }))
       .then((d) => {
-        if (!cancelled) setSteps(d.schritte ?? []);
+        if (cancelled) return;
+        setSteps(d.schritte ?? []);
+        setAds(d.ads ?? []);
       });
     return () => {
       cancelled = true;
@@ -59,8 +82,8 @@ export default function MeineTodosPage() {
 
   return (
     <div>
-      <PageHeader label="MEINE ARBEIT" title="Meine Aufgaben" counter={`${steps.length} offen`} />
-      {!steps.length && (
+      <PageHeader label="MEINE ARBEIT" title="Meine Aufgaben" counter={`${steps.length + ads.length} offen`} />
+      {!steps.length && !ads.length && (
         <Card padding="lg" className="text-center">
           <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-3" />
           <p className="text-gray-700 font-medium">Alles erledigt. Nichts liegt gerade bei dir.</p>
@@ -88,6 +111,33 @@ export default function MeineTodosPage() {
             </Card>
           );
         })}
+
+        {ads.length > 0 && (
+          <Card padding="none" className="overflow-hidden">
+            <div className="px-4 py-2.5 text-sm font-bold bg-gray-50 text-gray-800">
+              Meine Ads <span className="font-normal opacity-70">({ads.length})</span>
+            </div>
+            <div className="px-4 divide-y divide-gray-100">
+              {ads.map((a) => (
+                <Link key={a.id} href="/ads" className="flex items-center gap-3 py-2.5 hover:bg-gray-50 -mx-4 px-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">
+                      <span className="text-xs font-semibold text-red-600 mr-2">{a.agency_name}</span>
+                      <span className="font-medium text-gray-900">{a.titel}</span>
+                    </p>
+                    {a.kunden_kommentar && a.stage === 'bearbeitung' && (
+                      <p className="text-xs text-amber-700 mt-0.5">Änderungswunsch: {a.kunden_kommentar}</p>
+                    )}
+                  </div>
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded ${a.stage === 'bereit' ? 'bg-green-50 text-green-700 font-semibold' : 'bg-gray-100 text-gray-600'}`}>
+                    {AD_STAGE_LABEL[a.stage] ?? a.stage}
+                  </span>
+                  {a.faellig_am && <span className="text-xs text-gray-500">{new Date(`${a.faellig_am}T00:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>}
+                </Link>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

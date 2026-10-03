@@ -84,6 +84,7 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Verwaltung',
     items: [
+      { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
       { id: 'freigaben', label: 'Aufgaben-Freigaben', icon: <CheckSquare className="w-5 h-5" />, href: '/admin/freigaben' },
       { id: 'after-close', label: 'After-Close', icon: <PlusCircle className="w-5 h-5" />, href: '/admin/after-close' },
       { id: 'admin-reports', label: 'Reports', icon: <FileBarChart className="w-5 h-5" />, href: '/admin/reports' },
@@ -102,6 +103,7 @@ const employeeGroups: SidebarGroup[] = [
     label: 'Meine Arbeit',
     items: [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
+      { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
       { id: 'aufgaben', label: 'Aufgaben', icon: <ClipboardList className="w-5 h-5" />, href: '/meine-aufgaben-portal' },
       { id: 'dialer', label: 'Dialer', icon: <PhoneCall className="w-5 h-5" />, href: '/dialer' },
       { id: 'ttfc', label: 'Speed-to-Lead', icon: <Timer className="w-5 h-5" />, href: '/admin/ttfc' },
