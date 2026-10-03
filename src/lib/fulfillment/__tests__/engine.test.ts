@@ -34,7 +34,7 @@ describe('Katalog', () => {
 
   it('Zahlung ist immer die erste Phase, Continuity hat die Checks bis Tag 90', () => {
     expect(stepsForPhase('zahlung').map((s) => s.key)).toContain('z_zahlung_setup');
-    expect(stepsForPhase('continuity').map((s) => s.frist_tage)).toEqual([7, 7, 14, 30, 45, 60, 75, 90]);
+    expect(stepsForPhase('continuity').map((s) => s.frist_tage)).toEqual([7, 14, 30, 45, 60, 75, 90]);
   });
 
   it('alte Pipeline-Phasen werden sinnvoll übernommen', () => {

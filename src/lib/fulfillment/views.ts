@@ -63,6 +63,11 @@ export interface BoardClient {
   /** Bei wem liegt der älteste offene Schritt? */
   wartet_auf: 'kunde' | 'zoepp' | null;
   naechster_schritt: { titel: string; wer: 'kunde' | 'zoepp'; owner_name: string | null; faellig_am: string | null } | null;
+  /** Aktueller Schritt im Phasen-Kanban: erster offener Schritt in Katalog-Reihenfolge */
+  aktueller_schritt: {
+    id: string; step_key: string; titel: string; wer: 'kunde' | 'zoepp'; status: string;
+    owner_name: string | null; faellig_am: string | null; ueberfaellig: boolean;
+  } | null;
 }
 
 export async function loadBoard(svc: SupabaseClient, agencyIds: string[] | null, now: Date = new Date()): Promise<BoardClient[]> {
@@ -111,6 +116,12 @@ export async function loadBoard(svc: SupabaseClient, agencyIds: string[] | null,
       wartet_auf: next ? (next.status === 'zur_pruefung' ? 'zoepp' : next.wer) : null,
       naechster_schritt: next
         ? { titel: next.titel, wer: next.wer, owner_name: next.owner_name, faellig_am: next.faellig_am }
+        : null,
+      aktueller_schritt: open[0]
+        ? {
+            id: open[0].id, step_key: open[0].step_key, titel: open[0].titel, wer: open[0].wer, status: open[0].status,
+            owner_name: open[0].owner_name, faellig_am: open[0].faellig_am, ueberfaellig: open[0].ueberfaellig,
+          }
         : null,
     };
   });

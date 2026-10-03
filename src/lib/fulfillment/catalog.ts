@@ -46,7 +46,7 @@ export const PHASES: Array<{ key: Phase; label: string; farbe: string; beschreib
   { key: 'zahlung', label: 'Zahlungsabwicklung', farbe: 'bg-yellow-400', beschreibung: 'Einrichtungsgebühr ist immer der erste Schritt' },
   { key: 'onboarding', label: 'Onboarding', farbe: 'bg-orange-500', beschreibung: 'Kick-off, Inhalte und Zugänge vom Kunden' },
   { key: 'setup', label: 'Setup-Phase', farbe: 'bg-stone-500', beschreibung: 'Skripte, Grafiken, Funnel, Werbemanager, Launch' },
-  { key: 'continuity', label: 'Continuity', farbe: 'bg-rose-600', beschreibung: 'Kampagne läuft: Checks Tag 7 bis 90' },
+  { key: 'continuity', label: 'Continuity', farbe: 'bg-rose-600', beschreibung: 'Kampagne läuft: Ads + Tracking prüfen, Tag 7 bis 90' },
   { key: 'offboarding', label: 'Offboarding', farbe: 'bg-teal-700', beschreibung: 'Sauber beenden, Testimonial sichern' },
 ];
 
@@ -145,7 +145,6 @@ export const STEPS: StepDef[] = [
   { key: 's_launch', phase: 'setup', titel: 'Kampagne live', beschreibung: 'Ads und Indeed-Anzeige gestartet, Kunde informiert.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 8 },
 
   // ── 4 · Continuity (Fristen ab Kampagnenstart) ───────────────────────────
-  { key: 'c_reel', phase: 'continuity', titel: 'Erstes Reel ist online', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 7 },
   ...[7, 14, 30, 45, 60, 75].map((tag): StepDef => ({
     key: `c_check_${tag}`, phase: 'continuity', titel: `Anzeigen + Tracking prüfen (Tag ${tag})`,
     wer: 'zoepp', funktion: 'media_buyer', frist_tage: tag,

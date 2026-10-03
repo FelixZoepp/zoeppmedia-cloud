@@ -93,9 +93,11 @@ export async function sendWhatsAppMessage(
   // Crypto-Fehler dürfen nie in error_code landen — kein catch bis zur Row-Anlage.
   const token = decryptSecret(waAccount.access_token_enc);
 
-  // 5. bodyText ableiten (M2: audio + interactive ergänzt)
+  // 5. bodyText ableiten (M2: audio + interactive ergänzt).
+  //    Vorlagen: vollständiger Text mit eingesetzten Variablen statt nur des Vorlagennamens (Inbox-Anzeige)
   const bodyText =
     opts.payload.text?.body
+    || (opts.payload.type === 'template' ? await outgoingText(svc, opts.payload, opts.templateId) : null)
     || opts.payload.template?.name
     || (opts.payload.type === 'image' ? '[Bild]'
       : opts.payload.type === 'document' ? '[Dokument]'

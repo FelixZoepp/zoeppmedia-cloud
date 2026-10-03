@@ -131,18 +131,20 @@ export default function ClientsIndexPage() {
       ) : view === 'pipeline' ? (
         <FulfillmentBoard
           clients={board}
-          onMove={(agencyId, phase) => {
-            const name = board.find((c) => c.id === agencyId)?.name ?? 'Kunde';
-            if (!window.confirm(`${name} in die Phase "${phaseLabel(phase)}" verschieben? Die Schritte dieser Phase werden angelegt.`)) return;
-            setBoard((prev) => prev.map((c) => (c.id === agencyId ? { ...c, phase, tage_in_phase: 0 } : c)));
-            fetch(`/api/fulfillment/agencies/${agencyId}`, {
+          onStep={async (stepId, status) => {
+            const res = await fetch(`/api/fulfillment/steps/${stepId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phase }),
-            })
-              .then((r) => (r.ok ? fetch('/api/fulfillment/board').then((x) => x.json()) : Promise.reject()))
-              .then((b) => Array.isArray(b) && setBoard(b))
-              .catch(() => toast.error('Phase konnte nicht gespeichert werden'));
+              body: JSON.stringify({ status }),
+            });
+            if (!res.ok) {
+              toast.error('Konnte nicht gespeichert werden');
+              return;
+            }
+            const { advancedTo } = (await res.json()) as { advancedTo: string | null };
+            if (advancedTo) toast.success(`Phase abgeschlossen – weiter mit "${phaseLabel(advancedTo as never)}"`);
+            const b = await fetch('/api/fulfillment/board').then((x) => x.json());
+            if (Array.isArray(b)) setBoard(b);
           }}
         />
       ) : (

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Clock, PauseCircle, User, Building2 } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { AlertTriangle, Building2, Check, ChevronDown, Clock, PauseCircle, User, Eye } from 'lucide-react';
 import { PHASES, stepsForPhase, type Phase } from '@/lib/fulfillment/catalog';
 import type { BoardClient } from '@/lib/fulfillment/views';
+
+const STORAGE_KEY = 'fulfillment-board-offen';
 
 function tage(n: number): string {
   if (n === 0) return 'seit heute';
@@ -13,144 +14,194 @@ function tage(n: number): string {
   return `seit ${n} Tagen`;
 }
 
-function ClientCard({ c, onDragStart }: { c: BoardClient; onDragStart: (id: string) => void }) {
-  const pct = c.schritte_gesamt ? Math.round((c.schritte_erledigt / c.schritte_gesamt) * 100) : 0;
+function frist(d: string | null): string | null {
+  return d ? new Date(`${d}T00:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : null;
+}
+
+/** Kundenkarte in der Spalte ihres aktuellen Schritts – mit Schnell-Aktion für genau diesen Schritt. */
+function ClientCard({ c, onStep }: { c: BoardClient; onStep: (stepId: string, status: string) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const s = c.aktueller_schritt;
+  const pruefen = s?.status === 'zur_pruefung';
+  const beimKunden = s?.wer === 'kunde' && !pruefen;
+
+  const act = async (status: string) => {
+    if (!s) return;
+    setBusy(true);
+    try {
+      await onStep(s.id, status);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Link
-      href={`/clients/${c.id}/ablauf`}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart(c.id);
-      }}
-    >
-      <Card padding="none" className="p-3.5 hover:shadow-md transition-shadow cursor-pointer group space-y-2.5">
-        <div className="flex items-start gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-            {c.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-red-600 leading-tight">{c.name}</p>
-            <p className="text-xs text-gray-400 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> {tage(c.tage_in_phase)}
-            </p>
-          </div>
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 space-y-2 hover:shadow-md transition-shadow">
+      <Link href={`/clients/${c.id}/ablauf`} className="block group">
+        <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-red-600 leading-tight">{c.name}</p>
+        <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+          <Clock className="w-3 h-3" /> Phase {tage(c.tage_in_phase)} · {c.schritte_erledigt}/{c.schritte_gesamt}
+        </p>
+      </Link>
+
+      {c.pausiert_grund && (
+        <p className="flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+          <PauseCircle className="w-3 h-3 flex-shrink-0" /> {c.pausiert_grund}
+        </p>
+      )}
+
+      {s && (
+        <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+          {pruefen ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">
+              <Eye className="w-3 h-3" /> prüfen
+            </span>
+          ) : beimKunden ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium">
+              <Building2 className="w-3 h-3" /> beim Kunden
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 font-medium">
+              <User className="w-3 h-3" /> {s.owner_name ?? 'Team'}
+            </span>
+          )}
+          {frist(s.faellig_am) && (
+            <span className={s.ueberfaellig ? 'text-red-600 font-semibold inline-flex items-center gap-0.5' : 'text-gray-500'}>
+              {s.ueberfaellig && <AlertTriangle className="w-3 h-3" />} bis {frist(s.faellig_am)}
+            </span>
+          )}
         </div>
+      )}
 
-        {c.pausiert_grund && (
-          <div className="flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md bg-gray-100 text-gray-700">
-            <PauseCircle className="w-3 h-3 flex-shrink-0" /> {c.pausiert_grund}
-          </div>
+      {s && (
+        <button
+          disabled={busy}
+          onClick={() => act('erledigt')}
+          className={`w-full h-7 rounded-md text-[11px] font-semibold inline-flex items-center justify-center gap-1 disabled:opacity-50 ${
+            pruefen ? 'bg-green-600 text-white hover:bg-green-700' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <Check className="w-3 h-3" /> {pruefen ? 'Passt – erledigt' : beimKunden ? 'Kunde hat erledigt' : 'Erledigt'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Ein Bereich (Phase) als aufklappbares Kanban: Spalten = Schritte, Karten = Kunden am jeweiligen Schritt. */
+function PhaseKanban({
+  phase,
+  clients,
+  offen,
+  onToggle,
+  onStep,
+}: {
+  phase: (typeof PHASES)[number];
+  clients: BoardClient[];
+  offen: boolean;
+  onToggle: () => void;
+  onStep: (stepId: string, status: string) => Promise<void>;
+}) {
+  const steps = stepsForPhase(phase.key);
+  const ueberfaellig = clients.filter((c) => c.aktueller_schritt?.ueberfaellig).length;
+  const ohneSchritt = clients.filter((c) => !c.aktueller_schritt);
+
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <button onClick={onToggle} className={`w-full ${phase.farbe} px-4 py-3 text-white flex items-center gap-3 text-left`}>
+        <ChevronDown className={`w-5 h-5 transition-transform ${offen ? '' : '-rotate-90'}`} />
+        <span className="font-bold">{phase.label}</span>
+        <span className="text-xs bg-white/25 rounded-full px-2 py-0.5 font-semibold">{clients.length} Kunden</span>
+        {ueberfaellig > 0 && (
+          <span className="text-xs bg-white text-red-600 rounded-full px-2 py-0.5 font-semibold inline-flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" /> {ueberfaellig} überfällig
+          </span>
         )}
+        <span className="ml-auto text-xs opacity-90 hidden sm:inline">{phase.beschreibung}</span>
+      </button>
 
-        {c.schritte_gesamt > 0 && (
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-500">Schritte</span>
-              <span className="font-medium text-gray-700">
-                {c.schritte_erledigt}/{c.schritte_gesamt}
-              </span>
+      {offen && (
+        <div className="flex gap-3 overflow-x-auto p-3 bg-gray-50">
+          {steps.map((step, i) => {
+            const col = clients
+              .filter((c) => c.aktueller_schritt?.step_key === step.key)
+              .sort((a, b) => Number(b.aktueller_schritt?.ueberfaellig) - Number(a.aktueller_schritt?.ueberfaellig) || b.tage_in_phase - a.tage_in_phase);
+            return (
+              <div key={step.key} className="flex-shrink-0 w-56">
+                <div className="flex items-start gap-1.5 mb-2 px-0.5 min-h-[34px]">
+                  <span className="text-[10px] font-bold text-gray-400 mt-0.5">{i + 1}</span>
+                  <span className="text-xs font-semibold text-gray-800 leading-tight flex-1">{step.titel}</span>
+                  {step.wer === 'kunde' && <Building2 className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" aria-label="Kunde" />}
+                  <span className="text-[11px] text-gray-400">{col.length || ''}</span>
+                </div>
+                <div className={`space-y-2 min-h-[64px] rounded-lg p-1.5 border border-dashed ${col.length ? 'border-gray-200' : 'border-gray-100'}`}>
+                  {col.map((c) => (
+                    <ClientCard key={c.id} c={c} onStep={onStep} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {ohneSchritt.length > 0 && (
+            <div className="flex-shrink-0 w-56">
+              <div className="text-xs font-semibold text-gray-500 mb-2 px-0.5 min-h-[34px]">Alle Schritte erledigt</div>
+              <div className="space-y-2">
+                {ohneSchritt.map((c) => (
+                  <ClientCard key={c.id} c={c} onStep={onStep} />
+                ))}
+              </div>
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-red-500 rounded-full" style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-        )}
-
-        {c.naechster_schritt && (
-          <div className="text-xs">
-            <p className="text-gray-700 leading-snug">→ {c.naechster_schritt.titel}</p>
-            <p className="mt-1 flex items-center gap-1.5">
-              {c.wartet_auf === 'kunde' ? (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium">
-                  <Building2 className="w-3 h-3" /> wartet auf Kunde
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 font-medium">
-                  <User className="w-3 h-3" /> {c.naechster_schritt.owner_name ?? 'Team'}
-                </span>
-              )}
-            </p>
-          </div>
-        )}
-
-        {c.ueberfaellig > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md bg-red-50 text-red-700">
-            <AlertTriangle className="w-3 h-3" /> {c.ueberfaellig} überfällig
-          </div>
-        )}
-      </Card>
-    </Link>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
 export function FulfillmentBoard({
   clients,
-  onMove,
+  onStep,
 }: {
   clients: BoardClient[];
-  onMove: (agencyId: string, phase: Phase) => void;
+  onStep: (stepId: string, status: string) => Promise<void>;
 }) {
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [over, setOver] = useState<Phase | null>(null);
+  // Aufgeklappte Bereiche merken; Standard: alle Bereiche mit Kunden offen
+  const [offen, setOffen] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    let saved: Record<string, boolean> | null = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
+    } catch {
+      saved = null;
+    }
+    const initial = saved ?? Object.fromEntries(PHASES.map((p) => [p.key, clients.some((c) => c.phase === p.key)]));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- einmalig aus localStorage
+    setOffen(initial);
+  }, [clients]);
+
+  const toggle = (key: Phase) => {
+    const next = { ...(offen ?? {}), [key]: !offen?.[key] };
+    setOffen(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* ignorieren */
+    }
+  };
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
-      {PHASES.map((p) => {
-        const col = clients
-          .filter((c) => c.phase === p.key)
-          .sort((a, b) => b.ueberfaellig - a.ueberfaellig || b.tage_in_phase - a.tage_in_phase);
-        return (
-          <div key={p.key} className="flex-shrink-0 w-72">
-            <div className={`rounded-xl ${p.farbe} px-3 py-2.5 mb-3 text-white`}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold">{p.label}</span>
-                <span className="text-xs font-semibold bg-white/25 rounded-full px-2 py-0.5">{col.length}</span>
-              </div>
-              <p className="text-[11px] opacity-90 mt-0.5 leading-snug">{p.beschreibung}</p>
-            </div>
-
-            <div
-              className={`space-y-2.5 min-h-[140px] rounded-xl p-2.5 border border-dashed transition-colors ${
-                over === p.key ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setOver(p.key);
-              }}
-              onDragLeave={() => setOver(null)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setOver(null);
-                if (dragging) onMove(dragging, p.key);
-                setDragging(null);
-              }}
-            >
-              {col.map((c) => (
-                <ClientCard key={c.id} c={c} onDragStart={setDragging} />
-              ))}
-              {!col.length && <div className="flex items-center justify-center h-16 text-xs text-gray-400">Keine Kunden</div>}
-            </div>
-
-            <details className="mt-3 px-1">
-              <summary className="text-xs font-medium text-gray-500 cursor-pointer select-none">
-                {stepsForPhase(p.key).length} Schritte in dieser Phase
-              </summary>
-              <ol className="mt-2 space-y-1">
-                {stepsForPhase(p.key).map((s) => (
-                  <li key={s.key} className="flex gap-2 text-xs text-gray-600">
-                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.wer === 'kunde' ? 'bg-amber-500' : p.farbe}`} />
-                    <span>
-                      {s.titel}
-                      {s.wer === 'kunde' && <span className="text-amber-600"> · Kunde</span>}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </details>
-          </div>
-        );
-      })}
+    <div className="space-y-4">
+      {PHASES.map((p) => (
+        <PhaseKanban
+          key={p.key}
+          phase={p}
+          clients={clients.filter((c) => c.phase === p.key)}
+          offen={!!offen?.[p.key]}
+          onToggle={() => toggle(p.key)}
+          onStep={onStep}
+        />
+      ))}
     </div>
   );
 }
