@@ -209,17 +209,19 @@ export default function MeineTodosPage() {
   const [weitere, setWeitere] = useState<WeitereAufgabe[]>([]);
   const [erledigt, setErledigt] = useState<Erledigt[]>([]);
   const [buchhaltung, setBuchhaltung] = useState<{ rechnungen: number; mahnanrufe: number } | null>(null);
+  const [logos, setLogos] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<Filter>('alle');
   // Optimistisch verschobene Karten, bis die Daten neu geladen sind
   const [moved, setMoved] = useState<Record<string, Spalte>>({});
   const heute = today();
 
-  const apply = (d: { schritte?: StepView[]; ads?: MeineAd[]; weitere?: WeitereAufgabe[]; erledigt?: Erledigt[]; buchhaltung?: { rechnungen: number; mahnanrufe: number } | null }) => {
+  const apply = (d: { logos?: Record<string, string>; schritte?: StepView[]; ads?: MeineAd[]; weitere?: WeitereAufgabe[]; erledigt?: Erledigt[]; buchhaltung?: { rechnungen: number; mahnanrufe: number } | null }) => {
     setSteps(d.schritte ?? []);
     setAds(d.ads ?? []);
     setBuchhaltung(d.buchhaltung ?? null);
     setWeitere(d.weitere ?? []);
     setErledigt(d.erledigt ?? []);
+    setLogos(d.logos ?? {});
     setMoved({});
   };
   const load = () =>
@@ -357,7 +359,7 @@ export default function MeineTodosPage() {
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div key={filter} className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
           {SPALTEN.map((sp) => (
-            <Column key={sp.key} spalte={sp} tasks={shown.filter((t) => t.spalte === sp.key)} heute={heute} onMove={move} />
+            <Column key={sp.key} spalte={sp} tasks={shown.filter((t) => t.spalte === sp.key)} heute={heute} logos={logos} onMove={move} />
           ))}
         </div>
       </DndContext>
@@ -371,11 +373,13 @@ function Column({
   spalte,
   tasks,
   heute,
+  logos,
   onMove,
 }: {
   spalte: (typeof SPALTEN)[number];
   tasks: Task[];
   heute: string;
+  logos: Record<string, string>;
   onMove: (t: Task, s: Spalte) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: spalte.key });
@@ -401,7 +405,7 @@ function Column({
       </header>
       <div className="space-y-3">
         {sorted.map((t, i) => (
-          <TaskCard key={t.key} t={t} index={i} heute={heute} onMove={onMove} />
+          <TaskCard key={t.key} t={t} index={i} heute={heute} logo={t.kunde ? logos[t.kunde] ?? null : null} onMove={onMove} />
         ))}
         {tasks.length === 0 && (
           <p className="rounded-[14px] px-3 py-6 text-center text-[13px] text-gray-500 shadow-[inset_0_0_0_1.5px_var(--hair)]">{spalte.leer}</p>
@@ -411,7 +415,7 @@ function Column({
   );
 }
 
-function TaskCard({ t, index, heute, onMove }: { t: Task; index: number; heute: string; onMove: (t: Task, s: Spalte) => void }) {
+function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; heute: string; logo: string | null; onMove: (t: Task, s: Spalte) => void }) {
   const done = t.spalte === 'erledigt';
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: t.key, disabled: done });
   const [menu, setMenu] = useState(false);
@@ -508,7 +512,7 @@ function TaskCard({ t, index, heute, onMove }: { t: Task; index: number; heute: 
         {t.kunde && <span className="min-w-0 truncate">{t.kunde}</span>}
         {t.kunde && (
           <span className="ml-auto">
-            <Avatar name={t.kunde} size={32} />
+            <Avatar name={t.kunde} src={logo} size={32} />
           </span>
         )}
       </div>

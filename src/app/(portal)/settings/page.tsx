@@ -9,9 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pencil, Lock, ShieldCheck } from 'lucide-react';
 import { TwoFactorSetup } from '@/components/security/two-factor-setup';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { AvatarUpload } from '@/components/avatar-upload';
+import { agencyLogo } from '@/lib/branding/logo';
 
 export default function SettingsPage() {
-  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null; calendar_feed_token: string | null; privacy_url: string | null } | null>(null);
+  const [agency, setAgency] = useState<{ name: string; email: string; phone: string | null; id: string; meta_ad_account_id: string | null; meta_page_id: string | null; calendly_link: string | null; calendar_feed_token: string | null; privacy_url: string | null; settings?: unknown } | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const router = useRouter();
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [isAgencyUser, setIsAgencyUser] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,11 +70,12 @@ export default function SettingsPage() {
         if (agencyUser && profile.agency_id) {
           const { data: ag } = await supabase
             .from('agencies')
-            .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link, calendar_feed_token, privacy_url')
+            .select('id, name, email, phone, meta_ad_account_id, meta_page_id, calendly_link, calendar_feed_token, privacy_url, settings')
             .eq('id', profile.agency_id)
             .single();
           if (ag) {
             setAgency(ag);
+            setLogoUrl(agencyLogo(ag.settings));
             setCalendlyLink(ag.calendly_link || '');
             setAgencyName(ag.name);
             setAgencyPhone(ag.phone || '');
@@ -228,6 +234,29 @@ export default function SettingsPage() {
           </div>
         </div>
       </Card>
+
+      {/* Logo / Profilbild des Kunden */}
+      {isAgencyUser && agency && (
+        <Card className="mb-6">
+          <h2 className="mb-4 text-[19px] font-medium tracking-[-0.02em]">Logo</h2>
+          <AvatarUpload
+            name={agency.name}
+            src={logoUrl}
+            folder={`avatars/agencies/${agency.id}`}
+            label="Logo ändern"
+            onChange={async (url) => {
+              const res = await fetch('/api/agency/logo', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logo_url: url }),
+              });
+              if (!res.ok) throw new Error('Logo konnte nicht gespeichert werden');
+              setLogoUrl(url);
+              router.refresh();
+            }}
+          />
+        </Card>
+      )}
 
       {/* Agency — agency users only */}
       {isAgencyUser && (

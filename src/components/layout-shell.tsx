@@ -6,12 +6,16 @@ import { NotificationBell } from '@/components/notifications/notification-bell';
 import { GlobalSearch } from '@/components/global-search';
 import { AppSidebar, MobileTabBar } from '@/components/app-sidebar';
 import { useBoardReveal } from '@/components/ui/motion';
+import { Avatar } from '@/components/ui/avatar';
 import type { UserRole } from '@/lib/auth';
 
 interface ShellUser {
   name: string;
   email: string;
   role: UserRole;
+  avatar_url?: string | null;
+  /** Kunden-Logo (nur Portal) */
+  logo_url?: string | null;
 }
 
 function initials(name: string) {
@@ -51,7 +55,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
 
       {/* Desktop-Sidebar: schwebende Fläche */}
       <div className="sticky top-3.5 hidden h-[calc(100dvh-28px)] md:block">
-        <AppSidebar role={user.role} userName={user.name} />
+        <AppSidebar role={user.role} userName={user.name} logoUrl={user.logo_url ?? null} />
       </div>
 
       {/* Mobile-Sidebar */}
@@ -59,7 +63,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
           <div className="absolute bottom-2.5 left-2.5 top-2.5">
-            <AppSidebar role={user.role} userName={user.name} onClose={() => setOpen(false)} />
+            <AppSidebar role={user.role} userName={user.name} logoUrl={user.logo_url ?? null} onClose={() => setOpen(false)} />
           </div>
         </div>
       )}
@@ -78,9 +82,13 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
               href={internal ? '/profile' : '/settings'}
               className="flex items-center gap-3 rounded-full py-0.5 pl-0.5 pr-1.5 transition-colors hover:bg-gray-100"
             >
-              <span className="grid h-[46px] w-[46px] flex-none place-items-center rounded-full bg-red-100 text-sm font-semibold tracking-[0.02em] text-red-900">
-                {initials(user.name) || '?'}
-              </span>
+              {user.avatar_url || user.logo_url ? (
+                <Avatar name={user.name} src={user.avatar_url || user.logo_url} size={46} />
+              ) : (
+                <span className="grid h-[46px] w-[46px] flex-none place-items-center rounded-full bg-red-100 text-sm font-semibold tracking-[0.02em] text-red-900">
+                  {initials(user.name) || '?'}
+                </span>
+              )}
               <span className="hidden min-w-0 lg:grid">
                 <span className="truncate text-[15px] font-medium text-ink">{user.name}</span>
                 <span className="truncate text-[13px] text-gray-600">{user.email}</span>

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildCalendar, berlinDay } from '../calendar';
 
 describe('buildCalendar', () => {
-  const users = new Map([['u1', 'Nils Berger']]);
+  const users = new Map([['u1', { name: 'Nils Berger', avatar_url: null }]]);
   const agencies = new Map([['a1', 'B&C Direct Sales']]);
 
   it('führt Termine und Fristen zusammen, Termine mit Uhrzeit zuerst', () => {
@@ -20,7 +20,7 @@ describe('buildCalendar', () => {
     );
     expect(out.map((e) => e.id)).toEqual(['projekt-p1', 'termin-t1', 'schritt-s1']);
     expect(out[1]).toMatchObject({ tag: '2026-10-05', untertitel: 'Max · B&C Direct Sales', href: '/candidates/c1' });
-    expect(out[2]).toMatchObject({ titel: 'Vertrag unterschrieben', personen: [{ id: 'u1', name: 'Nils Berger' }], ueberfaellig: false });
+    expect(out[2]).toMatchObject({ titel: 'Vertrag unterschrieben', personen: [{ id: 'u1', name: 'Nils Berger', avatar_url: null }], ueberfaellig: false });
     expect(out[0]).toMatchObject({ ueberfaellig: true, personen: [] });
   });
 

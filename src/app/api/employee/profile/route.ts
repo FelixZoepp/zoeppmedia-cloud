@@ -1,3 +1,4 @@
+import { isOwnStorageUrl } from '@/lib/branding/logo';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 
@@ -65,7 +66,12 @@ export async function PATCH(request: NextRequest) {
   if (position !== undefined) updates.position = position;
   if (phone !== undefined) updates.phone = phone;
   if (calendly_link !== undefined) updates.calendly_link = calendly_link;
-  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  if (avatar_url !== undefined) {
+    if (avatar_url !== null && (typeof avatar_url !== 'string' || !isOwnStorageUrl(avatar_url))) {
+      return NextResponse.json({ error: 'Ungültige Bild-URL' }, { status: 400 });
+    }
+    updates.avatar_url = avatar_url;
+  }
 
   const { error } = await supabase
     .from('users')

@@ -11,6 +11,7 @@ export interface CurrentUser {
   name: string;
   role: UserRole;
   agency_id: string | null;
+  avatar_url?: string | null;
 }
 
 // cache(): dedupes within one request (layout + page both call this)
@@ -21,7 +22,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const { data } = await supabase
     .from('users')
-    .select('id, email, name, role, agency_id')
+    .select('id, email, name, role, agency_id, avatar_url')
     .eq('id', user.id)
     .single();
 

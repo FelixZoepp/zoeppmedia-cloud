@@ -1,3 +1,4 @@
+import { agencyLogo } from '@/lib/branding/logo';
 /**
  * Fulfillment v2 — Lese-Sichten für Board, Kunden-Ablauf und Aufgabenlisten.
  */
@@ -54,6 +55,8 @@ export interface BoardClient {
   id: string;
   name: string;
   contact_name: string | null;
+  /** Kunden-Logo aus agencies.settings */
+  logo_url: string | null;
   phase: Phase;
   tage_in_phase: number;
   pausiert_grund: string | null;
@@ -73,13 +76,13 @@ export interface BoardClient {
 export async function loadBoard(svc: SupabaseClient, agencyIds: string[] | null, now: Date = new Date()): Promise<BoardClient[]> {
   let q = svc
     .from('agencies')
-    .select('id, name, contact_name, fulfillment_phase, fulfillment_phase_seit, pausiert_grund, created_at')
+    .select('id, name, contact_name, fulfillment_phase, fulfillment_phase_seit, pausiert_grund, created_at, settings')
     .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`);
   if (agencyIds) q = q.in('id', agencyIds);
   const { data: agencies } = await q;
   const list = (agencies ?? []) as Array<{
     id: string; name: string; contact_name: string | null; fulfillment_phase: Phase | null;
-    fulfillment_phase_seit: string | null; pausiert_grund: string | null; created_at: string;
+    fulfillment_phase_seit: string | null; pausiert_grund: string | null; created_at: string; settings?: unknown;
   }>;
 
   // Bestandskunden ohne Phase einmalig übernehmen
@@ -107,6 +110,7 @@ export async function loadBoard(svc: SupabaseClient, agencyIds: string[] | null,
       id: a.id,
       name: a.name,
       contact_name: a.contact_name,
+      logo_url: agencyLogo(a.settings),
       phase,
       tage_in_phase: Math.max(0, Math.floor((now.getTime() - new Date(seit).getTime()) / 86_400_000)),
       pausiert_grund: a.pausiert_grund,

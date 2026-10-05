@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loadMyTodos, today } from '@/lib/fulfillment/views';
 import { STEP_BY_KEY } from '@/lib/fulfillment/catalog';
+import { agencyLogo } from '@/lib/branding/logo';
 import { loadRechnungsliste } from '@/lib/billing/rechnungsliste';
 import { mahnwesenAktiv, faelligerSchritt, type MahnFall } from '@/lib/billing/mahnwesen';
 
@@ -110,7 +111,19 @@ export async function GET() {
     })),
   ].sort((a, b) => String(b.am).localeCompare(String(a.am)));
 
+  // Kunden-Logos (agencies.settings.logo_url) nach Kundenname für die Karten
+  const logoIds = [...new Set([...names.keys(), ...schritte.map((s) => s.agency_id)])];
+  const { data: logoRows } = logoIds.length
+    ? await svc.from('agencies').select('name, settings').in('id', logoIds)
+    : { data: [] };
+  const logos: Record<string, string> = {};
+  for (const a of (logoRows ?? []) as Array<{ name: string; settings: unknown }>) {
+    const url = agencyLogo(a.settings);
+    if (url) logos[a.name] = url;
+  }
+
   return NextResponse.json({
+    logos,
     erledigt,
     buchhaltung,
     weitere,

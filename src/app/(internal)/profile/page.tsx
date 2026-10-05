@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { FileUpload } from '@/components/file-upload';
+import { AvatarUpload } from '@/components/avatar-upload';
+import { useRouter } from 'next/navigation';
 import { User, Lock, Building2, Pencil, CalendarCheck, Phone, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,6 +45,20 @@ export default function ProfilePage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
 
   const supabase = createClient();
+  const router = useRouter();
+
+  // Profilbild sofort speichern (ohne Bearbeiten-Modus)
+  async function saveAvatar(url: string | null) {
+    const res = await fetch('/api/employee/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar_url: url }),
+    });
+    if (!res.ok) throw new Error('Profilbild konnte nicht gespeichert werden');
+    setProfile((prev) => (prev ? { ...prev, avatar_url: url } : prev));
+    setAvatarUrls(url ? [url] : []);
+    router.refresh();
+  }
 
   useEffect(() => {
     fetch('/api/employee/profile')
@@ -156,6 +172,12 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl">
       <PageHeader label="PROFIL" title="Mein Profil" />
+
+      {profile && (
+        <Card className="mb-6">
+          <AvatarUpload name={profile.name} src={profile.avatar_url} folder={`avatars/users/${profile.id}`} onChange={saveAvatar} />
+        </Card>
+      )}
 
       {/* Profile info */}
       <Card padding="md" className="mb-6">

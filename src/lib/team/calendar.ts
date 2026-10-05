@@ -14,7 +14,7 @@ export interface CalendarEntry {
   start: string | null;
   ende: string | null;
   untertitel: string | null;
-  personen: Array<{ id: string; name: string }>;
+  personen: Array<{ id: string; name: string; avatar_url: string | null }>;
   href: string | null;
   ueberfaellig: boolean;
 }
@@ -35,11 +35,11 @@ export function buildCalendar(
     projekt: Row[];
     intern: Row[];
   },
-  users: Map<string, string>,
+  users: Map<string, { name: string; avatar_url: string | null }>,
   agencies: Map<string, string>,
   heute: string,
 ): CalendarEntry[] {
-  const person = (id: string | null) => (id && users.has(id) ? [{ id, name: users.get(id)! }] : []);
+  const person = (id: string | null) => (id && users.has(id) ? [{ id, ...users.get(id)! }] : []);
   const kunde = (id: string | null) => (id ? agencies.get(id) ?? null : null);
   const frist = (tag: string | null) => !!tag && tag < heute;
 
@@ -141,7 +141,7 @@ export async function loadTeamCalendar(svc: SupabaseClient, von: string, bis: st
       .in('status', ['offen', 'in_arbeit', 'blockiert', 'zur_freigabe']).gte('faellig_am', von).lte('faellig_am', bis),
     svc.from('internal_tasks').select('id, agency_id, title, assigned_to, due_date')
       .in('status', ['backlog', 'todo', 'in_progress', 'review']).gte('due_date', von).lte('due_date', bis),
-    svc.from('users').select('id, name').in('role', ['admin', 'employee']),
+    svc.from('users').select('id, name, avatar_url').in('role', ['admin', 'employee']),
   ]);
   const rows = (r: { data: unknown }) => (r.data ?? []) as Row[];
 
@@ -158,7 +158,7 @@ export async function loadTeamCalendar(svc: SupabaseClient, von: string, bis: st
 
   return buildCalendar(
     { termine: rows(termine), schritte: meineSchritte, ads: rows(ads), projekt: rows(projekt), intern: rows(intern) },
-    new Map(rows(users).map((u) => [u.id!, u.name ?? ''])),
+    new Map(rows(users).map((u) => [u.id!, { name: u.name ?? '', avatar_url: u.avatar_url ?? null }])),
     new Map(((agencies ?? []) as Row[]).map((a) => [a.id!, a.name ?? ''])),
     now.toISOString().slice(0, 10),
   ).filter((e) => e.tag >= von && e.tag <= bis);

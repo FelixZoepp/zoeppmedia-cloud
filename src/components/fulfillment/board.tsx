@@ -121,8 +121,9 @@ function ClientCard({ c, index, onStep }: { c: BoardClient; index: number; onSte
       </div>
 
       {/* Titel */}
-      <Link href={`/clients/${c.id}/ablauf`} className="mt-3 block text-[17px] font-medium leading-snug tracking-[-0.015em] hover:text-red-800">
-        {c.name}
+      <Link href={`/clients/${c.id}/ablauf`} className="mt-3 flex items-center gap-2.5 text-[17px] font-medium leading-snug tracking-[-0.015em] hover:text-red-800">
+        <Avatar name={c.name} src={c.logo_url} size={30} />
+        <span className="min-w-0">{c.name}</span>
       </Link>
 
       {c.pausiert_grund && (

@@ -29,7 +29,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
     process.env.REQUIRE_ADMIN_2FA !== 'true' && user.role === 'admin' && !hasVerifiedTotp;
 
   return (
-    <LayoutShell user={{ name: user.name, email: user.email, role: user.role }}>
+    <LayoutShell user={{ name: user.name, email: user.email, role: user.role, avatar_url: user.avatar_url ?? null }}>
       {showBanner && (
         <div className="mb-5 w-full rounded-xl bg-amber-50 px-5 py-3 text-[13px] text-amber-800 flex items-center gap-2 shadow-[inset_0_0_0_1px_#fde68a]">
           <span>⚠️</span>

@@ -11,6 +11,7 @@ export interface MemberWorkload {
   funktion: string | null;
   role: 'admin' | 'employee';
   last_login: string | null;
+  avatar_url: string | null;
   offen: number;
   ueberfaellig: number;
   erledigt_30d: number;
@@ -25,7 +26,7 @@ type Done = { owner: string | null; am: string | null };
 
 /** Reine Rechnung – getrennt vom Laden, damit testbar. */
 export function computeWorkload(
-  users: Array<{ id: string; name: string; email: string; position: string | null; funktion: string | null; role: string; last_login: string | null }>,
+  users: Array<{ id: string; name: string; email: string; position: string | null; funktion: string | null; role: string; last_login: string | null; avatar_url?: string | null }>,
   offen: { schritte: Item[]; ads: Item[]; projekt: Item[]; intern: Item[] },
   erledigt: Done[],
   heute: string,
@@ -51,6 +52,7 @@ export function computeWorkload(
       funktion: u.funktion,
       role: u.role === 'admin' ? 'admin' : 'employee',
       last_login: u.last_login,
+      avatar_url: u.avatar_url ?? null,
       offen: anzahl,
       ueberfaellig,
       erledigt_30d,
@@ -66,7 +68,7 @@ export async function loadTeamWorkload(svc: SupabaseClient, now: Date = new Date
   const seit = seitDate.toISOString();
 
   const [users, schritte, ads, projekt, intern, schritteDone, adsDone, projektDone, internDone] = await Promise.all([
-    svc.from('users').select('id, name, email, position, funktion, role, last_login, aktiv').in('role', ['admin', 'employee']).order('name'),
+    svc.from('users').select('id, name, email, position, funktion, role, last_login, aktiv, avatar_url').in('role', ['admin', 'employee']).order('name'),
     svc.from('client_steps').select('owner_user_id, faellig_am, wer, status').in('status', ['offen', 'in_arbeit', 'zur_pruefung']),
     svc.from('ad_items').select('assignee_id, faellig_am').in('stage', ['idee', 'material', 'bearbeitung', 'bereit']),
     svc.from('project_tasks').select('owner_user_id, faellig_am').in('status', ['offen', 'in_arbeit', 'blockiert', 'zur_freigabe']),

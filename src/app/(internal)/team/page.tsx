@@ -267,7 +267,7 @@ export default function TeamPage() {
           return (
             <Card key={w.user_id} className="fx-lift flex flex-col items-center text-center">
               <div className="relative mt-2">
-                <Avatar name={w.name} size={72} />
+                <Avatar name={w.name} src={w.avatar_url} size={72} />
                 <span
                   className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full shadow-[0_0_0_3px_var(--card)]"
                   style={{ background: p.color }}

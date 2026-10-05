@@ -20,6 +20,8 @@ export interface SidebarGroup {
 
 interface SidebarProps {
   brand: string;
+  /** Logo statt Buchstabe (Kundenportal) */
+  brandImage?: string | null;
   brandLabel: string;
   brandSub?: string;
   groups: SidebarGroup[];
@@ -30,7 +32,7 @@ interface SidebarProps {
 
 const RAIL_H = 40;
 
-export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, promo, onClose }: SidebarProps) {
+export function Sidebar({ brand, brandImage, brandLabel, brandSub, groups, bottomItems, promo, onClose }: SidebarProps) {
   const pathname = usePathname();
   const navRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLSpanElement>(null);
@@ -118,9 +120,14 @@ export function Sidebar({ brand, brandLabel, brandSub, groups, bottomItems, prom
       {/* Marke */}
       <div className="flex items-center justify-between pl-[26px] pr-[22px]">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 text-[17px] font-bold text-white shadow-hero">
-            {brand}
-          </div>
+          {brandImage ? (
+            // eslint-disable-next-line @next/next/no-img-element -- Kunden-Logo aus dem Storage
+            <img src={brandImage} alt="" className="h-10 w-10 flex-shrink-0 rounded-[12px] bg-card object-cover shadow-sm" />
+          ) : (
+            <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 text-[17px] font-bold text-white shadow-hero">
+              {brand}
+            </div>
+          )}
           <div className="min-w-0">
             <span className="block truncate text-[19px] font-semibold leading-tight tracking-[-0.03em] text-ink">
               {brandLabel}

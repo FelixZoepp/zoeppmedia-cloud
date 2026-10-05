@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
+import { AvatarUpload } from '@/components/avatar-upload';
+import { agencyLogo } from '@/lib/branding/logo';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
   BookOpen, CheckCircle, ChevronRight, Target, Activity, ExternalLink,
@@ -563,6 +565,25 @@ export default function ClientDetailPage() {
           </div>
         }
       />
+
+      <Card className="mb-6">
+        <AvatarUpload
+          name={agency.name}
+          src={agencyLogo((agency as { settings?: unknown }).settings)}
+          folder={`avatars/agencies/${id}`}
+          size={72}
+          label="Kunden-Logo ändern"
+          onChange={async (url) => {
+            const res = await fetch('/api/agency/logo', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ agency_id: id, logo_url: url }),
+            });
+            if (!res.ok) throw new Error('Logo konnte nicht gespeichert werden');
+            load();
+          }}
+        />
+      </Card>
 
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (

@@ -304,7 +304,7 @@ function EntryBlock({ e }: { e: CalendarEntry }) {
           <div className="mt-2 flex -space-x-2">
             {e.personen.map((p) => (
               <span key={p.id} title={p.name} className="rounded-full shadow-[0_0_0_2px_var(--panel)]">
-                <Avatar name={p.name} size={30} />
+                <Avatar name={p.name} src={p.avatar_url} size={30} />
               </span>
             ))}
           </div>
