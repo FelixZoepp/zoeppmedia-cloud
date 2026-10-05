@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TemplatePicker } from './template-picker';
 import { QuickReplyModal } from './quick-reply-modal';
-import { Send, Bot, User, Monitor, CheckCheck, Check, X, Paperclip, Sparkles } from 'lucide-react';
+import { Send, Bot, CheckCheck, Check, X, Paperclip, Sparkles, ChevronLeft, Info } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
+import { formatPhone } from './format';
 import { toast } from 'sonner';
 
 interface Props {
@@ -13,24 +15,32 @@ interface Props {
   messages: Record<string, unknown>[];
   conversation: Record<string, unknown> | null;
   onMessageSent: () => void;
+  /** Handy: zurück zur Liste */
+  onBack?: () => void;
+  /** Kontakt-Details ein-/ausblenden */
+  onToggleInfo?: () => void;
+}
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const heute = new Date();
+  const gestern = new Date();
+  gestern.setDate(heute.getDate() - 1);
+  if (d.toDateString() === heute.toDateString()) return 'Heute';
+  if (d.toDateString() === gestern.toDateString()) return 'Gestern';
+  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
-  queued:    <span className="text-gray-300">&#x25cf;</span>,
-  sent:      <Check className="w-3 h-3 text-gray-400" />,
-  delivered: <CheckCheck className="w-3 h-3 text-gray-400" />,
-  read:      <CheckCheck className="w-3 h-3 text-blue-500" />,
+  queued:    <span className="opacity-60">&#x25cf;</span>,
+  sent:      <Check className="w-3 h-3 opacity-70" />,
+  delivered: <CheckCheck className="w-3 h-3 opacity-70" />,
+  read:      <CheckCheck className="w-3 h-3 text-sky-300" />,
   failed:    <X className="w-3 h-3 text-red-500" />,
 };
 
-const SENDER_ICONS: Record<string, React.ReactNode> = {
-  candidate: <User className="w-3.5 h-3.5" />,
-  bot:       <Bot className="w-3.5 h-3.5" />,
-  user:      <User className="w-3.5 h-3.5" />,
-  system:    <Monitor className="w-3.5 h-3.5" />,
-};
 
-export function ChatPane({ conversationId, messages, conversation, onMessageSent }: Props) {
+export function ChatPane({ conversationId, messages, conversation, onMessageSent, onBack, onToggleInfo }: Props) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -42,7 +52,7 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
   const conv = conversation as {
     state: string;
     window_expires_at: string | null;
-    candidate: { name: string };
+    candidate: { name: string; phone_e164?: string | null; current_stage?: { name: string; color: string | null } | null };
     application?: Array<{ id: string }> | null;
   } | null;
 
@@ -182,42 +192,51 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header mit Bot-Status */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-900">
-          {conv?.candidate?.name || 'Chat'}
-        </h3>
-        <div className="flex items-center gap-2">
+      {/* Kopf: Kontakt + Bot-Status */}
+      <div className="flex items-center gap-3 border-b border-hair px-3 py-3 md:px-4">
+        {onBack && (
+          <button onClick={onBack} className="grid h-10 w-10 flex-none place-items-center rounded-full hover:bg-panel lg:hidden" aria-label="Zurück zur Liste">
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        )}
+        <button onClick={onToggleInfo} className="flex min-w-0 flex-1 items-center gap-3 text-left" title="Kontakt-Details">
+          <Avatar name={conv?.candidate?.name || '?'} size={42} />
+          <span className="min-w-0">
+            <span className="block truncate text-[16px] font-medium">{conv?.candidate?.name || 'Chat'}</span>
+            <span className="block truncate text-[13px] text-gray-600">
+              {formatPhone(conv?.candidate?.phone_e164)}
+              {conv?.candidate?.current_stage ? ` · ${conv.candidate.current_stage.name}` : ''}
+            </span>
+          </span>
+        </button>
+        <div className="flex flex-none items-center gap-2">
           {isBotActive && (
             <>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-accent-100 text-accent-700">
-                <Bot className="w-3 h-3" />
-                Bot aktiv
+              <span className="hidden items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 sm:inline-flex">
+                <Bot className="h-3 w-3" /> Bot aktiv
               </span>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleBotToggle('human_active')}
-              >
-                Bot pausieren
+              <Button size="sm" variant="secondary" onClick={() => handleBotToggle('human_active')} aria-label="Bot pausieren" className="px-3 sm:px-4">
+                <Bot /> <span className="hidden sm:inline">Bot pausieren</span>
               </Button>
             </>
           )}
           {isHumanActive && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => handleBotToggle('bot_active')}
-            >
-              Bot fortsetzen
+            <Button size="sm" variant="secondary" onClick={() => handleBotToggle('bot_active')} aria-label="Bot fortsetzen" className="px-3 sm:px-4">
+              <Bot /> <span className="hidden sm:inline">Bot fortsetzen</span>
             </Button>
+          )}
+          {onToggleInfo && (
+            <button onClick={onToggleInfo} className="grid h-10 w-10 place-items-center rounded-full hover:bg-panel" aria-label="Kontakt-Details">
+              <Info className="h-5 w-5 text-gray-600" />
+            </button>
           )}
         </div>
       </div>
 
       {/* Nachrichten */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map(m => {
+      <div className="flex-1 space-y-2 overflow-y-auto bg-panel/60 px-3 py-4 md:px-6">
+        {messages.length === 0 && <p className="py-10 text-center text-sm text-gray-500">Noch keine Nachrichten</p>}
+        {messages.map((m, i) => {
           const msg = m as {
             id: string;
             direction: string;
@@ -227,48 +246,46 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
             error_code: string | null;
             created_at: string;
           };
+          const prev = messages[i - 1] as { created_at: string } | undefined;
+          const neuerTag = !prev || new Date(prev.created_at).toDateString() !== new Date(msg.created_at).toDateString();
           const isOut = msg.direction === 'out';
+          const system = msg.sender_type === 'system';
+          const bot = msg.sender_type === 'bot';
 
           return (
-            <div key={msg.id} className={`flex ${isOut ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                isOut
-                  ? msg.sender_type === 'bot'
-                    ? 'bg-blue-50 text-blue-900'
-                    : msg.sender_type === 'system'
-                    ? 'bg-gray-100 text-gray-600 text-xs italic'
-                    : 'bg-red-50 text-gray-900'
-                  : 'bg-gray-100 text-gray-900'
-              }`}>
-                {/* Absender-Badge */}
-                <div className="flex items-center gap-1 mb-0.5">
-                  <span className={isOut ? 'text-gray-400' : 'text-gray-500'}>
-                    {SENDER_ICONS[msg.sender_type]}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {msg.sender_type === 'bot'
-                      ? 'Bot'
-                      : msg.sender_type === 'system'
-                      ? 'System'
-                      : msg.sender_type === 'candidate'
-                      ? ''
-                      : 'Recruiter'}
-                  </span>
+            <div key={msg.id}>
+              {neuerTag && (
+                <div className="my-3 flex justify-center">
+                  <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-gray-600 shadow-[0_0_0_1px_var(--hair)]">{dayLabel(msg.created_at)}</span>
                 </div>
-                <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
-                <div className="flex items-center justify-end gap-1 mt-1">
-                  <span className="text-xs text-gray-400">
-                    {new Date(msg.created_at).toLocaleTimeString('de-DE', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  {isOut && STATUS_ICONS[msg.status]}
+              )}
+              {system ? (
+                <p className="mx-auto max-w-[80%] py-1 text-center text-xs italic text-gray-500">{msg.body}</p>
+              ) : (
+                <div className={`flex ${isOut ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[78%] px-4 py-2.5 shadow-sm md:max-w-[65%] ${
+                      isOut
+                        ? bot
+                          ? 'rounded-[18px] rounded-br-[6px] bg-sky-50 text-sky-950'
+                          : 'rounded-[18px] rounded-br-[6px] bg-gradient-to-b from-red-800 to-red-950 text-red-50'
+                        : 'rounded-[18px] rounded-bl-[6px] bg-card text-ink'
+                    }`}
+                  >
+                    {bot && (
+                      <span className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-sky-700">
+                        <Bot className="h-3 w-3" /> Bot
+                      </span>
+                    )}
+                    <p className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">{msg.body}</p>
+                    <div className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${isOut && !bot ? 'text-red-200' : 'text-gray-500'}`}>
+                      {new Date(msg.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                      {isOut && STATUS_ICONS[msg.status]}
+                    </div>
+                    {msg.status === 'failed' && msg.error_code && <p className="mt-1 text-xs text-red-300">Fehler: {msg.error_code}</p>}
+                  </div>
                 </div>
-                {msg.status === 'failed' && msg.error_code && (
-                  <p className="text-xs text-red-500 mt-1">{msg.error_code}</p>
-                )}
-              </div>
+              )}
             </div>
           );
         })}
@@ -276,7 +293,7 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
       </div>
 
       {/* Composer */}
-      <div className="border-t border-gray-200 p-3">
+      <div className="border-t border-hair p-3">
         {isOptedOut ? (
           <p className="text-sm text-gray-500 text-center py-2">
             Konversation geschlossen — Kandidat hat sich abgemeldet oder das Gespräch wurde beendet.
@@ -306,7 +323,8 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
               </Button>
               <div className="flex-1">
                 <Input
-                  placeholder="Nachricht schreiben... (/ für Textbausteine)"
+                  pill
+                  placeholder="Nachricht schreiben … ( / für Textbausteine)"
                   value={text}
                   onChange={e => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -326,7 +344,7 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
                 ) : (
                   <Sparkles className="w-4 h-4" />
                 )}
-                <span className="ml-1 text-xs hidden sm:inline">KI-Vorschlag</span>
+                <span className="ml-1 hidden text-xs 2xl:inline">KI-Vorschlag</span>
               </Button>
               <Button onClick={handleSend} disabled={sending || !text.trim()} size="md">
                 <Send className="w-4 h-4" />

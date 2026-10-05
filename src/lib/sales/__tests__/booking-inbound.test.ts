@@ -16,6 +16,9 @@ vi.mock('../replies', () => ({
 vi.mock('../followup', () => ({
   pauseFollowupsOnReply: vi.fn().mockResolvedValue(false),
 }));
+vi.mock('@/lib/whatsapp/unknown-contact', () => ({
+  createContactFromWhatsApp: vi.fn(async () => ({ id: 'lead-neu', name: 'Neu', whatsapp_opt_in: true })),
+}));
 vi.mock('../close-log', () => ({
   enqueueSalesCloseLog: vi.fn().mockResolvedValue(undefined),
 }));
@@ -183,11 +186,16 @@ describe('processSalesInbound', () => {
     expect(calls.some((c) => c.table === 'scheduled_jobs')).toBe(false);
   });
 
-  it('unbekannte Nummer: nur Benachrichtigung, nichts speichern', async () => {
-    const { svc, calls } = makeSvc({ whatsapp_accounts: { id: 'wa-sales', agency_id: SALES_AGENCY_ID } });
+  it('unbekannte Nummer: als Lead anlegen, Nachricht speichern und Team benachrichtigen', async () => {
+    const { svc, calls } = makeSvc({
+      whatsapp_accounts: { id: 'wa-sales', agency_id: SALES_AGENCY_ID },
+      'conversations.single': { id: 'conv-neu' },
+    });
     await processSalesInbound(svc, payload);
-    expect(calls.some((c) => c.table === 'messages')).toBe(false);
-    expect(createNotificationForInternals).toHaveBeenCalledOnce();
+    const { createContactFromWhatsApp } = await import('@/lib/whatsapp/unknown-contact');
+    expect(createContactFromWhatsApp).toHaveBeenCalled();
+    expect(calls.some((c) => c.table === 'messages')).toBe(true);
+    expect(createNotificationForInternals).toHaveBeenCalled();
   });
 
   it('STOP: Opt-out setzen, keine Sales-Auswertung', async () => {

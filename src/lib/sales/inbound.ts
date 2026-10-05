@@ -15,6 +15,7 @@ import { enqueueSalesCloseLog } from './close-log';
 import { handleSalesReply, todayBerlin } from './replies';
 import { pauseFollowupsOnReply } from './followup';
 import { SALES_AGENCY_ID } from './calendly-chain';
+import { createContactFromWhatsApp } from '@/lib/whatsapp/unknown-contact';
 
 export interface SalesInboundMessage {
   id: string;
@@ -73,7 +74,7 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
   const text = inboundText(msg);
 
   // Prospect über die Nummer finden (angelegt bei der Calendly-Buchung)
-  const { data: prospect } = await svc
+  const { data: found } = await svc
     .from('candidates')
     .select('id, name')
     .eq('agency_id', agencyId)
@@ -81,16 +82,18 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     .is('deleted_at', null)
     .maybeSingle();
 
+  let prospect = found as { id: string; name: string } | null;
   if (!prospect) {
-    // Unbekannte Nummer schreibt die Sales-Nummer an → Felix Bescheid geben, nichts speichern
+    // Unbekannte Nummer → als neuen Lead anlegen (landet in der Sales-Inbox) und Bescheid geben
+    prospect = await createContactFromWhatsApp(svc, agencyId, senderPhone, profileName);
     await notifySales(svc, {
-      emoji: '❔',
-      title: `WhatsApp von unbekannter Nummer`,
-      body: `${profileName ? `${profileName}: ` : ''}${text.slice(0, 300)}`,
+      emoji: '🆕',
+      title: `Neuer WhatsApp-Kontakt${profileName ? `: ${profileName}` : ''}`,
+      body: text.slice(0, 300),
       type: 'whatsapp_inbound',
       phone: senderPhone,
     });
-    return;
+    if (!prospect) return;
   }
 
   const now = new Date().toISOString();

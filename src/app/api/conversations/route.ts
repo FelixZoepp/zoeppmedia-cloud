@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     .from('conversations')
     .select(`
       id, state, window_expires_at, unread_count, last_message_at, assigned_to,
-      candidate:candidates!inner(id, name, phone_e164, email),
+      candidate:candidates!inner(id, name, phone_e164, email, source, consent_source, created_at, location, current_stage:pipeline_stages(name, color)),
       application:applications(id, job:jobs(title), stage:pipeline_stages(name, color))
     `)
     .eq('agency_id', agencyId)
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
       .from('candidates')
       .select('id')
       .eq('agency_id', agencyId)
-      .or(`name.ilike.%${s}%,phone_e164.ilike.%${s}%`);
+      .or(`name.ilike.%${s}%,phone_e164.ilike.%${s}%,email.ilike.%${s}%`);
 
     const ids = (matchingCandidates ?? []).map((c: { id: string }) => c.id);
     if (ids.length === 0) return NextResponse.json([]);
@@ -60,6 +61,24 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query.limit(100);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const rows = (data ?? []) as Array<Record<string, unknown> & { id: string }>;
 
-  return NextResponse.json(data || []);
+  // Vorschau: letzte Nachricht je Konversation (neueste zuerst, eine Abfrage)
+  const last = new Map<string, Record<string, unknown>>();
+  if (rows.length) {
+    const { data: msgs } = await svc
+      .from('messages')
+      .select('conversation_id, body, type, direction, sender_type, created_at')
+      .in('conversation_id', rows.map((r) => r.id))
+      .order('created_at', { ascending: false })
+      .limit(Math.min(1000, rows.length * 10));
+    for (const m of (msgs ?? []) as Array<Record<string, unknown> & { conversation_id: string }>) {
+      if (!last.has(m.conversation_id)) last.set(m.conversation_id, m);
+    }
+  }
+
+  const res = NextResponse.json(rows.map((r) => ({ ...r, last_message: last.get(r.id) ?? null })));
+  // Sales-Inbox (interne Agentur) zeigt Leads statt Bewerber
+  res.headers.set('x-inbox-kind', agencyId === SALES_AGENCY_ID ? 'sales' : 'recruiting');
+  return res;
 }

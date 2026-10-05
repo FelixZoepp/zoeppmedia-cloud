@@ -22,6 +22,10 @@ vi.mock('@/lib/notifications/create', () => ({
   createNotificationForAgency: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/whatsapp/unknown-contact', () => ({
+  createContactFromWhatsApp: vi.fn(),
+}));
+
 vi.mock('@/lib/automations/fire', () => ({
   fireEvent: vi.fn().mockResolvedValue(undefined),
 }));
@@ -136,12 +140,23 @@ describe('processInbound', () => {
     expect(candidateCall).toBeDefined();
   });
 
-  it('bricht ab wenn kein Kandidat gefunden (unbekannte Nummer)', async () => {
+  it('unbekannte Nummer: legt Kontakt an und verarbeitet die Nachricht', async () => {
+    const { createContactFromWhatsApp } = await import('@/lib/whatsapp/unknown-contact');
+    (createContactFromWhatsApp as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ id: 'cand-neu', name: 'Lisa Kern', whatsapp_opt_in: true });
     const svc = makeSvc({
       candidates: { data: null, error: null },
     });
-    // Kein Fehler — einfaches return
+    await processInbound(svc, 'agency-1', { ...basePayload, contacts: [{ profile: { name: 'Lisa Kern' }, wa_id: '4915112345678' }] });
+    expect(createContactFromWhatsApp).toHaveBeenCalledWith(svc, 'agency-1', expect.stringMatching(/^\+/), 'Lisa Kern');
+    expect(svc.rpc).toHaveBeenCalledWith('increment_unread', expect.anything());
+  });
+
+  it('bricht ab, wenn der Kontakt nicht angelegt werden kann', async () => {
+    const { createContactFromWhatsApp } = await import('@/lib/whatsapp/unknown-contact');
+    (createContactFromWhatsApp as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+    const svc = makeSvc({ candidates: { data: null, error: null } });
     await expect(processInbound(svc, 'agency-1', basePayload)).resolves.toBeUndefined();
+    expect(svc.rpc).not.toHaveBeenCalled();
   });
 
   it('wirft wenn kein WhatsApp-Account gefunden', async () => {

@@ -5,6 +5,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { createContactFromWhatsApp } from '@/lib/whatsapp/unknown-contact';
 import { isStopMessage } from '@/lib/whatsapp/window';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
@@ -45,7 +46,7 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   const effectiveAgencyId = agencyId || waAccount.agency_id;
 
   // 2. Candidate finden (phone_e164 im Mandanten)
-  const { data: candidate } = await svc
+  const { data: found } = await svc
     .from('candidates')
     .select('id, name, whatsapp_opt_in')
     .eq('agency_id', effectiveAgencyId)
@@ -53,10 +54,10 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
     .is('deleted_at', null)
     .maybeSingle();
 
-  if (!candidate) {
-    // Unbekannte Nummer — kein Kandidat im System. Event als done markieren.
-    return;
-  }
+  // Unbekannte Nummer → als neuen Kontakt anlegen, damit die Nachricht in der Inbox landet
+  const candidate =
+    found ?? (await createContactFromWhatsApp(svc, effectiveAgencyId, senderPhone, payload.contacts?.[0]?.profile?.name ?? null));
+  if (!candidate) return;
 
   // 3. Conversation anlegen/aktualisieren (C3, atomar in 2 Schritten):
   //    a) INSERT ... ON CONFLICT DO NOTHING (upsert mit ignoreDuplicates: true) —

@@ -6,6 +6,8 @@ import { ChatPane } from '@/components/inbox/chat-pane';
 import { CandidateSidebar } from '@/components/inbox/candidate-sidebar';
 import { PageHeader } from '@/components/ui/page-header';
 import { createClient } from '@/lib/supabase/client';
+import { MessageCircle } from 'lucide-react';
+import type { InboxKind } from '@/components/inbox/format';
 
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Record<string, unknown>[]>([]);
@@ -14,6 +16,9 @@ export default function InboxPage() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [kind, setKind] = useState<InboxKind>('recruiting');
+  // Kontakt-Details nur auf breiten Bildschirmen direkt offen, sonst verdecken sie den Chat
+  const [showInfo, setShowInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches);
   const deepLinkHandled = useRef(false);
 
   // C1: stable client instance — never re-created on render
@@ -26,6 +31,7 @@ export default function InboxPage() {
     if (res.ok) {
       const data = await res.json();
       setConversations(Array.isArray(data) ? data : []);
+      setKind(res.headers.get('x-inbox-kind') === 'sales' ? 'sales' : 'recruiting');
     }
     setLoading(false);
     // Deep-Link aus Push-Benachrichtigungen: /inbox?conversation=<id> einmalig öffnen
@@ -106,13 +112,23 @@ export default function InboxPage() {
 
   const selectedConv = conversations.find((c) => (c as { id: string }).id === selectedId) || null;
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-56px)]">
-      <PageHeader label="KOMMUNIKATION" title="Inbox" />
+  const unread = conversations.reduce((n, c) => n + ((c as { unread_count?: number }).unread_count ?? 0), 0);
 
-      <div className="flex flex-1 min-h-0 border-t border-gray-200">
-        {/* Linke Spalte: Gesprächsliste */}
-        <div className="w-80 border-r border-gray-200 flex-shrink-0 overflow-y-auto">
+  return (
+    <div>
+      <PageHeader
+        title={kind === 'sales' ? 'Sales-WhatsApp' : 'Inbox'}
+        description={
+          kind === 'sales'
+            ? 'Alle WhatsApp-Gespräche mit Leads – neue Nummern landen automatisch im CRM.'
+            : 'Alle WhatsApp-Gespräche mit deinen Bewerbern – neue Nummern landen automatisch im CRM.'
+        }
+        counter={unread > 0 ? `${unread} ungelesen` : undefined}
+      />
+
+      <div className="relative flex h-[calc(100dvh-300px)] min-h-[500px] overflow-hidden rounded-xl bg-card shadow-sm md:h-[calc(100dvh-268px)]">
+        {/* Gesprächsliste (Handy: nur ohne offene Konversation) */}
+        <div className={`${selectedId ? 'hidden lg:flex' : 'flex'} w-full flex-shrink-0 flex-col border-hair lg:w-[340px] lg:border-r`}>
           <ConversationList
             conversations={conversations}
             selectedId={selectedId}
@@ -122,11 +138,12 @@ export default function InboxPage() {
             search={search}
             onSearchChange={setSearch}
             loading={loading}
+            kind={kind}
           />
         </div>
 
-        {/* Mitte: Chat */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* Chat */}
+        <div className={`${selectedId ? 'flex' : 'hidden lg:flex'} min-w-0 flex-1 flex-col`}>
           {selectedId ? (
             <ChatPane
               conversationId={selectedId}
@@ -136,19 +153,28 @@ export default function InboxPage() {
                 loadMessages(selectedId);
                 loadConversations();
               }}
+              onBack={() => setSelectedId(null)}
+              onToggleInfo={() => setShowInfo((v) => !v)}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-              Wähle eine Konversation aus
+            <div className="flex h-full flex-col items-center justify-center gap-2 bg-panel/60 text-center">
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-card text-red-800 shadow-sm">
+                <MessageCircle className="h-6 w-6" />
+              </span>
+              <p className="text-[15px] font-medium">Wähle ein Gespräch aus</p>
+              <p className="text-[13px] text-gray-600">Links findest du alle WhatsApp-Kontakte.</p>
             </div>
           )}
         </div>
 
-        {/* Rechte Spalte: Bewerber-Sidebar */}
-        {selectedConv && (
-          <div className="w-80 border-l border-gray-200 flex-shrink-0 overflow-y-auto">
-            <CandidateSidebar conversation={selectedConv} />
-          </div>
+        {/* Kontakt-Details: Desktop als Spalte, sonst als Schublade */}
+        {selectedConv && showInfo && (
+          <>
+            <div className="absolute inset-0 z-10 bg-ink/20 xl:hidden" onClick={() => setShowInfo(false)} />
+            <div className="absolute inset-y-0 right-0 z-20 w-[min(340px,92%)] overflow-y-auto border-l border-hair bg-card shadow-[-20px_0_40px_-30px_#1a151466] xl:static xl:z-auto xl:w-[320px] xl:shadow-none">
+              <CandidateSidebar conversation={selectedConv} kind={kind} onChanged={loadConversations} onClose={() => setShowInfo(false)} />
+            </div>
+          </>
         )}
       </div>
     </div>

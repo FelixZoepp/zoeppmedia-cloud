@@ -16,9 +16,10 @@ export function Avatar({ name, size = 44, src }: { name: string; size?: number; 
     );
   }
   const tint = AVATAR_TINTS[[...name].reduce((s, ch) => s + ch.charCodeAt(0), 0) % AVATAR_TINTS.length];
+  // Nur Wörter mit Buchstaben – Nummern wie „+49 151 …“ ergeben sonst Unsinn wie „+1“
   const letters = name
     .split(/\s+/)
-    .filter(Boolean)
+    .filter((w) => /^\p{L}/u.test(w))
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase())
     .join('');
