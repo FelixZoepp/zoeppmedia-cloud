@@ -192,3 +192,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [style*="fx-grow"] { animation: none !important; }
 }
+
+/* Fortschrittsbalken füllen sich von links */
+@keyframes fx-bar {
+  from { transform: scaleX(0); }
+  to { transform: none; }
+}

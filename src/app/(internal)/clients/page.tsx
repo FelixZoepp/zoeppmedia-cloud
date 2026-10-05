@@ -105,8 +105,8 @@ export default function ClientsIndexPage() {
   return (
     <div>
       <PageHeader
-        label="COCKPIT"
         title="Kunden"
+        description={view === 'pipeline' ? 'Pipeline wählen – jede Karte ist ein Kunde an seinem aktuellen Schritt.' : undefined}
         counter={`${board.length} gesamt`}
         action={
           <SegmentedControl
