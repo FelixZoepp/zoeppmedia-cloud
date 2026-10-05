@@ -8,6 +8,13 @@ describe('isOwnStorageUrl', () => {
     expect(isOwnStorageUrl('https://evil.example/x.png', base)).toBe(false);
     expect(isOwnStorageUrl(`${base}/storage/v1/object/public/anderer/x.png`, base)).toBe(false);
   });
+  it('verträgt Leerzeichen, Zeilenumbruch und Schrägstrich in der Env-Variable', () => {
+    const url = `${base}/storage/v1/object/public/onboarding-assets/avatars/users/u/1.jpeg`;
+    expect(isOwnStorageUrl(url, `${base}/\n`)).toBe(true);
+    expect(isOwnStorageUrl(url, ` ${base} `)).toBe(true);
+    expect(isOwnStorageUrl(url, '')).toBe(false);
+    expect(isOwnStorageUrl('https://abc.supabase.co.evil.com/storage/v1/object/public/onboarding-assets/x.png', base)).toBe(false);
+  });
 });
 
 describe('agencyLogo', () => {
