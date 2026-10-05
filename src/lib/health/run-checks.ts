@@ -8,6 +8,7 @@ import {
   type CheckResult,
 } from './checks';
 import { createNotificationForInternals } from '@/lib/notifications/create';
+import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 
 const CHECK_RUNNERS: Record<CheckTyp, (s: SupabaseClient, id: string) => Promise<CheckResult>> = {
   stille: checkStille,
@@ -16,18 +17,24 @@ const CHECK_RUNNERS: Record<CheckTyp, (s: SupabaseClient, id: string) => Promise
   canary_bewerbung: checkCanary,
 };
 
-export async function runHealthChecks(supabase: SupabaseClient) {
-  // Get all active agencies
-  const { data: agencies } = await supabase
+/**
+ * Täglicher Lauf: alle Kunden mit laufender Kampagne (Fulfillment-Phase Continuity).
+ * Früher über agencies.status = 'aktiv' – diese Spalte gibt es seit Fulfillment v2 nicht mehr.
+ */
+export async function runHealthChecks(supabase: SupabaseClient): Promise<number> {
+  const { data: agencies, error } = await supabase
     .from('agencies')
     .select('id, name')
-    .eq('status', 'aktiv');
-
-  if (!agencies?.length) return;
-
-  for (const agency of agencies) {
+    .eq('fulfillment_phase', 'continuity')
+    .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`);
+  if (error) {
+    console.error('[health] Kunden konnten nicht geladen werden', error);
+    return 0;
+  }
+  for (const agency of agencies ?? []) {
     await runChecksForAgency(supabase, agency.id, agency.name);
   }
+  return agencies?.length ?? 0;
 }
 
 export async function runChecksForAgency(
@@ -53,13 +60,14 @@ export async function runChecksForAgency(
     }
 
     // Insert result into health_checks
-    await supabase.from('health_checks').insert({
+    const { error: insertError } = await supabase.from('health_checks').insert({
       agency_id: agencyId,
       typ,
       gelaufen_am: now,
       ergebnis: result.ergebnis,
       details: result.details,
     });
+    if (insertError) console.error('[health] Ergebnis nicht gespeichert', typ, agencyId, insertError);
 
     // Notify on fehler
     if (result.ergebnis === 'fehler') {

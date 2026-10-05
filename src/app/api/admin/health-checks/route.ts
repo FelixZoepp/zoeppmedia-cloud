@@ -2,7 +2,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { isInternalUser } from '@/lib/admin';
 import { NextResponse } from 'next/server';
-import { runChecksForAgency } from '@/lib/health/run-checks';
+import { runChecksForAgency, runHealthChecks } from '@/lib/health/run-checks';
+import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+
+export const maxDuration = 120;
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -12,11 +15,13 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  // Get all active agencies
-  const { data: agencies } = await admin
+  // Alle Kunden (ohne interne Sales-Agentur) mit ihrer Fulfillment-Phase
+  const { data: agencies, error } = await admin
     .from('agencies')
-    .select('id, name, status')
+    .select('id, name, fulfillment_phase')
+    .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
     .order('name');
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (!agencies?.length) {
     return NextResponse.json([]);
@@ -49,7 +54,7 @@ export async function GET() {
     return {
       agency_id: agency.id,
       agency_name: agency.name,
-      agency_status: agency.status,
+      agency_status: agency.fulfillment_phase ?? 'onboarding',
       checks: agencyChecks,
     };
   });
@@ -63,7 +68,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
-  const { agency_id } = await request.json();
+  const { agency_id, alle } = (await request.json().catch(() => ({}))) as { agency_id?: string; alle?: boolean };
+
+  // „Alle prüfen“: alle Kunden mit laufender Kampagne
+  if (alle) {
+    const n = await runHealthChecks(createAdminClient());
+    return NextResponse.json({ success: true, message: `Health Checks für ${n} Kunden mit laufender Kampagne ausgeführt` });
+  }
+
   if (!agency_id) {
     return NextResponse.json({ error: 'agency_id ist erforderlich' }, { status: 400 });
   }
@@ -83,5 +95,5 @@ export async function POST(request: Request) {
 
   await runChecksForAgency(admin, agency.id, agency.name);
 
-  return NextResponse.json({ success: true, message: `Health Checks fuer ${agency.name} ausgefuehrt` });
+  return NextResponse.json({ success: true, message: `Health Checks für ${agency.name} ausgeführt` });
 }

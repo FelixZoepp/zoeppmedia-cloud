@@ -50,6 +50,15 @@ const CHECK_LABELS: Record<string, string> = {
 
 const CHECK_TYPES = ['stille', 'werbekonto', 'pixel', 'canary_bewerbung'];
 
+const PHASE_LABELS: Record<string, string> = {
+  zahlung: 'Zahlung',
+  onboarding: 'Onboarding',
+  setup: 'Setup',
+  continuity: 'Kampagne läuft',
+  offboarding: 'Offboarding',
+  beendet: 'Beendet',
+};
+
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
   return (
@@ -134,7 +143,9 @@ function AgencyRow({
     <Card padding="sm" className="space-y-2">
       <div className="flex items-center gap-3">
         {/* Overall status icon */}
-        {hasError ? (
+        {agency.checks.length === 0 ? (
+          <span className="h-5 w-5 flex-shrink-0 rounded-full shadow-[inset_0_0_0_2px_var(--hair)]" title="Noch nicht geprüft" />
+        ) : hasError ? (
           <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
         ) : hasWarning ? (
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
@@ -144,7 +155,12 @@ function AgencyRow({
 
         {/* Agency name */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">{agency.agency_name}</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <span className="truncate">{agency.agency_name}</span>
+            <span className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-medium ${agency.agency_status === 'continuity' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+              {PHASE_LABELS[agency.agency_status] ?? agency.agency_status}
+            </span>
+          </p>
           <div className="flex items-center gap-2 mt-1">
             {CHECK_TYPES.map((typ) => (
               <div key={typ} className="flex items-center gap-1">
@@ -168,7 +184,7 @@ function AgencyRow({
             ) : (
               <RefreshCw className="w-3.5 h-3.5" />
             )}
-            Jetzt pruefen
+            Jetzt prüfen
           </Button>
           <Button
             size="sm"
@@ -191,7 +207,7 @@ function AgencyRow({
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-gray-200" />
                     <span className="text-sm font-medium text-gray-500">{CHECK_LABELS[typ]}</span>
-                    <span className="text-xs text-gray-400 ml-auto">Noch nicht geprueft</span>
+                    <span className="text-xs text-gray-400 ml-auto">Noch nicht geprüft</span>
                   </div>
                 </div>
               );
@@ -266,8 +282,29 @@ export function HealthClient() {
       toast.error(err.error || 'Health Check fehlgeschlagen');
       return;
     }
-    toast.success('Health Checks ausgefuehrt');
+    toast.success('Health Checks ausgeführt');
     fetchData();
+  }
+
+  const [runningAll, setRunningAll] = useState(false);
+  async function handleRunAll() {
+    setRunningAll(true);
+    try {
+      const res = await fetch('/api/admin/health-checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alle: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Health Checks fehlgeschlagen');
+        return;
+      }
+      toast.success(data.message || 'Health Checks ausgeführt');
+      fetchData();
+    } finally {
+      setRunningAll(false);
+    }
   }
 
   // Sort: agencies with errors first, then warnings, then ok
@@ -291,15 +328,20 @@ export function HealthClient() {
   return (
     <div className="max-w-4xl">
       <PageHeader
-        label="VERWALTUNG"
         title="Health Checks"
-        description="Automatische Ueberwachung aller Agenturen — Pixel, Werbekonto, Bewerbungsflow"
+        description="Tägliche Prüfung aller Kunden mit laufender Kampagne – Bewerbungen, Werbekonto, Pixel, Bewerbungsstrecke"
         counter={
           errorCount > 0
             ? `${errorCount} Fehler`
             : warningCount > 0
               ? `${warningCount} Warnungen`
-              : `${agencies.length} Agenturen`
+              : `${agencies.length} Kunden`
+        }
+        action={
+          <Button onClick={handleRunAll} disabled={runningAll}>
+            {runningAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {runningAll ? 'Prüft …' : 'Alle prüfen'}
+          </Button>
         }
       />
 
@@ -310,10 +352,8 @@ export function HealthClient() {
       ) : agencies.length === 0 ? (
         <Card padding="lg" className="text-center">
           <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Keine Agenturen</h2>
-          <p className="text-gray-600">
-            Es gibt noch keine aktiven Agenturen fuer Health Checks.
-          </p>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Keine Kunden</h2>
+          <p className="text-gray-600">Sobald Kunden angelegt sind, erscheinen sie hier.</p>
         </Card>
       ) : (
         <div className="space-y-3">
