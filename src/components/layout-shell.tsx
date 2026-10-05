@@ -8,6 +8,7 @@ import { GlobalSearch } from '@/components/global-search';
 import { AppSidebar, MobileTabBar } from '@/components/app-sidebar';
 import { useBoardReveal } from '@/components/ui/motion';
 import { Avatar } from '@/components/ui/avatar';
+import { AssistantPanel } from '@/components/assistant/assistant-panel';
 import type { UserRole } from '@/lib/auth';
 
 interface ShellUser {
@@ -145,6 +146,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
           </div>
         </main>
       </div>
+      <AssistantPanel audience={audienceFor(user.role)} userName={user.name} />
       <MobileTabBar role={user.role} pathname={pathname} onMore={() => setOpen(true)} />
     </div>
   );
