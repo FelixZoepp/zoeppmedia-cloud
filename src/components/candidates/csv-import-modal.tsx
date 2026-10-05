@@ -115,7 +115,7 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
         ) : result ? (
           <div className="text-center py-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Import abgeschlossen</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <div className="p-4 bg-green-50 rounded-lg">
                 <p className="text-2xl font-bold text-green-700">{result.created}</p>
                 <p className="text-sm text-green-600">Angelegt</p>
@@ -149,7 +149,8 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
 
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-600">
               <strong>Vorschau</strong> (erste 3 Zeilen):
-              <table className="w-full mt-2 text-xs">
+              <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-xs">
                 <tbody>
                   {rows.slice(0, 3).map((row, ri) => (
                     <tr key={ri} className="border-t border-gray-200">
@@ -160,6 +161,7 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             <label className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg cursor-pointer">

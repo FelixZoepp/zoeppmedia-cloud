@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="de" className={jakarta.variable}>
       <body className={jakarta.className}>
         {children}
-        <Toaster position="bottom-right" richColors />
+        <Toaster position="bottom-right" richColors mobileOffset={{ bottom: 96 }} />
         <ServiceWorkerRegister />
       </body>
     </html>

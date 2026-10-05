@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Sidebar, type SidebarGroup, type SidebarItem } from '@/components/ui/sidebar';
 import { InstallPromo } from '@/components/install-promo';
 import type { UserRole } from '@/lib/auth';
@@ -34,6 +35,7 @@ import {
   Briefcase,
   MessageSquare,
   Smartphone,
+  Menu,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -206,5 +208,58 @@ export function AppSidebar({ role, userName, onClose }: AppSidebarProps) {
       promo={<InstallPromo />}
       onClose={onClose}
     />
+  );
+}
+
+/* ── Mobile: untere Tab-Leiste ──────────────────────────────────── */
+
+const MOBILE_TABS: Record<'internal_admin' | 'internal_employee' | 'agency', SidebarItem[]> = {
+  internal_admin: [
+    { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard />, href: '/admin' },
+    { id: 'meine-todos', label: 'Aufgaben', icon: <CheckSquare />, href: '/meine-todos' },
+    { id: 'clients', label: 'Kunden', icon: <Building2 />, href: '/clients' },
+    { id: 'team', label: 'Team', icon: <Users />, href: '/team' },
+  ],
+  internal_employee: [
+    { id: 'meine-todos', label: 'Aufgaben', icon: <CheckSquare />, href: '/meine-todos' },
+    { id: 'clients', label: 'Kunden', icon: <Building2 />, href: '/clients' },
+    { id: 'dialer', label: 'Dialer', icon: <PhoneCall />, href: '/dialer' },
+    { id: 'ads', label: 'Ads', icon: <Megaphone />, href: '/ads' },
+  ],
+  agency: [
+    { id: 'dashboard', label: 'Start', icon: <LayoutDashboard />, href: '/dashboard' },
+    { id: 'inbox', label: 'Inbox', icon: <MessageSquare />, href: '/inbox' },
+    { id: 'candidates', label: 'Bewerber', icon: <ClipboardList />, href: '/candidates' },
+    { id: 'statistiken', label: 'Zahlen', icon: <BarChart3 />, href: '/statistiken' },
+  ],
+};
+
+export function MobileTabBar({ role, pathname, onMore }: { role: UserRole; pathname: string; onMore: () => void }) {
+  const tabs = role === 'admin' ? MOBILE_TABS.internal_admin : role === 'employee' ? MOBILE_TABS.internal_employee : MOBILE_TABS.agency;
+  const active = tabs
+    .filter((t) => pathname === t.href || pathname.startsWith(t.href + '/'))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
+  const cls = (on: boolean) =>
+    `flex min-w-0 flex-1 flex-col items-center gap-1 rounded-[14px] py-2 text-[11px] font-medium transition-colors [&_svg]:h-[22px] [&_svg]:w-[22px] [&_svg]:stroke-[1.75] ${
+      on ? 'bg-red-50 text-red-800' : 'text-gray-600 active:bg-gray-100'
+    }`;
+
+  return (
+    <nav
+      aria-label="Schnellnavigation"
+      className="fixed inset-x-2.5 bottom-[max(10px,env(safe-area-inset-bottom))] z-40 flex gap-1 rounded-2xl bg-card/95 p-1.5 shadow-[0_0_0_1px_var(--hair),0_18px_40px_-18px_#1a151480] backdrop-blur md:hidden"
+    >
+      {tabs.map((t) => (
+        <Link key={t.id} href={t.href} className={cls(t.href === active)} aria-current={t.href === active ? 'page' : undefined}>
+          {t.icon}
+          <span className="max-w-full truncate">{t.label}</span>
+        </Link>
+      ))}
+      <button type="button" onClick={onMore} className={cls(false)}>
+        <Menu />
+        <span>Mehr</span>
+      </button>
+    </nav>
   );
 }

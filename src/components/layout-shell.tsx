@@ -2,10 +2,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { GlobalSearch } from '@/components/global-search';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar, MobileTabBar } from '@/components/app-sidebar';
 import { useBoardReveal } from '@/components/ui/motion';
 import type { UserRole } from '@/lib/auth';
 
@@ -42,7 +41,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
   }, [open]);
 
   return (
-    <div className="mx-auto grid min-h-dvh max-w-[1680px] grid-cols-1 gap-3 p-2.5 md:grid-cols-[252px_minmax(0,1fr)] md:gap-3.5 md:p-3.5">
+    <div className="mx-auto grid min-h-dvh max-w-[1680px] grid-cols-1 gap-3 p-2.5 pb-[calc(88px+env(safe-area-inset-bottom))] md:grid-cols-[252px_minmax(0,1fr)] md:gap-3.5 md:p-3.5">
       <a
         href="#inhalt"
         className="fixed left-4 top-3 z-[100] -translate-y-[160%] rounded-[10px] bg-red-950 px-4 py-2.5 text-red-50 focus:translate-y-0"
@@ -67,14 +66,10 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
 
       <div className="grid min-w-0 grid-rows-[auto_1fr] gap-3 md:gap-3.5">
         {/* Topbar */}
-        <header className="fx-shell sticky top-2.5 z-40 flex items-center gap-3 rounded-2xl bg-panel/95 px-3 py-3 backdrop-blur md:static md:gap-3.5 md:bg-panel md:px-[18px] md:py-3.5">
-          <button
-            onClick={() => setOpen(true)}
-            className="grid h-11 w-11 place-items-center rounded-[12px] text-ink hover:bg-gray-100 md:hidden"
-            aria-label="Menü öffnen"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+        <header className="fx-shell sticky top-2.5 z-40 flex items-center gap-2.5 rounded-2xl bg-panel px-3 py-3 shadow-[0_10px_30px_-20px_#1a151466] md:static md:gap-3.5 md:px-[18px] md:py-3.5 md:shadow-none">
+          <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 text-[16px] font-bold text-white md:hidden">
+            Z
+          </span>
           <span className="flex-1 text-[17px] font-semibold tracking-[-0.03em] md:hidden">Zoepp Cloud</span>
           {internal && <GlobalSearch />}
           <div className="ml-auto flex items-center gap-3">
@@ -95,12 +90,13 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         </header>
 
         {/* Inhalt als eigene Fläche */}
-        <main id="inhalt" className="min-w-0 rounded-2xl bg-panel px-4 pb-5 pt-6 md:px-[22px] md:pb-[22px] md:pt-7">
+        <main id="inhalt" className="min-w-0 rounded-2xl bg-panel px-4 pb-6 pt-6 md:px-[22px] md:pb-[22px] md:pt-7">
           <div ref={boardRef} className="mx-auto max-w-[1400px]">
             {children}
           </div>
         </main>
       </div>
+      <MobileTabBar role={user.role} pathname={pathname} onMore={() => setOpen(true)} />
     </div>
   );
 }

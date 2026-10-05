@@ -198,3 +198,16 @@ body {
   from { transform: scaleX(0); }
   to { transform: none; }
 }
+
+/* Modal: auf dem Handy als Sheet von unten, sonst wie Dialog */
+.fx-sheet { animation: fx-dlg .45s var(--ease) both; }
+@media (max-width: 639px) {
+  .fx-sheet { animation: fx-sheet .45s var(--ease) both; }
+}
+@keyframes fx-sheet {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-sheet { animation: none !important; }
+}

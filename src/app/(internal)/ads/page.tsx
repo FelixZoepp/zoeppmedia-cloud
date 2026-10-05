@@ -331,7 +331,7 @@ export default function AdsPage() {
           </select>
           <input className={inputCls} placeholder="Titel, z.B. Reel: Ein Tag im Außendienst" value={neuForm.titel} onChange={(e) => setNeuForm({ ...neuForm, titel: e.target.value })} />
           <textarea className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm min-h-[80px]" placeholder="Idee / Hook" value={neuForm.idee} onChange={(e) => setNeuForm({ ...neuForm, idee: e.target.value })} />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <select className={inputCls} value={neuForm.typ} onChange={(e) => setNeuForm({ ...neuForm, typ: e.target.value })}>
               {AD_TYPEN.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>

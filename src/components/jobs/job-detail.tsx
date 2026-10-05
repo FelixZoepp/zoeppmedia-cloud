@@ -232,8 +232,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       {/* Tab: KI-Bot */}
       {activeTab === 'ki-bot' && (
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <BotConfigForm jobId={jobId} />
           </div>
           <div>
@@ -251,8 +251,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       {/* Tab: Details */}
       {activeTab === 'details' && (
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Details</h3>

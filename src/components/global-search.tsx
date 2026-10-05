@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Building2, User, Users } from 'lucide-react';
+import { Search, Building2, User, Users, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Agency { id: string; name: string; email: string }
@@ -29,6 +29,7 @@ export function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -86,6 +87,7 @@ export function GlobalSearch() {
 
   const navigateTo = useCallback((type: 'agency' | 'candidate' | 'user', id: string) => {
     setOpen(false);
+    setMobileOpen(false);
     setQuery('');
     if (type === 'agency') router.push(`/clients/${id}`);
     else if (type === 'candidate') router.push(`/candidates/${id}`);
@@ -113,7 +115,20 @@ export function GlobalSearch() {
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="relative hidden md:block w-[380px] max-w-full">
+      <button
+        type="button"
+        onClick={() => { setMobileOpen(true); setTimeout(() => inputRef.current?.focus(), 30); }}
+        className="grid h-[50px] w-[50px] place-items-center rounded-full bg-card text-ink md:hidden"
+        aria-label="Suchen"
+      >
+        <Search className="h-[21px] w-[21px]" />
+      </button>
+      <div
+        className={`${
+          mobileOpen ? 'fixed inset-x-2.5 top-2.5 z-50 flex items-center gap-2 rounded-2xl bg-panel p-2 shadow-[0_18px_40px_-18px_#1a151480]' : 'hidden'
+        } md:static md:block md:w-[380px] md:max-w-full md:bg-transparent md:p-0 md:shadow-none`}
+      >
+        <div className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-[18px] top-1/2 h-[21px] w-[21px] -translate-y-1/2 text-ink" />
         <input
           ref={inputRef}
@@ -129,14 +144,25 @@ export function GlobalSearch() {
         {loading ? (
           <div className="absolute right-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border border-gray-300 border-t-gray-700" />
         ) : (
-          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-[7px] bg-panel px-2 py-[3px] font-sans text-xs font-medium text-ink">
+          <kbd className="pointer-events-none absolute right-3 top-1/2 hidden md:block -translate-y-1/2 rounded-[7px] bg-panel px-2 py-[3px] font-sans text-xs font-medium text-ink">
             ⌘ K
           </kbd>
+        )}
+        </div>
+        {mobileOpen && (
+          <button
+            type="button"
+            onClick={() => { setMobileOpen(false); setOpen(false); }}
+            className="grid h-[50px] w-[50px] flex-shrink-0 place-items-center rounded-full bg-card md:hidden"
+            aria-label="Suche schließen"
+          >
+            <X className="h-5 w-5" />
+          </button>
         )}
       </div>
 
       {open && (
-        <div className="fx-dlg absolute top-full mt-2 left-0 w-[380px] bg-card rounded-xl shadow-[0_0_0_1px_var(--hair),0_18px_40px_-16px_#1a151459] z-50 overflow-hidden">
+        <div className={`fx-dlg ${mobileOpen ? 'fixed inset-x-2.5 top-[82px] max-h-[70dvh] overflow-y-auto' : 'absolute top-full left-0 w-[380px]'} mt-2 md:absolute md:inset-x-auto md:top-full md:left-0 md:w-[380px] bg-card rounded-xl shadow-[0_0_0_1px_var(--hair),0_18px_40px_-16px_#1a151459] z-50 overflow-hidden`}>
           {!hasResults ? (
             <p className="text-sm text-gray-400 text-center py-6">Keine Ergebnisse</p>
           ) : (

@@ -190,7 +190,7 @@ function Column({
   onStep: (stepId: string, status: string) => Promise<void>;
 }) {
   return (
-    <section className="flex w-[300px] flex-shrink-0 flex-col rounded-xl p-3 shadow-[inset_0_0_0_1.5px_var(--hair)]">
+    <section className="flex w-full flex-shrink-0 flex-col rounded-xl p-3 shadow-[inset_0_0_0_1.5px_var(--hair)] md:w-[300px]">
       <header className="flex items-center gap-2.5 px-1.5 pb-3 pt-1.5">
         <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: dot }} />
         <h3 className="min-w-0 flex-1 text-[15px] font-medium leading-tight">
@@ -216,7 +216,7 @@ function EmptyStep({ nr, titel, kunde }: { nr: number; titel: string; kunde: boo
   return (
     <div
       title={`${nr}. ${titel} – kein Kunde`}
-      className="flex w-11 flex-shrink-0 flex-col items-center gap-3 rounded-xl py-4 text-gray-500 shadow-[inset_0_0_0_1.5px_var(--hair)]"
+      className="hidden w-11 flex-shrink-0 flex-col items-center gap-3 rounded-xl py-4 text-gray-500 shadow-[inset_0_0_0_1.5px_var(--hair)] md:flex"
     >
       <span className="text-xs font-semibold">{nr}</span>
       <span className={`h-2 w-2 rounded-full ${kunde ? 'bg-amber-400' : 'bg-gray-300'}`} />
@@ -292,7 +292,7 @@ export function FulfillmentBoard({
       <div className="mt-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
         <SegmentedControl items={FILTERS} value={filter} onChange={(v) => setFilter(v as Filter)} />
         <div className="flex items-center gap-4 text-[14px] text-gray-600">
-          <label className="inline-flex cursor-pointer items-center gap-2">
+          <label className="hidden cursor-pointer items-center gap-2 md:inline-flex">
             <input
               type="checkbox"
               checked={alleSchritte}
@@ -309,7 +309,7 @@ export function FulfillmentBoard({
       <p className="mt-3 text-[13.5px] text-gray-600">{phase.beschreibung}</p>
 
       {/* Board der gewählten Pipeline */}
-      <div key={`${pipeline}-${filter}`} className="-mx-1 mt-4 flex items-start gap-3 overflow-x-auto px-1 pb-3">
+      <div key={`${pipeline}-${filter}`} className="-mx-1 mt-4 flex flex-col gap-3 px-1 pb-3 md:flex-row md:items-start md:overflow-x-auto">
         {steps.map((step, i) => {
           const col = shown.filter((c) => c.aktueller_schritt?.step_key === step.key).sort(sortCol);
           if (col.length === 0 && !alleSchritte) {
