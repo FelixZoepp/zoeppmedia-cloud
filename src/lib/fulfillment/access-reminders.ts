@@ -61,8 +61,8 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
   // 1. Get all onboarding agencies
   const { data: agencies } = await supabase
     .from('agencies')
-    .select('id, name, email, contact_name, status, garantie_start, garantie_ende, laufzeit_monate')
-    .eq('status', 'onboarding');
+    .select('id, name, email, contact_name, garantie_start, garantie_ende, laufzeit_monate')
+    .eq('fulfillment_phase', 'onboarding');
 
   if (!agencies || agencies.length === 0) return;
 

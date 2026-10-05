@@ -11,16 +11,22 @@ export async function POST() {
   const supabase = createAdminClient();
   const { data: agencies } = await supabase
     .from('agencies')
-    .select('id, name, has_video_shoot, reels_per_month, onboarding_completed');
+    .select('id, name, settings, onboarding_completed');
 
   if (!agencies) return NextResponse.json({ created: 0 });
+  // Video-Dreh/Reels stehen in agencies.settings (keine eigenen Spalten)
+  const liste = (agencies as Array<{ id: string; name: string; settings: { has_video_shoot?: boolean; reels_per_month?: number } | null; onboarding_completed: boolean }>).map((a) => ({
+    ...a,
+    has_video_shoot: !!a.settings?.has_video_shoot,
+    reels_per_month: Number(a.settings?.reels_per_month) || 0,
+  }));
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
   const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
   let created = 0;
 
-  for (const agency of agencies) {
+  for (const agency of liste) {
     if (!agency.onboarding_completed) continue;
 
     // 1. Indeed Restart — every 30 days, always

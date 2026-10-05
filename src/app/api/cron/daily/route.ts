@@ -58,11 +58,15 @@ async function runDailyJobs() {
         }
 
         // Reels monthly
-        const { data: agencyData } = await supabase
+        const { data: agencyRow } = await supabase
           .from('agencies')
-          .select('reels_per_month')
+          .select('settings')
           .eq('id', agency.id)
           .single();
+        // Reels pro Monat liegen in agencies.settings
+        const agencyData = agencyRow
+          ? { reels_per_month: Number(((agencyRow as { settings?: { reels_per_month?: number } }).settings ?? {}).reels_per_month) || 0 }
+          : null;
 
         if (agencyData && agencyData.reels_per_month > 0) {
           const { data: lastReels } = await supabase

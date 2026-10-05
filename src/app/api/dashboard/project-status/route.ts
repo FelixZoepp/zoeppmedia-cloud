@@ -14,7 +14,7 @@ export async function GET() {
 
   const { data: agency, error } = await supabase
     .from('agencies')
-    .select('status, garantie_start, garantie_ende')
+    .select('fulfillment_phase, pausiert_grund, garantie_start, garantie_ende')
     .eq('id', user.agency_id)
     .single();
 
@@ -22,5 +22,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Agentur nicht gefunden' }, { status: 404 });
   }
 
-  return NextResponse.json(agency);
+  // „status“ aus der Fulfillment-Phase ableiten (agencies.status gibt es nicht mehr)
+  const a = agency as { fulfillment_phase: string | null; pausiert_grund: string | null; garantie_start: string | null; garantie_ende: string | null };
+  const status = a.pausiert_grund ? 'pausiert' : a.fulfillment_phase === 'continuity' ? 'live' : (a.fulfillment_phase ?? 'onboarding');
+  return NextResponse.json({ status, garantie_start: a.garantie_start, garantie_ende: a.garantie_ende });
 }

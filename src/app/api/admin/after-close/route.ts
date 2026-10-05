@@ -84,7 +84,6 @@ export async function POST(request: Request) {
       garantie_ende: guaranteeEnd,
       zusagen_closer: body.zusagen_closer || null,
       sonderfaelle: body.sonderfaelle || null,
-      status: 'onboarding',
       onboarding_completed: false,
     })
     .select()
@@ -253,13 +252,13 @@ export async function POST(request: Request) {
       checkout_url: checkoutUrl,
     });
   } catch (err: unknown) {
-    // Something after agency creation failed — mark as setup_fehler
+    // Etwas nach dem Anlegen ist schiefgelaufen → als Blocker am Kunden sichtbar machen
+    // (früher agencies.status = 'setup_fehler' – die Spalte gibt es seit Fulfillment v2 nicht mehr)
+    const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
     await admin
       .from('agencies')
-      .update({ status: 'setup_fehler' })
+      .update({ pausiert_grund: `Setup-Fehler: ${message}`.slice(0, 300) })
       .eq('id', agencyId);
-
-    const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
 
     await logActivity(admin, {
       agency_id: agencyId,

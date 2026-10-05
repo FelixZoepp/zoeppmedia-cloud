@@ -21,7 +21,10 @@ interface TaskData {
 }
 
 const AGENCY_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  zahlung: { label: 'Zahlung', color: 'bg-amber-100 text-amber-800' },
   onboarding: { label: 'Onboarding', color: 'bg-amber-100 text-amber-800' },
+  setup: { label: 'Setup', color: 'bg-amber-100 text-amber-800' },
+  offboarding: { label: 'Offboarding', color: 'bg-gray-100 text-gray-600' },
   aktiv: { label: 'Aktiv', color: 'bg-green-100 text-green-800' },
   live: { label: 'Live', color: 'bg-green-100 text-green-800' },
   pausiert: { label: 'Pausiert', color: 'bg-gray-100 text-gray-600' },
