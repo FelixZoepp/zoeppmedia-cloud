@@ -36,6 +36,7 @@ import {
   MessageSquare,
   Smartphone,
   Menu,
+  LifeBuoy,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -167,6 +168,13 @@ const profileItem: SidebarItem = {
   href: '/profile',
 };
 
+const helpItem: SidebarItem = {
+  id: 'hilfe',
+  label: 'Hilfe',
+  icon: <LifeBuoy className="w-5 h-5" />,
+  href: '/hilfe',
+};
+
 const logoutItem: SidebarItem = {
   id: 'logout',
   label: 'Logout',
@@ -198,8 +206,8 @@ export function AppSidebar({ role, userName, logoUrl, onClose }: AppSidebarProps
   const isInternal = role === 'admin' || role === 'employee';
 
   const bottomItems = isInternal
-    ? [profileItem, settingsItem, logoutItem]
-    : [settingsItem, logoutItem];
+    ? [profileItem, settingsItem, helpItem, logoutItem]
+    : [settingsItem, helpItem, logoutItem];
 
   return (
     <Sidebar

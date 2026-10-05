@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { audienceFor, shortcutsFor } from '@/lib/help/articles';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { GlobalSearch } from '@/components/global-search';
 import { AppSidebar, MobileTabBar } from '@/components/app-sidebar';
@@ -37,6 +38,46 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
   const internal = user.role === 'admin' || user.role === 'employee';
 
   useBoardReveal(boardRef, pathname);
+
+  const router = useRouter();
+  // Tastenkürzel (siehe Hilfe-Center): „/“ = Suche, „G“ + Buchstabe = Seite wechseln, Esc = Menü zu
+  useEffect(() => {
+    const ziele = new Map(
+      shortcutsFor(audienceFor(user.role))
+        .filter((s) => s.href && s.keys[0] === 'G')
+        .map((s) => [s.keys[1].toLowerCase(), s.href!]),
+    );
+    let gAt = 0;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+      const key = e.key.toLowerCase();
+      if (key === 'escape') {
+        setOpenOn(null);
+        return;
+      }
+      if (key === '/') {
+        const input = document.querySelector<HTMLInputElement>('header input[type="search"]');
+        if (input && input.offsetParent !== null) {
+          e.preventDefault();
+          input.focus();
+        }
+        return;
+      }
+      if (key === 'g') {
+        gAt = Date.now();
+        return;
+      }
+      if (gAt && Date.now() - gAt < 1200 && ziele.has(key)) {
+        e.preventDefault();
+        router.push(ziele.get(key)!);
+      }
+      gAt = 0;
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [user.role, router]);
 
   // Mobile: Scrollen sperren, solange das Menü offen ist
   useEffect(() => {
