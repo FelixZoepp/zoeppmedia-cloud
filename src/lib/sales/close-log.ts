@@ -31,11 +31,16 @@ export async function outgoingText(
   svc: SupabaseClient,
   payload: SendMessagePayload,
   templateId: string | null | undefined,
+  agencyId?: string | null,
 ): Promise<string> {
   if (payload.text?.body) return payload.text.body;
   if (payload.type === 'template' && payload.template) {
-    if (templateId) {
-      const { data } = await svc.from('whatsapp_templates').select('body').eq('id', templateId).maybeSingle();
+    if (templateId || agencyId) {
+      // Automationen senden oft nur mit Vorlagennamen – dann über Name + Agentur nachschlagen
+      const q = svc.from('whatsapp_templates').select('body');
+      const { data } = templateId
+        ? await q.eq('id', templateId).maybeSingle()
+        : await q.eq('agency_id', agencyId!).eq('name', payload.template.name).limit(1).maybeSingle();
       const body = (data as { body: string } | null)?.body;
       if (body) {
         const bodyComp = payload.template.components?.find((c) => c.type === 'body') as

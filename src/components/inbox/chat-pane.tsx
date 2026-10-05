@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TemplatePicker } from './template-picker';
 import { QuickReplyModal } from './quick-reply-modal';
-import { Send, Bot, CheckCheck, Check, X, Paperclip, Sparkles, ChevronLeft, Info } from 'lucide-react';
+import { Send, Bot, CheckCheck, Check, X, Paperclip, Sparkles, ChevronLeft, Info, FileText } from 'lucide-react';
+import { friendlyWhatsAppError } from '@/lib/whatsapp/template-text';
 import { Avatar } from '@/components/ui/avatar';
 import { formatPhone } from './format';
 import { toast } from 'sonner';
@@ -245,7 +246,13 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
             status: string;
             error_code: string | null;
             created_at: string;
+            type?: string;
+            vorlage?: boolean;
+            fehler_text?: string | null;
           };
+          const istVorlage = msg.vorlage || msg.type === 'template';
+          const text = istVorlage && msg.body ? (/^[a-z0-9_]+$/.test(msg.body) ? `Vorlage „${msg.body.replace(/_/g, ' ')}“` : msg.body.replace(/\{\{\d+\}\}/g, '…')) : msg.body;
+          const fehler = msg.status === 'failed' ? (msg.fehler_text ?? friendlyWhatsAppError(msg.error_code) ?? 'Nicht gesendet') : null;
           const prev = messages[i - 1] as { created_at: string } | undefined;
           const neuerTag = !prev || new Date(prev.created_at).toDateString() !== new Date(msg.created_at).toDateString();
           const isOut = msg.direction === 'out';
@@ -272,17 +279,21 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
                         : 'rounded-[18px] rounded-bl-[6px] bg-card text-ink'
                     }`}
                   >
-                    {bot && (
-                      <span className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-sky-700">
-                        <Bot className="h-3 w-3" /> Bot
+                    {(bot || istVorlage) && (
+                      <span className={`mb-0.5 flex items-center gap-1 text-[11px] font-medium ${bot ? 'text-sky-700' : isOut ? 'text-red-200' : 'text-gray-500'}`}>
+                        {bot ? <Bot className="h-3 w-3" /> : <FileText className="h-3 w-3" />} {bot ? 'Bot' : 'Vorlage'}
                       </span>
                     )}
-                    <p className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">{msg.body}</p>
+                    <p className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">{text}</p>
                     <div className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${isOut && !bot ? 'text-red-200' : 'text-gray-500'}`}>
                       {new Date(msg.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                       {isOut && STATUS_ICONS[msg.status]}
                     </div>
-                    {msg.status === 'failed' && msg.error_code && <p className="mt-1 text-xs text-red-300">Fehler: {msg.error_code}</p>}
+                    {fehler && (
+                      <p className={`mt-1.5 flex items-start gap-1 rounded-[10px] px-2 py-1 text-xs ${isOut && !bot ? 'bg-white/15 text-red-50' : 'bg-red-50 text-red-700'}`}>
+                        <X className="mt-px h-3 w-3 flex-none" /> {fehler}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -299,7 +310,7 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
             Konversation geschlossen — Kandidat hat sich abgemeldet oder das Gespräch wurde beendet.
           </p>
         ) : isClosed ? (
-          <TemplatePicker onSend={handleTemplateSend} sending={sending} />
+          <TemplatePicker onSend={handleTemplateSend} sending={sending} candidateName={conv?.candidate?.name ?? ''} />
         ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-2">

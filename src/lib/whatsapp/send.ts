@@ -97,7 +97,7 @@ export async function sendWhatsAppMessage(
   //    Vorlagen: vollständiger Text mit eingesetzten Variablen statt nur des Vorlagennamens (Inbox-Anzeige)
   const bodyText =
     opts.payload.text?.body
-    || (opts.payload.type === 'template' ? await outgoingText(svc, opts.payload, opts.templateId) : null)
+    || (opts.payload.type === 'template' ? await outgoingText(svc, opts.payload, opts.templateId, opts.agencyId) : null)
     || opts.payload.template?.name
     || (opts.payload.type === 'image' ? '[Bild]'
       : opts.payload.type === 'document' ? '[Dokument]'
@@ -148,7 +148,7 @@ export async function sendWhatsAppMessage(
     if (opts.agencyId === SALES_AGENCY_ID) {
       await enqueueSalesCloseLog(svc, {
         direction: 'outgoing',
-        text: await outgoingText(svc, opts.payload, opts.templateId),
+        text: await outgoingText(svc, opts.payload, opts.templateId, opts.agencyId),
         phone: opts.candidatePhone,
         waMessageId: result.messageId,
         at: new Date().toISOString(),

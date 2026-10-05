@@ -1,3 +1,4 @@
+import { placeholderCount, orderedParams, friendlyWhatsAppError } from '@/lib/whatsapp/template-text';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
@@ -70,17 +71,23 @@ export async function POST(request: NextRequest) {
     // Template laden (mit Tenant-Prüfung, R4: agency_id-Scoping)
     const { data: tmpl } = await svc
       .from('whatsapp_templates')
-      .select('name, language')
+      .select('name, language, body')
       .eq('id', parsed.data.templateId)
       .eq('agency_id', agencyId)
       .single();
 
     if (!tmpl) return NextResponse.json({ error: 'Vorlage nicht gefunden' }, { status: 404 });
 
-    const vars = parsed.data.templateVariables || {};
-    const components = Object.keys(vars).length > 0 ? [{
+    // Meta erwartet genau so viele Werte wie Platzhalter im Vorlagentext ({{1}} … {{n}})
+    const count = placeholderCount((tmpl as { body?: string | null }).body);
+    const params = orderedParams(parsed.data.templateVariables || {}, count);
+    const missing = params.findIndex((v) => !v);
+    if (missing !== -1) {
+      return NextResponse.json({ ok: false, error: `Bitte Platzhalter {{${missing + 1}}} ausfüllen` }, { status: 400 });
+    }
+    const components = count > 0 ? [{
       type: 'body',
-      parameters: Object.values(vars).map(v => ({ type: 'text', text: v })),
+      parameters: params.map(v => ({ type: 'text', text: v })),
     }] : [];
 
     payload = {
@@ -131,7 +138,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, messageId: result.messageId });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Senden fehlgeschlagen' },
+      { error: friendlyWhatsAppError(err instanceof Error ? err.message : null) ?? 'Senden fehlgeschlagen' },
       { status: 400 }
     );
   }

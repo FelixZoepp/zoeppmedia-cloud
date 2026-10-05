@@ -192,7 +192,7 @@ describe('POST /api/whatsapp/send', () => {
   it('succeeds for template type and asserts sendWhatsAppMessage called with template payload (I4)', async () => {
     const convData = { id: CONV_ID, candidate_id: 'cand-1', wa_account_id: 'wa-1', state: 'open' };
     const candidateData = { phone_e164: '+491761234567' };
-    const templateData = { name: 'bewerbung_einladung', language: 'de' };
+    const templateData = { name: 'bewerbung_einladung', language: 'de', body: 'Hallo {{1}}, bitte melde dich.' };
 
     vi.mocked(createAdminClient).mockReturnValue(
       makeSvcMock({

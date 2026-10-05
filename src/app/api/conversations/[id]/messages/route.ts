@@ -1,3 +1,4 @@
+import { displayTemplateBody, friendlyWhatsAppError } from '@/lib/whatsapp/template-text';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -34,11 +35,25 @@ export async function GET(
     .eq('conversation_id', id)
     .order('created_at', { ascending: true });
 
+  // Vorlagen-Nachrichten lesbar machen (ältere haben nur den Vorlagennamen gespeichert)
+  const rows = (messages ?? []) as Array<Record<string, unknown> & { type: string; body: string | null; error_code: string | null }>;
+  let templateBodies = new Map<string, string>();
+  if (rows.some((m) => m.type === 'template')) {
+    const { data: tmpls } = await svc.from('whatsapp_templates').select('name, body').eq('agency_id', agencyId);
+    templateBodies = new Map(((tmpls ?? []) as Array<{ name: string; body: string }>).map((t) => [t.name, t.body]));
+  }
+  const view = rows.map((m) => ({
+    ...m,
+    body: m.type === 'template' ? displayTemplateBody(m.body, templateBodies) : m.body,
+    vorlage: m.type === 'template',
+    fehler_text: friendlyWhatsAppError(m.error_code),
+  }));
+
   // unread_count nullen (mit agency_id Scoping per R2)
   await svc.from('conversations')
     .update({ unread_count: 0, updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('agency_id', agencyId);
 
-  return NextResponse.json(messages || []);
+  return NextResponse.json(view);
 }
