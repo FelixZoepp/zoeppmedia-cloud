@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
+import { SatisfactionOverview } from '@/components/stats/satisfaction-overview';
 import {
   FileText,
   Check,
@@ -299,13 +300,14 @@ export function ReportsClient() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div>
       <PageHeader
-        label="VERWALTUNG"
-        title="Reports"
-        description="Tag-7 und Tag-14 Reports verwalten, freigeben und versenden"
+        title="Reports & Zufriedenheit"
+        description="Kunden-Zufriedenheit im Durchschnitt sowie Tag-7-, Tag-14- und Monats-Reports"
         counter={`${reports.length} Reports`}
       />
+
+      <SatisfactionOverview />
 
       {/* Filters */}
       <Card padding="sm" className="mb-6">
