@@ -1,325 +1,299 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Modal } from '@/components/ui/modal';
-import { Select } from '@/components/ui/select';
-import { PageHeader } from '@/components/ui/page-header';
-import {
-  GraduationCap, Plus, Pencil, Trash2, Video, BookOpen,
-  ChevronDown, ChevronRight, Save
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { AlertTriangle, ArrowDown, ArrowUp, Clock, FileText, Paperclip, Pencil, PlayCircle, Plus, Trash2, ListOrdered } from 'lucide-react';
+import { Button, Card, Input, Modal, PageHeader } from '@/components/ui';
+import type { Lesson, Module } from '@/lib/masterclass/lesson';
 
-interface LessonTask {
-  id: string;
-  lesson_id: string;
-  title: string;
-  description: string | null;
-  sort_order: number;
+async function post(body: Record<string, unknown>) {
+  const res = await fetch('/api/masterclass/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Fehler');
+  return data;
 }
 
-interface Lesson {
-  id: string;
-  module_id: string;
-  title: string;
-  description: string | null;
-  video_url: string | null;
-  video_provider: string;
-  duration_minutes: number | null;
-  sort_order: number;
-  lesson_tasks: LessonTask[];
-}
-
-interface Module {
-  id: string;
-  title: string;
-  description: string | null;
-  sort_order: number;
-  published: boolean;
+function move<T>(list: T[], from: number, to: number): T[] {
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
 }
 
 export default function AdminMasterclassPage() {
+  const router = useRouter();
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [schemaReady, setSchemaReady] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const [moduleModal, setModuleModal] = useState<{ id?: string; title: string; description: string } | null>(null);
 
-  // Modal states
-  const [showModuleModal, setShowModuleModal] = useState(false);
-  const [showLessonModal, setShowLessonModal] = useState(false);
-  const [editingModule, setEditingModule] = useState<Module | null>(null);
-  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
-  const [selectedModuleId, setSelectedModuleId] = useState<string>('');
-
-  // Form states
-  const [moduleTitle, setModuleTitle] = useState('');
-  const [moduleDesc, setModuleDesc] = useState('');
-  const [lessonTitle, setLessonTitle] = useState('');
-  const [lessonDesc, setLessonDesc] = useState('');
-  const [lessonVideoUrl, setLessonVideoUrl] = useState('');
-  const [lessonVideoProvider, setLessonVideoProvider] = useState('youtube');
-  const [lessonDuration, setLessonDuration] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadData();
+  const load = useCallback(async () => {
+    const res = await fetch('/api/masterclass/admin');
+    if (res.ok) {
+      const d = (await res.json()) as { modules: Module[]; lessons: Lesson[]; schema_ready: boolean };
+      setModules(d.modules);
+      setLessons(d.lessons);
+      setSchemaReady(d.schema_ready);
+    }
+    setLoading(false);
   }, []);
 
-  async function loadData() {
-    const res = await fetch('/api/masterclass');
-    const data = await res.json();
-    setModules(data.modules);
-    setLessons(data.lessons);
-    setLoading(false);
-  }
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/masterclass/admin')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { modules: Module[]; lessons: Lesson[]; schema_ready: boolean } | null) => {
+        if (cancelled || !d) return;
+        setModules(d.modules);
+        setLessons(d.lessons);
+        setSchemaReady(d.schema_ready);
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function saveModule() {
-    setSaving(true);
-    const payload = editingModule
-      ? { action: 'update_module', id: editingModule.id, title: moduleTitle, description: moduleDesc || null }
-      : { action: 'create_module', title: moduleTitle, description: moduleDesc || null, sort_order: modules.length + 1, published: true };
-
-    await fetch('/api/masterclass/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    setShowModuleModal(false);
-    setEditingModule(null);
-    setModuleTitle('');
-    setModuleDesc('');
-    setSaving(false);
-    await loadData();
+    if (!moduleModal?.title.trim()) return toast.error('Bitte einen Titel eingeben');
+    try {
+      if (moduleModal.id) {
+        await post({ action: 'update_module', id: moduleModal.id, title: moduleModal.title.trim(), description: moduleModal.description.trim() || null });
+      } else {
+        await post({ action: 'create_module', title: moduleModal.title.trim(), description: moduleModal.description.trim() || null, sort_order: modules.length + 1, published: false });
+      }
+      setModuleModal(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+    }
   }
 
-  async function saveLesson() {
-    setSaving(true);
-    const payload = editingLesson
-      ? {
-          action: 'update_lesson', id: editingLesson.id,
-          title: lessonTitle, description: lessonDesc || null,
-          video_url: lessonVideoUrl || null, video_provider: lessonVideoProvider,
-          duration_minutes: lessonDuration ? parseInt(lessonDuration) : null,
-        }
-      : {
-          action: 'create_lesson', module_id: selectedModuleId,
-          title: lessonTitle, description: lessonDesc || null,
-          video_url: lessonVideoUrl || null, video_provider: lessonVideoProvider,
-          duration_minutes: lessonDuration ? parseInt(lessonDuration) : null,
-          sort_order: lessons.filter((l) => l.module_id === selectedModuleId).length + 1,
-        };
-
-    await fetch('/api/masterclass/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    setShowLessonModal(false);
-    setEditingLesson(null);
-    resetLessonForm();
-    setSaving(false);
-    await loadData();
+  async function togglePublished(m: Module) {
+    setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, published: !m.published } : x)));
+    try {
+      await post({ action: 'update_module', id: m.id, published: !m.published });
+    } catch {
+      toast.error('Konnte nicht gespeichert werden');
+      await load();
+    }
   }
 
-  async function deleteModule(id: string) {
-    if (!confirm('Modul und alle Lektionen löschen?')) return;
-    await fetch('/api/masterclass/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete_module', id }),
-    });
-    await loadData();
+  async function reorderModules(from: number, to: number) {
+    const next = move(modules, from, to);
+    setModules(next);
+    await post({ action: 'reorder', table: 'module', ids: next.map((m) => m.id) }).catch(() => toast.error('Reihenfolge nicht gespeichert'));
   }
 
-  async function deleteLesson(id: string) {
-    if (!confirm('Lektion löschen?')) return;
-    await fetch('/api/masterclass/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete_lesson', id }),
-    });
-    await loadData();
+  async function reorderLessons(moduleId: string, from: number, to: number) {
+    const inMod = lessons.filter((l) => l.module_id === moduleId);
+    const next = move(inMod, from, to);
+    setLessons((prev) => [...prev.filter((l) => l.module_id !== moduleId), ...next.map((l, i) => ({ ...l, sort_order: i + 1 }))]);
+    await post({ action: 'reorder', table: 'lesson', ids: next.map((l) => l.id) }).catch(() => toast.error('Reihenfolge nicht gespeichert'));
   }
 
-  function openEditModule(mod: Module) {
-    setEditingModule(mod);
-    setModuleTitle(mod.title);
-    setModuleDesc(mod.description || '');
-    setShowModuleModal(true);
+  async function deleteModule(m: Module) {
+    const n = lessons.filter((l) => l.module_id === m.id).length;
+    if (!confirm(`Modul „${m.title}“ ${n ? `mit ${n} Lektion${n === 1 ? '' : 'en'} ` : ''}wirklich löschen?`)) return;
+    await post({ action: 'delete_module', id: m.id }).catch(() => toast.error('Löschen fehlgeschlagen'));
+    await load();
   }
 
-  function openAddLesson(moduleId: string) {
-    setSelectedModuleId(moduleId);
-    resetLessonForm();
-    setShowLessonModal(true);
+  async function newLesson(moduleId: string) {
+    try {
+      const created = (await post({ action: 'create_lesson', module_id: moduleId, title: 'Neue Lektion' })) as { id: string };
+      router.push(`/admin/masterclass/lektion/${created.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Anlegen fehlgeschlagen');
+    }
   }
 
-  function openEditLesson(lesson: Lesson) {
-    setEditingLesson(lesson);
-    setLessonTitle(lesson.title);
-    setLessonDesc(lesson.description || '');
-    setLessonVideoUrl(lesson.video_url || '');
-    setLessonVideoProvider(lesson.video_provider || 'youtube');
-    setLessonDuration(lesson.duration_minutes?.toString() || '');
-    setShowLessonModal(true);
-  }
-
-  function resetLessonForm() {
-    setLessonTitle('');
-    setLessonDesc('');
-    setLessonVideoUrl('');
-    setLessonVideoProvider('youtube');
-    setLessonDuration('');
-    setEditingLesson(null);
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const gesamt = lessons.length;
+  const live = lessons.filter((l) => l.status === 'veroeffentlicht').length;
 
   return (
-    <div className="max-w-6xl">
+    <div>
       <PageHeader
-        label="VERWALTUNG"
-        title="Masterclass verwalten"
-        description={`${modules.length} Module, ${lessons.length} Lektionen`}
+        title="Masterclass"
+        description={`${modules.length} Module · ${gesamt} Lektionen · ${live} veröffentlicht`}
         action={
-          <Button onClick={() => { setEditingModule(null); setModuleTitle(''); setModuleDesc(''); setShowModuleModal(true); }}>
-            <Plus className="w-4 h-4" /> Modul
-          </Button>
+          <>
+            <Link href="/masterclass" className="inline-flex h-[50px] items-center rounded-full px-6 text-base font-medium text-ink shadow-[inset_0_0_0_1.5px_var(--r-950)] hover:bg-red-50">
+              Live-Ansicht
+            </Link>
+            <Button size="lg" onClick={() => setModuleModal({ title: '', description: '' })}>
+              <Plus /> Neues Modul
+            </Button>
+          </>
         }
       />
 
-      <div className="space-y-4">
-        {modules.map((mod) => {
-          const modLessons = lessons.filter((l) => l.module_id === mod.id);
-          const isExpanded = expandedModule === mod.id;
+      {!schemaReady && (
+        <div className="mb-5 flex gap-3 rounded-xl bg-amber-50 p-4 text-[14px] text-amber-900 shadow-[inset_0_0_0_1px_#fde68a]">
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-none" />
+          <p>
+            <strong>Datenbank-Update fehlt.</strong> Titel, Beschreibung und Video werden gespeichert. Status, Inhalt, Kapitel, Anhänge, Vorschaubild und
+            Eigenschaften erst, wenn die Migration <code className="rounded bg-amber-100 px-1">20261005000001_masterclass_lektionen.sql</code> eingespielt ist.
+          </p>
+        </div>
+      )}
 
-          return (
-            <Card key={mod.id} padding="sm" className="!p-0 overflow-hidden">
-              <button
-                onClick={() => setExpandedModule(isExpanded ? null : mod.id)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                <span className="font-semibold text-sm text-gray-900 flex-1 text-left">{mod.title}</span>
-                <Badge tone="neutral">{modLessons.length} Lektionen</Badge>
-                <button onClick={(e) => { e.stopPropagation(); openEditModule(mod); }} className="p-1 hover:bg-gray-100 rounded cursor-pointer">
-                  <Pencil className="w-4 h-4 text-gray-400" />
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); deleteModule(mod.id); }} className="p-1 hover:bg-red-50 rounded cursor-pointer">
-                  <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                </button>
-              </button>
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-red-200 border-t-red-700" />
+        </div>
+      ) : modules.length === 0 ? (
+        <Card className="py-14 text-center">
+          <p className="text-[17px] font-medium">Noch keine Module</p>
+          <p className="mt-1 text-sm text-gray-600">Lege das erste Modul an und füge Lektionen hinzu.</p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {modules.map((m, mi) => {
+            const list = lessons.filter((l) => l.module_id === m.id).sort((a, b) => a.sort_order - b.sort_order);
+            return (
+              <Card key={m.id} padding="none" className="overflow-hidden">
+                <header className="flex flex-wrap items-center gap-3 px-5 py-4">
+                  <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-red-100 text-[15px] font-semibold text-red-900">{mi + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-[19px] font-medium tracking-[-0.02em]">{m.title}</h2>
+                    {m.description && <p className="truncate text-[13.5px] text-gray-600">{m.description}</p>}
+                  </div>
+                  <button
+                    onClick={() => togglePublished(m)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium ${
+                      m.published ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
+                    }`}
+                    title="Sichtbarkeit für Kunden umschalten"
+                  >
+                    <span className={`h-2 w-2 rounded-full ${m.published ? 'bg-green-600' : 'bg-gray-400'}`} />
+                    {m.published ? 'Veröffentlicht' : 'Entwurf'}
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <IconBtn label="Nach oben" disabled={mi === 0} onClick={() => reorderModules(mi, mi - 1)}>
+                      <ArrowUp className="h-4 w-4" />
+                    </IconBtn>
+                    <IconBtn label="Nach unten" disabled={mi === modules.length - 1} onClick={() => reorderModules(mi, mi + 1)}>
+                      <ArrowDown className="h-4 w-4" />
+                    </IconBtn>
+                    <IconBtn label="Modul bearbeiten" onClick={() => setModuleModal({ id: m.id, title: m.title, description: m.description ?? '' })}>
+                      <Pencil className="h-4 w-4" />
+                    </IconBtn>
+                    <IconBtn label="Modul löschen" onClick={() => deleteModule(m)}>
+                      <Trash2 className="h-4 w-4" />
+                    </IconBtn>
+                  </div>
+                </header>
 
-              {isExpanded && (
-                <div className="border-t border-gray-200 px-4 pb-6">
-                  <div className="space-y-4 mt-5">
-                    {modLessons.map((lesson) => (
-                      <div key={lesson.id} className="flex items-center gap-4 px-4 py-3 bg-gray-50 rounded-xl">
-                        <Video className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-900 flex-1">{lesson.title}</span>
-                        {lesson.duration_minutes && <span className="text-xs text-gray-400">{lesson.duration_minutes}m</span>}
-                        {lesson.lesson_tasks?.length > 0 && <Badge tone="softAccent">{lesson.lesson_tasks.length} Tasks</Badge>}
-                        <button onClick={() => openEditLesson(lesson)} className="p-1 hover:bg-white rounded cursor-pointer">
-                          <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                <ul className="border-t border-hair">
+                  {list.map((l, li) => (
+                    <li key={l.id} className="group flex items-center gap-3 border-b border-hair px-5 py-3 last:border-0 hover:bg-panel/70">
+                      <div className="flex flex-col opacity-40 group-hover:opacity-100">
+                        <button disabled={li === 0} onClick={() => reorderLessons(m.id, li, li - 1)} aria-label="Lektion nach oben" className="disabled:opacity-20">
+                          <ArrowUp className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => deleteLesson(lesson.id)} className="p-1 hover:bg-red-50 rounded cursor-pointer">
-                          <Trash2 className="w-3.5 h-3.5 text-gray-400" />
+                        <button disabled={li === list.length - 1} onClick={() => reorderLessons(m.id, li, li + 1)} aria-label="Lektion nach unten" className="disabled:opacity-20">
+                          <ArrowDown className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                    ))}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => openAddLesson(mod.id)} className="mt-4">
-                    <Plus className="w-3.5 h-3.5" /> Lektion hinzufügen
-                  </Button>
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Module Modal */}
-      <Modal open={showModuleModal} onClose={() => setShowModuleModal(false)} title={editingModule ? 'Modul bearbeiten' : 'Neues Modul'}>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">Titel</label>
-            <Input value={moduleTitle} onChange={(e) => setModuleTitle(e.target.value)} placeholder="z.B. Bewerber-Management" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">Beschreibung</label>
-            <textarea
-              value={moduleDesc}
-              onChange={(e) => setModuleDesc(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 bg-white outline-none resize-none"
-              placeholder="Kurze Beschreibung"
-            />
-          </div>
-          <div className="flex gap-4 pt-3">
-            <Button variant="secondary" onClick={() => setShowModuleModal(false)} className="flex-1">Abbrechen</Button>
-            <Button onClick={saveModule} disabled={!moduleTitle || saving} className="flex-1">
-              <Save className="w-4 h-4" /> {saving ? 'Speichern...' : 'Speichern'}
-            </Button>
-          </div>
+                      {l.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- Vorschaubild aus dem Storage
+                        <img src={l.thumbnail_url} alt="" className="h-11 w-[72px] flex-none rounded-[10px] object-cover" />
+                      ) : (
+                        <span className="grid h-11 w-[72px] flex-none place-items-center rounded-[10px] bg-panel text-gray-500">
+                          {l.typ === 'text' ? <FileText className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
+                        </span>
+                      )}
+                      <Link href={`/admin/masterclass/lektion/${l.id}`} className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-medium hover:text-red-800">{l.title}</span>
+                        <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-gray-600">
+                          <span className="inline-flex items-center gap-1">
+                            <span className={`h-1.5 w-1.5 rounded-full ${l.status === 'veroeffentlicht' ? 'bg-green-600' : 'bg-gray-400'}`} />
+                            {l.status === 'veroeffentlicht' ? 'Veröffentlicht' : 'Entwurf'}
+                          </span>
+                          {l.duration_minutes ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> {l.duration_minutes} Min.
+                            </span>
+                          ) : null}
+                          {l.kapitel.length > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <ListOrdered className="h-3 w-3" /> {l.kapitel.length} Kapitel
+                            </span>
+                          )}
+                          {l.anhaenge.length > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <Paperclip className="h-3 w-3" /> {l.anhaenge.length}
+                            </span>
+                          )}
+                          {l.pflicht && <span className="font-medium text-red-800">Pflicht</span>}
+                          {!l.video_url && l.typ === 'video' && <span className="text-amber-700">Video fehlt</span>}
+                        </span>
+                      </Link>
+                      <Link
+                        href={`/admin/masterclass/lektion/${l.id}`}
+                        className="hidden h-9 items-center rounded-full px-4 text-[13.5px] font-medium shadow-[inset_0_0_0_1.5px_var(--hair)] hover:bg-card sm:inline-flex"
+                      >
+                        Bearbeiten
+                      </Link>
+                    </li>
+                  ))}
+                  <li className="px-5 py-3">
+                    <button onClick={() => newLesson(m.id)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-red-800 hover:underline">
+                      <Plus className="h-4 w-4" /> Lektion hinzufügen
+                    </button>
+                  </li>
+                </ul>
+              </Card>
+            );
+          })}
         </div>
-      </Modal>
+      )}
 
-      {/* Lesson Modal */}
-      <Modal open={showLessonModal} onClose={() => setShowLessonModal(false)} title={editingLesson ? 'Lektion bearbeiten' : 'Neue Lektion'}>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">Titel</label>
-            <Input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="z.B. Pipeline richtig nutzen" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">Beschreibung</label>
-            <textarea
-              value={lessonDesc}
-              onChange={(e) => setLessonDesc(e.target.value)}
-              rows={2}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 bg-white outline-none resize-none"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Modal open={!!moduleModal} onClose={() => setModuleModal(null)} title={moduleModal?.id ? 'Modul bearbeiten' : 'Neues Modul'}>
+        {moduleModal && (
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">Video URL</label>
-              <Input value={lessonVideoUrl} onChange={(e) => setLessonVideoUrl(e.target.value)} icon={<Video className="w-4 h-4" />} placeholder="YouTube/Vimeo URL" />
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Titel</label>
+              <Input value={moduleModal.title} onChange={(e) => setModuleModal({ ...moduleModal, title: e.target.value })} placeholder="z. B. Mindset & Gatekeeper" autoFocus />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">Provider</label>
-              <Select
-                value={lessonVideoProvider}
-                onChange={(e) => setLessonVideoProvider(e.target.value)}
-                options={[
-                  { value: 'youtube', label: 'YouTube' },
-                  { value: 'vimeo', label: 'Vimeo' },
-                ]}
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Beschreibung</label>
+              <textarea
+                value={moduleModal.description}
+                onChange={(e) => setModuleModal({ ...moduleModal, description: e.target.value })}
+                rows={3}
+                className="w-full rounded-[12px] bg-card px-3.5 py-2.5 text-[15px] shadow-[inset_0_0_0_1.5px_var(--hair)] outline-none focus:shadow-[inset_0_0_0_1.5px_var(--r-700),0_0_0_4px_var(--r-100)]"
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">Dauer (Minuten)</label>
-            <Input type="number" value={lessonDuration} onChange={(e) => setLessonDuration(e.target.value)} placeholder="z.B. 10" />
-          </div>
-          <div className="flex gap-4 pt-3">
-            <Button variant="secondary" onClick={() => setShowLessonModal(false)} className="flex-1">Abbrechen</Button>
-            <Button onClick={saveLesson} disabled={!lessonTitle || saving} className="flex-1">
-              <Save className="w-4 h-4" /> {saving ? 'Speichern...' : 'Speichern'}
+            {!moduleModal.id && <p className="text-[13px] text-gray-600">Neue Module starten als Entwurf – erst nach dem Veröffentlichen sehen Kunden sie.</p>}
+            <Button className="w-full" onClick={saveModule}>
+              Speichern
             </Button>
           </div>
-        </div>
+        )}
       </Modal>
     </div>
+  );
+}
+
+function IconBtn({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="grid h-9 w-9 place-items-center rounded-full text-gray-600 transition-colors hover:bg-panel hover:text-ink disabled:opacity-30"
+    >
+      {children}
+    </button>
   );
 }

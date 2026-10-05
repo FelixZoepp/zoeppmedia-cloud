@@ -40,10 +40,14 @@ export async function checkMasterclassNudges(supabase: SupabaseClient) {
     .eq('published', true)
     .order('sort_order');
 
-  const { data: allLessons } = await supabase
+  const { data: allLessonsRaw } = await supabase
     .from('masterclass_lessons')
-    .select('id, module_id')
+    .select('*')
     .order('sort_order');
+  // Entwürfe zählen nicht mit
+  const allLessons = (allLessonsRaw ?? [])
+    .filter((l) => (l as { status?: string }).status !== 'entwurf')
+    .map((l) => ({ id: (l as { id: string }).id, module_id: (l as { module_id: string }).module_id }));
 
   if (!modules?.length || !allLessons?.length) return { sent: 0 };
 

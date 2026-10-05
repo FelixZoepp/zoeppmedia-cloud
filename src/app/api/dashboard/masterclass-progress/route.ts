@@ -44,10 +44,14 @@ export async function GET(request: NextRequest) {
     .order('sort_order');
 
   // Get all lessons
-  const { data: lessons } = await supabase
+  const { data: lessonsRaw } = await supabase
     .from('masterclass_lessons')
-    .select('id, module_id')
+    .select('*')
     .order('sort_order');
+  // Entwürfe zählen nicht mit
+  const lessons = (lessonsRaw ?? [])
+    .filter((l) => (l as { status?: string }).status !== 'entwurf')
+    .map((l) => ({ id: (l as { id: string }).id, module_id: (l as { module_id: string }).module_id }));
 
   // Get progress for this agency
   const { data: progress } = await supabase

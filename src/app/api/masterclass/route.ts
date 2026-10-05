@@ -1,3 +1,4 @@
+import { normalizeLesson } from '@/lib/masterclass/lesson';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
@@ -45,9 +46,14 @@ export async function GET() {
     if (tp) taskProgress = Object.fromEntries(tp.map((p) => [p.task_id, p.completed]));
   }
 
+  // Entwürfe sehen nur Admins
+  const visibleLessons = (lessons ?? []).filter(
+    (l) => profile.role === 'admin' || normalizeLesson(l as Record<string, unknown>).status === 'veroeffentlicht',
+  );
+
   return NextResponse.json({
     modules: modules ?? [],
-    lessons: lessons ?? [],
+    lessons: visibleLessons.map((l) => ({ ...(l as Record<string, unknown>), ...normalizeLesson(l as Record<string, unknown>) })),
     lessonProgress,
     taskProgress,
   });
