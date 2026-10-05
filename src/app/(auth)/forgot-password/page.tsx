@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useState } from 'react';
 import { Mail } from 'lucide-react';
@@ -28,13 +29,13 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <Card padding="lg" className="shadow-md">
+      <Card padding="lg" className="shadow-[0_30px_80px_-40px_#1a151466]">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white font-bold text-lg">
+          <div className="w-11 h-11 rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 flex items-center justify-center text-white shadow-hero font-bold text-lg">
             Z
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Passwort vergessen</h1>
+            <SplitText as="h1" text="Passwort vergessen" className="text-[28px] font-semibold leading-tight tracking-[-0.035em]" />
             <p className="text-sm text-gray-600">Wir senden dir einen Reset-Link</p>
           </div>
         </div>

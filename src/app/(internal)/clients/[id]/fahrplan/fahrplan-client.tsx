@@ -528,7 +528,7 @@ export function FahrplanClient({ agencyId }: { agencyId: string }) {
               const ownerConfig = ownerLabels[step.owner] ?? ownerLabels.team;
               return (
                 <div key={i} className="flex items-start gap-4">
-                  <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shrink-0 text-sm font-bold">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white flex items-center justify-center shrink-0 text-sm font-bold">
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -558,7 +558,7 @@ export function FahrplanClient({ agencyId }: { agencyId: string }) {
           body { background: white !important; }
           nav, .print\\:hidden { display: none !important; }
           .print\\:shadow-none { box-shadow: none !important; }
-          .print\\:border-gray-300 { border-color: #d1d5db !important; }
+          .print\\:border-gray-300 { border-color: #d5d0cd !important; }
           .print\\:max-w-none { max-width: none !important; }
         }
       `}</style>

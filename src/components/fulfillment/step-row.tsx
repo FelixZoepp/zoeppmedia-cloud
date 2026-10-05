@@ -126,7 +126,7 @@ export function StepRow({
               </button>
             )}
             <button disabled={busy} onClick={() => act({ status: 'erledigt' })}
-              className="h-8 px-2.5 rounded-md bg-red-600 text-white font-semibold inline-flex items-center gap-1 hover:bg-red-700">
+              className="h-8 px-2.5 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white font-semibold inline-flex items-center gap-1 hover:from-red-600 hover:to-red-800">
               <Check className="w-3.5 h-3.5" /> Erledigt
             </button>
             <button disabled={busy} onClick={() => act({ status: 'nicht_noetig' })} title="Nicht nötig"

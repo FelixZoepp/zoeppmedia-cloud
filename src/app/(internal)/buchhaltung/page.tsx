@@ -55,7 +55,7 @@ function RechnungRow({ z, onDone }: { z: Zeile; onDone: (nr: string) => Promise<
       ) : (
         <span className="flex gap-2 w-48">
           <input className={`${inputCls} w-24`} placeholder="RE-Nr." value={nr} onChange={(e) => setNr(e.target.value)} />
-          <button onClick={() => onDone(nr)} className="h-9 px-3 rounded-lg bg-red-600 text-white text-xs font-semibold">Geschrieben</button>
+          <button onClick={() => onDone(nr)} className="h-9 px-3 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white text-xs font-semibold">Geschrieben</button>
         </span>
       )}
     </div>

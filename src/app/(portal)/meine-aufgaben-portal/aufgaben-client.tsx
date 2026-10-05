@@ -71,7 +71,7 @@ function TaskRow({ task }: { task: ProjectTaskWithCheckitems }) {
   return (
     <Link href={`/meine-aufgaben-portal/${task.id}`}>
       <div
-        className={`flex items-center gap-4 px-4 py-3 rounded-xl border bg-white hover:shadow-md transition-shadow cursor-pointer ${
+        className={`flex items-center gap-4 px-4 py-3 rounded-xl border bg-card hover:shadow-md transition-shadow cursor-pointer ${
           overdue ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
         }`}
       >
@@ -209,7 +209,7 @@ export function PortalAufgabenClient({ userId }: PortalAufgabenClientProps) {
 
       {/* Empty state */}
       {openTasks.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-10 shadow-sm text-center">
+        <div className="bg-card rounded-xl p-10 shadow-sm text-center">
           <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-lg font-bold text-gray-900 mb-2">Keine offenen Aufgaben</h2>
           <p className="text-sm text-gray-500">

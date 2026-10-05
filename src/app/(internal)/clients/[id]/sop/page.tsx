@@ -333,7 +333,7 @@ export default function SopPage() {
                       <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
-                            allComplete ? 'bg-green-500' : 'bg-gradient-to-r from-[#EF5B6F] to-red-500'
+                            allComplete ? 'bg-green-500' : 'bg-gradient-to-r from-[#d9443c] to-red-500'
                           }`}
                           style={{ width: `${phasePercent}%` }}
                         />
@@ -542,7 +542,7 @@ export default function SopPage() {
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Notizen zu dieser Aufgabe..."
             rows={4}
-            className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+            className="w-full px-4 py-3 text-sm rounded-xl bg-card text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none shadow-sm"
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => { setNoteModal(null); setNoteText(''); }}>

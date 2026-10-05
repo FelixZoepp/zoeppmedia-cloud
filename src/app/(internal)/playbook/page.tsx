@@ -342,7 +342,7 @@ function AccordionItem({
               <ol className="space-y-3">
                 {entry.immediate_actions.map((action, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm text-gray-900">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white text-xs font-bold flex items-center justify-center mt-0.5">
                       {i + 1}
                     </span>
                     {action}

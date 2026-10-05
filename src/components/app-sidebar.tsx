@@ -1,6 +1,7 @@
 'use client';
 
 import { Sidebar, type SidebarGroup, type SidebarItem } from '@/components/ui/sidebar';
+import { InstallPromo } from '@/components/install-promo';
 import type { UserRole } from '@/lib/auth';
 import {
   LayoutDashboard,
@@ -183,9 +184,10 @@ function getGroupsForRole(role: UserRole): SidebarGroup[] {
 interface AppSidebarProps {
   role: UserRole;
   userName: string;
+  onClose?: () => void;
 }
 
-export function AppSidebar({ role, userName }: AppSidebarProps) {
+export function AppSidebar({ role, userName, onClose }: AppSidebarProps) {
   const groups = getGroupsForRole(role);
   const initial = userName.charAt(0).toUpperCase();
   const isInternal = role === 'admin' || role === 'employee';
@@ -196,11 +198,13 @@ export function AppSidebar({ role, userName }: AppSidebarProps) {
 
   return (
     <Sidebar
-      brand={initial}
+      brand={isInternal ? 'Z' : initial}
       brandLabel={isInternal ? 'Zoepp Media' : userName}
       brandSub={role === 'admin' ? 'Admin' : role === 'employee' ? 'Mitarbeiter' : undefined}
       groups={groups}
       bottomItems={bottomItems}
+      promo={<InstallPromo />}
+      onClose={onClose}
     />
   );
 }

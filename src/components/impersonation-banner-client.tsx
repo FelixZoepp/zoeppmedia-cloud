@@ -25,13 +25,13 @@ export function ImpersonationBannerClient({ agencyName }: ImpersonationBannerCli
   }
 
   return (
-    <div className="flex flex-col bg-amber-500 px-4 py-2 text-sm font-medium text-white">
+    <div className="mb-5 flex flex-col rounded-xl bg-amber-500 px-5 py-3 text-sm font-medium text-white">
       <div className="flex items-center justify-between">
         <span>Du agierst als {agencyName}</span>
         <button
           onClick={handleEnd}
           disabled={isPending}
-          className="rounded bg-white px-3 py-1 text-amber-600 font-semibold hover:bg-amber-50 disabled:opacity-60 transition-colors"
+          className="rounded-full bg-white px-4 py-1.5 text-amber-600 font-semibold hover:bg-amber-50 disabled:opacity-60 transition-colors"
         >
           Beenden
         </button>

@@ -101,7 +101,7 @@ interface GuideStepProps {
 
 function GuideStep({ stepNum, title, description, Icon, visualLabel, checked, onCheck }: GuideStepProps) {
   return (
-    <div className="flex gap-6 p-6 bg-white rounded-xl border border-gray-200">
+    <div className="flex gap-6 p-6 bg-card rounded-xl shadow-sm">
       <div className="flex-shrink-0">
         <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-lg">
           {stepNum}
@@ -241,7 +241,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     start_date: '',
     tone: 'du',
     logo_url: '',
-    primary_color: '#E0354B',
+    primary_color: '#a3201a',
     dankevideo_url: '',
     // Step 4 — Kontakt
     contact_name: '',

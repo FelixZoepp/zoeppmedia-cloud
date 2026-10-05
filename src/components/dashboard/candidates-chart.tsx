@@ -21,19 +21,19 @@ export function CandidatesChart({ data }: CandidatesChartProps) {
         <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="colorBewerber" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#E0354B" stopOpacity={0.12} />
-              <stop offset="95%" stopColor="#E0354B" stopOpacity={0} />
+              <stop offset="5%" stopColor="#a3201a" stopOpacity={0.12} />
+              <stop offset="95%" stopColor="#a3201a" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#EFF1F4" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#efedeb" vertical={false} />
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 12, fill: '#8B919B' }}
+            tick={{ fontSize: 12, fill: '#7a726e' }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: '#8B919B' }}
+            tick={{ fontSize: 12, fill: '#7a726e' }}
             axisLine={false}
             tickLine={false}
             allowDecimals={false}
@@ -41,10 +41,10 @@ export function CandidatesChart({ data }: CandidatesChartProps) {
           />
           <Tooltip
             contentStyle={{
-              background: '#fff',
-              border: '1px solid #E7E9ED',
+              background: '#fdfcfb',
+              border: 'none',
               borderRadius: '10px',
-              boxShadow: '0 4px 12px rgba(23,24,26,0.08)',
+              boxShadow: '0 0 0 1px #e6e3e1, 0 10px 24px -10px rgba(26,21,20,0.35)',
               fontSize: '13px',
               padding: '6px 10px',
             }}
@@ -54,11 +54,11 @@ export function CandidatesChart({ data }: CandidatesChartProps) {
             type="monotone"
             dataKey="count"
             name="Bewerber"
-            stroke="#E0354B"
+            stroke="#a3201a"
             strokeWidth={2}
             fill="url(#colorBewerber)"
-            dot={{ r: 3, fill: '#E0354B', strokeWidth: 0 }}
-            activeDot={{ r: 5, fill: '#E0354B', strokeWidth: 2, stroke: '#fff' }}
+            dot={{ r: 3, fill: '#a3201a', strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: '#a3201a', strokeWidth: 2, stroke: '#fff' }}
           />
         </AreaChart>
       </ResponsiveContainer>

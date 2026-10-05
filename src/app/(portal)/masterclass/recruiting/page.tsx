@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -47,7 +48,7 @@ export default function RecruitingMasterclassPage() {
             <GraduationCap className="w-6 h-6 text-red-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Recruiting &amp; Bewerber-Framing</h1>
+            <SplitText as="h1" text="Recruiting & Bewerber-Framing" className="text-[clamp(26px,2.6vw,34px)] font-semibold leading-[1.15] tracking-[-0.035em]" />
             <p className="text-gray-600 mt-1">
               Lerne den kompletten Recruiting-Funnel, Framings und Skripte für Erstgespräch bis Probetag
             </p>

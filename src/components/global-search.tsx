@@ -64,6 +64,18 @@ export function GlobalSearch() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // ⌘K / Strg+K fokussiert die Suche
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   const flatItems = results
     ? [
         ...results.agencies.map((a) => ({ type: 'agency' as const, item: a })),
@@ -101,25 +113,30 @@ export function GlobalSearch() {
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="hidden md:flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 w-[280px] shadow-sm focus-within:border-red-300 focus-within:shadow-md transition-shadow">
-        <Search className="w-4 h-4 text-gray-400 shrink-0" />
+      <div className="relative hidden md:block w-[380px] max-w-full">
+        <Search className="pointer-events-none absolute left-[18px] top-1/2 h-[21px] w-[21px] -translate-y-1/2 text-ink" />
         <input
           ref={inputRef}
-          type="text"
+          type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (results && hasResults) setOpen(true); }}
-          placeholder="Suchen... (Kunde, Bewerber)"
-          className="text-sm text-gray-700 placeholder:text-gray-400 bg-transparent outline-none flex-1 min-w-0"
+          placeholder="Kunden & Bewerber suchen"
+          aria-label="Kunden und Bewerber suchen"
+          className="h-[50px] w-full rounded-full bg-card pl-[50px] pr-16 text-[15px] text-ink outline-none placeholder:text-gray-500 focus-visible:shadow-[var(--focus)] [&::-webkit-search-cancel-button]:hidden"
         />
-        {loading && (
-          <div className="w-3 h-3 border border-gray-300 border-t-gray-600 rounded-full animate-spin shrink-0" />
+        {loading ? (
+          <div className="absolute right-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border border-gray-300 border-t-gray-700" />
+        ) : (
+          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-[7px] bg-panel px-2 py-[3px] font-sans text-xs font-medium text-ink">
+            ⌘ K
+          </kbd>
         )}
       </div>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 w-[360px] bg-white rounded-xl border border-gray-200 shadow-xl z-50 overflow-hidden">
+        <div className="fx-dlg absolute top-full mt-2 left-0 w-[380px] bg-card rounded-xl shadow-[0_0_0_1px_var(--hair),0_18px_40px_-16px_#1a151459] z-50 overflow-hidden">
           {!hasResults ? (
             <p className="text-sm text-gray-400 text-center py-6">Keine Ergebnisse</p>
           ) : (

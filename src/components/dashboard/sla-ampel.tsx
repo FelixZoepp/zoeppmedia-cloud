@@ -68,7 +68,7 @@ export function SlaAmpel({ agencyId }: { agencyId: string }) {
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm animate-pulse">
+      <div className="bg-card rounded-xl p-6 shadow-sm animate-pulse">
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 rounded-full bg-gray-100" />
           <div className="space-y-2 flex-1">
@@ -84,7 +84,7 @@ export function SlaAmpel({ agencyId }: { agencyId: string }) {
   // No candidates state
   if (!data || data.totalCandidates === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+      <div className="bg-card rounded-xl p-6 shadow-sm">
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 rounded-full bg-gray-100 ring-4 ring-gray-100 flex items-center justify-center">
             <Clock className="w-8 h-8 text-gray-300" />
@@ -117,7 +117,7 @@ export function SlaAmpel({ agencyId }: { agencyId: string }) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+    <div className="bg-card rounded-xl p-6 shadow-sm">
       <div className="flex items-center gap-6">
         {/* Traffic light circle */}
         <div

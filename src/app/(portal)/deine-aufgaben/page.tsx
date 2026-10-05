@@ -55,7 +55,7 @@ function AufgabeCard({ step, onDone }: { step: StepView; onDone: (kommentar?: st
               setBusy(false);
             }
           }}
-          className="h-9 px-3.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60 flex-shrink-0"
+          className="h-9 px-3.5 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white text-sm font-semibold hover:from-red-600 hover:to-red-800 disabled:opacity-60 flex-shrink-0"
         >
           Erledigt
         </button>
@@ -127,7 +127,7 @@ function FreigabeCard({ ad, onDecide }: { ad: FreigabeAd; onDecide: (aktion: 'fr
             onChange={(e) => setText(e.target.value)}
           />
           <div className="flex gap-2">
-            <button disabled={busy || !text.trim()} onClick={() => run('aendern')} className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50">
+            <button disabled={busy || !text.trim()} onClick={() => run('aendern')} className="h-9 px-4 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white text-sm font-semibold disabled:opacity-50">
               Änderung schicken
             </button>
             <button onClick={() => setAendern(false)} className="h-9 px-4 rounded-lg border border-gray-300 bg-white text-sm">Abbrechen</button>

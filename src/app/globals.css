@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --page: #eceae8;
+  --panel: #f6f5f4;
+  --card: #fdfcfb;
+  --hair: #e6e3e1;
+  --ink: #1a1514;
+  --muted: #645d5a;
+  --faint: #6f6865;
+  --r-950: #3b0b09;
+  --r-800: #7f1915;
+  --r-700: #a3201a;
+  --r-400: #e6716a;
+  --r-100: #fbe3e1;
+  --deep: color-mix(in srgb, var(--r-950) 60%, #000);
+  --swirl: color-mix(in srgb, var(--r-400) 22%, transparent);
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --ease-out4: cubic-bezier(.165, .84, .44, 1);
+  --focus: 0 0 0 3px var(--card), 0 0 0 5px var(--r-700);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,18 +29,166 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
-  color: #111827;
-  background-color: #f9fafb;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  background-color: var(--page);
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--r-100);
+  color: var(--r-950);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 .label-caps {
   font-size: 12px;
   font-weight: 600;
   line-height: 16px;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* ── Fernly-Bausteine ─────────────────────────────────────────── */
+
+.fx-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: #fbf1f0;
+  background: linear-gradient(135deg, var(--r-800) 0%, var(--r-950) 100%);
+  box-shadow: 0 14px 30px -16px #3b0b09b3;
+}
+.fx-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(90% 80% at 100% 100%, #e6716a47, transparent 60%);
+}
+
+/* Dunkle Karte mit Wirbel-Muster (Promo, Time-Tracker) */
+.fx-swirl {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: #fbf1f0;
+  background: var(--deep);
+}
+.fx-swirl::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: -1;
+  background:
+    repeating-radial-gradient(circle at 78% 70%, transparent 0 14px, var(--swirl) 15px 16px),
+    radial-gradient(70% 60% at 85% 85%, var(--r-700), transparent 70%),
+    radial-gradient(60% 50% at 10% 0%, var(--r-950), transparent 70%);
+}
+
+/* Schraffierter Balken (geplant / leer) */
+.fx-hatch {
+  background: repeating-linear-gradient(-45deg, #9b928e 0 2.4px, transparent 2.4px 8px);
+  box-shadow: inset 0 0 0 1.5px #9b928e59;
+}
+
+/* ── Animationen ──────────────────────────────────────────────── */
+
+/* Überschrift: Buchstaben steigen einzeln von unten auf */
+.fx-split .word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: .08em;
+  margin-bottom: -.08em;
+}
+.fx-split .ch {
+  display: inline-block;
+  animation: fx-ch .85s var(--ease-out4) both;
+  animation-delay: calc(var(--i) * 24ms + var(--d, 0ms));
+}
+@keyframes fx-ch {
+  from { transform: translateY(115%); }
+  to { transform: none; }
+}
+
+/* Unterzeile / Aktionen: kurz von unten einblenden */
+.fx-fade {
+  animation: fx-fade .55s cubic-bezier(.33, 1, .68, 1) both;
+  animation-delay: var(--d, 80ms);
+}
+@keyframes fx-fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Karten: weich hochgleiten und leicht aufzoomen */
+.fx-rise {
+  animation: fx-rise .85s cubic-bezier(.33, 1, .68, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes fx-rise {
+  from { opacity: 0; transform: translateY(36px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Shell beim ersten Laden */
+.fx-shell {
+  animation: fx-shell .7s var(--ease) both;
+}
+@keyframes fx-shell {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fx-dlg {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+.fx-dlg { animation: fx-dlg .45s var(--ease) both; }
+
+/* Hover-Lift für Karten */
+.fx-lift {
+  transition: transform .45s var(--ease), box-shadow .45s var(--ease);
+}
+@media (hover: hover) {
+  .fx-lift:hover { transform: translateY(-4px); }
+}
+
+/* Pfeil-Button: dreht sich beim Hover */
+.fx-arrow {
+  transition: transform .3s var(--ease), background-color .2s, color .2s;
+}
+.fx-arrow:hover {
+  transform: rotate(45deg);
+  background: var(--ink);
+  color: var(--card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-split .ch,
+  .fx-fade,
+  .fx-rise,
+  .fx-shell,
+  .fx-dlg {
+    animation: none !important;
+  }
+  .fx-lift:hover { transform: none; }
+}
+
+/* Säulen wachsen von unten */
+@keyframes fx-grow {
+  from { transform: scaleY(0); }
+  to { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="fx-grow"] { animation: none !important; }
 }

@@ -103,7 +103,7 @@ export function ProjectOverview({ agencyId }: { agencyId: string }) {
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm animate-pulse">
+      <div className="bg-card rounded-xl p-6 shadow-sm animate-pulse">
         <div className="h-4 bg-gray-100 rounded w-40 mb-4" />
         <div className="h-8 bg-gray-100 rounded w-64 mb-4" />
         <div className="space-y-2">
@@ -120,7 +120,7 @@ export function ProjectOverview({ agencyId }: { agencyId: string }) {
     : null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+    <div className="bg-card rounded-xl p-6 shadow-sm">
       {/* Header */}
       <span className="text-xs font-semibold uppercase tracking-wider text-red-600 block mb-3">
         Projektübersicht

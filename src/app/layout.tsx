@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter_Tight } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import './globals.css';
 
-const interTight = Inter_Tight({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
-  variable: '--font-inter-tight',
+  variable: '--font-jakarta',
 });
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#DC2626',
+  themeColor: '#eceae8',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -37,8 +37,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" className={interTight.variable}>
-      <body className={interTight.className}>
+    <html lang="de" className={jakarta.variable}>
+      <body className={jakarta.className}>
         {children}
         <Toaster position="bottom-right" richColors />
         <ServiceWorkerRegister />

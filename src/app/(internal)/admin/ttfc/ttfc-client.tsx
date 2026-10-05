@@ -86,7 +86,7 @@ function ttfcIconColor(seconds: number | null): string {
   return 'text-red-600';
 }
 
-const DONUT_COLORS = ['#16a34a', '#d97706', '#dc2626']; // green, amber, red
+const DONUT_COLORS = ['#16a34a', '#d97706', '#c42b23']; // green, amber, red
 
 /* ------------------------------------------------------------------ */
 /*  KPI Card                                                          */

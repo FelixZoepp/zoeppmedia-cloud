@@ -57,7 +57,7 @@ export default async function ApplyPage({
         </div>
 
         {job.description && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <div className="bg-card rounded-xl p-6 mb-6 shadow-sm">
             <h2 className="font-semibold text-gray-900 mb-3">Stellenbeschreibung</h2>
             <div className="text-sm text-gray-700 whitespace-pre-wrap">{job.description}</div>
           </div>

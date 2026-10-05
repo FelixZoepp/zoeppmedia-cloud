@@ -93,7 +93,7 @@ function ContentCard({
           ? 'bg-red-600 border-red-600 text-white shadow-md'
           : disabled
           ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
-          : 'bg-white border-gray-200 text-gray-900 hover:border-red-300 hover:bg-red-50 hover:shadow-sm'
+          : 'bg-card border-gray-200 text-gray-900 hover:border-red-300 hover:bg-red-50 hover:shadow-sm'
       }`}
     >
       <div
@@ -422,7 +422,7 @@ function AIToolsInner() {
             <div className="flex flex-col gap-4">
               {/* Header */}
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-b from-red-700 to-red-950 flex items-center justify-center text-white flex-shrink-0">
                   {currentCard.icon}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -467,12 +467,12 @@ function AIToolsInner() {
                   {refinements.map((r, i) => (
                     <div key={i} className="space-y-2">
                       <div className="flex justify-end">
-                        <div className="max-w-[80%] bg-red-600 text-white rounded-xl px-4 py-2.5">
+                        <div className="max-w-[80%] bg-gradient-to-b from-red-700 to-red-950 text-white rounded-full px-4 py-2.5">
                           <p className="text-sm">{r.message}</p>
                         </div>
                       </div>
                       <div className="flex justify-start">
-                        <div className="max-w-[90%] bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+                        <div className="max-w-[90%] bg-card rounded-xl px-4 py-2.5 shadow-sm">
                           <p className="text-xs text-gray-400 mb-1">Version {i + 2}</p>
                           <pre className="text-sm text-gray-900 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-y-auto">
                             {r.response}
@@ -490,7 +490,7 @@ function AIToolsInner() {
                   Verfeinern
                 </p>
                 <div className="flex items-end gap-3">
-                  <div className="flex-1 relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100 transition-all">
+                  <div className="flex-1 relative bg-card rounded-xl shadow-sm overflow-hidden focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-100 transition-all">
                     <textarea
                       ref={refinementInputRef}
                       value={refinementInput}

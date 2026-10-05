@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -123,7 +124,7 @@ export default function MasterclassPage() {
             <GraduationCap className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Masterclass</h1>
+            <SplitText as="h1" text="Masterclass" className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
             <p className="text-sm text-gray-600">{progressPercent}% abgeschlossen</p>
           </div>
         </div>

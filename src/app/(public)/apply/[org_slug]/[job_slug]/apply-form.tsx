@@ -88,7 +88,7 @@ export function ApplyForm({
 
   if (submitted) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+      <div className="bg-card rounded-xl p-8 text-center shadow-sm">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -101,7 +101,7 @@ export function ApplyForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+    <form onSubmit={handleSubmit} className="bg-card rounded-xl p-6 space-y-5 shadow-sm">
       <h2 className="font-semibold text-gray-900 text-lg">Jetzt bewerben</h2>
 
       {error && (
@@ -184,7 +184,7 @@ export function ApplyForm({
       ) : null}
 
       <button type="submit" disabled={submitting}
-        className="w-full py-3 px-4 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        className="w-full py-3 px-4 bg-gradient-to-b from-red-700 to-red-950 text-white font-medium rounded-full hover:from-red-600 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
         {submitting ? 'Wird gesendet...' : 'Bewerbung absenden'}
       </button>
 

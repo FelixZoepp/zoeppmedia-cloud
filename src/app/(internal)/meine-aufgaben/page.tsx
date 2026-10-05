@@ -263,7 +263,7 @@ function TaskCard({ task, contentItem, onTaskUpdated, onContentSaved }: TaskCard
   const isInProgress = task.status === 'in_progress' || generating;
 
   return (
-    <div className={`border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden transition-all ${isDone ? 'opacity-60' : ''}`}>
+    <div className={` rounded-xl bg-card shadow-sm overflow-hidden transition-all ${isDone ? 'opacity-60' : ''}`}>
       {/* Collapsed header row */}
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Status icon */}

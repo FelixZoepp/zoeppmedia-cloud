@@ -18,10 +18,8 @@ const sizeMap: Record<IconButtonSize, string> = {
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   ({ size = 'md', active = false, className = '', children, ...props }, ref) => {
-    const base = 'inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer focus-ring';
-    const state = active
-      ? 'bg-red-50 border border-red-200 text-red-600'
-      : 'bg-transparent text-gray-600 hover:bg-gray-100 border border-transparent';
+    const base = 'inline-flex items-center justify-center rounded-full transition-colors cursor-pointer';
+    const state = active ? 'bg-red-100 text-red-800' : 'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-ink';
 
     return (
       <button ref={ref} className={`${base} ${sizeMap[size]} ${state} ${className}`} {...props}>

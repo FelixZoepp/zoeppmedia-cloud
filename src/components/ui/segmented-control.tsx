@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 interface SegmentItem {
   value: string;
@@ -14,23 +14,44 @@ interface SegmentedControlProps {
   className?: string;
 }
 
+/** Umschalter mit dunkelroter Pille, die zum gewählten Eintrag gleitet (7D / 30D / 90D). */
 export function SegmentedControl({ items, value, onChange, className = '' }: SegmentedControlProps) {
-  const normalized = items.map((item) =>
-    typeof item === 'string' ? { value: item, label: item } : item
-  );
+  const normalized = items.map((item) => (typeof item === 'string' ? { value: item, label: item } : item));
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ x: number; w: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const place = () => {
+      const btn = wrap.querySelector<HTMLElement>('[aria-pressed="true"]');
+      setPill(btn ? { x: btn.offsetLeft, w: btn.offsetWidth } : null);
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [value, items.length]);
 
   return (
-    <div className={`inline-flex items-center gap-1 p-1 bg-white border border-gray-200 rounded-full ${className}`}>
+    <div ref={wrapRef} className={`relative inline-flex items-center rounded-full bg-card p-1 ${className}`}>
+      {pill && (
+        <span
+          aria-hidden="true"
+          className="absolute bottom-1 left-0 top-1 rounded-full bg-gradient-to-b from-red-700 to-red-950 transition-[transform,width] duration-500 ease-fern"
+          style={{ width: pill.w, transform: `translateX(${pill.x}px)` }}
+        />
+      )}
       {normalized.map((item) => {
         const isActive = item.value === value;
         return (
           <button
             key={item.value}
+            type="button"
+            aria-pressed={isActive}
             onClick={() => onChange(item.value)}
-            className={`px-4 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
-              isActive
-                ? 'bg-red-50 border border-red-200 text-red-600'
-                : 'bg-transparent border border-transparent text-gray-600 hover:bg-gray-100'
+            className={`relative z-[1] cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition-colors duration-300 ${
+              isActive ? 'text-red-50' : 'text-gray-600 hover:text-ink'
             }`}
           >
             {item.label}

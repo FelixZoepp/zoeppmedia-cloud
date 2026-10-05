@@ -130,24 +130,24 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="relative grid h-[50px] w-[50px] place-items-center rounded-full bg-card transition-transform duration-300 ease-fern hover:-translate-y-0.5"
         aria-label="Benachrichtigungen"
       >
-        <Bell className="w-5 h-5 text-gray-600" />
+        <Bell className="h-[21px] w-[21px] text-ink" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-600 rounded-full" />
+          <span className="absolute right-[14px] top-[13px] h-2 w-2 rounded-full bg-red-600 shadow-[0_0_0_2px_var(--card)]" />
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden">
+        <div className="fx-dlg absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-card rounded-xl shadow-[0_0_0_1px_var(--hair),0_18px_40px_-16px_#1a151459] z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
             <span className="text-sm font-semibold text-gray-900">
               Benachrichtigungen
             </span>
             {unreadCount > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-600 text-white">
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white">
                 {unreadCount}
               </span>
             )}

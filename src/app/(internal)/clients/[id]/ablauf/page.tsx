@@ -55,7 +55,7 @@ function Verzoegerungen({
             await onAdd({ tage: Number(f.tage.replace(',', '.')), wer: f.wer, grund: f.grund });
             setF({ tage: '', wer: 'kunde', grund: '' });
           }}
-          className="h-9 px-3 rounded-lg bg-red-600 text-white text-sm font-semibold disabled:opacity-50"
+          className="h-9 px-3 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white text-sm font-semibold disabled:opacity-50"
         >
           Erfassen
         </button>

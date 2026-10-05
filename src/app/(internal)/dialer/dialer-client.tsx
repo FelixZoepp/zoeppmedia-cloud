@@ -180,7 +180,7 @@ function QueueRow({ item, agency, script, onLogged }: {
   }
 
   return (
-    <div className="p-4 rounded-xl bg-white border border-gray-200">
+    <div className="p-4 rounded-xl bg-card shadow-sm">
       <div className="flex items-center gap-3 flex-wrap">
         <Badge tone={badge.tone}>
           {badge.label}

@@ -259,13 +259,13 @@ export default function LibraryPage() {
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-4 py-3 text-sm font-semibold border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                  className="w-full px-4 py-3 text-sm font-semibold rounded-xl bg-card text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 shadow-sm"
                 />
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={12}
-                  className="w-full px-4 py-3 text-sm font-mono leading-relaxed border border-gray-200 rounded-xl bg-white text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+                  className="w-full px-4 py-3 text-sm font-mono leading-relaxed rounded-xl bg-card text-gray-900 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none shadow-sm"
                 />
               </div>
             ) : (

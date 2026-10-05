@@ -82,7 +82,7 @@ const SOURCE_COLORS: Record<string, string> = {
 };
 
 function sourceColor(src: string): string {
-  return SOURCE_COLORS[src.toLowerCase()] ?? '#8B919B';
+  return SOURCE_COLORS[src.toLowerCase()] ?? '#7a726e';
 }
 
 // ---------------------------------------------------------------------------
@@ -346,15 +346,15 @@ export function RecruitingStatsView() {
                         </linearGradient>
                       ))}
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#EFF1F4" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#efedeb" vertical={false} />
                     <XAxis
                       dataKey="day"
-                      tick={{ fontSize: 11, fill: '#8B919B' }}
+                      tick={{ fontSize: 11, fill: '#7a726e' }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#8B919B' }}
+                      tick={{ fontSize: 11, fill: '#7a726e' }}
                       axisLine={false}
                       tickLine={false}
                       allowDecimals={false}
@@ -362,10 +362,10 @@ export function RecruitingStatsView() {
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#fff',
-                        border: '1px solid #E7E9ED',
+                        background: '#fdfcfb',
+                        border: 'none',
                         borderRadius: '10px',
-                        boxShadow: '0 4px 12px rgba(23,24,26,0.08)',
+                        boxShadow: '0 0 0 1px #e6e3e1, 0 10px 24px -10px rgba(26,21,20,0.35)',
                         fontSize: '13px',
                         padding: '6px 10px',
                       }}

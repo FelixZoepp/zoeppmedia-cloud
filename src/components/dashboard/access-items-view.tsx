@@ -66,7 +66,7 @@ export function AccessItemsView({ agencyId }: { agencyId: string }) {
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm animate-pulse">
+      <div className="bg-card rounded-xl p-6 shadow-sm animate-pulse">
         <div className="h-4 bg-gray-100 rounded w-40 mb-4" />
         <div className="h-3 bg-gray-100 rounded-full w-full mb-6" />
         <div className="space-y-3">
@@ -87,7 +87,7 @@ export function AccessItemsView({ agencyId }: { agencyId: string }) {
   const progressPercent = totalCount > 0 ? Math.round((fulfilledCount / totalCount) * 100) : 0;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+    <div className="bg-card rounded-xl p-6 shadow-sm">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
@@ -218,7 +218,7 @@ function AccessItemRow({
           <button
             onClick={onMarkErfuellt}
             disabled={updating}
-            className="text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed flex items-center gap-1"
+            className="text-xs font-semibold text-white bg-gradient-to-b from-red-700 to-red-950 hover:from-red-600 hover:to-red-800 disabled:bg-red-300 px-3 py-1.5 rounded-full transition-colors cursor-pointer disabled:cursor-not-allowed flex items-center gap-1"
           >
             {updating ? (
               <Loader2 className="w-3 h-3 animate-spin" />

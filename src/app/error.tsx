@@ -22,7 +22,7 @@ export default function Error({
         )}
         <button
           onClick={reset}
-          className="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+          className="inline-flex items-center gap-2 bg-gradient-to-b from-red-700 to-red-950 text-white px-6 py-3 rounded-full font-semibold hover:from-red-600 hover:to-red-800 transition-colors"
         >
           Erneut versuchen
         </button>

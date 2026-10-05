@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SplitText } from './motion';
 
 interface PageHeaderProps {
   label?: string;
@@ -10,26 +11,22 @@ interface PageHeaderProps {
 
 export function PageHeader({ label, title, description, action, counter }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between mb-8">
-      <div>
+    <div className="mb-[26px] flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="min-w-0">
         {label && (
-          <span className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1 block">
+          <span className="fx-fade mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-red-700" style={{ '--d': '0ms' } as React.CSSProperties}>
             {label}
           </span>
         )}
-        <h1 className="text-3xl font-bold text-gray-900">
-          {title}
-        </h1>
-        {description && (
-          <p className="text-sm text-gray-500 mt-1">{description}</p>
-        )}
+        <SplitText as="h1" text={title} className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em] text-ink" />
+        {description && <p className="fx-fade mt-2 text-[15px] text-gray-600">{description}</p>}
       </div>
-      <div className="flex items-center gap-3">
-        {counter && (
-          <span className="text-sm text-gray-500">{counter}</span>
-        )}
-        {action}
-      </div>
+      {(counter || action) && (
+        <div className="fx-fade flex flex-wrap items-center gap-3" style={{ '--d': '130ms' } as React.CSSProperties}>
+          {counter && <span className="text-sm text-gray-600">{counter}</span>}
+          {action}
+        </div>
+      )}
     </div>
   );
 }

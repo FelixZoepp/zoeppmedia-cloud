@@ -407,7 +407,7 @@ function OverrideForm({
         type="number"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 bg-white shadow-sm outline-none"
+        className="w-full px-4 py-3 rounded-xl text-sm text-gray-900 bg-card shadow-sm outline-none"
       />
       <Button onClick={save} disabled={saving} className="w-full" glow>
         {saving ? 'Speichern…' : 'Ziel speichern'}
@@ -501,8 +501,8 @@ export default function ClientDetailPage() {
   ];
 
   const funnelColors = [
-    '#ef4444', '#f87171', '#fca5a5',
-    '#fecaca', '#fee2e2', '#d1d5db',
+    '#d9443c', '#e6716a', '#f0a39d',
+    '#f7c9c5', '#fbe3e1', '#d5d0cd',
   ];
 
   const criticalCount = problems.filter((p) => p.severity === 'critical').length;
@@ -555,7 +555,7 @@ export default function ClientDetailPage() {
             </Link>
             <Link
               href={`/clients/${id}/fahrplan`}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-b from-red-700 to-red-950 hover:from-red-600 hover:to-red-800 text-white text-sm font-semibold rounded-full shadow-sm transition-colors"
             >
               <MapIcon size={14} />
               Fahrplan generieren

@@ -155,7 +155,7 @@ function UploadSection({ agencyId, onUploaded }: { agencyId: string; onUploaded:
             onChange={(e) => setPasteText(e.target.value)}
             placeholder="Transkript-Text hier einfügen..."
             rows={8}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 bg-white resize-y focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300"
+            className="w-full px-4 py-3 rounded-xl text-sm text-gray-900 bg-card resize-y focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300 shadow-sm"
           />
           <Button onClick={handlePasteSubmit} disabled={uploading || !pasteText.trim()} size="sm">
             {uploading ? (

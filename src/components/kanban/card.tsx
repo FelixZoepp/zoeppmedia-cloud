@@ -31,7 +31,7 @@ export function KanbanCard({ application, onClick }: { application: ApplicationR
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onClick}
-      className="bg-white border border-gray-200 rounded-xl p-4 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow">
+      className="bg-card rounded-xl p-4 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow">
       <p className="font-semibold text-gray-900 text-sm">{application.candidate.name}</p>
       <p className="text-xs text-gray-500 mt-1">{application.job.title}</p>
       {application.candidate.phone && (

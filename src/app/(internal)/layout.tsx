@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
-import { AppSidebar } from '@/components/app-sidebar';
 import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
 
@@ -30,9 +29,9 @@ export default async function InternalLayout({ children }: { children: React.Rea
     process.env.REQUIRE_ADMIN_2FA !== 'true' && user.role === 'admin' && !hasVerifiedTotp;
 
   return (
-    <LayoutShell sidebar={<AppSidebar role={user.role} userName={user.name} />}>
+    <LayoutShell user={{ name: user.name, email: user.email, role: user.role }}>
       {showBanner && (
-        <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
+        <div className="mb-5 w-full rounded-xl bg-amber-50 px-5 py-3 text-[13px] text-amber-800 flex items-center gap-2 shadow-[inset_0_0_0_1px_#fde68a]">
           <span>⚠️</span>
           <span>
             Aktiviere 2FA in den{' '}

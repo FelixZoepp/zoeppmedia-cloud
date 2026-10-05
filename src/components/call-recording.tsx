@@ -199,7 +199,7 @@ export function CallRecordingsPanel({ candidateId, recordings, onRecordingAdded 
             const AnalysisIcon = analysisStatus.icon;
 
             return (
-              <div key={rec.id} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+              <div key={rec.id} className=" rounded-xl overflow-hidden bg-card shadow-sm">
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : rec.id)}
                   className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left"

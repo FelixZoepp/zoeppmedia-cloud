@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -1120,7 +1121,7 @@ export default function CandidateDetailPage() {
           </div>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">{candidate.name}</h1>
+              <SplitText as="h1" text={String(candidate.name)} className="text-[clamp(26px,2.6vw,34px)] font-semibold leading-[1.15] tracking-[-0.035em]" />
               <Badge tone={source.tone}>{source.label}</Badge>
               {currentStage && (
                 <span
@@ -1591,7 +1592,7 @@ export default function CandidateDetailPage() {
                 Phase ändern
               </Button>
               {showStageDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 py-1 max-h-64 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card rounded-xl shadow-lg z-10 py-1 max-h-64 overflow-y-auto">
                   {stages.map((stage) => (
                     <button
                       key={stage.id}

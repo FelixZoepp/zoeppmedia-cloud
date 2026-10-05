@@ -9,7 +9,7 @@ import { SlaAmpel } from './sla-ampel';
 import { AccessItemsView } from './access-items-view';
 import { ProjectOverview } from './project-overview';
 import { MasterclassProgress } from './masterclass-progress';
-import { User } from 'lucide-react';
+import { Avatar, Badge, CountUp, SplitText, StatCard } from '@/components/ui';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -44,32 +44,29 @@ function getISOWeek(date: Date): number {
 
 function DashCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white border border-gray-200 rounded-xl p-6 shadow-sm ${className}`}>
+    <div data-rise="" className={`min-w-0 rounded-xl bg-card p-[22px] shadow-sm ${className}`}>
       {children}
     </div>
   );
 }
 
-function SectionLabel({ children }: { children: string }) {
+function CardTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
-    <span className="text-xs font-semibold uppercase tracking-wider text-red-600">
-      {children}
-    </span>
+    <div className="mb-5">
+      <h2 className="text-[19px] font-medium tracking-[-0.02em]">{children}</h2>
+      {sub && <p className="mt-1 text-[13.5px] text-gray-600">{sub}</p>}
+    </div>
   );
 }
 
-function KpiCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+function MoneyStat({ label, value, sub }: { label: string; value: number | null; sub: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 shadow-sm min-w-0">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-3 leading-snug">
-        {label}
-      </span>
-      <span className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-none tracking-tight block break-words">
-        {value}
-      </span>
-      <span className="text-xs text-gray-400 uppercase tracking-wider mt-1.5 block">
-        {sub}
-      </span>
+    <div className="rounded-[14px] bg-panel p-4">
+      <p className="text-[13.5px] text-gray-600">{label}</p>
+      <p className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.035em]">
+        {value != null && value > 0 ? <CountUp value={value} decimals={2} suffix=" €" /> : '–'}
+      </p>
+      <p className="mt-1.5 text-xs text-gray-600">{sub}</p>
     </div>
   );
 }
@@ -85,7 +82,7 @@ interface DashboardViewProps {
 
 export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }: DashboardViewProps) {
   const now = new Date();
-  const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' }).toUpperCase();
+  const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' });
   const kw = getISOWeek(now);
   const hireRate = data.totalCandidates > 0 ? Math.round((data.hired / data.totalCandidates) * 100) : 0;
 
@@ -116,13 +113,12 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
       )}
 
       {/* ── Page Header ──────────────────────────────────── */}
-      <div>
-        <span className="text-xs font-semibold uppercase tracking-wider text-red-600">
-          {dayName} &middot; KW {kw}
+      <div className="mb-[10px]">
+        <span className="fx-fade mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-red-700" style={{ '--d': '0ms' } as React.CSSProperties}>
+          {dayName} · KW {kw}
         </span>
-        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mt-1">
-          Dashboard
-        </h1>
+        <SplitText as="h1" text="Dashboard" className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
+        <p className="fx-fade mt-2 text-[15px] text-gray-600">Dein Recruiting bei {agencyName} – alles an einem ruhigen Ort.</p>
       </div>
 
       {/* ── SLA Ampel ────────────────────────────────────── */}
@@ -132,19 +128,18 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
       <AccessItemsView agencyId={agencyId} />
 
       {/* ── KPI Row ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="BEWERBER" value={String(data.totalCandidates)} sub="Gesamt" />
-        <KpiCard label="NEU DIESE WOCHE" value={String(data.newThisWeek)} sub={`KW ${kw}`} />
-        <KpiCard label="EINGESTELLT" value={String(data.hired)} sub="Gesamt" />
-        <KpiCard label="HIRE RATE" value={`${hireRate}%`} sub="Conversion" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard hero title="Bewerber" value={data.totalCandidates} note="insgesamt" href="/candidates" />
+        <StatCard title="Neu diese Woche" value={data.newThisWeek} note={`in KW ${kw}`} href="/candidates" />
+        <StatCard title="Eingestellt" value={data.hired} note="insgesamt" />
+        <StatCard title="Hire Rate" value={hireRate} suffix="%" note="Bewerber → Einstellung" href="/statistiken" />
       </div>
 
       {/* ── Werbekosten ──────────────────────────────────── */}
       {((data.metaDailyBudget != null && data.metaDailyBudget > 0) || (data.indeedDailyBudget != null && data.indeedDailyBudget > 0)) && (
         <DashCard>
-          <SectionLabel>Werbekosten</SectionLabel>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Kostenübersicht</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <CardTitle sub="Tagesbudget hochgerechnet auf 30 Tage">Werbekosten</CardTitle>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {data.metaDailyBudget != null && data.metaDailyBudget > 0 && (() => {
               const daily = data.metaDailyBudget!;
               const monthly = daily * 30;
@@ -152,16 +147,8 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
               const cpl = metaCandidates > 0 ? monthly / metaCandidates : 0;
               return (
                 <>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold">Meta Tagesbudget</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">€ {daily.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">€ {monthly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} / Monat</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold">Meta CPL</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">{cpl > 0 ? `€ ${cpl.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '–'}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{metaCandidates} Bewerber</p>
-                  </div>
+                  <MoneyStat label="Meta Tagesbudget" value={daily} sub={`${monthly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € / Monat`} />
+                  <MoneyStat label="Meta Kosten pro Bewerber" value={cpl} sub={`${metaCandidates} Bewerber`} />
                 </>
               );
             })()}
@@ -172,16 +159,8 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
               const cpl = indeedCandidates > 0 ? monthly / indeedCandidates : 0;
               return (
                 <>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold">Indeed Tagesbudget</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">€ {daily.toLocaleString('de-DE', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">€ {monthly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} / Monat</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold">Indeed CPL</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">{cpl > 0 ? `€ ${cpl.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '–'}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{indeedCandidates} Bewerber</p>
-                  </div>
+                  <MoneyStat label="Indeed Tagesbudget" value={daily} sub={`${monthly.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € / Monat`} />
+                  <MoneyStat label="Indeed Kosten pro Bewerber" value={cpl} sub={`${indeedCandidates} Bewerber`} />
                 </>
               );
             })()}
@@ -192,18 +171,12 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
       {/* ── Row 2: Chart + Quellen ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <DashCard className="lg:col-span-3">
-          <SectionLabel>Recruiting</SectionLabel>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
-            Bewerber-Entwicklung
-          </h2>
+          <CardTitle>Bewerber-Entwicklung</CardTitle>
           <CandidatesChart data={data.candidatesOverTime} />
         </DashCard>
 
         <DashCard className="lg:col-span-2">
-          <SectionLabel>Quellen</SectionLabel>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
-            Quellen-Verteilung
-          </h2>
+          <CardTitle>Quellen-Verteilung</CardTitle>
           <SourceDonut data={data.sourceBreakdown} />
         </DashCard>
       </div>
@@ -211,51 +184,36 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
       {/* ── Row 3: Pipeline + Source Bar ──────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <DashCard>
-          <SectionLabel>Pipeline</SectionLabel>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
-            Bewerber nach Phase
-          </h2>
+          <CardTitle>Bewerber nach Phase</CardTitle>
           <PipelineChart data={data.stageBreakdown} />
         </DashCard>
 
         <DashCard>
-          <SectionLabel>Kanäle</SectionLabel>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">
-            Bewerber nach Quelle
-          </h2>
+          <CardTitle>Bewerber nach Quelle</CardTitle>
           <SourcesChart data={data.sourceBreakdown} />
         </DashCard>
       </div>
 
       {/* ── Row 4: Recent Candidates ─────────────────────── */}
       <DashCard>
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <SectionLabel>Letzte Aktivität</SectionLabel>
-            <h2 className="text-lg font-bold text-gray-900 mt-1">
-              Neue Bewerber
-            </h2>
-          </div>
-        </div>
+        <CardTitle>Neue Bewerber</CardTitle>
 
         {data.recentCandidates.length === 0 ? (
-          <p className="text-sm text-gray-400 mt-4">Noch keine Bewerber</p>
+          <p className="text-sm text-gray-500">Noch keine Bewerber</p>
         ) : (
-          <div className="mt-4 divide-y divide-gray-200">
+          <div className="-mx-2 space-y-1">
             {data.recentCandidates.map((c) => (
               <a
                 key={c.id}
                 href={`/candidates/${c.id}`}
-                className="flex items-center gap-3 py-4 first:pt-1 hover:bg-gray-50 -mx-6 px-6 transition-colors"
+                className="flex items-center gap-3.5 rounded-[14px] px-2 py-2 transition-colors hover:bg-panel"
               >
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-gray-400" />
-                </div>
-                <span className="flex-1 text-sm font-medium text-gray-900">{c.name}</span>
-                <span className="text-xs text-gray-400 shrink-0">
+                <Avatar name={c.name} />
+                <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{c.name}</span>
+                <Badge tone={c.source === 'meta' ? 'softAccent' : c.source === 'indeed' ? 'neutral' : 'outline'}>
                   {SOURCE_LABELS[c.source] || c.source}
-                </span>
-                <span className="text-xs text-gray-400 shrink-0 w-24 text-right">
+                </Badge>
+                <span className="hidden w-24 shrink-0 text-right text-xs text-gray-500 sm:block">
                   {timeAgo(c.created_at)}
                 </span>
               </a>

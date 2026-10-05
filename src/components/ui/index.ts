@@ -1,11 +1,14 @@
-export { Button } from './button';
+export { Button, buttonStyles } from './button';
 export { Badge } from './badge';
 export { IconButton } from './icon-button';
 export { Input } from './input';
 export { Select } from './select';
 export { SegmentedControl } from './segmented-control';
-export { Card } from './card';
+export { Card, CardHead } from './card';
 export { Modal } from './modal';
 export { FeatureRow } from './feature-row';
-export { Sidebar, type SidebarItem, type SidebarGroup } from './sidebar';
+export { Sidebar, NavBadge, type SidebarItem, type SidebarGroup } from './sidebar';
 export { PageHeader } from './page-header';
+export { StatCard } from './stat-card';
+export { SplitText, CountUp, Rise } from './motion';
+export { Avatar } from './avatar';

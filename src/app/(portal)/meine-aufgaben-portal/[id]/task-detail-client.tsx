@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -230,7 +231,7 @@ export function PortalTaskDetailClient({ taskId, userId }: PortalTaskDetailClien
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-gray-900">{task.titel}</h1>
+          <SplitText as="h1" text={String(task.titel)} className="text-[clamp(26px,2.6vw,34px)] font-semibold leading-[1.15] tracking-[-0.035em]" />
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Badge tone={statusCfg.tone}>{statusCfg.label}</Badge>

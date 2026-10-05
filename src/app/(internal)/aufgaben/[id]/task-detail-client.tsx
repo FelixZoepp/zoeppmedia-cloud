@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -249,7 +250,7 @@ export function TaskDetailClient({ taskId, userRole, userId }: TaskDetailClientP
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-gray-900">{task.titel}</h1>
+          <SplitText as="h1" text={String(task.titel)} className="text-[clamp(26px,2.6vw,34px)] font-semibold leading-[1.15] tracking-[-0.035em]" />
           {task.agencies && (
             <Link
               href={`/clients/${task.agency_id}`}

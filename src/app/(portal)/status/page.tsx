@@ -161,7 +161,7 @@ function StepConnector({ status }: { status: StageStatus }) {
       <div
         className="w-0.5 flex-1 min-h-[2rem]"
         style={{
-          background: 'linear-gradient(to bottom, #ef4444 0%, #e5e7eb 100%)',
+          background: 'linear-gradient(to bottom, #d9443c 0%, #e6e3e1 100%)',
         }}
       />
     );
@@ -340,13 +340,13 @@ function ProgressHero({ percent, activeStage }: { percent: number; activeStage: 
             <circle
               cx="50" cy="50" r="40"
               fill="none"
-              stroke="#f3f4f6"
+              stroke="#efedeb"
               strokeWidth="10"
             />
             <circle
               cx="50" cy="50" r="40"
               fill="none"
-              stroke={percent === 100 ? '#22c55e' : '#ef4444'}
+              stroke={percent === 100 ? '#22c55e' : '#d9443c'}
               strokeWidth="10"
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -583,7 +583,7 @@ export default function ProjectStatusPage() {
               onChange={(e) => setFeedbackText(e.target.value)}
               placeholder="Beschreibe kurz, was geändert werden soll..."
               rows={4}
-              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none"
+              className="w-full px-4 py-3 text-sm rounded-xl bg-card text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 resize-none shadow-sm"
             />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => { setFeedbackModal(null); setFeedbackText(''); }}>

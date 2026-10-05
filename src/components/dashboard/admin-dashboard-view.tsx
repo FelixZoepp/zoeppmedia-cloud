@@ -4,8 +4,8 @@ import type { AdminDashboardData } from '@/lib/admin-dashboard';
 import { CandidatesChart } from './candidates-chart';
 import { SourcesChart } from './sources-chart';
 import { SourceDonut } from './source-donut';
-import { GlobalSearch } from '@/components/global-search';
-import { User, Bell, Settings, Users, TrendingUp, BarChart3, Award, Target, Plus, UserCircle } from 'lucide-react';
+import { Users, Target, Plus, Building2, BookOpen, ArrowUpRight } from 'lucide-react';
+import { Avatar, Badge, Card, CardHead, SplitText, StatCard, buttonStyles } from '@/components/ui';
 import Link from 'next/link';
 
 function timeAgo(dateStr: string): string {
@@ -33,229 +33,243 @@ const SOURCE_LABELS: Record<string, string> = { meta: 'Meta Ads', indeed: 'Indee
 
 export function AdminDashboardView({ data }: { data: AdminDashboardData }) {
   const now = new Date();
-  const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' }).toUpperCase();
+  const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' });
   const kw = getISOWeek(now);
+  const hireRate = data.totalCandidates > 0 ? Math.round((data.totalHired / data.totalCandidates) * 100) : 0;
 
   return (
-    <div className="space-y-8">
-
-      {/* Top Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1" />
-        <div className="flex items-center gap-3">
-          <GlobalSearch />
-          <button className="relative w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 shadow-sm">
-            <Bell className="w-4 h-4 text-gray-500" />
-            <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500" />
-          </button>
-          <Link href="/admin/kpi" className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 shadow-sm">
-            <Settings className="w-4 h-4 text-gray-500" />
+    <div className="space-y-4">
+      {/* Kopf */}
+      <div className="mb-[26px] flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0">
+          <span className="fx-fade mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-red-700" style={{ '--d': '0ms' } as React.CSSProperties}>
+            {dayName} · KW {kw}
+          </span>
+          <SplitText
+            as="h1"
+            text={`${getGreeting()}, Felix.`}
+            className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]"
+          />
+          <p className="fx-fade mt-2 text-[15px] text-gray-600">Alles, was bei deinen Kunden gerade läuft – an einem ruhigen Ort.</p>
+        </div>
+        <div className="fx-fade flex flex-wrap gap-3" style={{ '--d': '130ms' } as React.CSSProperties}>
+          <Link href="/invites" className={buttonStyles('primary', 'xl')}>
+            <Plus /> Neue Agentur
           </Link>
-          <Link href="/settings" className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 shadow-sm">
-            <UserCircle className="w-4 h-4 text-gray-500" />
+          <Link href="/clients" className={buttonStyles('secondary', 'xl')}>
+            <Users /> Alle Kunden
           </Link>
         </div>
       </div>
 
-      {/* Greeting */}
-      <div>
-        <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
-          {dayName} &middot; KW {kw}
-        </span>
-        <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 tracking-tight mt-2">
-          {getGreeting()}, Felix.
-        </h1>
+      {/* Kennzahlen */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard hero title="Agenturen" value={data.totalAgencies} trend={pct(data.totalAgencies, data.agenciesPrevWeek)} trendLabel="ggü. Vorwoche" href="/clients" />
+        <StatCard title="Bewerber" value={data.totalCandidates} trend={pct(data.totalCandidates, data.candidatesPrevWeek)} trendLabel="ggü. Vorwoche" href="/admin/recruiting" />
+        <StatCard title="Neu diese Woche" value={data.newCandidatesThisWeek} trend={pct(data.newCandidatesThisWeek, data.newCandidatesPrevWeek)} trendLabel="ggü. Vorwoche" href="/admin/recruiting" />
+        <StatCard title="Eingestellt" value={data.totalHired} note={`${hireRate}% Hire Rate`} />
       </div>
 
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KpiCard icon={<Users className="w-5 h-5" />} iconBg="bg-red-50 text-red-600" label="Agenturen" value={String(data.totalAgencies)} sub={`${data.totalAgencies} aktiv`} />
-        <KpiCard icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-red-50 text-red-600" label="Bewerber" value={String(data.totalCandidates)} sub="Gesamt" />
-        <KpiCard icon={<BarChart3 className="w-5 h-5" />} iconBg="bg-gray-100 text-gray-600" label="Neu diese Woche" value={String(data.newCandidatesThisWeek)} sub={`KW ${kw}`} />
-        <KpiCard icon={<Award className="w-5 h-5" />} iconBg="bg-gray-100 text-gray-600" label="Eingestellt" value={String(data.totalHired)} sub="Gesamt" />
-        <KpiCard icon={<Target className="w-5 h-5" />} iconBg="bg-gray-100 text-gray-600" label="Hire Rate" value={data.totalCandidates > 0 ? `${Math.round((data.totalHired / data.totalCandidates) * 100)}%` : '0%'} sub="Conversion" />
-      </div>
-
-      {/* Quick Actions */}
-      <div>
-        <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Schnellzugriff</span>
-        <h2 className="text-xl font-bold text-gray-900 mt-1 mb-4">Deine Aktionen</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <QuickAction icon={<Plus className="w-6 h-6" />} color="bg-red-50 text-red-600" title="Neue Agentur" desc="Kunden einladen" href="/invites" />
-          <QuickAction icon={<Users className="w-6 h-6" />} color="bg-red-50 text-red-600" title="Kunden" desc="Alle Agenturen" href="/clients" />
-          <QuickAction icon={<BarChart3 className="w-6 h-6" />} color="bg-gray-100 text-gray-600" title="Playbook" desc="Handlungsanweisungen" href="/playbook" />
-          <QuickAction icon={<Target className="w-6 h-6" />} color="bg-gray-100 text-gray-600" title="KPI Settings" desc="Zielwerte verwalten" href="/admin/kpi" />
-          <QuickAction icon={<Users className="w-6 h-6" />} color="bg-gray-100 text-gray-600" title="Team" desc="Mitarbeiter verwalten" href="/team" />
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
-          <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Recruiting</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber-Entwicklung</h2>
-          <CandidatesChart data={data.candidatesOverTime} />
-        </div>
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
-          <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Quellen</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Quellen-Verteilung</h2>
-          <SourceDonut data={data.sourceBreakdown} />
-        </div>
-      </div>
-
-      {/* Recent + Sources */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
-          <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Letzte Aktivität</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1">Neue Bewerber</h2>
-          {data.recentCandidates.length === 0 ? (
-            <p className="text-sm text-gray-400 mt-4">Noch keine Bewerber</p>
-          ) : (
-            <div className="mt-4 divide-y divide-gray-100">
-              {data.recentCandidates.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 py-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-900">{c.name}</span>
-                    <span className="text-sm text-gray-400 ml-2">{c.agency_name}</span>
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0">{SOURCE_LABELS[c.source] || c.source}</span>
-                  <span className="text-xs text-gray-400 shrink-0 w-20 text-right">{timeAgo(c.created_at)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
-          <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Kanäle</span>
-          <h2 className="text-lg font-bold text-gray-900 mt-1 mb-4">Bewerber nach Quelle</h2>
-          <SourcesChart data={data.sourceBreakdown} />
-        </div>
-      </div>
-
-      {/* Agencies Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Portfolio</span>
-            <h2 className="text-lg font-bold text-gray-900 mt-1">Agenturen</h2>
+      {/* Entwicklung, Quellen, Schnellzugriff */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <Card className="xl:col-span-2">
+          <CardHead title="Bewerber-Entwicklung" />
+          <p className="mt-1 text-[13.5px] text-gray-600">Neue Bewerber pro Monat, alle Kunden</p>
+          <div className="mt-5">
+            <CandidatesChart data={data.candidatesOverTime} />
           </div>
-          <Link href="/clients" className="text-xs font-semibold text-red-600 uppercase tracking-wider hover:text-red-700">Alle Kunden →</Link>
-        </div>
+        </Card>
+        <Card>
+          <CardHead title="Quellen" />
+          <div className="mt-5">
+            <SourceDonut data={data.sourceBreakdown} />
+          </div>
+        </Card>
+        <Card>
+          <CardHead title="Schnellzugriff" />
+          <ul className="mt-4 space-y-1">
+            <QuickAction icon={<Plus className="h-[18px] w-[18px]" />} title="Neue Agentur" desc="Kunden einladen" href="/invites" />
+            <QuickAction icon={<Building2 className="h-[18px] w-[18px]" />} title="Kunden" desc="Alle Agenturen" href="/clients" />
+            <QuickAction icon={<BookOpen className="h-[18px] w-[18px]" />} title="Playbook" desc="Handlungsanweisungen" href="/playbook" />
+            <QuickAction icon={<Target className="h-[18px] w-[18px]" />} title="KPI-Ziele" desc="Zielwerte verwalten" href="/admin/kpi" />
+            <QuickAction icon={<Users className="h-[18px] w-[18px]" />} title="Team" desc="Mitarbeiter verwalten" href="/team" />
+          </ul>
+        </Card>
+      </div>
+
+      {/* Letzte Bewerber + Kanäle */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHead title="Neue Bewerber" />
+          {data.recentCandidates.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-500">Noch keine Bewerber</p>
+          ) : (
+            <ul className="mt-4 space-y-3.5">
+              {data.recentCandidates.map((c) => (
+                <li key={c.id} className="flex items-center gap-3.5">
+                  <Avatar name={c.name} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-medium">{c.name}</p>
+                    <p className="truncate text-[13px] text-gray-600">
+                      bei <span className="font-medium text-ink">{c.agency_name}</span>
+                    </p>
+                  </div>
+                  <Badge tone={c.source === 'meta' ? 'softAccent' : c.source === 'indeed' ? 'neutral' : 'outline'}>
+                    {SOURCE_LABELS[c.source] || c.source}
+                  </Badge>
+                  <span className="hidden w-20 shrink-0 text-right text-xs text-gray-500 sm:block">{timeAgo(c.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHead title="Bewerber nach Quelle" />
+          <div className="mt-5">
+            <SourcesChart data={data.sourceBreakdown} />
+          </div>
+        </Card>
+      </div>
+
+      {/* Agenturen */}
+      <Card>
+        <CardHead
+          title="Agenturen"
+          action={
+            <Link href="/clients" className={buttonStyles('secondary', 'sm')}>
+              Alle Kunden <ArrowUpRight />
+            </Link>
+          }
+        />
         {data.topAgencies.length === 0 ? (
-          <p className="text-sm text-gray-400 mt-4">Noch keine Agenturen</p>
+          <p className="mt-4 text-sm text-gray-500">Noch keine Agenturen</p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full mt-4">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Agentur</th>
-                <th className="text-right pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Bewerber</th>
-                <th className="text-right pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Eingestellt</th>
-                <th className="text-right pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Hire Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topAgencies.map((agency) => {
-                const rate = agency.candidates > 0 ? Math.round((agency.hired / agency.candidates) * 100) : 0;
-                return (
-                  <tr key={agency.id} className="border-b border-gray-100 last:border-0">
+            <table className="mt-4 w-full">
+              <thead>
+                <tr className="border-b border-hair">
+                  <th className="pb-3 text-left text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Agentur</th>
+                  <th className="pb-3 text-right text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Bewerber</th>
+                  <th className="pb-3 text-right text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Eingestellt</th>
+                  <th className="pb-3 text-right text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Hire Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.topAgencies.map((agency) => {
+                  const rate = agency.candidates > 0 ? Math.round((agency.hired / agency.candidates) * 100) : 0;
+                  return (
+                    <tr key={agency.id} className="border-b border-hair last:border-0">
+                      <td className="py-3">
+                        <Link href={`/clients/${agency.id}`} className="flex items-center gap-3 hover:opacity-80">
+                          <Avatar name={agency.name} />
+                          <span className="text-[15px] font-medium">{agency.name}</span>
+                        </Link>
+                      </td>
+                      <td className="py-3 text-right text-[15px] font-semibold">{agency.candidates}</td>
+                      <td className="py-3 text-right text-[15px] font-semibold">{agency.hired}</td>
+                      <td className="py-3 text-right">
+                        {rate > 0 ? <Badge tone="success">{rate}%</Badge> : <span className="text-sm text-gray-400">0%</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {/* Status */}
+      <Card>
+        <CardHead
+          title="Agentur-Status"
+          action={
+            data.totalProblems > 0 ? (
+              <Badge tone="danger">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
+                {data.totalProblems} Problem{data.totalProblems !== 1 ? 'e' : ''}
+              </Badge>
+            ) : undefined
+          }
+        />
+        {data.agencyStatuses.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-500">Noch keine Agenturen</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="mt-4 w-full">
+              <thead>
+                <tr className="border-b border-hair">
+                  <th className="pb-3 text-left text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Agentur</th>
+                  <th className="pb-3 text-center text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Status</th>
+                  <th className="pb-3 text-right text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Kritisch</th>
+                  <th className="pb-3 text-right text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Warnung</th>
+                  <th className="w-12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.agencyStatuses.map((a) => (
+                  <tr key={a.id} className="border-b border-hair last:border-0">
                     <td className="py-3">
-                      <Link href={`/clients/${agency.id}`} className="flex items-center gap-3 hover:opacity-80">
-                        <span className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{agency.name.charAt(0)}</span>
-                        <span className="text-sm font-medium text-gray-900">{agency.name}</span>
+                      <Link href={`/clients/${a.id}`} className="flex items-center gap-3 hover:opacity-80">
+                        <Avatar name={a.name} />
+                        <span className="text-[15px] font-medium">{a.name}</span>
                       </Link>
                     </td>
-                    <td className="text-right py-3 text-sm font-semibold text-gray-900">{agency.candidates}</td>
-                    <td className="text-right py-3 text-sm font-semibold text-gray-900">{agency.hired}</td>
-                    <td className="text-right py-3 text-sm font-semibold">{rate > 0 ? <span className="text-green-600">{rate}%</span> : <span className="text-gray-400">0%</span>}</td>
+                    <td className="py-3 text-center">
+                      {a.status === 'red' ? (
+                        <Badge tone="danger">Kritisch</Badge>
+                      ) : a.status === 'yellow' ? (
+                        <Badge tone="warning">Achtung</Badge>
+                      ) : (
+                        <Badge tone="success">Läuft</Badge>
+                      )}
+                    </td>
+                    <td className="py-3 text-right text-[15px] font-semibold">
+                      {a.criticalCount > 0 ? <span className="text-red-700">{a.criticalCount}</span> : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="py-3 text-right text-[15px] font-semibold">
+                      {a.warningCount > 0 ? <span className="text-amber-700">{a.warningCount}</span> : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="py-3 text-right">
+                      <Link
+                        href={`/clients/${a.id}`}
+                        aria-label={`${a.name} öffnen`}
+                        className="ml-auto grid h-[34px] w-[34px] place-items-center rounded-full text-ink shadow-[inset_0_0_0_1.5px_currentColor] transition-[transform,background,color] duration-300 ease-fern hover:rotate-45 hover:bg-ink hover:text-card hover:shadow-none"
+                      >
+                        <ArrowUpRight className="h-4 w-4" />
+                      </Link>
+                    </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
-
-      {/* Status Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">Monitoring</span>
-            <h2 className="text-lg font-bold text-gray-900 mt-1">Agentur-Status</h2>
-          </div>
-          {data.totalProblems > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-600 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-red-500" />
-              {data.totalProblems} Problem{data.totalProblems !== 1 ? 'e' : ''}
-            </span>
-          )}
-        </div>
-        {data.agencyStatuses.length === 0 ? (
-          <p className="text-sm text-gray-400 mt-4">Noch keine Agenturen</p>
-        ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full mt-4">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Agentur</th>
-                <th className="text-center pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="text-right pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Kritisch</th>
-                <th className="text-right pb-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Warnung</th>
-                <th className="w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.agencyStatuses.map((a) => (
-                <tr key={a.id} className="border-b border-gray-100 last:border-0">
-                  <td className="py-3">
-                    <Link href={`/clients/${a.id}`} className="flex items-center gap-3 hover:opacity-80">
-                      <span className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{a.name.charAt(0)}</span>
-                      <span className="text-sm font-medium text-gray-900">{a.name}</span>
-                    </Link>
-                  </td>
-                  <td className="text-center py-3">
-                    <span className={`w-3 h-3 rounded-full inline-block ${a.status === 'red' ? 'bg-red-500' : a.status === 'yellow' ? 'bg-amber-400' : 'bg-green-500'}`} />
-                  </td>
-                  <td className="text-right py-3 text-sm font-semibold">{a.criticalCount > 0 ? <span className="text-red-600">{a.criticalCount}</span> : <span className="text-gray-300">—</span>}</td>
-                  <td className="text-right py-3 text-sm font-semibold">{a.warningCount > 0 ? <span className="text-amber-600">{a.warningCount}</span> : <span className="text-gray-300">—</span>}</td>
-                  <td className="text-right py-3"><Link href={`/clients/${a.id}`} className="text-xs font-semibold text-red-600 hover:text-red-700">Details →</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        )}
-      </div>
+      </Card>
     </div>
   );
 }
 
-function KpiCard({ icon, iconBg, label, value, sub }: { icon: React.ReactNode; iconBg: string; label: string; value: string; sub: string }) {
+function QuickAction({ icon, title, desc, href }: { icon: React.ReactNode; title: string; desc: string; href: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:px-8 md:py-7 min-w-0">
-      <div className="flex items-start justify-between gap-2 mb-4">
-        <div className={`w-10 h-10 rounded-full ${iconBg} flex items-center justify-center shrink-0`}>{icon}</div>
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-right leading-snug min-w-0">{label}</span>
-      </div>
-      <span className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-none block break-words">{value}</span>
-      <span className="text-xs text-gray-400 uppercase tracking-wider mt-2 block">{sub}</span>
-    </div>
+    <li>
+      <Link href={href} className="group -mx-2 flex items-center gap-3.5 rounded-[14px] px-2 py-2 transition-colors hover:bg-panel">
+        <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-red-100 text-red-800 transition-colors group-hover:bg-red-950 group-hover:text-red-50">
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-medium">{title}</span>
+          <span className="block truncate text-[13px] text-gray-600">{desc}</span>
+        </span>
+      </Link>
+    </li>
   );
 }
 
-function QuickAction({ icon, color, title, desc, href }: { icon: React.ReactNode; color: string; title: string; desc: string; href: string }) {
-  return (
-    <Link href={href} className="group bg-white p-5 md:p-8 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-      <div className={`w-14 h-14 rounded-xl ${color} flex items-center justify-center mb-5`}>{icon}</div>
-      <h3 className="text-base font-semibold text-gray-900 mb-1">{title}</h3>
-      <p className="text-sm text-gray-400">{desc}</p>
-      <span className="text-sm font-semibold text-red-600 mt-4 block group-hover:translate-x-0.5 transition-transform">Öffnen →</span>
-    </Link>
-  );
+/** Veränderung in % gegenüber dem Vorwert; ohne Vorwert kein Trend */
+function pct(current: number, previous: number): number | undefined {
+  if (!previous) return undefined;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
 function getISOWeek(date: Date): number {

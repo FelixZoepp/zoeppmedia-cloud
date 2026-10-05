@@ -78,7 +78,7 @@ function TaskRow({ task }: { task: ProjectTaskWithRelations }) {
   return (
     <Link href={`/aufgaben/${task.id}`}>
       <div
-        className={`flex items-center gap-4 px-4 py-3 rounded-xl border bg-white hover:shadow-md transition-shadow cursor-pointer ${
+        className={`flex items-center gap-4 px-4 py-3 rounded-xl border bg-card hover:shadow-md transition-shadow cursor-pointer ${
           overdue ? 'border-red-300 bg-red-50/50' : 'border-gray-200'
         }`}
       >

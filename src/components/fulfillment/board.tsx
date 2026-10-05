@@ -107,7 +107,7 @@ function PhaseKanban({
   const ohneSchritt = clients.filter((c) => !c.aktueller_schritt);
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+    <section className="rounded-xl bg-card overflow-hidden shadow-sm">
       <button onClick={onToggle} className={`w-full ${phase.farbe} px-4 py-3 text-white flex items-center gap-3 text-left`}>
         <ChevronDown className={`w-5 h-5 transition-transform ${offen ? '' : '-rotate-90'}`} />
         <span className="font-bold">{phase.label}</span>

@@ -156,7 +156,7 @@ export default function ReportsPage() {
             <a
               href={`/api/export/reports?period=${period}`}
               download
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 bg-card hover:bg-gray-50 transition-colors shadow-sm"
             >
               <Download className="w-4 h-4" />
               CSV

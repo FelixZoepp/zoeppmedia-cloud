@@ -1,4 +1,5 @@
 'use client';
+import { SplitText } from '@/components/ui/motion';
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -112,13 +113,11 @@ export function EmployeeDashboardView() {
     <div className="space-y-8 max-w-5xl">
       {/* Greeting */}
       <div>
-        <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
+        <span className="fx-fade mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em] text-red-700" style={{ '--d': '0ms' } as React.CSSProperties}>
           Dashboard
         </span>
-        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mt-2">
-          {getGreeting()}, {firstName}.
-        </h1>
-        <div className="flex items-center gap-3 mt-2 flex-wrap">
+        <SplitText as="h1" text={`${getGreeting()}, ${firstName}.`} className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
+        <div className="fx-fade flex items-center gap-3 mt-2 flex-wrap">
           {data.user.position && (
             <span className="text-sm text-gray-500">{data.user.position}</span>
           )}
@@ -138,23 +137,26 @@ export function EmployeeDashboardView() {
 
       {/* Quick link: Meine Aufgaben */}
       <div>
-        <Link href="/meine-aufgaben">
+        <Link href="/meine-aufgaben" className="group block">
           <Card
+            hero
             padding="md"
-            className="flex items-center justify-between hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-red-100 bg-red-50"
+            className="fx-lift flex items-center justify-between cursor-pointer"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-red-50 text-red-950">
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-900">Aufgaben abarbeiten</p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-[22px] font-semibold leading-tight tracking-[-0.03em]">Aufgaben abarbeiten</p>
+                <p className="mt-1 text-[13.5px] text-red-200">
                   {data.fulfillmentTasks.length + playbookTasks.length} offene Aufgaben insgesamt
                 </p>
               </div>
             </div>
-            <ArrowRight className="w-5 h-5 text-red-600 shrink-0" />
+            <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full bg-red-50 text-red-950 transition-transform duration-300 ease-fern group-hover:rotate-45">
+              <ArrowRight className="h-[18px] w-[18px] -rotate-45" />
+            </span>
           </Card>
         </Link>
       </div>
@@ -233,7 +235,7 @@ export function EmployeeDashboardView() {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="w-8 h-8 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white text-xs font-bold flex items-center justify-center shrink-0">
                           {agency.name.charAt(0)}
                         </span>
                         <p className="text-sm font-semibold text-gray-900">{agency.name}</p>

@@ -1,38 +1,106 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { GlobalSearch } from '@/components/global-search';
+import { AppSidebar } from '@/components/app-sidebar';
+import { useBoardReveal } from '@/components/ui/motion';
+import type { UserRole } from '@/lib/auth';
 
-export function LayoutShell({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+interface ShellUser {
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+}
+
+export function LayoutShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+  const pathname = usePathname();
+  // Menü gilt nur für den Pfad, auf dem es geöffnet wurde → schließt bei Seitenwechsel
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
+  const setOpen = (v: boolean) => setOpenOn(v ? pathname : null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const internal = user.role === 'admin' || user.role === 'employee';
+
+  useBoardReveal(boardRef, pathname);
+
+  // Mobile: Scrollen sperren, solange das Menü offen ist
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Desktop sidebar */}
-      <div className="hidden md:block">{sidebar}</div>
-      {/* Mobile sidebar overlay */}
+    <div className="mx-auto grid min-h-dvh max-w-[1680px] grid-cols-1 gap-3 p-2.5 md:grid-cols-[252px_minmax(0,1fr)] md:gap-3.5 md:p-3.5">
+      <a
+        href="#inhalt"
+        className="fixed left-4 top-3 z-[100] -translate-y-[160%] rounded-[10px] bg-red-950 px-4 py-2.5 text-red-50 focus:translate-y-0"
+      >
+        Zum Inhalt springen
+      </a>
+
+      {/* Desktop-Sidebar: schwebende Fläche */}
+      <div className="sticky top-3.5 hidden h-[calc(100dvh-28px)] md:block">
+        <AppSidebar role={user.role} userName={user.name} />
+      </div>
+
+      {/* Mobile-Sidebar */}
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="fixed inset-0 bg-black/30" onClick={() => setOpen(false)} />
-          <div className="fixed left-0 top-0 h-full z-50">{sidebar}</div>
+          <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+          <div className="absolute bottom-2.5 left-2.5 top-2.5">
+            <AppSidebar role={user.role} userName={user.name} onClose={() => setOpen(false)} />
+          </div>
         </div>
       )}
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        {/* Mobile header with hamburger */}
-        <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-40">
-          <button onClick={() => setOpen(true)} className="p-2 rounded-lg hover:bg-gray-100">
-            <Menu className="w-5 h-5 text-gray-600" />
+
+      <div className="grid min-w-0 grid-rows-[auto_1fr] gap-3 md:gap-3.5">
+        {/* Topbar */}
+        <header className="fx-shell sticky top-2.5 z-40 flex items-center gap-3 rounded-2xl bg-panel/95 px-3 py-3 backdrop-blur md:static md:gap-3.5 md:bg-panel md:px-[18px] md:py-3.5">
+          <button
+            onClick={() => setOpen(true)}
+            className="grid h-11 w-11 place-items-center rounded-[12px] text-ink hover:bg-gray-100 md:hidden"
+            aria-label="Menü öffnen"
+          >
+            <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-bold text-gray-900 uppercase flex-1">Zoepp Media</span>
-          <NotificationBell />
-        </div>
-        {/* Desktop header */}
-        <div className="hidden md:flex items-center justify-end px-8 py-3 border-b border-gray-200 bg-white sticky top-0 z-40">
-          <NotificationBell />
-        </div>
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
+          <span className="flex-1 text-[17px] font-semibold tracking-[-0.03em] md:hidden">Zoepp Cloud</span>
+          {internal && <GlobalSearch />}
+          <div className="ml-auto flex items-center gap-3">
+            <NotificationBell />
+            <Link
+              href={internal ? '/profile' : '/settings'}
+              className="flex items-center gap-3 rounded-full py-0.5 pl-0.5 pr-1.5 transition-colors hover:bg-gray-100"
+            >
+              <span className="grid h-[46px] w-[46px] flex-none place-items-center rounded-full bg-red-100 text-sm font-semibold tracking-[0.02em] text-red-900">
+                {initials(user.name) || '?'}
+              </span>
+              <span className="hidden min-w-0 lg:grid">
+                <span className="truncate text-[15px] font-medium text-ink">{user.name}</span>
+                <span className="truncate text-[13px] text-gray-600">{user.email}</span>
+              </span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Inhalt als eigene Fläche */}
+        <main id="inhalt" className="min-w-0 rounded-2xl bg-panel px-4 pb-5 pt-6 md:px-[22px] md:pb-[22px] md:pt-7">
+          <div ref={boardRef} className="mx-auto max-w-[1400px]">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -67,7 +67,7 @@ export function PushManager() {
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-gray-200 bg-white p-4 shadow-lg">
+    <div className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl bg-card p-4 shadow-lg">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50">
           <Bell className="h-5 w-5 text-red-600" />
@@ -79,7 +79,7 @@ export function PushManager() {
           </p>
           <button
             onClick={enable}
-            className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+            className="mt-2 rounded-full bg-gradient-to-b from-red-700 to-red-950 px-3 py-1.5 text-xs font-semibold text-white hover:from-red-600 hover:to-red-800"
           >
             Aktivieren
           </button>

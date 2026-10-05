@@ -979,7 +979,7 @@ export function BuchhaltungClient() {
               <span className="flex items-center gap-1.5">
                 {t.label}
                 {t.value === 'freigaben' && pendingCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-600 rounded-full">
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-gradient-to-b from-red-700 to-red-950 rounded-full">
                     {pendingCount}
                   </span>
                 )}
