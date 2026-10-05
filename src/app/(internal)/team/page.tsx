@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Plus, Building2, Pencil, Trash2, Mail, Clock, Send, Link } from 'lucide-react';
-import { PageHeader, Card, Button, Badge, Modal, Input } from '@/components/ui';
+import { Plus, Pencil, Trash2, Mail, Clock, Send, Link, AlertTriangle } from 'lucide-react';
+import { PageHeader, Card, Button, Badge, Modal, Input, Avatar, CountUp, SegmentedControl } from '@/components/ui';
+import type { MemberWorkload } from '@/lib/team/workload';
 import type { TeamMember, Agency, EmployeeInvite } from '@/lib/types/database';
 import { toast } from 'sonner';
 
@@ -12,7 +13,31 @@ interface TeamMemberWithAssignments extends TeamMember {
   last_login?: string | null;
 }
 
+const FUNKTIONEN: Record<string, string> = {
+  media_buyer: 'Ads & Funnel',
+  backoffice: 'Buchhaltung',
+  csm: 'Kundenbetreuung',
+  content: 'Content',
+  ops: 'Operations',
+};
+
+/** Online-Status grob aus dem letzten Login: heute = grün, diese Woche = gelb, sonst grau */
+function presence(lastLogin: string | null): { color: string; label: string } {
+  if (!lastLogin) return { color: '#a69f9b', label: 'noch nie eingeloggt' };
+  const h = (Date.now() - new Date(lastLogin).getTime()) / 36e5;
+  if (h < 24) return { color: '#2fb36b', label: 'heute aktiv' };
+  if (h < 24 * 7) return { color: '#e8a317', label: 'diese Woche aktiv' };
+  return { color: '#a69f9b', label: 'länger nicht aktiv' };
+}
+
+function workloadColor(w: number) {
+  if (w >= 85) return 'bg-amber-600';
+  return 'bg-red-700';
+}
+
 export default function TeamPage() {
+  const [workload, setWorkload] = useState<MemberWorkload[]>([]);
+  const [filter, setFilter] = useState('alle');
   const [members, setMembers] = useState<TeamMemberWithAssignments[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [invites, setInvites] = useState<EmployeeInvite[]>([]);
@@ -33,7 +58,9 @@ export default function TeamPage() {
       fetch('/api/team').then((r) => r.json()),
       fetch('/api/admin/agencies').then((r) => r.json()),
       fetch('/api/admin/employee-invite').then((r) => r.ok ? r.json() : []),
-    ]).then(([teamData, agencyData, inviteData]) => {
+      fetch('/api/team/workload').then((r) => (r.ok ? r.json() : [])),
+    ]).then(([teamData, agencyData, inviteData, workloadData]) => {
+      setWorkload(Array.isArray(workloadData) ? workloadData : []);
       setMembers(Array.isArray(teamData) ? teamData : []);
       setAgencies(Array.isArray(agencyData) ? agencyData : []);
       setInvites(Array.isArray(inviteData) ? inviteData : []);
@@ -174,108 +201,200 @@ export default function TeamPage() {
     (inv) => !inv.redeemed && new Date(inv.expires_at) > new Date()
   );
 
+  // Karten = echte Logins; Kundenzuweisungen aus team_members (passender user_id + Name)
+  const norm = (x: string) => x.trim().toLowerCase();
+  const memberFor = (w: MemberWorkload) =>
+    members.find((m) => m.user_id === w.user_id && norm(m.name) === norm(w.name)) ??
+    // gleicher Vorname reicht, wenn es nur einen Eintrag für diesen Login gibt
+    members.find(
+      (m) =>
+        m.user_id === w.user_id &&
+        members.filter((x) => x.user_id === w.user_id).length === 1 &&
+        norm(m.name).split(/\s+/)[0] === norm(w.name).split(/\s+/)[0],
+    );
+  const matchedIds = new Set(workload.map((w) => memberFor(w)?.id).filter(Boolean));
+  const ohneLogin = members.filter((m) => !matchedIds.has(m.id));
+  const funktionen = [...new Set(workload.map((w) => w.funktion).filter((f): f is string => !!f))];
+  const shown = workload.filter((w) => filter === 'alle' || w.funktion === filter);
+  const heuteAktiv = workload.filter((w) => presence(w.last_login).label === 'heute aktiv').length;
+
   return (
     <>
       <PageHeader
-        label="COCKPIT"
         title="Team"
-        description="Mitarbeiter & Kundenzuweisungen verwalten"
+        description="Wer im Team was trägt – und wer gerade Luft hat."
         action={
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={openInviteModal}>
-              <Send className="w-4 h-4" />
-              Mitarbeiter einladen
-            </Button>
-            <Button variant="primary" onClick={openAdd}>
-              <Plus className="w-4 h-4" />
+          <>
+            <Button variant="secondary" size="lg" onClick={openAdd}>
+              <Plus />
               Manuell hinzufügen
             </Button>
-          </div>
+            <Button variant="primary" size="lg" onClick={openInviteModal}>
+              <Send />
+              Mitarbeiter einladen
+            </Button>
+          </>
         }
       />
 
-      <div className="grid gap-4">
-        {loading && (
-          <Card>
-            <p className="text-center text-gray-400 py-8">Wird geladen…</p>
-          </Card>
-        )}
-
-        {!loading && members.length === 0 && pendingInvites.length === 0 && (
-          <Card inset>
-            <p className="text-center text-gray-400 py-8">Noch keine Mitarbeiter hinzugefügt</p>
-          </Card>
-        )}
-
-        {/* Pending invites */}
-        {pendingInvites.map((invite) => (
-          <Card key={invite.id}>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-5 h-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{invite.name}</p>
-                  <p className="text-sm text-gray-500">{invite.email}</p>
-                  {invite.position && (
-                    <p className="text-xs text-gray-400">{invite.position}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Badge tone="neutral">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Einladung ausstehend
-                </Badge>
-                <span className="text-xs text-gray-400">
-                  Ablauf: {new Date(invite.expires_at).toLocaleDateString('de-DE')}
-                </span>
-              </div>
-            </div>
-          </Card>
-        ))}
-
-        {/* Registered members */}
-        {members.map((member) => (
-          <Card key={member.id}>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{member.name}</p>
-                  <p className="text-sm text-gray-600">{member.position || 'Keine Position'}</p>
-                  {member.email && (
-                    <p className="text-xs text-gray-400">{member.email}</p>
-                  )}
-                  {member.last_login && (
-                    <p className="text-xs text-gray-400">
-                      Zuletzt aktiv: {new Date(member.last_login).toLocaleDateString('de-DE')}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                {member.agencies?.map((a) => (
-                  <Badge key={a.id} tone="softAccent">
-                    <Building2 className="w-3 h-3 mr-1" />
-                    {a.name}
-                  </Badge>
-                ))}
-                <Button variant="ghost" size="sm" onClick={() => openEdit(member)}>
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(member.id)}>
-                  <Trash2 className="w-4 h-4 text-gray-400" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <SegmentedControl
+          items={[{ value: 'alle', label: 'Alle' }, ...funktionen.map((f) => ({ value: f, label: FUNKTIONEN[f] ?? f }))]}
+          value={filter}
+          onChange={setFilter}
+        />
+        <span className="text-[14px] text-gray-600">
+          <strong className="font-semibold text-ink">{heuteAktiv}</strong> heute aktiv
+        </span>
       </div>
+
+      {loading && (
+        <Card>
+          <p className="py-8 text-center text-gray-500">Wird geladen…</p>
+        </Card>
+      )}
+
+      {!loading && workload.length === 0 && members.length === 0 && pendingInvites.length === 0 && (
+        <Card inset>
+          <p className="py-8 text-center text-gray-500">Noch keine Mitarbeiter hinzugefügt</p>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {shown.map((w) => {
+          const tm = memberFor(w);
+          const p = presence(w.last_login);
+          return (
+            <Card key={w.user_id} className="fx-lift flex flex-col items-center text-center">
+              <div className="relative mt-2">
+                <Avatar name={w.name} size={72} />
+                <span
+                  className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full shadow-[0_0_0_3px_var(--card)]"
+                  style={{ background: p.color }}
+                  title={p.label}
+                />
+              </div>
+              <h2 className="mt-3.5 text-[20px] font-medium tracking-[-0.02em]">{w.name}</h2>
+              <p className="text-[14px] text-gray-600">{w.position || (w.role === 'admin' ? 'Admin' : 'Mitarbeiter')}</p>
+              {w.funktion && (
+                <span className="mt-2.5 rounded-full bg-red-50 px-3 py-1 text-[13px] font-medium text-red-800">
+                  {FUNKTIONEN[w.funktion] ?? w.funktion}
+                </span>
+              )}
+
+              <div className="mt-5 grid w-full grid-cols-2 border-t border-hair pt-4">
+                <div>
+                  <p className="text-[24px] font-semibold tracking-[-0.03em]"><CountUp value={w.offen} /></p>
+                  <p className="text-[13px] text-gray-600">Offene Aufgaben</p>
+                </div>
+                <div>
+                  <p className="text-[24px] font-semibold tracking-[-0.03em]"><CountUp value={w.erledigt_30d} /></p>
+                  <p className="text-[13px] text-gray-600">Erledigt (30 T.)</p>
+                </div>
+              </div>
+
+              <div className="mt-4 w-full text-left">
+                <div className="flex items-center justify-between text-[13.5px] text-gray-600">
+                  <span>Auslastung</span>
+                  <span className={w.workload >= 85 ? 'font-semibold text-amber-700' : ''}>{w.workload}%</span>
+                </div>
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className={`h-full origin-left rounded-full ${workloadColor(w.workload)}`}
+                    style={{ width: `${Math.max(w.workload, 2)}%`, animation: 'fx-bar 1.1s cubic-bezier(.33,1,.68,1) .2s both' }}
+                  />
+                </div>
+                <p className="mt-2 min-h-[18px] text-xs text-gray-500">
+                  {w.ueberfaellig > 0 ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-red-700">
+                      <AlertTriangle className="h-3 w-3" /> {w.ueberfaellig} überfällig
+                    </span>
+                  ) : (
+                    [
+                      w.quellen.schritte && `${w.quellen.schritte} Schritte`,
+                      w.quellen.ads && `${w.quellen.ads} Ads`,
+                      w.quellen.projekt && `${w.quellen.projekt} Projekt`,
+                      w.quellen.intern && `${w.quellen.intern} intern`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'nichts offen'
+                  )}
+                </p>
+              </div>
+
+              {tm && tm.agencies?.length > 0 && (
+                <p className="mt-1 w-full truncate text-left text-xs text-gray-500" title={tm.agencies.map((a) => a.name).join(', ')}>
+                  Betreut: {tm.agencies.map((a) => a.name).join(', ')}
+                </p>
+              )}
+
+              <div className={`mt-4 grid w-full gap-2.5 ${tm ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <a
+                  href={`mailto:${w.email}`}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-card text-[15px] font-medium text-ink shadow-[inset_0_0_0_1.5px_var(--r-950)] transition-colors hover:bg-red-50"
+                >
+                  <Mail className="h-4 w-4" /> E-Mail
+                </a>
+                {tm && (
+                  <Button onClick={() => openEdit(tm)}>
+                    <Pencil /> Bearbeiten
+                  </Button>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {(pendingInvites.length > 0 || ohneLogin.length > 0) && (
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
+          {pendingInvites.length > 0 && (
+            <Card>
+              <h2 className="text-[19px] font-medium tracking-[-0.02em]">Ausstehende Einladungen</h2>
+              <ul className="mt-4 space-y-3">
+                {pendingInvites.map((invite) => (
+                  <li key={invite.id} className="flex items-center gap-3.5">
+                    <Avatar name={invite.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-medium">{invite.name}</p>
+                      <p className="truncate text-[13px] text-gray-600">{invite.email}</p>
+                    </div>
+                    <Badge tone="warning">
+                      <Clock className="h-3 w-3" /> bis {new Date(invite.expires_at).toLocaleDateString('de-DE')}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {ohneLogin.length > 0 && (
+            <Card>
+              <h2 className="text-[19px] font-medium tracking-[-0.02em]">Ohne eigenen Login</h2>
+              <p className="mt-1 text-[13.5px] text-gray-600">Manuell angelegt – ohne Auslastung, weil keine Aufgaben zugewiesen werden können.</p>
+              <ul className="mt-4 space-y-3">
+                {ohneLogin.map((member) => (
+                  <li key={member.id} className="flex items-center gap-3.5">
+                    <Avatar name={member.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-medium">{member.name}</p>
+                      <p className="truncate text-[13px] text-gray-600">
+                        {member.position || 'Keine Position'}
+                        {member.agencies?.length ? ` · ${member.agencies.length} Kunden` : ''}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(member)} aria-label="Bearbeiten">
+                      <Pencil />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(member.id)} aria-label="Entfernen">
+                      <Trash2 />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Edit/Add member modal */}
       <Modal
@@ -375,7 +494,7 @@ export default function TeamPage() {
               <select
                 value={inviteForm.funktion}
                 onChange={(e) => setInviteForm((f) => ({ ...f, funktion: e.target.value }))}
-                className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700"
+                className="h-11 w-full rounded-[12px] bg-card px-3.5 text-[15px] text-ink shadow-[inset_0_0_0_1.5px_var(--hair)]"
               >
                 <option value="">Zuständig für … (optional)</option>
                 <option value="media_buyer">Ads, Videos, Funnel & Tracking</option>
