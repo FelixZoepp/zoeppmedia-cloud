@@ -33,6 +33,10 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/login') ||
     pathname.startsWith('/k/') ||
+    // Öffentliche Links für Bewerber/Kontakte: Termin buchen, Dankevideo, Termin in den Kalender
+    pathname.startsWith('/book/') ||
+    pathname.startsWith('/video/') ||
+    pathname.startsWith('/termin/') ||
     pathname === '/apply' || pathname.startsWith('/apply/') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/register-employee') ||
