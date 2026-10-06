@@ -22,7 +22,7 @@ export function PageHeader({ label, title, description, action, counter }: PageH
         {description && <p className="fx-fade mt-2 text-[15px] text-gray-600">{description}</p>}
       </div>
       {(counter || action) && (
-        <div className="fx-fade flex flex-wrap items-center gap-3" style={{ '--d': '130ms' } as React.CSSProperties}>
+        <div className="fx-fade flex min-w-0 max-w-full flex-wrap items-center gap-3" style={{ '--d': '130ms' } as React.CSSProperties}>
           {counter && <span className="text-sm text-gray-600">{counter}</span>}
           {action}
         </div>

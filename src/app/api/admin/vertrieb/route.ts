@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { berechneSalesControlling, type Opp } from '@/lib/sales-controlling/compute';
+import { ladeClose, ladeMetaMonate, ladeMetaZeitraum } from '@/lib/sales-controlling/quellen';
+import { darfSalesControlling } from '@/lib/sales-controlling/zugriff';
+
+export const maxDuration = 60;
+
+const ZIEL = 300_000;
+const TAG = 864e5;
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const monat = (d: Date, delta = 0) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + delta, 1));
+
+type Zeitraum = 'monat' | 'vormonat' | 'quartal' | '90tage';
+
+function zeitraumFür(z: Zeitraum, jetzt: Date) {
+  const morgen = iso(new Date(jetzt.getTime() + TAG));
+  switch (z) {
+    case 'vormonat': {
+      const s = monat(jetzt, -1);
+      return { von: iso(s), bis: iso(monat(jetzt)), label: s.toLocaleDateString('de-DE', { month: 'long', year: 'numeric', timeZone: 'UTC' }) };
+    }
+    case 'quartal': {
+      const q = Math.floor(jetzt.getUTCMonth() / 3) * 3;
+      const s = new Date(Date.UTC(jetzt.getUTCFullYear(), q, 1));
+      return { von: iso(s), bis: morgen, label: `Q${q / 3 + 1} ${jetzt.getUTCFullYear()}` };
+    }
+    case '90tage':
+      return { von: iso(new Date(jetzt.getTime() - 90 * TAG)), bis: morgen, label: 'Letzte 90 Tage' };
+    default: {
+      const s = monat(jetzt);
+      return { von: iso(s), bis: iso(monat(jetzt, 1)), label: s.toLocaleDateString('de-DE', { month: 'long', year: 'numeric', timeZone: 'UTC' }) };
+    }
+  }
+}
+
+// Kurzzeit-Cache: Close/Meta nicht bei jedem Seitenaufruf komplett neu laden
+let cache: { key: string; at: number; data: unknown } | null = null;
+
+/** Sales-Controlling: Ziel 300k Auftragsvolumen/Monat, Marketing, Setting, Closing, Pipeline, Forecast */
+export async function GET(req: NextRequest) {
+  if (!(await darfSalesControlling())) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
+  if (!process.env.CLOSE_API_KEY) return NextResponse.json({ error: 'Close ist nicht verbunden (CLOSE_API_KEY fehlt)' }, { status: 503 });
+
+  const z = (['monat', 'vormonat', 'quartal', '90tage'].includes(req.nextUrl.searchParams.get('zeitraum') ?? '')
+    ? req.nextUrl.searchParams.get('zeitraum')
+    : 'monat') as Zeitraum;
+  const neu = req.nextUrl.searchParams.get('neu') === '1';
+  const jetzt = new Date();
+  const zeitraum = zeitraumFür(z, jetzt);
+  const key = `${z}:${zeitraum.von}`;
+  if (!neu && cache && cache.key === key && Date.now() - cache.at < 5 * 60_000) return NextResponse.json(cache.data);
+
+  try {
+    const länge = new Date(zeitraum.bis).getTime() - new Date(zeitraum.von).getTime();
+    const vgVon = iso(new Date(new Date(zeitraum.von).getTime() - länge));
+    const historieAb = iso(new Date(jetzt.getTime() - 200 * TAG));
+    const sechsMonate = iso(monat(jetzt, -5));
+
+    const [close, metaZeitraum, metaVergleich, metaMonate] = await Promise.all([
+      // Quellen nur für Deals aus Zeitraum + Vergleichszeitraum nachladen
+      ladeClose(historieAb, (opps: Opp[]) => opps.filter((o) => o.date_created >= vgVon && o.date_created < zeitraum.bis)),
+      ladeMetaZeitraum(zeitraum.von, zeitraum.bis).catch(() => null),
+      ladeMetaZeitraum(vgVon, zeitraum.von).catch(() => null),
+      ladeMetaMonate(sechsMonate, iso(jetzt)).catch(() => new Map()),
+    ]);
+
+    const data = {
+      ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
+      metaVerbunden: metaZeitraum !== null,
+    };
+    cache = { key, at: Date.now(), data };
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('[vertrieb]', err);
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Daten konnten nicht geladen werden' }, { status: 502 });
+  }
+}
