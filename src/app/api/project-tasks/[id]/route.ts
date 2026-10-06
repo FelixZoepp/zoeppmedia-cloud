@@ -88,25 +88,28 @@ export async function PATCH(
     // Validate transitions
     if (oldStatus === 'offen' && newStatus === 'in_arbeit') {
       update.gestartet_am = new Date().toISOString();
-    } else if (oldStatus === 'in_arbeit' && newStatus === 'zur_freigabe') {
+    } else if ((oldStatus === 'in_arbeit' || oldStatus === 'offen') && newStatus === 'zur_freigabe') {
+      // 1-Klick aus „Meine Aufgaben“: offen direkt zur Freigabe ist erlaubt, wenn alles Nötige da ist
+      if (oldStatus === 'offen') update.gestartet_am = new Date().toISOString();
       if (!task.freigabe_noetig) {
         return NextResponse.json({ error: 'Aufgabe erfordert keine Freigabe' }, { status: 400 });
       }
       if (!allChecksDone) {
-        return NextResponse.json({ error: 'Alle Checkitems muessen erledigt sein' }, { status: 400 });
+        return NextResponse.json({ error: 'Erst alle Punkte der Checkliste abhaken.' }, { status: 400 });
       }
       if (!hasErgebnis) {
-        return NextResponse.json({ error: 'Ein Ergebnis (URL oder Text) ist erforderlich' }, { status: 400 });
+        return NextResponse.json({ error: 'Bitte zuerst ein Ergebnis (Link oder Text) in der Aufgabe eintragen.' }, { status: 400 });
       }
-    } else if (oldStatus === 'in_arbeit' && newStatus === 'erledigt') {
+    } else if ((oldStatus === 'in_arbeit' || oldStatus === 'offen') && newStatus === 'erledigt') {
       if (task.freigabe_noetig) {
-        return NextResponse.json({ error: 'Diese Aufgabe erfordert eine Freigabe vor dem Abschliessen' }, { status: 400 });
+        return NextResponse.json({ error: 'Diese Aufgabe braucht vorher eine Freigabe – bitte „Zu prüfen“ wählen.', code: 'freigabe_noetig' }, { status: 400 });
       }
+      if (oldStatus === 'offen') update.gestartet_am = new Date().toISOString();
       if (!allChecksDone) {
-        return NextResponse.json({ error: 'Alle Checkitems muessen erledigt sein' }, { status: 400 });
+        return NextResponse.json({ error: 'Erst alle Punkte der Checkliste abhaken.' }, { status: 400 });
       }
       if (!hasErgebnis) {
-        return NextResponse.json({ error: 'Ein Ergebnis (URL oder Text) ist erforderlich' }, { status: 400 });
+        return NextResponse.json({ error: 'Bitte zuerst ein Ergebnis (Link oder Text) in der Aufgabe eintragen.' }, { status: 400 });
       }
       update.erledigt_am = new Date().toISOString();
     } else if (oldStatus === 'zur_freigabe' && newStatus === 'erledigt') {

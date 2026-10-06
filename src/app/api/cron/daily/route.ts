@@ -277,6 +277,15 @@ async function runDailyJobs() {
   } catch { /* silent */ }
 
   // 9. Access item reminders (escalating: day 1/3/5/7)
+  // Überfällige Fulfillment-Schritte an die Zuständigen
+  let stepReminders = 0;
+  try {
+    const { checkOverdueSteps } = await import('@/lib/fulfillment/step-reminders');
+    stepReminders = await checkOverdueSteps(supabase);
+  } catch (err) {
+    console.error('[cron/daily] step reminders failed:', err);
+  }
+
   let accessReminders = 0;
   try {
     const { checkAccessReminders } = await import('@/lib/fulfillment/access-reminders');
@@ -376,6 +385,7 @@ async function runDailyJobs() {
     weeklyReport,
     preDebitSent,
     accessReminders,
+    stepReminders,
     reportsGenerated,
     healthChecksRun,
     overdueTasksCreated,

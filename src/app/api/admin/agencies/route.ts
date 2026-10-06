@@ -4,6 +4,7 @@ import { isInternalUser } from '@/lib/admin';
 import { NextResponse } from 'next/server';
 import { sendInviteEmail } from '@/lib/email/resend';
 import { logActivity } from '@/lib/activity/log';
+import { startPhase } from '@/lib/fulfillment/engine';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -74,6 +75,9 @@ export async function POST(request: Request) {
   if (agencyError) {
     return NextResponse.json({ error: 'Agentur konnte nicht erstellt werden.' }, { status: 500 });
   }
+
+  // Fulfillment: wie beim After-Close immer mit der Zahlung starten (sonst landet der Kunde direkt im Onboarding)
+  await startPhase(admin, agency.id, 'zahlung').catch((err) => console.error('[agencies] Fulfillment-Start fehlgeschlagen:', err));
 
   // Create invite token
   const { data: invite } = await admin

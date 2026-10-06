@@ -23,13 +23,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ('faellig_am' in body) patch.faellig_am = body.faellig_am || null;
   if (Object.keys(patch).length) {
     patch.updated_at = new Date().toISOString();
-    await svc.from('client_steps').update(patch).eq('id', id);
+    const { error } = await svc.from('client_steps').update(patch).eq('id', id);
+    if (error) return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
   }
 
   let advancedTo = null;
   if (body.status) {
     if (!STATUSES.includes(body.status)) return NextResponse.json({ error: 'Unbekannter Status' }, { status: 400 });
-    ({ advancedTo } = await setStepStatus(svc, id, body.status, { userId: user.id, kommentar: body.kommentar ?? null }));
+    try {
+      ({ advancedTo } = await setStepStatus(svc, id, body.status, { userId: user.id, kommentar: body.kommentar ?? null }));
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Speichern fehlgeschlagen' }, { status: 500 });
+    }
   }
   return NextResponse.json({ ok: true, advancedTo });
 }

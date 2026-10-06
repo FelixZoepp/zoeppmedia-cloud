@@ -72,6 +72,20 @@ export function VertriebClient() {
   const [d, setD] = useState<Daten | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [lädt, setLädt] = useState(true);
+  // Ansicht merken (Vertriebsleitung schaut meist auf Sales, Marketing auf Marketing)
+  const [ansicht, setAnsicht] = useState<string>(() => {
+    try {
+      return (typeof window !== 'undefined' && window.localStorage.getItem('vertrieb-ansicht')) || 'gesamt';
+    } catch {
+      return 'gesamt';
+    }
+  });
+  const wähleAnsicht = (v: string) => {
+    setAnsicht(v);
+    try {
+      window.localStorage.setItem('vertrieb-ansicht', v);
+    } catch {}
+  };
 
   const laden = useCallback(async (z: string, neu = false) => {
     setLädt(true);
@@ -150,22 +164,50 @@ export function VertriebClient() {
         )
       ) : (
         <div className={`space-y-4 transition-opacity ${lädt ? 'opacity-60' : ''}`}>
-          <ZielBereich d={d} />
-          <Rückwärts d={d} />
-          <div className="grid gap-4 xl:grid-cols-2">
-            <MarketingBereich d={d} />
-            <Problemfelder d={d} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <SettingBereich d={d} />
-            <ClosingBereich d={d} />
-          </div>
-          <Funnel d={d} />
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-            <PipelineBereich d={d} />
-            <Verlauf d={d} />
-          </div>
-          <Personen d={d} />
+          <SegmentedControl
+            items={[
+              { value: 'gesamt', label: 'Gesamt' },
+              { value: 'marketing', label: 'Marketing' },
+              { value: 'sales', label: 'Sales' },
+            ]}
+            value={ansicht}
+            onChange={wähleAnsicht}
+          />
+
+          {ansicht === 'gesamt' && (
+            <>
+              <ZielBereich d={d} />
+              <Rückwärts d={d} />
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+                <Problemfelder d={d} />
+                <Verlauf d={d} />
+              </div>
+              <Funnel d={d} />
+            </>
+          )}
+
+          {ansicht === 'marketing' && (
+            <>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <MarketingBereich d={d} />
+                <Problemfelder d={d} nur={['Marketing', 'Daten']} titel="Problemfelder Marketing" />
+              </div>
+              <MarketingVerlauf d={d} />
+            </>
+          )}
+
+          {ansicht === 'sales' && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SettingBereich d={d} />
+                <ClosingBereich d={d} />
+              </div>
+              <Problemfelder d={d} nur={['Setting', 'Closing', 'Pipeline']} titel="Problemfelder Sales" />
+              <Funnel d={d} />
+              <PipelineBereich d={d} />
+              <Personen d={d} />
+            </>
+          )}
           <p className="px-1 text-[12px] text-gray-500">
             Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert neu gewonnener Deals, gezählt am Tag
             des Abschlusses. Stand: {new Date(d.stand).toLocaleString('de-DE')}.
@@ -421,18 +463,19 @@ function Funnel({ d }: { d: Daten }) {
 
 /* ── Problemfelder ─────────────────────────────────────────────── */
 
-function Problemfelder({ d }: { d: Daten }) {
+function Problemfelder({ d, nur, titel = 'Problemfelder' }: { d: Daten; nur?: string[]; titel?: string }) {
+  const probleme = nur ? d.probleme.filter((p) => nur.includes(p.bereich)) : d.probleme;
   const farbe = { kritisch: 'bg-red-50 text-red-800', wichtig: 'bg-amber-50 text-amber-800', hinweis: 'bg-gray-100 text-gray-700' };
   return (
     <Card>
       <h2 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.02em]">
-        <AlertTriangle className="h-5 w-5 text-red-800" /> Problemfelder
+        <AlertTriangle className="h-5 w-5 text-red-800" /> {titel}
       </h2>
-      {d.probleme.length === 0 ? (
+      {probleme.length === 0 ? (
         <p className="mt-3 text-[14px] text-gray-600">Keine Auffälligkeiten im Zeitraum.</p>
       ) : (
         <ul className="mt-3 space-y-2.5">
-          {d.probleme.map((p, i) => (
+          {probleme.map((p, i) => (
             <li key={i} className="rounded-[14px] bg-panel p-3.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] ${farbe[p.stufe]}`}>{p.stufe}</span>
@@ -525,6 +568,45 @@ function Verlauf({ d }: { d: Daten }) {
           </li>
         ))}
       </ul>
+    </Card>
+  );
+}
+
+/* ── Marketing-Verlauf ──────────────────────────────────────────── */
+
+function MarketingVerlauf({ d }: { d: Daten }) {
+  return (
+    <Card>
+      <h2 className="text-[19px] font-medium tracking-[-0.02em]">Marketing je Monat</h2>
+      <p className="mt-1 text-[13.5px] text-gray-600">Werbekosten im Verhältnis zu Settings und Auftragsvolumen.</p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[560px] text-[14px]">
+          <thead>
+            <tr className="border-b border-hair text-left text-xs font-medium uppercase tracking-[0.06em] text-gray-500">
+              <th className="pb-2">Monat</th>
+              <th className="pb-2 text-right">Werbekosten</th>
+              <th className="pb-2 text-right">Settings</th>
+              <th className="pb-2 text-right">Kosten je Setting</th>
+              <th className="pb-2 text-right">Deals</th>
+              <th className="pb-2 text-right">Auftragsvolumen</th>
+              <th className="pb-2 text-right">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.verlauf.map((v) => (
+              <tr key={v.monat} className="border-b border-hair last:border-0">
+                <td className="py-2">{new Date(`${v.monat}-01T12:00:00`).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}</td>
+                <td className="py-2 text-right">{eur(v.spend)}</td>
+                <td className="py-2 text-right">{v.settingsGebucht}</td>
+                <td className="py-2 text-right">{v.spend && v.settingsGebucht ? eur(v.spend / v.settingsGebucht) : '–'}</td>
+                <td className="py-2 text-right">{v.deals}</td>
+                <td className="py-2 text-right font-semibold">{eur(v.auftragsvolumen)}</td>
+                <td className="py-2 text-right">{v.spend ? `${zahl(v.auftragsvolumen / v.spend)}×` : '–'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }

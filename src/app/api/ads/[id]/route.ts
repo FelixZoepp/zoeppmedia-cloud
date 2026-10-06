@@ -24,6 +24,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (typeof body.stage === 'string') {
     const valid = [...AD_STAGES.map((s) => s.key), 'verworfen'];
     if (!valid.includes(body.stage)) return NextResponse.json({ error: 'Unbekannte Spalte' }, { status: 400 });
+    // Live nur nach Kundenfreigabe – außer man bestätigt ausdrücklich (z. B. Freigabe kam per Telefon)
+    if (body.stage === 'live' && body.ohne_freigabe !== true) {
+      const { data: cur } = await svc.from('ad_items').select('stage').eq('id', id).maybeSingle();
+      const stage = (cur as { stage: string } | null)?.stage;
+      if (stage && stage !== 'bereit' && stage !== 'live') {
+        return NextResponse.json({ error: 'Der Kunde hat diese Ad noch nicht freigegeben.', code: 'freigabe_fehlt' }, { status: 409 });
+      }
+    }
     await moveAd(svc, id, body.stage as AdStage, { userId: user.id, kommentar: (body.kommentar as string) ?? null });
   }
   return NextResponse.json({ ok: true });

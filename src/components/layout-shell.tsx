@@ -16,6 +16,8 @@ interface ShellUser {
   email: string;
   role: UserRole;
   avatar_url?: string | null;
+  /** Bereich intern (users.funktion) – steuert Zusatz-Menüpunkte */
+  funktion?: string | null;
   /** Kunden-Logo (nur Portal) */
   logo_url?: string | null;
 }
@@ -97,7 +99,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
 
       {/* Desktop-Sidebar: schwebende Fläche */}
       <div className="sticky top-3.5 hidden h-[calc(100dvh-28px)] md:block">
-        <AppSidebar role={user.role} userName={user.name} logoUrl={user.logo_url ?? null} />
+        <AppSidebar role={user.role} userName={user.name} funktion={user.funktion ?? null} logoUrl={user.logo_url ?? null} />
       </div>
 
       {/* Mobile-Sidebar */}
@@ -105,7 +107,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
           <div className="absolute bottom-2.5 left-2.5 top-2.5">
-            <AppSidebar role={user.role} userName={user.name} logoUrl={user.logo_url ?? null} onClose={() => setOpen(false)} />
+            <AppSidebar role={user.role} userName={user.name} funktion={user.funktion ?? null} logoUrl={user.logo_url ?? null} onClose={() => setOpen(false)} />
           </div>
         </div>
       )}

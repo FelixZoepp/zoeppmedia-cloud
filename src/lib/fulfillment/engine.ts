@@ -15,6 +15,7 @@ import {
   type Phase,
   type StepDef,
 } from './catalog';
+import { createNotification } from '@/lib/notifications/create';
 
 export type StepStatus = 'offen' | 'in_arbeit' | 'zur_pruefung' | 'erledigt' | 'nicht_noetig';
 
@@ -72,7 +73,8 @@ export async function startPhase(
   agencyId: string,
   phase: Phase,
   now: Date = new Date(),
-): Promise<void> {
+  opts: { vonPhase?: Phase } = {},
+): Promise<boolean> {
   const update: Record<string, unknown> = { fulfillment_phase: phase, fulfillment_phase_seit: now.toISOString() };
   let base = now;
   if (phase === 'continuity') {
@@ -81,7 +83,13 @@ export async function startPhase(
     if (launch) base = new Date(`${launch}T00:00:00Z`);
     else update.launch_datum = now.toISOString().slice(0, 10);
   }
-  await svc.from('agencies').update(update).eq('id', agencyId);
+  // Automatischer Wechsel nur, wenn der Kunde noch in der alten Phase steht
+  // (zwei gleichzeitig abgehakte letzte Schritte dürfen die Phase nicht doppelt starten)
+  let q = svc.from('agencies').update(update).eq('id', agencyId);
+  if (opts.vonPhase) q = q.eq('fulfillment_phase', opts.vonPhase);
+  const { data: moved, error: moveErr } = await q.select('id');
+  if (moveErr) throw new Error(`Phase konnte nicht gesetzt werden: ${moveErr.message}`);
+  if (opts.vonPhase && !((moved ?? []) as unknown[]).length) return false;
 
   const defs = stepsForPhase(phase);
   const owners = new Map<Funktion, string | null>();
@@ -99,10 +107,25 @@ export async function startPhase(
   }));
   if (rows.length) {
     await svc.from('client_steps').upsert(rows, { onConflict: 'agency_id,step_key', ignoreDuplicates: true });
+    // Kunde zurück in eine frühere Phase: noch offene Schritte bekommen neue Fristen statt sofort überfällig zu sein
+    const frist = new Map(rows.map((r) => [r.step_key, r.faellig_am]));
+    const { data: alt } = await svc
+      .from('client_steps')
+      .select('id, step_key, faellig_am')
+      .eq('agency_id', agencyId)
+      .eq('phase', phase)
+      .not('status', 'in', '(erledigt,nicht_noetig)');
+    for (const st of (alt ?? []) as Array<{ id: string; step_key: string; faellig_am: string | null }>) {
+      const neu = frist.get(st.step_key);
+      if (neu && st.faellig_am && st.faellig_am < neu) {
+        await svc.from('client_steps').update({ faellig_am: neu, updated_at: now.toISOString() }).eq('id', st.id);
+      }
+    }
   }
 
   // Schritte, deren Signal schon erfüllt ist, sofort abhaken (z.B. Kunde war schon eingeloggt)
   await applySatisfiedSignals(svc, agencyId, defs);
+  return true;
 }
 
 /** Status eines Schritts ändern, Verlauf schreiben und ggf. die Phase weiterschieben. */
@@ -118,7 +141,7 @@ export async function setStepStatus(
   if (!step) throw new Error('Schritt nicht gefunden');
   if (step.status === status && !opts.kommentar) return { advancedTo: null };
 
-  await svc
+  const { error: updErr } = await svc
     .from('client_steps')
     .update({
       status,
@@ -128,8 +151,9 @@ export async function setStepStatus(
       updated_at: now.toISOString(),
     })
     .eq('id', stepId);
+  if (updErr) throw new Error(`Schritt konnte nicht gespeichert werden: ${updErr.message}`);
 
-  await svc.from('client_step_log').insert({
+  const { error: logErr } = await svc.from('client_step_log').insert({
     step_id: stepId,
     agency_id: step.agency_id,
     von_status: step.status,
@@ -137,6 +161,12 @@ export async function setStepStatus(
     kommentar: opts.kommentar ?? null,
     user_id: opts.userId ?? null,
   });
+  if (logErr) console.error('[fulfillment] Verlauf nicht gespeichert:', logErr.message);
+
+  // Kunde hat geliefert → zuständige Person muss prüfen
+  if (status === 'zur_pruefung' && step.owner_user_id && step.owner_user_id !== opts.userId) {
+    await notifyStep(svc, step, 'Zur Prüfung', 'Der Kunde hat einen Schritt erledigt – bitte prüfen.');
+  }
 
   if (!DONE.includes(status)) return { advancedTo: null };
 
@@ -154,9 +184,11 @@ export async function completeCustomerStep(
   userId: string,
   kommentar?: string | null,
 ): Promise<StepStatus> {
-  const { data: s } = await svc.from('client_steps').select('step_key, wer').eq('id', stepId).maybeSingle();
-  const step = s as { step_key: string; wer: string } | null;
+  const { data: s } = await svc.from('client_steps').select('step_key, wer, status').eq('id', stepId).maybeSingle();
+  const step = s as { step_key: string; wer: string; status: StepStatus } | null;
   if (!step || step.wer !== 'kunde') throw new Error('Kein Kunden-Schritt');
+  // Bereits geprüfte/erledigte Schritte darf der Kunde nicht zurück in die Prüfung schicken
+  if (DONE.includes(step.status) || step.status === 'zur_pruefung') return step.status;
   const def = STEP_BY_KEY.get(step.step_key);
   const status: StepStatus = def?.pruefen ? 'zur_pruefung' : 'erledigt';
   await setStepStatus(svc, stepId, status, { userId, kommentar: kommentar ?? null });
@@ -176,11 +208,36 @@ export async function advanceIfPhaseDone(svc: SupabaseClient, agencyId: string, 
   if (!list.length || list.some((x) => !DONE.includes(x.status))) return null;
 
   if (next === 'beendet') {
-    await svc.from('agencies').update({ fulfillment_phase: 'beendet', fulfillment_phase_seit: now.toISOString() }).eq('id', agencyId);
+    await svc
+      .from('agencies')
+      .update({ fulfillment_phase: 'beendet', fulfillment_phase_seit: now.toISOString() })
+      .eq('id', agencyId)
+      .eq('fulfillment_phase', phase);
     return 'beendet';
   }
-  await startPhase(svc, agencyId, next, now);
-  return next;
+  return (await startPhase(svc, agencyId, next, now, { vonPhase: phase })) ? next : null;
+}
+
+/** Benachrichtigung (Glocke + Push) an die zuständige Person eines Schritts */
+async function notifyStep(svc: SupabaseClient, step: ClientStepRow, titel: string, text: string): Promise<void> {
+  if (!step.owner_user_id) return;
+  try {
+    const { data: a } = await svc.from('agencies').select('name').eq('id', step.agency_id).maybeSingle();
+    const kunde = (a as { name: string } | null)?.name ?? 'Kunde';
+    const def = STEP_BY_KEY.get(step.step_key);
+    await createNotification(svc, {
+      user_id: step.owner_user_id,
+      agency_id: step.agency_id,
+      title: `${titel}: ${def?.titel ?? step.step_key}`,
+      body: `${kunde} – ${text}`,
+      type: 'task_due',
+      entity_type: 'agency',
+      entity_id: step.agency_id,
+      push_url: `/clients/${step.agency_id}`,
+    });
+  } catch (err) {
+    console.error('[fulfillment] Benachrichtigung fehlgeschlagen:', err);
+  }
 }
 
 // ---------------------------------------------------------------------------

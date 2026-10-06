@@ -330,6 +330,17 @@ export async function GET(
 
   const diagnose = detectBottleneck();
 
+  const [{ data: karriere }, { count: funnelAnzahl }] = await Promise.all([
+    admin
+      .from('onboarding_submissions')
+      .select('career_page_url, website_url')
+      .eq('agency_id', agencyId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin.from('perspective_funnels').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId),
+  ]);
+
   // ── Section 5: Upsell focus ──────────────────────────────────────────────
 
   function detectUpsell(): {
@@ -367,8 +378,9 @@ export async function GET(
       });
     }
 
-    // Check for career page
-    const hasCareerPage = agency.career_page_url || agency.website_url;
+    // Karriereseite: steht im Onboarding (Karriere-/Website-URL) oder es gibt schon einen Funnel
+    // (früher agencies.career_page_url/website_url – die Spalten gibt es dort nicht, daher kam der Vorschlag immer)
+    const hasCareerPage = !!(karriere?.career_page_url || karriere?.website_url || funnelAnzahl);
     if (!hasCareerPage) {
       suggestions.push({
         product: 'Karriere-Website',

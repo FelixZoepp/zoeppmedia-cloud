@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendInviteEmail } from '@/lib/email/resend';
+import { bereichFehltInDb, istBereich } from '@/lib/team/funktionen';
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient();
@@ -11,7 +12,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { name, email, position, funktion } = await request.json();
-  const FUNKTIONEN = ['ops', 'content', 'media_buyer', 'csm', 'backoffice'];
 
   if (!name || !email) {
     return NextResponse.json({ error: 'Name und E-Mail sind erforderlich.' }, { status: 400 });
@@ -21,10 +21,13 @@ export async function POST(request: NextRequest) {
 
   const { data: invite, error } = await admin
     .from('employee_invites')
-    .insert({ name, email, position: position || null, funktion: FUNKTIONEN.includes(funktion) ? funktion : null })
+    .insert({ name, email, position: position || null, funktion: istBereich(funktion) ? funktion : null })
     .select()
     .single();
 
+  if (bereichFehltInDb(error)) {
+    return NextResponse.json({ error: 'Dieser Bereich ist in der Datenbank noch nicht freigeschaltet (Migration „funktion_vertrieb“ fehlt).' }, { status: 409 });
+  }
   if (error || !invite) {
     return NextResponse.json({ error: 'Einladung konnte nicht erstellt werden.' }, { status: 500 });
   }

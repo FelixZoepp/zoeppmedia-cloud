@@ -189,3 +189,38 @@ describe('Ad-Ideen', () => {
     expect(tables.client_steps.find((s) => s.step_key === 's_ideen')).toMatchObject({ status: 'erledigt', owner_user_id: 'nils' });
   });
 });
+
+describe('Absicherungen', () => {
+  it('Kunde kann einen geprüften Schritt nicht zurück in die Prüfung schicken', async () => {
+    const { client, tables } = db();
+    await startPhase(client, AG, 'onboarding', now);
+    const seite = tables.client_steps.find((s) => s.step_key === 'o_meta_seite')!;
+    await setStepStatus(client, seite.id as string, 'erledigt', { userId: 'nils', now });
+    expect(await completeCustomerStep(client, seite.id as string, 'kunde-user')).toBe('erledigt');
+    expect(seite.status).toBe('erledigt');
+  });
+
+  it('zur Prüfung → zuständige Person wird benachrichtigt', async () => {
+    const { client, tables } = db();
+    await startPhase(client, AG, 'onboarding', now);
+    const seite = tables.client_steps.find((s) => s.step_key === 'o_meta_seite')!;
+    await completeCustomerStep(client, seite.id as string, 'kunde-user');
+    expect(seite.status).toBe('zur_pruefung');
+    expect(tables.notifications?.some((n) => n.user_id === 'nils')).toBe(true);
+  });
+
+  it('zurück in eine frühere Phase: offene Schritte bekommen neue Fristen', async () => {
+    const { client, tables } = db();
+    await startPhase(client, AG, 'zahlung', now);
+    const später = new Date('2026-11-01T08:00:00Z');
+    await startPhase(client, AG, 'zahlung', später);
+    expect(tables.client_steps.find((s) => s.step_key === 'z_zahlung_setup')).toMatchObject({ faellig_am: '2026-11-08' });
+  });
+
+  it('Phase wird nicht doppelt gewechselt, wenn der Kunde schon weiter ist', async () => {
+    const { client, tables } = db();
+    await startPhase(client, AG, 'zahlung', now);
+    tables.agencies[0].fulfillment_phase = 'onboarding';
+    expect(await startPhase(client, AG, 'onboarding', now, { vonPhase: 'zahlung' })).toBe(false);
+  });
+});

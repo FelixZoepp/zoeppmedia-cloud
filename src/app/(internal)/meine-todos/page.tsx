@@ -20,6 +20,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Avatar } from '@/components/ui/avatar';
 import { buttonStyles } from '@/components/ui/button';
 import type { StepView } from '@/lib/fulfillment/views';
+import { PHASES } from '@/lib/fulfillment/catalog';
 import { today } from '@/lib/fulfillment/views-client';
 
 /* ── Datentypen aus /api/meine-todos ───────────────────────────── */
@@ -71,6 +72,8 @@ interface Task {
   link: string | null;
   ueberfaellig: boolean;
   blockiert: boolean;
+  /** nur Ads: aktuelle Stage */
+  stage?: string;
 }
 
 const SPALTEN: { key: Spalte; label: string; dot: string; leer: string }[] = [
@@ -79,6 +82,8 @@ const SPALTEN: { key: Spalte; label: string; dot: string; leer: string }[] = [
   { key: 'pruefen', label: 'Zu prüfen', dot: '#2f66c9', leer: 'Nichts zu prüfen' },
   { key: 'erledigt', label: 'Erledigt', dot: '#2fb36b', leer: 'Diese Woche noch nichts' },
 ];
+
+const PHASE_LABEL: Record<string, string> = Object.fromEntries(PHASES.map((p) => [p.key, p.label]));
 
 const QUELLE: Record<Quelle, { label: string; chip: string }> = {
   schritt: { label: 'Fulfillment', chip: 'bg-amber-50 text-amber-800' },
@@ -92,9 +97,15 @@ const ZIEL: Record<Quelle, Record<Spalte, string | null>> = {
   schritt: { todo: 'offen', arbeit: 'in_arbeit', pruefen: 'zur_pruefung', erledigt: 'erledigt' },
   projekt: { todo: 'offen', arbeit: 'in_arbeit', pruefen: 'zur_freigabe', erledigt: 'erledigt' },
   intern: { todo: 'todo', arbeit: 'in_progress', pruefen: 'review', erledigt: 'done' },
-  // Freigabe macht der Kunde – Ads lassen sich nur bearbeiten oder live schalten
+  // Freigabe macht der Kunde – „Erledigt“ heißt: an den Kunden schicken bzw. nach Freigabe live schalten
   ad: { todo: null, arbeit: 'bearbeitung', pruefen: null, erledigt: 'live' },
 };
+
+/** Zielstatus für eine konkrete Karte (Ads: vor der Freigabe geht „Erledigt“ an den Kunden statt live) */
+function zielFür(t: Task, spalte: Spalte): string | null {
+  if (t.quelle === 'ad' && spalte === 'erledigt' && t.stage !== 'bereit') return 'freigabe_kunde';
+  return ZIEL[t.quelle][spalte];
+}
 
 function endpoint(t: Task, ziel: string): { url: string; body: Record<string, string> } {
   switch (t.quelle) {
@@ -144,6 +155,7 @@ function toTasks(steps: StepView[], ads: MeineAd[], weitere: WeitereAufgabe[], e
       link: '/ads',
       ueberfaellig: late(a.faellig_am),
       blockiert: false,
+      stage: a.stage,
     })),
     ...weitere.map<Task>((w) => ({
       key: `${w.quelle}-${w.id}`,
@@ -268,9 +280,9 @@ export default function MeineTodosPage() {
     }
   });
 
-  const move = async (t: Task, spalte: Spalte) => {
-    if (t.spalte === spalte) return;
-    const ziel = ZIEL[t.quelle][spalte];
+  const move = async (t: Task, spalte: Spalte, override?: string) => {
+    if (t.spalte === spalte && !override) return;
+    const ziel = override ?? zielFür(t, spalte);
     if (!ziel) {
       toast.error(t.quelle === 'ad' ? 'Ads gibt der Kunde frei – hier nur „In Arbeit“ oder „Erledigt“.' : 'Dorthin nicht möglich');
       return;
@@ -279,8 +291,19 @@ export default function MeineTodosPage() {
     const { url, body } = endpoint(t, ziel);
     const res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { error?: string };
-      toast.error(err.error ?? 'Konnte nicht verschoben werden – bitte in der Aufgabe selbst ändern');
+      const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+      // Projekt-Aufgabe mit Freigabe-Pflicht: „Erledigt“ heißt dann „zur Freigabe“
+      if (err.code === 'freigabe_noetig' && t.quelle === 'projekt') {
+        setMoved((m) => {
+          const n = { ...m };
+          delete n[t.key];
+          return n;
+        });
+        return move(t, 'pruefen');
+      }
+      toast.error(err.error ?? 'Konnte nicht verschoben werden – bitte in der Aufgabe selbst ändern', {
+        action: t.link ? { label: 'Öffnen', onClick: () => (window.location.href = t.link!) } : undefined,
+      });
       setMoved((m) => {
         const n = { ...m };
         delete n[t.key];
@@ -288,7 +311,10 @@ export default function MeineTodosPage() {
       });
       return;
     }
-    if (spalte === 'erledigt') toast.success('Erledigt');
+    const data = (await res.json().catch(() => ({}))) as { advancedTo?: string | null };
+    if (ziel === 'freigabe_kunde') toast.success('An den Kunden zur Freigabe geschickt');
+    else if (ziel === 'nicht_noetig') toast.success('Als „nicht nötig“ markiert');
+    else if (spalte === 'erledigt') toast.success(data.advancedTo ? `Erledigt – Kunde ist jetzt in der Phase „${PHASE_LABEL[data.advancedTo] ?? data.advancedTo}“` : 'Erledigt');
     await load();
   };
 
@@ -316,7 +342,7 @@ export default function MeineTodosPage() {
     <div>
       <PageHeader
         title="Meine Aufgaben"
-        description="Karte in eine andere Spalte ziehen oder über das Menü verschieben."
+        description="Mit ✓ direkt abhaken – oder Karte in eine andere Spalte ziehen."
         action={
           <Link href="/tasks" className={buttonStyles('primary', 'lg')}>
             <Plus /> Interne Aufgabe
@@ -380,7 +406,7 @@ function Column({
   tasks: Task[];
   heute: string;
   logos: Record<string, string>;
-  onMove: (t: Task, s: Spalte) => void;
+  onMove: (t: Task, s: Spalte, override?: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: spalte.key });
   const sorted = [...tasks].sort(
@@ -415,7 +441,7 @@ function Column({
   );
 }
 
-function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; heute: string; logo: string | null; onMove: (t: Task, s: Spalte) => void }) {
+function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; heute: string; logo: string | null; onMove: (t: Task, s: Spalte, override?: string) => void }) {
   const done = t.spalte === 'erledigt';
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: t.key, disabled: done });
   const [menu, setMenu] = useState(false);
@@ -454,8 +480,20 @@ function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; h
           </span>
         )}
         {t.blockiert && <span className="text-xs font-medium text-gray-600">Blockiert</span>}
+        {!done && zielFür(t, 'erledigt') && (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => onMove(t, 'erledigt')}
+            title={t.quelle === 'ad' && t.stage !== 'bereit' ? 'An den Kunden zur Freigabe schicken' : 'Erledigt'}
+            aria-label={t.quelle === 'ad' && t.stage !== 'bereit' ? 'An den Kunden zur Freigabe schicken' : 'Als erledigt markieren'}
+            className="ml-auto grid h-8 w-8 place-items-center rounded-full text-gray-500 shadow-[inset_0_0_0_1.5px_var(--hair)] transition-colors hover:bg-green-50 hover:text-green-700 hover:shadow-[inset_0_0_0_1.5px_#16a34a]"
+          >
+            <CheckCircle2 className="h-[18px] w-[18px]" />
+          </button>
+        )}
         {!done && ziele.length > 0 && (
-          <div ref={menuRef} className="relative ml-auto">
+          <div ref={menuRef} className={`relative ${zielFür(t, 'erledigt') ? '' : 'ml-auto'}`}>
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
@@ -483,6 +521,17 @@ function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; h
                     <span className="h-2 w-2 rounded-full" style={{ background: z.dot }} /> {z.label}
                   </button>
                 ))}
+                {t.quelle === 'schritt' && (
+                  <button
+                    onClick={() => {
+                      setMenu(false);
+                      if (confirm(`„${t.titel}“ wirklich als nicht nötig markieren?`)) onMove(t, 'erledigt', 'nicht_noetig');
+                    }}
+                    className="flex w-full items-center gap-2.5 border-t border-hair px-3.5 py-2 text-left text-[14px] text-gray-600 hover:bg-panel"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-gray-300" /> Nicht nötig
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -136,19 +136,25 @@ async function completeAppointmentTask(
     .limit(1)
     .maybeSingle();
 
-  if (!clientUser?.agency_id) return;
+  let agencyId = clientUser?.agency_id ?? null;
+  if (!agencyId) {
+    // Kunden haben oft (noch) keinen Login → über die E-Mail aus dem After-Close zuordnen
+    const { data: agency } = await supabase.from('agencies').select('id').ilike('email', inviteeEmail).limit(1).maybeSingle();
+    agencyId = (agency as { id: string } | null)?.id ?? null;
+  }
+  if (!agencyId) return;
 
   // Fulfillment v2: Testimonial-Termin bzw. Kick-off/Onboarding-Termin gebucht
   if (isTestimonial) {
-    await signalSafe(supabase, clientUser.agency_id, 'testimonial_gebucht');
+    await signalSafe(supabase, agencyId, 'testimonial_gebucht');
     return;
   }
-  await signalSafe(supabase, clientUser.agency_id, 'kickoff_gebucht');
+  await signalSafe(supabase, agencyId, 'kickoff_gebucht');
 
   await supabase
     .from('project_tasks')
     .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
-    .eq('agency_id', clientUser.agency_id)
+    .eq('agency_id', agencyId)
     .eq('notiz', marker)
     .neq('status', 'erledigt');
 }

@@ -227,7 +227,16 @@ export default function AdsPage() {
   );
 
   const save = async (id: string, patch: Record<string, unknown>) => {
-    const res = await fetch(`/api/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    let res = await fetch(`/api/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    if (res.status === 409) {
+      // Live ohne Kundenfreigabe nur nach ausdrücklicher Bestätigung
+      if (confirm('Der Kunde hat diese Ad noch nicht freigegeben. Trotzdem live schalten?')) {
+        res = await fetch(`/api/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...patch, ohne_freigabe: true }) });
+      } else {
+        await load();
+        return;
+      }
+    }
     if (!res.ok) toast.error('Konnte nicht gespeichert werden');
     await load();
   };

@@ -129,7 +129,13 @@ export function StepRow({
               className="h-8 px-2.5 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white font-semibold inline-flex items-center gap-1 hover:from-red-600 hover:to-red-800">
               <Check className="w-3.5 h-3.5" /> Erledigt
             </button>
-            <button disabled={busy} onClick={() => act({ status: 'nicht_noetig' })} title="Nicht nötig"
+            <button disabled={busy} onClick={() => {
+              // Pflicht-Schritte nur mit Begründung überspringen
+              if (step.optional) return void act({ status: 'nicht_noetig' });
+              const grund = window.prompt(`„${step.titel}“ ist ein Pflicht-Schritt. Warum ist er hier nicht nötig?`);
+              if (grund === null) return;
+              void act({ status: 'nicht_noetig', kommentar: grund || 'Pflicht-Schritt übersprungen' });
+            }} title="Nicht nötig"
               className="h-8 w-8 rounded-md border border-gray-200 bg-white inline-flex items-center justify-center hover:bg-gray-50 text-gray-500">
               <Ban className="w-3.5 h-3.5" />
             </button>

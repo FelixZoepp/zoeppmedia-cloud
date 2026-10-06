@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Sidebar, type SidebarGroup, type SidebarItem } from '@/components/ui/sidebar';
 import { InstallPromo } from '@/components/install-promo';
+import { SALES_BEREICHE } from '@/lib/team/funktionen';
 import type { UserRole } from '@/lib/auth';
 import {
   LayoutDashboard,
@@ -64,14 +65,19 @@ const adminGroups: SidebarGroup[] = [
     ],
   },
   {
-    label: 'Marketing & Sales',
+    label: 'Sales',
     items: [
       { id: 'vertrieb', label: 'Sales-Controlling', icon: <Target className="w-5 h-5" />, href: '/admin/vertrieb' },
-      { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
       { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
       { id: 'sales-inbox', label: 'Sales-WhatsApp', icon: <MessageSquare className="w-5 h-5" />, href: '/api/admin/sales-inbox' },
-      { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
       { id: 'wochenbericht', label: 'Wochenbericht', icon: <CalendarDays className="w-5 h-5" />, href: '/admin/wochenbericht' },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
+      { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
     ],
   },
   {
@@ -197,12 +203,23 @@ function getGroupsForRole(role: UserRole): SidebarGroup[] {
 interface AppSidebarProps {
   role: UserRole;
   userName: string;
+  /** Bereich intern – Vertrieb sieht zusätzlich das Sales-Controlling */
+  funktion?: string | null;
   logoUrl?: string | null;
   onClose?: () => void;
 }
 
-export function AppSidebar({ role, userName, logoUrl, onClose }: AppSidebarProps) {
-  const groups = getGroupsForRole(role);
+export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSidebarProps) {
+  const groups =
+    role === 'employee' && SALES_BEREICHE.includes(funktion ?? '')
+      ? [
+          {
+            label: 'Sales',
+            items: [{ id: 'vertrieb', label: 'Sales-Controlling', icon: <Target className="w-5 h-5" />, href: '/admin/vertrieb' }],
+          },
+          ...employeeGroups,
+        ]
+      : getGroupsForRole(role);
   const initial = userName.charAt(0).toUpperCase();
   const isInternal = role === 'admin' || role === 'employee';
 
