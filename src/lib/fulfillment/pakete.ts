@@ -67,3 +67,20 @@ export function paketVorlage(key: string | null | undefined): PaketVorlage | nul
 export function bausteinLabel(b: Baustein): string {
   return BAUSTEINE.find((x) => x.key === b)?.label ?? b;
 }
+
+/**
+ * E-Mail, die der Kunde in seinem Indeed-Konto als Benutzer einlädt.
+ * Leer = allgemeiner Hinweis auf den Ansprechpartner.
+ */
+export const INDEED_ZUGANG_EMAIL = '';
+
+/** Anleitung „Indeed-Zugang geben“ (Kunden-Aufgabe und Onboarding). Weiterleitung der Bewerbungen richten wir selbst ein. */
+export function indeedZugangSchritte(email: string = INDEED_ZUGANG_EMAIL): string[] {
+  return [
+    'employers.indeed.com öffnen und mit deinem Arbeitgeber-Konto einloggen – noch keins? Dort kostenlos mit deiner Firmen-E-Mail anlegen.',
+    'Oben rechts auf dein Profil → „Benutzer verwalten“ (je nach Ansicht: Konto → Benutzer).',
+    `„Benutzer hinzufügen“ → ${email ? email : 'die E-Mail deines Ansprechpartners bei Zoepp Media'} eintragen → Rolle „Administrator“ → einladen.`,
+    'Unter Abrechnung eine Zahlungsmethode für dein Indeed-Budget hinterlegen.',
+    'Fertig – Anzeige, Schaltung und die Weiterleitung aller Bewerbungen in deine Cloud übernehmen wir.',
+  ];
+}

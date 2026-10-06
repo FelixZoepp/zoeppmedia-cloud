@@ -15,7 +15,7 @@
  * (siehe pakete.ts) – z. B. kein Werbemanager bei „nur Indeed“.
  */
 
-import type { Baustein } from './pakete';
+import { indeedZugangSchritte, type Baustein } from './pakete';
 
 export type Phase = 'zahlung' | 'onboarding' | 'setup' | 'continuity' | 'offboarding' | 'beendet';
 
@@ -139,9 +139,14 @@ export const STEPS: StepDef[] = [
   meta('o_meta_zahlung', 'Zahlungsmethode im Werbekonto hinterlegt', [
     'Werbekonto öffnen → Abrechnung & Zahlungen → Zahlungsmethode hinzufügen',
   ], 'S. 2'),
-  { key: 'o_indeed', phase: 'onboarding', titel: 'Indeed-Zugang gegeben', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true, nur: ['indeed'] },
+  {
+    key: 'o_indeed', phase: 'onboarding', titel: 'Indeed-Zugang gegeben',
+    beschreibung: 'Lade uns in dein Indeed-Arbeitgeberkonto ein – den Rest machen wir.',
+    wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true, nur: ['indeed'],
+    anleitung: { schritte: indeedZugangSchritte() },
+  },
   { key: 'o_whatsapp', phase: 'onboarding', titel: 'WhatsApp-Nummer verbunden', wer: 'kunde', funktion: 'csm', frist_tage: 3, auto: 'whatsapp_verbunden', optional: true },
-  { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Meta: Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode. Indeed: Konto, Benachrichtigungen, Weiterleitung an die Cloud.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
+  { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Meta: Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode. Indeed: Admin-Zugang da, Zahlungsmethode hinterlegt, Weiterleitung bewerber+<Kunden-ID>@zoepp-gruppe.de in der Anzeige eingetragen (Adresse unter Anbindung).', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
   {
     key: 'o_systemnutzer', phase: 'onboarding', titel: 'Systemnutzer zugewiesen & Werbekonto-ID eingetragen',
     beschreibung: 'Im Business Manager unseren Systemnutzer dem Werbekonto des Kunden zuweisen, dann beim Kunden unter Integrationen die Werbekonto-ID eintragen – ab dann zieht die Cloud täglich die Werbedaten.',

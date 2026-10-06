@@ -11,8 +11,9 @@ import { FileUpload } from '@/components/file-upload';
 import {
   Briefcase, MapPin, Palette, Phone, User, ChevronRight, ChevronLeft, Check,
   ShieldCheck, DollarSign, Building2, Sparkles, Video,
-  Globe, Settings, UserPlus, CreditCard, Code, FileText, Bell, Mail, Copy,
+  Globe, Settings, UserPlus, CreditCard, Code, FileText, Copy,
 } from 'lucide-react';
+import { indeedZugangSchritte, type Baustein } from '@/lib/fulfillment/pakete';
 
 const steps = [
   { id: 1, title: 'Stelle & Produkt', icon: Briefcase },
@@ -153,11 +154,17 @@ function CopyButton({ text }: { text: string }) {
 
 interface OnboardingClientProps {
   agencyId: string | null;
+  /** gebuchte Leistungen – nur Indeed: keine Meta-Anleitung im letzten Schritt */
+  bausteine: Baustein[];
 }
 
 const STORAGE_KEY = 'onboarding_draft';
 
-export function OnboardingClient({ agencyId }: OnboardingClientProps) {
+export function OnboardingClient({ bausteine }: OnboardingClientProps) {
+  const mitMeta = bausteine.includes('meta');
+  const mitIndeed = bausteine.includes('indeed');
+  const zugangTitel = mitMeta && mitIndeed ? 'Meta & Indeed Zugang' : mitMeta ? 'Meta Zugang' : 'Indeed Zugang';
+  const schritte = steps.map((s) => (s.id === 5 ? { ...s, title: zugangTitel } : s));
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -172,7 +179,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     2: 'Vergütung & Karriere',
     3: 'Unternehmen & Extras',
     4: 'Kontakt',
-    5: 'Meta & Indeed Zugang',
+    5: zugangTitel,
   };
 
   const trackStepStart = useCallback((stepNum: number) => {
@@ -259,6 +266,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
       indeed_account: false,
       indeed_notifications: false,
       indeed_forwarding: false,
+      indeed_zahlung: false,
     },
   });
 
@@ -426,8 +434,6 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
     window.location.href = '/dashboard';
   }
 
-  const indeedEmail = `bewerber+${agencyId}@zoepp-gruppe.de`;
-
   return (
     <div className="max-w-2xl mx-auto">
       <PageHeader
@@ -445,7 +451,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-8 flex-wrap">
-        {steps.map((s, i) => (
+        {schritte.map((s, i) => (
           <div key={s.id} className="flex items-center gap-2">
             <button
               onClick={() => s.id < step && setStep(s.id)}
@@ -460,7 +466,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               {s.id < step ? <Check className="w-3.5 h-3.5" /> : <s.icon className="w-3.5 h-3.5" />}
               {s.title}
             </button>
-            {i < steps.length - 1 && <div className="w-6 h-px bg-gray-200" />}
+            {i < schritte.length - 1 && <div className="w-6 h-px bg-gray-200" />}
           </div>
         ))}
       </div>
@@ -699,6 +705,7 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
         {step === 5 && (
           <div className="space-y-6">
             {/* Meta section */}
+            {mitMeta && (
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <ShieldCheck className="w-5 h-5 text-red-600" />
@@ -805,14 +812,17 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
               </div>
             </div>
 
+            )}
+
             {/* Indeed section */}
-            <div className="pt-6 border-t border-gray-200">
+            {mitIndeed && (
+            <div className={mitMeta ? 'pt-6 border-t border-gray-200' : ''}>
               <div className="flex items-center gap-2 mb-1">
                 <Briefcase className="w-5 h-5 text-red-600" />
-                <h3 className="text-base font-bold text-gray-900">Indeed Weiterleitung einrichten</h3>
+                <h3 className="text-base font-bold text-gray-900">Indeed-Zugang geben</h3>
               </div>
               <p className="text-sm text-gray-500 mb-5">
-                Damit neue Indeed-Bewerbungen automatisch in deiner Cloud erscheinen, leite die E-Mail-Benachrichtigungen weiter.
+                Lade uns in dein Indeed-Arbeitgeberkonto ein. Anzeige, Schaltung und die Weiterleitung aller Bewerbungen in deine Cloud übernehmen wir. Dauert ca. 5 Minuten.
               </p>
 
               <div className="mb-5">
@@ -825,52 +835,48 @@ export function OnboardingClient({ agencyId }: OnboardingClientProps) {
                   placeholder="z.B. 20"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Dein tägliches Indeed-Budget — wir berechnen daraus automatisch CPL und Monatskosten.
+                  Dein tägliches Indeed-Budget — wir berechnen daraus automatisch Kosten pro Bewerber und Monatskosten.
                 </p>
               </div>
 
               <div className="space-y-4">
-                <GuideStep
-                  stepNum={1}
-                  title="Indeed Konto öffnen"
-                  description={<>Gehe zu <span className="font-medium text-gray-800">de.indeed.com</span> → Logge dich als Arbeitgeber ein.</>}
-                  Icon={Briefcase}
-                  visualLabel="de.indeed.com — Arbeitgeber-Login"
-                  checked={form.meta_access_steps.indeed_account}
-                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_account: v } }))}
-                />
-
-                <GuideStep
-                  stepNum={2}
-                  title="Benachrichtigungen öffnen"
-                  description={<>Gehe zu <span className="font-medium text-gray-800">Konto → Benachrichtigungen → E-Mail-Einstellungen</span>.</>}
-                  Icon={Bell}
-                  visualLabel="Konto-Bereich → E-Mail-Einstellungen"
-                  checked={form.meta_access_steps.indeed_notifications}
-                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_notifications: v } }))}
-                />
-
-                <GuideStep
-                  stepNum={3}
-                  title="Weiterleitung aktivieren"
-                  description={
-                    <div className="space-y-2">
-                      <p>Trage diese Adresse als Weiterleitungsziel ein:</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono border border-gray-200 select-all">
-                          {indeedEmail}
-                        </code>
-                        <CopyButton text={indeedEmail} />
-                      </div>
-                    </div>
-                  }
-                  Icon={Mail}
-                  visualLabel="Weiterleitungsadresse eintragen"
-                  checked={form.meta_access_steps.indeed_forwarding}
-                  onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_forwarding: v } }))}
-                />
+                {(() => {
+                  const [konto, benutzer, einladen, zahlung] = indeedZugangSchritte();
+                  return (
+                    <>
+                      <GuideStep
+                        stepNum={1}
+                        title="Indeed-Konto öffnen"
+                        description={konto}
+                        Icon={Briefcase}
+                        visualLabel="employers.indeed.com — Arbeitgeber-Login"
+                        checked={form.meta_access_steps.indeed_account}
+                        onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_account: v } }))}
+                      />
+                      <GuideStep
+                        stepNum={2}
+                        title="Uns als Benutzer einladen"
+                        description={`${benutzer} ${einladen}`}
+                        Icon={UserPlus}
+                        visualLabel="Benutzer verwalten → Benutzer hinzufügen"
+                        checked={form.meta_access_steps.indeed_notifications}
+                        onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_notifications: v } }))}
+                      />
+                      <GuideStep
+                        stepNum={3}
+                        title="Zahlungsmethode hinterlegen"
+                        description={zahlung}
+                        Icon={CreditCard}
+                        visualLabel="Abrechnung → Zahlungsmethode"
+                        checked={!!form.meta_access_steps.indeed_zahlung}
+                        onCheck={(v) => setForm((f) => ({ ...f, meta_access_steps: { ...f.meta_access_steps, indeed_zahlung: v } }))}
+                      />
+                    </>
+                  );
+                })()}
               </div>
             </div>
+            )}
 
             {error && (
               <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg">{error}</p>
