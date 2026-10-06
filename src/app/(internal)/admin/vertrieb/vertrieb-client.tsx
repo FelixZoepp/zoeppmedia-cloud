@@ -130,8 +130,10 @@ export function VertriebClient() {
               items={[
                 { value: 'monat', label: 'Dieser Monat' },
                 { value: 'vormonat', label: 'Vormonat' },
-                { value: 'quartal', label: 'Quartal' },
+                { value: 'quartal', label: 'Dieses Quartal' },
+                { value: 'letztesquartal', label: 'Letztes Quartal' },
                 { value: '90tage', label: '90 Tage' },
+                { value: 'jahr', label: 'Jahr' },
               ]}
               value={zeitraum}
               onChange={(v) => {
@@ -176,8 +178,14 @@ export function VertriebClient() {
 
           {ansicht === 'gesamt' && (
             <>
-              <ZielBereich d={d} />
-              <Rückwärts d={d} />
+              {zeitraum === 'monat' ? (
+                <>
+                  <ZielBereich d={d} />
+                  <Rückwärts d={d} />
+                </>
+              ) : (
+                <ZeitraumZiel d={d} />
+              )}
               <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
                 <Problemfelder d={d} />
                 <Verlauf d={d} />
@@ -209,8 +217,8 @@ export function VertriebClient() {
             </>
           )}
           <p className="px-1 text-[12px] text-gray-500">
-            Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert neu gewonnener Deals, gezählt am Tag
-            des Abschlusses. Stand: {new Date(d.stand).toLocaleString('de-DE')}.
+            Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert gewonnener Deals, gezählt am Abschlussdatum
+            („Close date“) des Deals in Close. Stand: {new Date(d.stand).toLocaleString('de-DE')}.
           </p>
         </div>
       )}
@@ -269,6 +277,64 @@ function ZielBereich({ d }: { d: Daten }) {
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+/* ── Ziel für abgeschlossene/andere Zeiträume ─────────────────── */
+
+function ZeitraumZiel({ d }: { d: Daten }) {
+  const tage = (new Date(d.zeitraum.bis).getTime() - new Date(d.zeitraum.von).getTime()) / 864e5;
+  // Ziel anteilig: 300k je Monat (Monat ≈ 30,44 Tage)
+  const monate = Math.max(1, Math.round((tage / 30.44) * 10) / 10);
+  const ziel = Math.round(d.ziel.ziel * monate);
+  const z = d.zahlen;
+  const prozent = ziel > 0 ? Math.round((z.auftragsvolumen / ziel) * 1000) / 10 : 0;
+  const status = prozent >= 100 ? 'Ziel erreicht' : prozent >= 75 ? 'Knapp verfehlt' : 'Ziel verfehlt';
+  return (
+    <Card hero padding="lg">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="flex items-center gap-2 text-[15px] font-medium text-red-100">
+            <Target className="h-4 w-4" /> Auftragsvolumen {d.zeitraum.label}
+          </p>
+          <p className="mt-3 text-[clamp(40px,5vw,64px)] font-semibold leading-none tracking-[-0.04em]">
+            <CountUp value={z.auftragsvolumen} suffix=" €" />
+          </p>
+          <p className="mt-2 text-[15px] text-red-200">
+            von {eur(ziel)} Ziel ({zahl(monate)} × {eur(d.ziel.ziel)}) · {z.gewonnen} Deal{z.gewonnen === 1 ? '' : 's'}
+          </p>
+        </div>
+        <span className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${prozent >= 100 ? 'bg-green-50 text-green-800' : prozent >= 75 ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-800'}`}>
+          {status} · {pct(prozent)}
+        </span>
+      </div>
+      <div className="relative mt-6 h-3.5 rounded-full bg-white/15">
+        <div className="h-full origin-left rounded-full bg-red-50" style={{ width: `${Math.min(100, prozent)}%`, animation: 'fx-bar 1.1s cubic-bezier(.33,1,.68,1) .2s both' }} />
+      </div>
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { l: 'Ø pro Monat', v: eur(z.auftragsvolumen / monate), s: `Ziel ${eur(d.ziel.ziel)}` },
+          { l: 'Ø Deal', v: eur(z.schnittDeal), s: z.zyklusTage !== null ? `Ø ${z.zyklusTage} Tage bis Abschluss` : '–' },
+          { l: 'Abschlussquote Closing', v: pct(z.closingZuAbschluss), s: `${z.gewonnen} gewonnen · ${z.verloren} verloren` },
+          { l: 'Fehlte zum Ziel', v: eur(Math.max(0, ziel - z.auftragsvolumen)), s: `≈ ${Math.ceil(Math.max(0, ziel - z.auftragsvolumen) / (z.schnittDeal || d.ziel.schnittDeal))} Deals` },
+        ].map((x) => (
+          <div key={x.l} className="rounded-[16px] bg-white/10 p-4">
+            <p className="text-[12.5px] text-red-200">{x.l}</p>
+            <p className="mt-1 text-[22px] font-semibold tracking-[-0.03em]">{x.v}</p>
+            <p className="mt-1 text-[12px] text-red-200">{x.s}</p>
+          </div>
+        ))}
+      </div>
+      {z.gewonneneDeals.length > 0 && (
+        <p className="mt-4 text-[12.5px] text-red-200">
+          Gezählt nach Abschlussdatum in Close: {z.gewonneneDeals
+            .slice()
+            .sort((a, b) => a.datum.localeCompare(b.datum))
+            .map((g) => `${new Date(g.datum.slice(0, 10) + 'T12:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} ${eur(g.wert)}`)
+            .join(' · ')}
+        </p>
+      )}
     </Card>
   );
 }

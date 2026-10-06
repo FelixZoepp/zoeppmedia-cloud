@@ -138,3 +138,16 @@ describe('berechneSalesControlling', () => {
     expect(leer.marketing.roas).toBeNull();
   });
 });
+
+describe('Abschlussdatum', () => {
+  it('zählt gewonnene Deals am Close-Datum, nicht am Tag des (nachgetragenen) Statuswechsels', () => {
+    // Deal im Juli abgeschlossen, aber erst am 08.08. in Close auf „Close“ gesetzt
+    const alt = { ...opp('x', 'won', 14700, '2026-07-03T09:00:00Z'), date_won: '2026-07-02' };
+    const events = [ev('x', 'ct', 'won', '2026-08-08T13:41:00Z')];
+    const juli = berechneSalesControlling(eingaben([alt], events, { zeitraum: { von: '2026-07-01', bis: '2026-08-01', label: 'Juli' } }));
+    const august = berechneSalesControlling(eingaben([alt], events, { zeitraum: { von: '2026-08-01', bis: '2026-09-01', label: 'August' } }));
+    expect(juli.zahlen.auftragsvolumen).toBe(14700);
+    expect(juli.zahlen.gewonnen).toBe(1);
+    expect(august.zahlen.auftragsvolumen).toBe(0);
+  });
+});

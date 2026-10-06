@@ -180,13 +180,17 @@ function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string):
   const angebote = p.filter((x) => x.nach === 'angebot' && x.von !== 'angebot').length;
   const verloren = new Set(p.filter((x) => x.nach === 'lost').map((x) => x.opp)).size;
 
-  // Gewonnen: erster Won-Übergang je Deal im Zeitraum, plus Deals mit date_won im Zeitraum ohne Ereignis
+  // Gewonnen: maßgeblich ist das Abschlussdatum des Deals (date_won = „Close date“ in Close).
+  // Der Statuswechsel taugt dafür nicht – alte Deals wurden z. B. gesammelt nachgetragen und hätten sonst
+  // alle das Datum des Nachtragens. Nur ohne date_won zählt der erste Won-Statuswechsel.
+  const wonEvent = new Map<string, Übergang>();
+  for (const x of ü) if (x.nach === 'won' && !wonEvent.has(x.opp)) wonEvent.set(x.opp, x);
   const won = new Map<string, Übergang>();
-  for (const x of p) if (x.nach === 'won' && !won.has(x.opp)) won.set(x.opp, x);
   for (const o of e.opps) {
-    if (!won.has(o.id) && o.date_won && drin(o.date_won) && klassifiziere(e.statuses.find((s) => s.id === o.status_id)) === 'won') {
-      won.set(o.id, { opp: o.id, von: null, nach: 'won', date: o.date_won, user_id: o.user_id });
-    }
+    if (klassifiziere(e.statuses.find((s) => s.id === o.status_id)) !== 'won') continue;
+    const ev = wonEvent.get(o.id);
+    const datum = o.date_won ?? ev?.date ?? null;
+    if (datum && drin(datum)) won.set(o.id, { opp: o.id, von: null, nach: 'won', date: datum, user_id: ev?.user_id ?? o.user_id });
   }
   const gewonneneDeals = [...won.values()].map((x) => {
     const o = opps.get(x.opp)!;

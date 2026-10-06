@@ -10,7 +10,8 @@ const TAG = 864e5;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const monat = (d: Date, delta = 0) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + delta, 1));
 
-type Zeitraum = 'monat' | 'vormonat' | 'quartal' | '90tage';
+const ZEITRÄUME = ['monat', 'vormonat', 'quartal', 'letztesquartal', '90tage', 'jahr'] as const;
+type Zeitraum = (typeof ZEITRÄUME)[number];
 
 function zeitraumFür(z: Zeitraum, jetzt: Date) {
   const morgen = iso(new Date(jetzt.getTime() + TAG));
@@ -22,7 +23,17 @@ function zeitraumFür(z: Zeitraum, jetzt: Date) {
     case 'quartal': {
       const q = Math.floor(jetzt.getUTCMonth() / 3) * 3;
       const s = new Date(Date.UTC(jetzt.getUTCFullYear(), q, 1));
-      return { von: iso(s), bis: morgen, label: `Q${q / 3 + 1} ${jetzt.getUTCFullYear()}` };
+      return { von: iso(s), bis: morgen, label: `Q${q / 3 + 1} ${jetzt.getUTCFullYear()} (bisher)` };
+    }
+    case 'letztesquartal': {
+      const q = Math.floor(jetzt.getUTCMonth() / 3) * 3;
+      const s = new Date(Date.UTC(jetzt.getUTCFullYear(), q - 3, 1));
+      const e = new Date(Date.UTC(jetzt.getUTCFullYear(), q, 1));
+      return { von: iso(s), bis: iso(e), label: `Q${Math.floor(s.getUTCMonth() / 3) + 1} ${s.getUTCFullYear()}` };
+    }
+    case 'jahr': {
+      const s = new Date(Date.UTC(jetzt.getUTCFullYear(), 0, 1));
+      return { von: iso(s), bis: morgen, label: `Jahr ${jetzt.getUTCFullYear()}` };
     }
     case '90tage':
       return { von: iso(new Date(jetzt.getTime() - 90 * TAG)), bis: morgen, label: 'Letzte 90 Tage' };
@@ -41,9 +52,8 @@ export async function GET(req: NextRequest) {
   if (!(await darfSalesControlling())) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   if (!process.env.CLOSE_API_KEY) return NextResponse.json({ error: 'Close ist nicht verbunden (CLOSE_API_KEY fehlt)' }, { status: 503 });
 
-  const z = (['monat', 'vormonat', 'quartal', '90tage'].includes(req.nextUrl.searchParams.get('zeitraum') ?? '')
-    ? req.nextUrl.searchParams.get('zeitraum')
-    : 'monat') as Zeitraum;
+  const gewählt = req.nextUrl.searchParams.get('zeitraum') ?? '';
+  const z: Zeitraum = (ZEITRÄUME as readonly string[]).includes(gewählt) ? (gewählt as Zeitraum) : 'monat';
   const neu = req.nextUrl.searchParams.get('neu') === '1';
   const jetzt = new Date();
   const zeitraum = zeitraumFür(z, jetzt);
@@ -53,7 +63,8 @@ export async function GET(req: NextRequest) {
   try {
     const länge = new Date(zeitraum.bis).getTime() - new Date(zeitraum.von).getTime();
     const vgVon = iso(new Date(new Date(zeitraum.von).getTime() - länge));
-    const historieAb = iso(new Date(jetzt.getTime() - 200 * TAG));
+    // Statuswechsel mindestens 200 Tage zurück bzw. bis zum Beginn des Vergleichszeitraums (bei „Jahr“)
+    const historieAb = [iso(new Date(jetzt.getTime() - 200 * TAG)), vgVon].sort()[0];
     const sechsMonate = iso(monat(jetzt, -5));
 
     const [close, metaZeitraum, metaVergleich, metaMonate] = await Promise.all([
