@@ -1,4 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+
+// Interne Sales-Agentur (Sales-WhatsApp-Kontakte) zählt nicht als Bewerber
+const NICHT_INTERN = `(${HIDDEN_AGENCY_IDS.join(',')})`;
 
 export interface AgencyStatus {
   id: string;
@@ -63,23 +67,23 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     admin.from('agencies').select('*', { count: 'exact', head: true }),
     admin.from('agencies').select('*', { count: 'exact', head: true })
       .lt('created_at', endOfPrevWeek.toISOString()),
-    admin.from('candidates').select('*', { count: 'exact', head: true }),
-    admin.from('candidates').select('*', { count: 'exact', head: true })
+    admin.from('candidates').select('*', { count: 'exact', head: true }).not('agency_id', 'in', NICHT_INTERN),
+    admin.from('candidates').select('*', { count: 'exact', head: true }).not('agency_id', 'in', NICHT_INTERN)
       .lt('created_at', endOfPrevWeek.toISOString()),
-    admin.from('candidates').select('*', { count: 'exact', head: true })
+    admin.from('candidates').select('*', { count: 'exact', head: true }).not('agency_id', 'in', NICHT_INTERN)
       .gte('created_at', startOfWeek.toISOString()),
-    admin.from('candidates').select('*', { count: 'exact', head: true })
+    admin.from('candidates').select('*', { count: 'exact', head: true }).not('agency_id', 'in', NICHT_INTERN)
       .gte('created_at', startOfPrevWeek.toISOString()).lt('created_at', endOfPrevWeek.toISOString()),
     admin.from('pipeline_stages').select('id').eq('name', 'Eingestellt').single(),
     Promise.all(monthDefs.map((m) =>
-      admin.from('candidates').select('*', { count: 'exact', head: true })
+      admin.from('candidates').select('*', { count: 'exact', head: true }).not('agency_id', 'in', NICHT_INTERN)
         .gte('created_at', m.start.toISOString()).lt('created_at', m.end.toISOString())
     )),
-    admin.from('candidates').select('source'),
+    admin.from('candidates').select('source').not('agency_id', 'in', NICHT_INTERN),
     admin.from('agencies').select('id, name'),
     admin.from('agency_problems').select('agency_id, severity').is('resolved_at', null),
-    admin.from('candidates').select('agency_id, current_stage_id'),
-    admin.from('candidates').select('id, name, source, created_at, agency_id')
+    admin.from('candidates').select('agency_id, current_stage_id').not('agency_id', 'in', NICHT_INTERN),
+    admin.from('candidates').select('id, name, source, created_at, agency_id').not('agency_id', 'in', NICHT_INTERN)
       .order('created_at', { ascending: false }).limit(5),
   ]);
 
@@ -88,7 +92,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   // Phase 2: queries depending on hiredStageId, in parallel
   const [{ count: totalHired }, { count: hiredPrevWeek }] = await Promise.all([
     hiredStageId
-      ? admin.from('candidates').select('*', { count: 'exact', head: true }).eq('current_stage_id', hiredStageId)
+      ? admin.from('candidates').select('*', { count: 'exact', head: true }).not('agency_id', 'in', NICHT_INTERN).eq('current_stage_id', hiredStageId)
       : Promise.resolve({ count: 0 }),
     hiredStageId
       ? admin.from('candidate_stages').select('*', { count: 'exact', head: true })

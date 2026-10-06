@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dialerScope } from '@/lib/dialer/scope';
+import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+
+// Interne Sales-Agentur (Sales-WhatsApp-Kontakte) sind keine Bewerber
+const NICHT_INTERN = `(${HIDDEN_AGENCY_IDS.join(',')})`;
 import {
   baueWarteschlange,
   offeneRueckrufe,
@@ -46,6 +50,7 @@ export async function GET(req: NextRequest) {
     .order('scheduled_at', { ascending: true })
     .limit(100);
   if (ids) reminderQuery = reminderQuery.in('agency_id', ids);
+  else reminderQuery = reminderQuery.not('agency_id', 'in', NICHT_INTERN);
 
   // Kadenz: aktiv und Versuch offen (next_at abgelaufen oder vom Cron bereits geleert)
   let cadenceQuery = svc
@@ -56,6 +61,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(100);
   if (ids) cadenceQuery = cadenceQuery.in('agency_id', ids);
+  else cadenceQuery = cadenceQuery.not('agency_id', 'in', NICHT_INTERN);
 
   let callbacksQuery = svc
     .from('call_logs')
@@ -65,6 +71,7 @@ export async function GET(req: NextRequest) {
     .order('next_contact_date', { ascending: true })
     .limit(100);
   if (ids) callbacksQuery = callbacksQuery.in('agency_id', ids);
+  else callbacksQuery = callbacksQuery.not('agency_id', 'in', NICHT_INTERN);
 
   // Neue Bewerber ohne ersten Wählversuch – neueste zuerst (Speed-to-Lead)
   let newQuery = svc
@@ -75,6 +82,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(50);
   if (ids) newQuery = newQuery.in('agency_id', ids);
+  else newQuery = newQuery.not('agency_id', 'in', NICHT_INTERN);
 
   const [reminderResult, cadenceResult, callbacksResult, newResult] = await Promise.all([
     reminderQuery,

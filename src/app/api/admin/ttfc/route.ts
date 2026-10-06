@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isInternalUser } from '@/lib/admin';
+import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -15,7 +16,8 @@ export async function GET() {
   // Fetch TTFC stats per agency from the view
   const { data: stats, error: statsError } = await admin
     .from('ttfc_stats')
-    .select('*');
+    .select('*')
+    .not('agency_id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`);
 
   if (statsError) {
     return NextResponse.json({ error: statsError.message }, { status: 500 });
@@ -84,6 +86,7 @@ export async function GET() {
   const { data: overallStats } = await admin
     .from('candidates')
     .select('first_contact_at, created_at')
+    .not('agency_id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
     .not('first_contact_at', 'is', null)
     .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
 
