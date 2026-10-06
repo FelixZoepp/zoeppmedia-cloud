@@ -242,8 +242,10 @@ export async function processSalesBooking(
 
   if (payload.chain === 'setting') {
     // setting_buchung: {{1}} vorname, {{2}} absender, {{3}} datum, {{4}} uhrzeit + Kalender-Button
+    // setting_buchung_v2 (sobald freigegeben): {{1}} vorname, {{2}} datum, {{3}} uhrzeit + Kalender- und Ablauf-Video-Button
     await sendSalesTemplate(svc, agencyId, ctx, 'setting_buchung', {
       bodyParams: [vorname, SALES_SENDER_NAME, datum, uhrzeit],
+      v2BodyParams: [vorname, datum, uhrzeit],
       urlButtonParam: payload.calendly_event_id,
       bypassQuietHours: true,
     });
