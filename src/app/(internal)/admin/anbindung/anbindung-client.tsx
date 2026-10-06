@@ -30,7 +30,7 @@ function kopieren(text: string, was: string) {
 }
 
 export function AnbindungClient() {
-  const [d, setD] = useState<{ kunden: KundeAnbindung[]; metaSync: boolean } | null>(null);
+  const [d, setD] = useState<{ kunden: KundeAnbindung[]; metaSync: boolean; perspectiveWebhook: string } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [filter, setFilter] = useState('offen');
 
@@ -122,6 +122,13 @@ export function AnbindungClient() {
                     </td>
                     <td className="px-3 py-3">
                       <Pill s={k.meta.status} sub={k.meta.letzter ? `zuletzt ${datum(k.meta.letzter)} · ${k.meta.anzahl14} in 14 T.` : k.meta.funnel ? 'Funnel verknüpft' : null} />
+                      <button
+                        type="button"
+                        onClick={() => kopieren(`${d.perspectiveWebhook}${d.perspectiveWebhook.includes('?') ? '&' : '?'}agency=${k.id}`, 'Perspective-Webhook')}
+                        className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-medium text-red-800 hover:underline"
+                      >
+                        <Copy className="h-3 w-3" /> Webhook kopieren
+                      </button>
                     </td>
                     <td className="px-3 py-3">
                       <Pill s={k.indeed.status} sub={k.indeed.letzter ? `zuletzt ${datum(k.indeed.letzter)} · ${k.indeed.anzahl14} in 14 T.` : null} />

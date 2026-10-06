@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
-import { getStagesForAgency } from '@/lib/pipeline/get-stages';
-import { findDuplicateCandidate } from '@/lib/candidates/find-duplicate';
-import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
-import { fireEvent } from '@/lib/automations/fire';
+import { legeFunnelLeadAn } from '@/lib/perspective/leads';
 
 /**
  * Perspective-Funnel-Webhook. Pro Kunde wird im Funnel die URL
@@ -117,69 +114,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // --- Duplikatcheck: Bewerber nicht doppelt anlegen ---
-  const duplicate = await findDuplicateCandidate(supabase, agencyId, email, phone);
-  if (duplicate) {
-    await logActivity(supabase, {
-      agency_id: agencyId,
-      candidate_id: duplicate.id,
-      action: `Doppelte Funnel-Bewerbung erkannt: ${name ?? email ?? phone} entspricht bestehendem Bewerber ${duplicate.name} — nicht erneut angelegt`,
-      action_type: 'other',
-      metadata: { source: 'perspective', duplicate_of: duplicate.id, funnel_name: (body.funnelName as string) ?? null },
-    });
-    return NextResponse.json({ ok: true, duplicate: true, candidate_id: duplicate.id });
-  }
-
-  // --- Erste Pipeline-Stufe der Agentur (Custom-Stages vor globalen) ---
-  const stages = await getStagesForAgency(supabase, agencyId);
-  const firstStage = stages[0];
-  if (!firstStage) {
-    return NextResponse.json(
-      { error: 'Keine Pipeline-Stufen konfiguriert' },
-      { status: 500 }
-    );
-  }
-
-  const { data: candidate, error: insertError } = await supabase
-    .from('candidates')
-    .insert({
-      agency_id: agencyId,
-      name: name || 'Unbekannt',
-      email,
-      phone,
-      source: 'meta', // Perspective leads arrive via Meta ad funnels
-      meta_form: (body.funnelName as string) ?? null,
-      current_stage_id: firstStage.id,
-    })
-    .select()
-    .single();
-
-  if (insertError || !candidate) {
-    return NextResponse.json(
-      { error: insertError?.message ?? 'Bewerber konnte nicht erstellt werden' },
-      { status: 500 }
-    );
-  }
-
-  await supabase.from('candidate_stages').insert({
-    candidate_id: candidate.id,
-    stage_id: firstStage.id,
-    changed_by: null,
+  // --- Anlegen (gleiche Logik wie der automatische Perspective-Abgleich) ---
+  const ergebnis = await legeFunnelLeadAn(supabase, agencyId, {
+    name,
+    email,
+    phone,
+    funnelName: (body.funnelName as string) ?? null,
+    externeId: typeof body.id === 'string' && body.id ? `perspective:${body.id}` : null,
+    automationen: true,
   });
-
-  fireEvent('candidate_created', agencyId, { candidate_id: candidate.id }).catch(() => {});
-
-  // Blacklist-Check (nur Warnung, kein Block)
-  const blacklistResult = await checkBlacklist(supabase, agencyId, email, phone);
-  if (blacklistResult.is_blacklisted) {
+  if (ergebnis.status === 'fehler') return NextResponse.json({ error: ergebnis.fehler }, { status: 500 });
+  if (ergebnis.status === 'doppelt') {
     await logActivity(supabase, {
       agency_id: agencyId,
-      candidate_id: candidate.id,
-      action: `Blacklist-Warnung (Funnel): Bewerber ${candidate.name} stimmt mit gesperrtem Bewerber ${blacklistResult.matching_candidate?.name} überein`,
+      candidate_id: ergebnis.candidateId,
+      action: `Doppelte Funnel-Bewerbung erkannt: ${name ?? email ?? phone} – nicht erneut angelegt`,
       action_type: 'other',
-      metadata: { source: 'perspective', blacklist_match: blacklistResult.matching_candidate },
+      metadata: { source: 'perspective', duplicate_of: ergebnis.candidateId, funnel_name: (body.funnelName as string) ?? null },
     });
+    return NextResponse.json({ ok: true, duplicate: true, candidate_id: ergebnis.candidateId });
   }
-
-  return NextResponse.json({ ok: true, candidate_id: candidate.id });
+  return NextResponse.json({ ok: true, candidate_id: ergebnis.candidateId });
 }
