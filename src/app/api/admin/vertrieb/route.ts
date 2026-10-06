@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { berechneSalesControlling, type Opp } from '@/lib/sales-controlling/compute';
-import { ladeClose, ladeMetaMonate, ladeMetaZeitraum } from '@/lib/sales-controlling/quellen';
+import { ladeAnrufe, ladeAufgaben, ladeClose, ladeMetaMonate, ladeMetaZeitraum } from '@/lib/sales-controlling/quellen';
+import { berechneDetails } from '@/lib/sales-controlling/detail';
 import { darfSalesControlling } from '@/lib/sales-controlling/zugriff';
 
 export const maxDuration = 60;
@@ -67,17 +68,34 @@ export async function GET(req: NextRequest) {
     const historieAb = [iso(new Date(jetzt.getTime() - 200 * TAG)), vgVon].sort()[0];
     const sechsMonate = iso(monat(jetzt, -5));
 
-    const [close, metaZeitraum, metaVergleich, metaMonate] = await Promise.all([
+    // Anrufe für Zeitraum, Vergleich und den 8-Wochen-Trend
+    const anrufeAb = [iso(new Date(jetzt.getTime() - 60 * TAG)), vgVon].sort()[0];
+
+    const [close, metaZeitraum, metaVergleich, metaMonate, anrufe, aufgaben] = await Promise.all([
       // Quellen nur für Deals aus Zeitraum + Vergleichszeitraum nachladen
       ladeClose(historieAb, (opps: Opp[]) => opps.filter((o) => o.date_created >= vgVon && o.date_created < zeitraum.bis)),
       ladeMetaZeitraum(zeitraum.von, zeitraum.bis).catch(() => null),
       ladeMetaZeitraum(vgVon, zeitraum.von).catch(() => null),
       ladeMetaMonate(sechsMonate, iso(jetzt)).catch(() => new Map()),
+      ladeAnrufe(anrufeAb).catch((err) => (console.error('[vertrieb] Anrufe', err), null)),
+      ladeAufgaben().catch((err) => (console.error('[vertrieb] Aufgaben', err), null)),
     ]);
 
     const data = {
       ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
       metaVerbunden: metaZeitraum !== null,
+      details: berechneDetails({
+        statuses: close.statuses,
+        opps: close.opps,
+        events: close.events,
+        anrufe: anrufe ?? [],
+        aufgaben: aufgaben ?? [],
+        users: close.users,
+        zeitraum,
+        jetzt,
+      }),
+      telefonieVerbunden: anrufe !== null,
+      aufgabenVerbunden: aufgaben !== null,
     };
     cache = { key, at: Date.now(), data };
     return NextResponse.json(data);

@@ -1,4 +1,5 @@
 import type { CloseStatus, MetaZahlen, Opp, StatusEvent } from './compute';
+import type { Anruf, Aufgabe } from './detail';
 
 /** Datenquellen für das Sales-Controlling: Close (Pipeline „D2D Sales“) und Meta Ads (Sales-Werbekonto). */
 
@@ -86,6 +87,20 @@ export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) =
   });
 
   return { statuses, opps, events, users, leadQuellen: new Map(quellen) };
+}
+
+/** Anrufe (Close-Telefonie) ab Datum – Richtung, Ergebnis und Dauer */
+export async function ladeAnrufe(ab: string): Promise<Anruf[]> {
+  const roh = await closeAll<{ lead_id: string | null; user_id: string | null; direction: string | null; disposition: string | null; status: string | null; duration: number | null; date_created: string }>(
+    `/activity/call/?date_created__gte=${encodeURIComponent(ab)}&_fields=lead_id,user_id,direction,disposition,status,duration,date_created`,
+    20000,
+  );
+  return roh.map((c) => ({ lead_id: c.lead_id, user_id: c.user_id, direction: c.direction, disposition: c.disposition, status: c.status, duration: c.duration, date: c.date_created }));
+}
+
+/** Offene Aufgaben (Follow-ups) in Close */
+export async function ladeAufgaben(): Promise<Aufgabe[]> {
+  return closeAll<Aufgabe>(`/task/?_type=lead&is_complete=false&_fields=lead_id,lead_name,assigned_to,due_date,text`, 5000);
 }
 
 interface MetaInsight {

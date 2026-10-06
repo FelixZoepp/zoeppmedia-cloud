@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, PhoneCall, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
 import type { SalesControlling } from '@/lib/sales-controlling/compute';
+import type { SalesDetails } from '@/lib/sales-controlling/detail';
+import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche';
 
-type Daten = SalesControlling & { metaVerbunden: boolean };
+type Daten = SalesControlling & { metaVerbunden: boolean; details: SalesDetails; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
 
 const eur = (n: number | null | undefined, digits = 0) =>
   n === null || n === undefined ? '–' : `${n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })} €`;
@@ -170,7 +172,9 @@ export function VertriebClient() {
             items={[
               { value: 'gesamt', label: 'Gesamt' },
               { value: 'marketing', label: 'Marketing' },
-              { value: 'sales', label: 'Sales' },
+              { value: 'sales', label: 'Sales & Shows' },
+              { value: 'telefonie', label: 'Telefonie' },
+              { value: 'followups', label: 'Follow-ups' },
             ]}
             value={ansicht}
             onChange={wähleAnsicht}
@@ -211,6 +215,7 @@ export function VertriebClient() {
                 <ClosingBereich d={d} />
               </div>
               <Problemfelder d={d} nur={['Setting', 'Closing', 'Pipeline']} titel="Problemfelder Sales" />
+              <ShowDetail s={d.details.shows} durchlauf={d.details.durchlauf} />
               <Funnel d={d} />
               <PipelineBereich d={d} />
               <Personen d={d} />
@@ -223,6 +228,10 @@ export function VertriebClient() {
               am Tag des Statuswechsels.
             </p>
           )}
+          {ansicht === 'telefonie' && <TelefonieBereich t={d.details.telefonie} verbunden={d.telefonieVerbunden} label={d.zeitraum.label} />}
+
+          {ansicht === 'followups' && <FollowupBereich f={d.details.followups} verbunden={d.aufgabenVerbunden} />}
+
           <p className="px-1 text-[12px] text-gray-500">
             Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert gewonnener Deals, gezählt am Abschlussdatum
             („Close date“) des Deals in Close. Stand: {new Date(d.stand).toLocaleString('de-DE')}.
