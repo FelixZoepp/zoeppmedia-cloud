@@ -146,6 +146,28 @@ const employeeGroups: SidebarGroup[] = [
   },
 ];
 
+/** Fulfillment (Ads & Funnel, Content): eigene Schritte, Kunden-Board, Ads, Funnels, Anbindung */
+const FULFILLMENT_BEREICHE = ['media_buyer', 'content'];
+const fulfillmentGroups: SidebarGroup[] = [
+  {
+    label: 'Fulfillment',
+    items: [
+      { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
+      { id: 'clients', label: 'Kunden-Board', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
+      { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
+      { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
+      { id: 'anbindung', label: 'Bewerber-Anbindung', icon: <Plug className="w-5 h-5" />, href: '/admin/anbindung' },
+    ],
+  },
+  {
+    label: 'Überblick',
+    items: [
+      { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
+      { id: 'kalender', label: 'Kalender', icon: <CalendarDays className="w-5 h-5" />, href: '/kalender' },
+    ],
+  },
+];
+
 const agencyGroups: SidebarGroup[] = [
   {
     label: 'Recruiting',
@@ -262,6 +284,8 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
             // Eintrag steht schon oben – nicht doppelt im Cockpit
             ...employeeGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.id !== 'ergebnisse') })),
           ]
+        : role === 'employee' && FULFILLMENT_BEREICHE.includes(funktion ?? '')
+          ? fulfillmentGroups
         : role === 'employee' && SALES_BEREICHE.includes(funktion ?? '')
       ? [
           {

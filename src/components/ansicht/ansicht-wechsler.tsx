@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 const ROLLEN = [
   { value: 'kunde', label: 'Kunde', hinweis: 'Kunden-Cloud mit Menü, Dashboard und KI wie beim Kunden' },
+  { value: 'fulfillment', label: 'Fulfillment', hinweis: 'Aufgaben, Kunden-Board, Ads, Funnels, Anbindung' },
   { value: 'innendienst', label: 'Innendienst', hinweis: 'Kunden-Clouds, Anrufen, Bewerber bearbeiten' },
   { value: 'csm', label: 'Kundenberater', hinweis: 'Kunden-Ergebnisse, Anfragen, Upsell-Chancen' },
   { value: 'vertrieb', label: 'Vertriebsleitung', hinweis: 'Sales-Controlling' },

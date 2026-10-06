@@ -9,6 +9,7 @@ export const ANSICHT_COOKIE = 'zmc_ansicht';
 
 export const ANSICHTEN = {
   kunde: { label: 'Kunde', funktion: null, start: '/dashboard' },
+  fulfillment: { label: 'Fulfillment (Ads & Funnel)', funktion: 'media_buyer', start: '/meine-todos' },
   innendienst: { label: 'Innendienst', funktion: 'innendienst', start: '/innendienst' },
   csm: { label: 'Kundenberater', funktion: 'csm', start: '/ergebnisse' },
   vertrieb: { label: 'Vertriebsleitung', funktion: 'vertrieb', start: '/admin/vertrieb' },
