@@ -21,7 +21,7 @@ export interface ApplicationRow {
   score_label: string | null;
   applied_at: string;
   status: string;
-  candidate: { id: string; name: string; phone: string | null; phone_e164: string | null; email: string | null; source: string };
+  candidate: { id: string; name: string; phone: string | null; phone_e164: string | null; email: string | null; source: string; persona_typ?: string | null; persona_fit?: string | null };
   job: { id: string; title: string; slug: string };
   stage: { id: string; name: string; color: string; stage_type: string | null } | null;
 }

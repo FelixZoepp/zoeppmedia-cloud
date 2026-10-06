@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { toast } from 'sonner';
+import { PersonaKarte } from './persona-karte';
 import {
   ArrowLeft,
   Check,
@@ -336,6 +337,8 @@ export function IntegrationenClient({ agencyId }: { agencyId: string }) {
           </div>
         </Card>
       </div>
+
+      <PersonaKarte agencyId={agencyId} origin={origin} />
     </div>
   );
 }

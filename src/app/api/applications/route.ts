@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     .select(
       `
       *,
-      candidate:candidates(id, name, phone, phone_e164, email, source),
+      candidate:candidates(id, name, phone, phone_e164, email, source, persona_typ, persona_fit),
       job:jobs(id, title, slug),
       stage:pipeline_stages(id, name, color, stage_type)
     `

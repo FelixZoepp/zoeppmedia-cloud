@@ -277,6 +277,15 @@ async function runDailyJobs() {
   } catch { /* silent */ }
 
   // 9. Access item reminders (escalating: day 1/3/5/7)
+  // Monatsanfang: Kunden an fehlende Vertriebler-Umsätze (ROI) erinnern
+  let umsatzErinnerungen = 0;
+  try {
+    const { erinnereFehlendeUmsaetze } = await import('@/lib/roi/erinnerung');
+    umsatzErinnerungen = await erinnereFehlendeUmsaetze(supabase);
+  } catch (err) {
+    console.error('[cron/daily] Umsatz-Erinnerungen fehlgeschlagen:', err);
+  }
+
   // Überfällige Fulfillment-Schritte an die Zuständigen
   let stepReminders = 0;
   try {
@@ -386,6 +395,7 @@ async function runDailyJobs() {
     preDebitSent,
     accessReminders,
     stepReminders,
+    umsatzErinnerungen,
     reportsGenerated,
     healthChecksRun,
     overdueTasksCreated,

@@ -67,6 +67,15 @@ export async function PATCH(
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  // Einstellung: Datum am Bewerber merken (Basis für „Umsätze & ROI“), nur beim ersten Mal
+  if (newStatus === 'hired') {
+    const { data: app } = await supabase.from('applications').select('candidate_id').eq('id', id).maybeSingle();
+    const candidateId = (app as { candidate_id: string } | null)?.candidate_id;
+    if (candidateId) {
+      await supabase.from('candidates').update({ eingestellt_am: new Date().toISOString() }).eq('id', candidateId).is('eingestellt_am', null);
+    }
+  }
+
   // SLA- und Dokumente-Reminder planen (best effort)
   scheduleStageReminders(supabase, agencyId, id, stage_id, newStage.stage_type, newStage.requires_documents ?? false)
     .catch((e) => console.error('scheduleStageReminders fehlgeschlagen', e));

@@ -161,6 +161,17 @@ function ErgebnisKarte({ k, index }: { k: KundeErgebnis; index: number }) {
         </div>
       </dl>
 
+      <p className={`mt-2 text-[12.5px] ${k.umsaetzeFehlen ? 'font-medium text-amber-800' : 'text-gray-600'}`}>
+        {k.umsatzLetzterMonat !== null
+          ? `Umsatz Neue: ${k.umsatzLetzterMonat.toLocaleString('de-DE', { maximumFractionDigits: 0 })} € · ROI ${k.roi === null ? '–' : `${k.roi.toLocaleString('de-DE', { maximumFractionDigits: 1 })}×`}`
+          : k.umsaetzeFehlen
+            ? 'Umsätze der Neuen fehlen – Kunde muss eintragen'
+            : k.einstellungen30 > 0
+              ? 'Noch keine Umsätze eingetragen'
+              : null}
+        {k.umsatzLetzterMonat !== null && k.umsaetzeFehlen && ' · Einträge unvollständig'}
+      </p>
+
       {k.hinweise.length > 0 && (
         <ul className="mt-3 space-y-1">
           {k.hinweise.map((h) => (

@@ -6,6 +6,12 @@ import { loadTeamWorkload } from '@/lib/team/workload';
 import { loadTeamCalendar } from '@/lib/team/calendar';
 import { getDashboardData } from '@/lib/dashboard';
 import { helpFor, type Audience } from '@/lib/help/articles';
+import { ladeErgebnisse } from '@/lib/kunden-cloud/ergebnisse';
+import { ladeArbeit } from '@/lib/kunden-cloud/uebersicht';
+import { ladeEmpfehlungen } from '@/lib/empfehlungen/laden';
+import { erstelleAnfrage } from '@/lib/support/anfragen';
+import { ladeSalesControlling, ZEITRÄUME, type Zeitraum } from '@/lib/sales-controlling/laden';
+import { KUNDEN_CLOUD_BEREICHE, SALES_BEREICHE } from '@/lib/team/funktionen';
 
 /**
  * Werkzeuge des KI-Assistenten. Alle nur lesend und an die Rolle gebunden:
@@ -16,8 +22,13 @@ export interface ToolContext {
   svc: SupabaseClient;
   userId: string;
   audience: Audience;
-  /** Nur für Kunden: die eigene (bzw. impersonierte) Agentur */
+  /**
+   * Kunde: die eigene Agentur. Intern: die gerade geöffnete Kunden-Cloud (Innendienst), sonst null.
+   * Alle Kunden-Werkzeuge lesen ausschließlich diese Agentur – andere Kunden sind technisch nicht erreichbar.
+   */
   agencyId: string | null;
+  /** Bereich intern (users.funktion), z. B. innendienst, csm, vertrieb */
+  funktion?: string | null;
 }
 
 interface ToolDef {
@@ -232,8 +243,179 @@ const deineAufgaben: ToolDef = {
   },
 };
 
-export function toolsFor(audience: Audience): ToolDef[] {
-  return audience === 'kunde'
-    ? [recruitingZahlen, bewerberSuchen, deineAufgaben, hilfe]
-    : [meineAufgaben, kundenSuchen, teamAuslastung, kalender, hilfe];
+/* ── Kunde: Ergebnisse, Empfehlungen, Interesse ───────────────── */
+
+const meineErgebnisse: ToolDef = {
+  label: 'Wertet deine Ergebnisse aus',
+  tool: {
+    name: 'meine_ergebnisse',
+    description:
+      'Ergebnisse der eigenen Agentur der letzten 30 Tage: Bewerber (mit Vormonat), offen/unbearbeitet, kontaktiert in %, Zeit bis zum ersten Kontakt, Anrufe, Erreichbarkeit, Termine, No-Shows, Einstellungen, WhatsApp verbunden, Masterclass-Fortschritt.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  run: async (_input, ctx) => {
+    if (!ctx.agencyId) return { fehler: 'Keine Agentur zugeordnet' };
+    const { lage } = await ladeEmpfehlungen(ctx.svc, ctx.agencyId);
+    return lage ?? { hinweis: 'Noch keine Daten vorhanden' };
+  },
+};
+
+const empfehlungen: ToolDef = {
+  label: 'Sucht passende Empfehlungen',
+  tool: {
+    name: 'empfehlungen',
+    description:
+      'Empfehlungen für die eigene Agentur aus den aktuellen Zahlen: „tipp“ = sofort umsetzbar in der Cloud (mit Link), „leistung“ = Zusatzleistung/Paket von Zoepp Media. Liefert Titel, Begründung mit Zahlen und Nutzen.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  run: async (_input, ctx) => {
+    if (!ctx.agencyId) return { fehler: 'Keine Agentur zugeordnet' };
+    const { empfehlungen: liste } = await ladeEmpfehlungen(ctx.svc, ctx.agencyId);
+    return liste.map((e) => ({ id: e.id, art: e.art, titel: e.titel, warum: e.warum, nutzen: e.nutzen, link: e.link?.href ?? null }));
+  },
+};
+
+const interesseMelden: ToolDef = {
+  label: 'Gibt deinem Ansprechpartner Bescheid',
+  tool: {
+    name: 'interesse_melden',
+    description:
+      'Meldet das Interesse des Kunden an einer Zusatzleistung oder einen Rückrufwunsch an seinen Ansprechpartner bei Zoepp Media. NUR aufrufen, nachdem der Kunde ausdrücklich zugestimmt hat („Ja, gib Bescheid“).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        thema: { type: 'string', description: 'Worum es geht, z. B. „Karriere-Website“ oder „Mehr Werbebudget“' },
+        empfehlung_id: { type: 'string', description: 'ID aus „empfehlungen“, falls vorhanden' },
+        nachricht: { type: 'string', description: 'Kurze Notiz mit dem Anliegen des Kunden' },
+      },
+      required: ['thema'],
+    },
+  },
+  run: async (input, ctx) => {
+    if (!ctx.agencyId) return { fehler: 'Keine Agentur zugeordnet' };
+    const { id } = await erstelleAnfrage(ctx.svc, {
+      agencyId: ctx.agencyId,
+      userId: ctx.userId,
+      art: 'interesse',
+      thema: str(input.thema, 120) || 'Interesse',
+      nachricht: str(input.nachricht, 1000) || 'Über den KI-Assistenten gemeldet',
+      empfehlungId: str(input.empfehlung_id, 60) || null,
+    });
+    return { ok: true, anfrage_id: id, hinweis: 'Der Ansprechpartner ist informiert und meldet sich.' };
+  },
+};
+
+/* ── Intern: Auswertungen ──────────────────────────────────────── */
+
+const kundenErgebnisse: ToolDef = {
+  label: 'Wertet die Kunden-Ergebnisse aus',
+  tool: {
+    name: 'kunden_ergebnisse',
+    description:
+      'Recruiting-Ergebnisse aller Kunden (30 Tage): Bewerber mit Vormonat, Kontaktquote, Speed-to-Lead, Anrufe, Erreichbarkeit, Termine, No-Shows, Einstellungen, Ampel (rot/gelb/grün) mit Hinweisen. Optional nach Kundenname filtern.',
+    input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Teil des Kundennamens (optional)' } } },
+  },
+  run: async (input, ctx) => {
+    const q = str(input.name).toLowerCase();
+    return (await ladeErgebnisse(ctx.svc))
+      .filter((k) => !q || k.name.toLowerCase().includes(q))
+      .slice(0, 25)
+      .map((k) => ({
+        kunde: k.name, phase: k.phase, pausiert: k.pausiert, ampel: k.ampel, hinweise: k.hinweise,
+        bewerber_30_tage: k.bewerber30, bewerber_vormonat: k.bewerberVorher, kontaktquote: k.kontaktquote,
+        speed_to_lead_min: k.speedToLeadMin, anrufe: k.anrufe30, erreichbarkeit: k.erreichbarkeit,
+        termine: k.termine30, no_shows: k.noShows30, einstellungen: k.einstellungen30,
+      }));
+  },
+};
+
+const innendienstArbeit: ToolDef = {
+  label: 'Schaut, wo im Innendienst Arbeit liegt',
+  tool: {
+    name: 'innendienst_arbeit',
+    description:
+      'Je Kunde: neue Bewerber zu bearbeiten, ohne Kontakt, heute neu, fällige Anrufe, ungelesene WhatsApps, ältester Bewerber ohne Kontakt – sortiert nach Dringlichkeit.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  run: async (_input, ctx) =>
+    (await ladeArbeit(ctx.svc)).slice(0, 25).map((k) => ({
+      kunde: k.name,
+      pausiert: k.pausiert,
+      zu_bearbeiten: k.zuBearbeiten,
+      ohne_kontakt: k.ohneKontakt,
+      heute_neu: k.neuHeute,
+      anrufe_faellig: k.anrufeFaellig,
+      ungelesen: k.ungelesen,
+      aeltester_ohne_kontakt_seit: k.aeltesterOhneKontakt,
+    })),
+};
+
+const kundenChancen: ToolDef = {
+  label: 'Sucht Upsell-Chancen',
+  tool: {
+    name: 'kunden_chancen',
+    description: 'Empfehlungen und Upsell-Chancen für einen bestimmten Kunden aus seinen aktuellen Zahlen (Tipps und Zusatzleistungen mit Begründung).',
+    input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Kundenname (Teil reicht)' } }, required: ['name'] },
+  },
+  run: async (input, ctx) => {
+    const q = str(input.name).toLowerCase();
+    if (q.length < 2) return { fehler: 'Bitte Kundennamen angeben' };
+    const { data } = await ctx.svc.from('agencies').select('id, name').ilike('name', `%${q.replace(/[%_]/g, '')}%`).limit(3);
+    const treffer = (data ?? []) as Array<{ id: string; name: string }>;
+    if (!treffer.length) return { fehler: 'Kein Kunde gefunden' };
+    return Promise.all(
+      treffer.map(async (a) => {
+        const { lage, empfehlungen: liste } = await ladeEmpfehlungen(ctx.svc, a.id);
+        return { kunde: a.name, paket: lage?.paket ?? null, empfehlungen: liste.map((e) => ({ art: e.art, titel: e.titel, warum: e.warum, nutzen: e.nutzen })) };
+      }),
+    );
+  },
+};
+
+const salesKennzahlen: ToolDef = {
+  label: 'Schaut ins Sales-Controlling',
+  tool: {
+    name: 'sales_kennzahlen',
+    description:
+      'Sales-Controlling (Close + Meta): Auftragsvolumen vs. Ziel 300.000 €/Monat, Hochrechnung, Forecast, Setting/Closing mit Show-Quoten, Marketing-Kosten, Pipeline, Telefonie, Follow-ups, Problemfelder. Zeitraum: monat, vormonat, quartal, letztesquartal, 90tage, jahr.',
+    input_schema: { type: 'object', properties: { zeitraum: { type: 'string', enum: [...ZEITRÄUME] } } },
+  },
+  run: async (input, ctx) => {
+    void ctx;
+    if (!process.env.CLOSE_API_KEY) return { fehler: 'Close ist nicht verbunden' };
+    const z = (ZEITRÄUME as readonly string[]).includes(String(input.zeitraum)) ? (input.zeitraum as Zeitraum) : 'monat';
+    const d = await ladeSalesControlling(z);
+    return {
+      zeitraum: d.zeitraum.label,
+      ziel_monat: { erreicht: d.ziel.erreicht, ziel: d.ziel.ziel, prozent: d.ziel.prozent, auf_kurs_prozent: d.ziel.aufKurs, hochrechnung: d.ziel.hochrechnung, forecast: d.ziel.forecast, fehlt: d.ziel.rest, bedarf_pro_woche: d.ziel.bedarfRestProWoche },
+      zahlen: { ...d.zahlen, gewonneneDeals: undefined },
+      marketing: { spend: d.marketing.spend, cpl: d.marketing.cpl, kosten_pro_setting: d.marketing.kostenProSetting, roas: d.marketing.roas },
+      pipeline: { offen: d.pipeline.offenAnzahl, wert: d.pipeline.offenWert, gewichtet: d.pipeline.gewichtet },
+      telefonie: { anwahlen: d.details.telefonie.anwahlen, gespraeche: d.details.telefonie.gespraeche, erreichbarkeit: d.details.telefonie.erreichbarkeit, speed_to_lead_min: d.details.telefonie.speedToLeadMedianMin },
+      follow_ups: { ueberfaellig: d.details.followups.aufgaben.ueberfaellig, deals_ohne_naechsten_schritt: d.details.followups.aufgaben.dealsOhneAufgabe },
+      probleme: d.probleme,
+    };
+  },
+};
+
+/**
+ * Werkzeuge je Rolle. Kunden bekommen ausschließlich Werkzeuge, die auf ihre eigene Agentur
+ * (ctx.agencyId) beschränkt sind – Fragen nach anderen Kunden laufen technisch ins Leere.
+ */
+export function toolsFor(audience: Audience, funktion?: string | null, imKunden = false): ToolDef[] {
+  if (audience === 'kunde') return [meineErgebnisse, recruitingZahlen, bewerberSuchen, deineAufgaben, empfehlungen, interesseMelden, hilfe];
+
+  const set = new Set<ToolDef>([meineAufgaben, kundenSuchen, kalender, hilfe]);
+  const f = funktion ?? '';
+  if (audience === 'admin') {
+    [kundenErgebnisse, innendienstArbeit, kundenChancen, teamAuslastung, salesKennzahlen].forEach((t) => set.add(t));
+  } else {
+    if (KUNDEN_CLOUD_BEREICHE.includes(f)) [innendienstArbeit, kundenErgebnisse].forEach((t) => set.add(t));
+    if (f === 'csm') [kundenErgebnisse, kundenChancen].forEach((t) => set.add(t));
+    if (SALES_BEREICHE.includes(f)) set.add(salesKennzahlen);
+  }
+  // Intern in einer geöffneten Kunden-Cloud: die Kunden-Werkzeuge für genau diesen Kunden dazu
+  if (imKunden) [meineErgebnisse, recruitingZahlen, bewerberSuchen, deineAufgaben].forEach((t) => set.add(t));
+  return [...set];
 }
+

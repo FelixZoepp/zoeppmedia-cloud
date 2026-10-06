@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { agencyLogo } from '@/lib/branding/logo';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+import { berechneRoi } from '@/lib/roi/berechnung';
+import { ladeEinstellungen, ladeKosten, ladeUmsaetze } from '@/lib/roi/laden';
 
 /**
  * Kunden-Ergebnisse für Kundenberater: pro Kunde die wichtigsten Recruiting-Zahlen der
@@ -31,6 +33,18 @@ export interface KundeErgebnis {
   einstellungen30: number;
   ampel: Ampel;
   hinweise: string[];
+  /** Vom Kunden eingetragener Umsatz der neuen Vertriebler im letzten abgeschlossenen Monat (null = nicht eingetragen) */
+  umsatzLetzterMonat: number | null;
+  /** ROI des letzten Monats, sonst seit Start (null ohne Einträge/Kosten) */
+  roi: number | null;
+  /** Pflicht-Einträge für den letzten Monat fehlen */
+  umsaetzeFehlen: boolean;
+}
+
+export interface UmsatzLage {
+  umsatzLetzterMonat: number | null;
+  roi: number | null;
+  fehlend: number;
 }
 
 type Kandidat = { agency_id: string; created_at: string; first_contact_at: string | null; ttfc_seconds: number | null; eingestellt_am: string | null };
@@ -46,6 +60,7 @@ export function berechneErgebnisse(
   anrufe: Anruf[],
   termine: Termin[],
   jetzt: Date,
+  umsaetze: Map<string, UmsatzLage> = new Map(),
 ): KundeErgebnis[] {
   const t = (tage: number) => new Date(jetzt.getTime() - tage * 864e5).toISOString();
   const vor7 = t(7);
@@ -100,6 +115,9 @@ export function berechneErgebnisse(
         termine30,
         noShows30: noShows,
         einstellungen30: einstellungen,
+        umsatzLetzterMonat: umsaetze.get(a.id)?.umsatzLetzterMonat ?? null,
+        roi: umsaetze.get(a.id)?.roi ?? null,
+        umsaetzeFehlen: (umsaetze.get(a.id)?.fehlend ?? 0) > 0,
         ampel,
         hinweise,
       };
@@ -148,8 +166,24 @@ export async function ladeErgebnisse(svc: SupabaseClient, jetzt: Date = new Date
     ),
   ]);
 
+  const aktive = ((ags ?? []) as Parameters<typeof berechneErgebnisse>[0]).filter((a) => a.fulfillment_phase !== 'beendet');
+  // Umsätze/ROI je Kunde (vom Kunden eingetragen) – Fehler dürfen die Übersicht nicht blockieren
+  const umsaetze = new Map<string, UmsatzLage>();
+  await Promise.all(
+    aktive.map(async (a) => {
+      try {
+        const [einstellungen, eintraege, kosten] = await Promise.all([ladeEinstellungen(svc, a.id), ladeUmsaetze(svc, a.id), ladeKosten(svc, a.id)]);
+        if (!einstellungen.length && !eintraege.length) return;
+        const r = berechneRoi({ einstellungen, eintraege, kosten, jetzt });
+        umsaetze.set(a.id, { umsatzLetzterMonat: r.umsatzLetzterMonat, roi: r.roiLetzterMonat ?? r.roiKumuliert, fehlend: r.fehlend.length });
+      } catch (err) {
+        console.error('[ergebnisse] Umsätze', a.id, err);
+      }
+    }),
+  );
+
   return berechneErgebnisse(
-    ((ags ?? []) as Parameters<typeof berechneErgebnisse>[0]).filter((a) => a.fulfillment_phase !== 'beendet'),
+    aktive,
     kandidaten,
     anrufe,
     [
@@ -157,5 +191,6 @@ export async function ladeErgebnisse(svc: SupabaseClient, jetzt: Date = new Date
       ...neueTermine.map((x) => ({ agency_id: x.agency_id, status: x.status, datum: x.starts_at })),
     ],
     jetzt,
+    umsaetze,
   );
 }

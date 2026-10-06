@@ -46,6 +46,14 @@ export function KanbanCard({ application, onClick }: { application: ApplicationR
             {application.score_label}
           </Badge>
         )}
+        {application.candidate.persona_typ && (
+          <span
+            className="truncate rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-800"
+            title={application.candidate.persona_fit ? `Persona-Test: ${application.candidate.persona_typ} – ${application.candidate.persona_fit}` : `Persona-Test: ${application.candidate.persona_typ}`}
+          >
+            {application.candidate.persona_typ}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -55,8 +55,10 @@ export async function PATCH(
 
   // Bewerbungen mitziehen, damit Kanban (applications.stage_id) und Bewerberakte nicht auseinanderlaufen
   if (candidate) {
-    const { data: stage } = await supabase.from('pipeline_stages').select('stage_type').eq('id', stage_id).maybeSingle();
+    const { data: stage } = await supabase.from('pipeline_stages').select('stage_type, name').eq('id', stage_id).maybeSingle();
     const typ = (stage as { stage_type: string | null } | null)?.stage_type;
+    // Ältere Stufen ohne stage_type erkennt man am Namen „Eingestellt“
+    const eingestellt = typ === 'hired' || /^eingestellt/i.test((stage as { name?: string } | null)?.name ?? '');
     await supabase
       .from('applications')
       .update({
@@ -66,6 +68,10 @@ export async function PATCH(
       })
       .eq('candidate_id', id)
       .eq('agency_id', candidate.agency_id);
+    // Einstellung: Datum merken (Basis für „Umsätze & ROI“), nur beim ersten Mal
+    if (eingestellt) {
+      await supabase.from('candidates').update({ eingestellt_am: new Date().toISOString() }).eq('id', id).is('eingestellt_am', null);
+    }
   }
 
   if (candidate) {

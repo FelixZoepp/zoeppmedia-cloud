@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AppointmentsSection } from '@/components/candidates/appointments-section';
 import { AppointmentList } from '@/components/candidates/appointment-list';
+import { PersonaKarte } from '@/components/candidates/persona-karte';
 import {
   ArrowLeft,
   Mail,
@@ -1611,6 +1612,9 @@ export default function CandidateDetailPage() {
               )}
             </div>
           </Card>
+
+          {/* Persona-Test (12 Persona-Typen) */}
+          <PersonaKarte candidateId={id} />
 
           {/* Speed-to-Lead */}
           <Card padding="md">

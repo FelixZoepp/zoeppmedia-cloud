@@ -9,6 +9,7 @@ import { SlaAmpel } from './sla-ampel';
 import { AccessItemsView } from './access-items-view';
 import { ProjectOverview } from './project-overview';
 import { MasterclassProgress } from './masterclass-progress';
+import { KundenKennzahlen, type KundenKennzahlenDaten } from './kunden-kennzahlen';
 import { Avatar, Badge, CountUp, SplitText, StatCard } from '@/components/ui';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -78,9 +79,11 @@ interface DashboardViewProps {
   agencyId: string;
   agencyName: string;
   pendingSurveys?: number;
+  /** Termine, Einstellungen, Umsatz der Neuen und ROI auf einen Blick */
+  kennzahlen?: KundenKennzahlenDaten | null;
 }
 
-export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }: DashboardViewProps) {
+export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null }: DashboardViewProps) {
   const now = new Date();
   const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' });
   const kw = getISOWeek(now);
@@ -120,6 +123,9 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0 }
         <SplitText as="h1" text="Dashboard" className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
         <p className="fx-fade mt-2 text-[15px] text-gray-600">Dein Recruiting bei {agencyName} – alles an einem ruhigen Ort.</p>
       </div>
+
+      {/* ── Auf einen Blick: Termine, Einstellungen, Umsatz, ROI ── */}
+      {kennzahlen && <KundenKennzahlen d={kennzahlen} />}
 
       {/* ── SLA Ampel ────────────────────────────────────── */}
       <SlaAmpel agencyId={agencyId} />

@@ -41,6 +41,8 @@ import {
   Headset,
   TrendingUp,
   Plug,
+  Lightbulb,
+  MessagesSquare,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -51,6 +53,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
+      { id: 'kunden-anfragen', label: 'Kunden-Anfragen', icon: <MessagesSquare className="w-5 h-5" />, href: '/admin/support' },
       { id: 'start-analyse', label: 'Start-Analyse', icon: <Timer className="w-5 h-5" />, href: '/start-analyse' },
       { id: 'kapazitaet', label: 'Kapazität', icon: <Gauge className="w-5 h-5" />, href: '/admin/kapazitaet' },
       { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
@@ -151,6 +154,8 @@ const agencyGroups: SidebarGroup[] = [
       { id: 'inbox', label: 'Chat', icon: <MessageSquare className="w-5 h-5" />, href: '/inbox' },
       { id: 'termine', label: 'Kalender', icon: <CalendarDays className="w-5 h-5" />, href: '/termine' },
       { id: 'statistiken', label: 'Statistiken', icon: <BarChart3 className="w-5 h-5" />, href: '/statistiken' },
+      { id: 'umsaetze', label: 'Umsätze & ROI', icon: <TrendingUp className="w-5 h-5" />, href: '/umsaetze' },
+      { id: 'empfehlungen', label: 'Empfehlungen', icon: <Lightbulb className="w-5 h-5" />, href: '/empfehlungen' },
     ],
   },
   {
@@ -188,6 +193,14 @@ const profileItem: SidebarItem = {
   label: 'Profil',
   icon: <UserCircle className="w-5 h-5" />,
   href: '/profile',
+};
+
+/** Kunden: Hilfe-Center heißt dort „FAQ & Support“ (mit Support-Anfrage) */
+const kundenHilfeItem: SidebarItem = {
+  id: 'hilfe',
+  label: 'FAQ & Support',
+  icon: <LifeBuoy className="w-5 h-5" />,
+  href: '/hilfe',
 };
 
 const helpItem: SidebarItem = {
@@ -238,7 +251,10 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
         ? [
             {
               label: 'Kundenbetreuung',
-              items: [{ id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' }],
+              items: [
+                { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
+                { id: 'kunden-anfragen', label: 'Kunden-Anfragen', icon: <MessagesSquare className="w-5 h-5" />, href: '/admin/support' },
+              ],
             },
             // Eintrag steht schon oben – nicht doppelt im Cockpit
             ...employeeGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.id !== 'ergebnisse') })),
@@ -257,7 +273,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
 
   const bottomItems = isInternal
     ? [profileItem, settingsItem, helpItem, logoutItem]
-    : [settingsItem, helpItem, logoutItem];
+    : [settingsItem, kundenHilfeItem, logoutItem];
 
   return (
     <Sidebar

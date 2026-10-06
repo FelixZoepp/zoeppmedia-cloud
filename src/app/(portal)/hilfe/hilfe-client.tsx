@@ -19,6 +19,7 @@ import {
 import { Avatar, Card, PageHeader, SplitText } from '@/components/ui';
 import { buttonStyles } from '@/components/ui/button';
 import { helpFor, shortcutsFor, type Audience, type TopicIcon } from '@/lib/help/articles';
+import { SupportBereich } from './support-bereich';
 
 export interface Ansprechpartner {
   name: string;
@@ -56,7 +57,10 @@ export function HilfeClient({ audience, kontakt }: { audience: Audience; kontakt
 
   return (
     <div>
-      <PageHeader title="Hilfe-Center" description="Antworten, Abkürzungen – und ein Mensch, wenn du einen brauchst." />
+      <PageHeader
+        title={audience === 'kunde' ? 'FAQ & Support' : 'Hilfe-Center'}
+        description={audience === 'kunde' ? 'Antworten auf häufige Fragen – und direkter Draht zu uns, wenn du einen brauchst.' : 'Antworten, Abkürzungen – und ein Mensch, wenn du einen brauchst.'}
+      />
 
       {/* Hero */}
       <section data-rise="" className="fx-swirl rounded-2xl p-6 md:p-10">
@@ -225,15 +229,18 @@ export function HilfeClient({ audience, kontakt }: { audience: Audience; kontakt
                         {kontakt.phone}
                       </a>
                     )}
+                    <a href="#support" className="text-center text-[14px] font-medium text-red-100 hover:underline">
+                      Support-Anfrage schreiben
+                    </a>
                   </div>
                 </>
               ) : (
                 <>
                   <p className="mt-4 text-[22px] font-semibold leading-tight tracking-[-0.03em]">Noch Fragen?</p>
-                  <p className="mt-2 text-[14px] text-red-200">Schreib uns direkt über den Projektstatus – wir melden uns schnellstmöglich.</p>
-                  <Link href="/status" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-red-800 text-[15px] font-medium text-red-50 hover:bg-red-700">
-                    Nachricht schreiben
-                  </Link>
+                  <p className="mt-2 text-[14px] text-red-200">Schreib uns eine Support-Anfrage – wir melden uns schnellstmöglich.</p>
+                  <a href="#support" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-red-800 text-[15px] font-medium text-red-50 hover:bg-red-700">
+                    Anfrage schreiben
+                  </a>
                 </>
               )
             ) : (
@@ -248,6 +255,8 @@ export function HilfeClient({ audience, kontakt }: { audience: Audience; kontakt
           </section>
         </div>
       </div>
+
+      {audience === 'kunde' && <SupportBereich />}
     </div>
   );
 }
