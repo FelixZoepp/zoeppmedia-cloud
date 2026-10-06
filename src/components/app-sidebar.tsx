@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Sidebar, type SidebarGroup, type SidebarItem } from '@/components/ui/sidebar';
 import { InstallPromo } from '@/components/install-promo';
-import { SALES_BEREICHE } from '@/lib/team/funktionen';
+import { KUNDEN_CLOUD_BEREICHE, SALES_BEREICHE } from '@/lib/team/funktionen';
 import type { UserRole } from '@/lib/auth';
 import {
   LayoutDashboard,
@@ -38,6 +38,7 @@ import {
   Smartphone,
   Menu,
   LifeBuoy,
+  Headset,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -61,6 +62,7 @@ const adminGroups: SidebarGroup[] = [
   {
     label: 'Recruiting-Cloud',
     items: [
+      { id: 'innendienst', label: 'Innendienst', icon: <Headset className="w-5 h-5" />, href: '/innendienst' },
       { id: 'admin-recruiting', label: 'Kunden-Übersicht', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin/recruiting' },
     ],
   },
@@ -211,7 +213,15 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSidebarProps) {
   const groups =
-    role === 'employee' && SALES_BEREICHE.includes(funktion ?? '')
+    role === 'employee' && KUNDEN_CLOUD_BEREICHE.includes(funktion ?? '')
+      ? [
+          {
+            label: 'Innendienst',
+            items: [{ id: 'innendienst', label: 'Kunden-Clouds', icon: <Headset className="w-5 h-5" />, href: '/innendienst' }],
+          },
+          ...employeeGroups,
+        ]
+      : role === 'employee' && SALES_BEREICHE.includes(funktion ?? '')
       ? [
           {
             label: 'Sales',

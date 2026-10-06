@@ -2,15 +2,16 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth';
 import { IMPERSONATION_COOKIE } from '@/lib/recruiting/scope';
+import { darfKundenCloud } from '@/lib/kunden-cloud/zugriff';
 import { ImpersonationBannerClient } from './impersonation-banner-client';
 
 /**
- * Server Component: renders only when an admin has an active impersonation cookie.
+ * Server Component: zeigt sich nur, wenn Admin/Innendienst gerade in einer Kunden-Cloud eingeloggt ist.
  * Fetches the agency name from the DB and passes it to the client sub-component.
  */
 export async function ImpersonationBanner() {
   const user = await getCurrentUser();
-  if (!user || user.role !== 'admin') return null;
+  if (!darfKundenCloud(user)) return null;
 
   const cookieStore = await cookies();
   const agencyId = cookieStore.get(IMPERSONATION_COOKIE)?.value ?? null;

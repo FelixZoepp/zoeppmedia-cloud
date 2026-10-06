@@ -44,10 +44,15 @@ export default function LoginPage() {
         .update({ last_login: new Date().toISOString() })
         .eq('id', userId)
         .then(() => undefined, () => undefined),
-      supabase.from('users').select('role').eq('id', userId).single(),
+      supabase.from('users').select('role, funktion').eq('id', userId).single(),
     ]);
 
     const role = profile?.role as string;
+    // Innendienst startet direkt in der Kunden-Übersicht
+    if (role === 'employee' && profile?.funktion === 'innendienst') {
+      window.location.href = '/innendienst';
+      return;
+    }
     if (role === 'admin' || role === 'employee') {
       window.location.href = '/admin';
       return;

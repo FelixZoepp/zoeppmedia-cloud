@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@/lib/supabase/server';
 import { IMPERSONATION_COOKIE } from '@/lib/recruiting/scope';
+import { KUNDEN_CLOUD_BEREICHE } from '@/lib/team/funktionen';
 
 export type UserRole = 'admin' | 'employee' | 'agency_owner' | 'agency_member' | 'agency_viewer';
 
@@ -42,14 +43,15 @@ export function isAgency(role: UserRole): boolean {
 
 /**
  * Returns the effective agency ID for the current request.
- * - For admins with an active impersonation cookie: returns the cookie value.
+ * - For admins/Innendienst with an active impersonation cookie: returns the cookie value.
  * - Otherwise: returns the user's own agency_id from the users table (may be null).
  */
 export async function getEffectiveAgencyId(): Promise<string | null> {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  if (user.role === 'admin') {
+  // Admins und Innendienst (1-Klick-Login in die Kunden-Cloud)
+  if (user.role === 'admin' || (user.role === 'employee' && KUNDEN_CLOUD_BEREICHE.includes(user.funktion ?? ''))) {
     const cookieStore = await cookies();
     const impersonated = cookieStore.get(IMPERSONATION_COOKIE)?.value ?? null;
     if (impersonated) return impersonated;

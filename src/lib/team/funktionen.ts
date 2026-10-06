@@ -5,7 +5,7 @@
 export const ABTEILUNGEN = [
   { value: 'sales', label: 'Sales', beschreibung: 'Vertriebsleitung, Setting und Closing' },
   { value: 'marketing', label: 'Marketing', beschreibung: 'Ads, Funnel und Content' },
-  { value: 'fulfillment', label: 'Fulfillment', beschreibung: 'Kundenbetreuung und Operations' },
+  { value: 'fulfillment', label: 'Fulfillment', beschreibung: 'Kundenbetreuung, Innendienst und Operations' },
   { value: 'verwaltung', label: 'Verwaltung', beschreibung: 'Buchhaltung und Mahnwesen' },
 ] as const;
 
@@ -18,6 +18,7 @@ export const BEREICHE = [
   { value: 'media_buyer', abteilung: 'marketing', label: 'Ads & Funnel', beschreibung: 'Ads, Videos, Funnel & Tracking' },
   { value: 'content', abteilung: 'marketing', label: 'Content', beschreibung: 'Content & Skripte' },
   { value: 'csm', abteilung: 'fulfillment', label: 'Kundenbetreuung', beschreibung: 'Kundenbetreuung & Calls' },
+  { value: 'innendienst', abteilung: 'fulfillment', label: 'Innendienst', beschreibung: 'Bewerber in den Kunden-Clouds bearbeiten' },
   { value: 'ops', abteilung: 'fulfillment', label: 'Operations', beschreibung: 'Operations' },
   { value: 'backoffice', abteilung: 'verwaltung', label: 'Buchhaltung', beschreibung: 'Buchhaltung & Mahnwesen' },
 ] as const;
@@ -36,6 +37,9 @@ export function abteilungVon(funktion: string | null | undefined): Abteilung | n
 export function istBereich(v: unknown): v is Bereich {
   return typeof v === 'string' && BEREICHE.some((b) => b.value === v);
 }
+
+/** Bereiche, die sich mit einem Klick in die Cloud eines Kunden einloggen dürfen (Admins immer) */
+export const KUNDEN_CLOUD_BEREICHE: readonly string[] = ['innendienst', 'csm'];
 
 /** Postgres-Check-Constraint verletzt → Datenbank kennt den Bereich noch nicht (Migration fehlt) */
 export function bereichFehltInDb(error: { code?: string } | null | undefined): boolean {

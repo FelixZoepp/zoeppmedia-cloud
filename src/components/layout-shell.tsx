@@ -18,6 +18,8 @@ interface ShellUser {
   avatar_url?: string | null;
   /** Bereich intern (users.funktion) – steuert Zusatz-Menüpunkte */
   funktion?: string | null;
+  /** Intern in einer Kunden-Cloud eingeloggt: Name des Kunden (Menü wie beim Kunden) */
+  kunde?: string | null;
   /** Kunden-Logo (nur Portal) */
   logo_url?: string | null;
 }
@@ -39,6 +41,8 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
   const setOpen = (v: boolean) => setOpenOn(v ? pathname : null);
   const boardRef = useRef<HTMLDivElement>(null);
   const internal = user.role === 'admin' || user.role === 'employee';
+  // In der Kunden-Cloud navigiert man wie der Kunde
+  const navRole: UserRole = user.kunde ? 'agency_owner' : user.role;
 
   useBoardReveal(boardRef, pathname);
 
@@ -99,7 +103,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
 
       {/* Desktop-Sidebar: schwebende Fläche */}
       <div className="sticky top-3.5 hidden h-[calc(100dvh-28px)] md:block">
-        <AppSidebar role={user.role} userName={user.name} funktion={user.funktion ?? null} logoUrl={user.logo_url ?? null} />
+        <AppSidebar role={navRole} userName={user.kunde ?? user.name} funktion={user.funktion ?? null} logoUrl={user.logo_url ?? null} />
       </div>
 
       {/* Mobile-Sidebar */}
@@ -107,7 +111,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
           <div className="absolute bottom-2.5 left-2.5 top-2.5">
-            <AppSidebar role={user.role} userName={user.name} funktion={user.funktion ?? null} logoUrl={user.logo_url ?? null} onClose={() => setOpen(false)} />
+            <AppSidebar role={navRole} userName={user.kunde ?? user.name} funktion={user.funktion ?? null} logoUrl={user.logo_url ?? null} onClose={() => setOpen(false)} />
           </div>
         </div>
       )}
@@ -149,7 +153,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         </main>
       </div>
       <AssistantPanel audience={audienceFor(user.role)} userName={user.name} />
-      <MobileTabBar role={user.role} pathname={pathname} onMore={() => setOpen(true)} />
+      <MobileTabBar role={navRole} pathname={pathname} onMore={() => setOpen(true)} />
     </div>
   );
 }
