@@ -9,6 +9,8 @@ import { AppSidebar, MobileTabBar } from '@/components/app-sidebar';
 import { useBoardReveal } from '@/components/ui/motion';
 import { Avatar } from '@/components/ui/avatar';
 import { AssistantPanel } from '@/components/assistant/assistant-panel';
+import { NeueBewerber } from '@/components/live/neue-bewerber';
+import { siehtLiveBewerber } from '@/lib/live/bewerber';
 import type { UserRole } from '@/lib/auth';
 
 interface ShellUser {
@@ -153,6 +155,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         </main>
       </div>
       <AssistantPanel audience={audienceFor(user.role)} userName={user.name} />
+      {siehtLiveBewerber(user) && <NeueBewerber role={user.role} funktion={user.funktion ?? null} />}
       <MobileTabBar role={navRole} pathname={pathname} onMore={() => setOpen(true)} />
     </div>
   );
