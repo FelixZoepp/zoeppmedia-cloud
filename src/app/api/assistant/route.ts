@@ -116,7 +116,16 @@ export async function POST(req: NextRequest) {
             : err instanceof Anthropic.APIError
               ? 'Die KI ist gerade nicht erreichbar. Bitte später erneut versuchen.'
               : 'Etwas ist schiefgelaufen.';
-        send({ type: 'error', message });
+        // Admins sehen den technischen Grund, damit sich Fehler (Schlüssel, Modell, Limits) schnell finden lassen
+        const detail =
+          user.role === 'admin'
+            ? err instanceof Anthropic.APIError
+              ? ` (Technisch: ${err.status ?? '–'} ${err.message.slice(0, 300)})`
+              : err instanceof Error
+                ? ` (Technisch: ${err.message.slice(0, 300)})`
+                : ''
+            : '';
+        send({ type: 'error', message: message + detail });
       } finally {
         controller.close();
       }
