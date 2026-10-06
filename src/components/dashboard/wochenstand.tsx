@@ -2,18 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui';
-import type { BerichtStatus, Wochenbericht } from '@/lib/wochenbericht/berechnung';
+import type { KundenUeberblick } from '@/lib/wochenbericht/berechnung';
 
-const STATUS: Record<BerichtStatus, { label: string; pill: string; text: string }> = {
-  auf_kurs: { label: 'Auf Kurs', pill: 'bg-green-700 text-white', text: 'text-green-800' },
-  achtung: { label: 'Achtung', pill: 'bg-amber-600 text-white', text: 'text-amber-800' },
-  kritisch: { label: 'Gegensteuern', pill: 'bg-red-700 text-white', text: 'text-red-800' },
-};
-const PUNKT = { ok: 'bg-green-600', gelb: 'bg-amber-500', rot: 'bg-red-600' } as const;
-
-/** Bist du auf Kurs? Stand der letzten 7 Tage – derselbe Inhalt wie der Wochenbericht per E-Mail */
+/** Wochenüberblick der letzten 7 Tage – neutral, derselbe Inhalt wie die E-Mail am Montag */
 export function Wochenstand() {
-  const [b, setB] = useState<Wochenbericht | null>(null);
+  const [b, setB] = useState<KundenUeberblick | null>(null);
 
   useEffect(() => {
     let aktiv = true;
@@ -26,29 +19,34 @@ export function Wochenstand() {
     };
   }, []);
 
-  if (!b) return null;
-  const st = STATUS[b.status];
+  if (!b || !b.kunde.kennzahlen.length) return null;
+  const schritte = [...b.kunde.naechsteSchritte, ...b.deineAufgaben];
   return (
     <Card className="mb-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${st.pill}`}>{st.label}</span>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[19px] font-medium tracking-[-0.02em]">Dein Wochenüberblick</h2>
         <span className="text-[13px] text-gray-500">Letzte 7 Tage · {b.zeitraum}</span>
       </div>
-      <p className={`mt-2 text-[19px] font-medium tracking-[-0.02em] ${st.text}`}>{b.ueberschrift}</p>
-      {b.punkte.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
-          {b.punkte.map((p, i) => (
-            <li key={i} className="flex gap-2.5 text-[14px] leading-snug text-gray-800">
-              <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${PUNKT[p.stufe]}`} />
-              {p.text}
-            </li>
-          ))}
-        </ul>
-      )}
-      {b.deineAufgaben.length > 0 && (
-        <p className="mt-3 text-[13.5px] text-gray-600">
-          <strong className="font-semibold text-gray-800">Deine Aufgaben:</strong> {b.deineAufgaben.join(' · ')}
-        </p>
+      <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+        {b.kunde.kennzahlen.map((k) => (
+          <div key={k.label} className="min-w-0">
+            <dt className="truncate text-[12.5px] text-gray-500">{k.label}</dt>
+            <dd className="text-[17px] font-semibold text-ink">
+              {k.wert}
+              {k.vorwoche && <span className="ml-1.5 text-[12px] font-medium text-green-700">{k.vorwoche}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {schritte.length > 0 && (
+        <div className="mt-4 border-t border-gray-100 pt-3">
+          <p className="text-[13px] font-semibold text-gray-700">Deine nächsten Schritte</p>
+          <ul className="mt-1.5 space-y-1">
+            {schritte.map((s, i) => (
+              <li key={i} className="text-[14px] leading-snug text-gray-700">• {s}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </Card>
   );

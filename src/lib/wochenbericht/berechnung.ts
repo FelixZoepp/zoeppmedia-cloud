@@ -1,10 +1,12 @@
 /**
- * Wochenbericht für Kunden: Ist der Kunde auf Kurs?
+ * Wochenbericht: neutraler Überblick für den Kunden + interne Ampel fürs Team.
  *
  * - Aufbau (Zahlung/Onboarding/Setup): Fortschritt bis zum Kampagnenstart, offene Kunden-Aufgaben.
  * - Kampagne läuft (Continuity): Bewerber, Kontakt, Tempo, Gespräche, Einstellungen der letzten 7 Tage.
  *
- * Status: auf_kurs (alles grün) · achtung (mind. ein gelber Punkt) · kritisch (mind. ein roter Punkt).
+ * Kunde (`kunde`, `deineAufgaben`, `wirErledigt` …): nur Zahlen und nächste Schritte, keine Wertung,
+ * kein Status, Vorwochen-Vergleich nur bei Zuwachs.
+ * Intern (`status`, `punkte`): auf_kurs · achtung · kritisch – nur für Team-Übersicht und Benachrichtigung.
  * Rein (keine I/O) – Laden in laden.ts.
  */
 
@@ -52,10 +54,16 @@ export interface Wochenbericht {
   firma: string;
   vorname: string;
   modus: 'aufbau' | 'kampagne';
+  /** intern: Ampel fürs Team – nie an den Kunden */
   status: BerichtStatus;
+  /** intern */
   ueberschrift: string;
+  /** intern: alle Zahlen inkl. Vorwochen-Vergleich */
   kennzahlen: Kennzahl[];
+  /** intern: Einordnung mit Ampel */
   punkte: Punkt[];
+  /** für den Kunden: neutrale Zahlen und nächste Schritte */
+  kunde: { kennzahlen: Kennzahl[]; naechsteSchritte: string[] };
   deineAufgaben: string[];
   wirErledigt: string[];
   wirAlsNaechstes: string[];
@@ -103,7 +111,10 @@ export function berechneWochenbericht(e: WochenberichtEingabe): Wochenbericht {
 
   // Kunden-Aufgaben: überfällige sind immer ein Thema
   const ueberfaellig = e.kundenAufgaben.filter((a) => a.faellig_am && a.faellig_am < heute);
-  const deineAufgaben = e.kundenAufgaben.map((a) => (a.faellig_am && a.faellig_am < heute ? `${a.titel} (überfällig)` : a.titel));
+  const deineAufgaben = e.kundenAufgaben.map((a) => a.titel);
+  const naechsteSchritte: string[] = [];
+  // Für den Kunden ausblenden, wenn die Zahl kein gutes Licht wirft und wir sie verantworten (Innendienst)
+  const ausblenden = new Set<string>();
 
   const aufbau = e.phase !== 'continuity';
   const kennzahlen: Kennzahl[] = [];
@@ -149,6 +160,15 @@ export function berechneWochenbericht(e: WochenberichtEingabe): Wochenbericht {
     }
 
     const wir = e.wirBearbeiten;
+    if (wir) {
+      if (quote === null || quote < 80) ausblenden.add('Kontaktiert');
+      if (tempo === null || tempo > 60) ausblenden.add('Ø Zeit bis zum ersten Kontakt');
+      if (erreicht === null || erreicht < 50) ausblenden.add('Erreicht');
+    }
+    if (!wir && liegen > 0) {
+      naechsteSchritte.push(`${liegen} ${liegen === 1 ? 'Bewerber wartet' : 'Bewerber warten'} noch auf den ersten Anruf – am schnellsten über „Anrufen“.`);
+    }
+    if (e.umsaetzeFehlen) naechsteSchritte.push('Umsätze deiner neuen Vertriebler unter „Umsätze“ eintragen – dann siehst du deinen ROI.');
     // 1. Kommen Bewerber rein? (unsere Verantwortung)
     if (neu.length === 0) add('rot', 'Diese Woche sind keine neuen Bewerber eingegangen – wir prüfen die Kampagne und melden uns.');
     else if (neuVor >= 5 && neu.length < neuVor * 0.5) add('gelb', `Weniger Bewerber als in der Vorwoche (${neu.length} statt ${neuVor}) – wir optimieren die Anzeigen.`);
@@ -199,13 +219,27 @@ export function berechneWochenbericht(e: WochenberichtEingabe): Wochenbericht {
     kennzahlen,
     // Wichtiges zuerst
     punkte: [...punkte].sort((a, b) => rang(a.stufe) - rang(b.stufe)),
+    kunde: {
+      kennzahlen: kennzahlen
+        .filter((k) => !ausblenden.has(k.label))
+        .map((k) => ({ ...k, vorwoche: k.vorwoche?.startsWith('+') ? k.vorwoche : null })),
+      naechsteSchritte,
+    },
     deineAufgaben,
     wirErledigt: e.wirErledigt,
     wirAlsNaechstes: e.wirAlsNaechstes,
-    empfehlung: status === 'kritisch' ? null : e.empfehlung,
+    empfehlung: e.empfehlung,
   };
 }
 
 function rang(s: PunktStufe): number {
   return s === 'rot' ? 0 : s === 'gelb' ? 1 : 2;
+}
+
+/** Nur das, was der Kunde sehen darf – ohne interne Ampel und Einordnung */
+export type KundenUeberblick = Pick<Wochenbericht, 'kw' | 'jahr' | 'zeitraum' | 'firma' | 'vorname' | 'modus' | 'kunde' | 'deineAufgaben' | 'wirErledigt' | 'wirAlsNaechstes' | 'empfehlung'>;
+
+export function fuerKunde(b: Wochenbericht): KundenUeberblick {
+  const { kw, jahr, zeitraum, firma, vorname, modus, kunde, deineAufgaben, wirErledigt, wirAlsNaechstes, empfehlung } = b;
+  return { kw, jahr, zeitraum, firma, vorname, modus, kunde, deineAufgaben, wirErledigt, wirAlsNaechstes, empfehlung };
 }

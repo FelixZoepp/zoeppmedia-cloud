@@ -17,3 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_wochenberichte_agency ON wochenberichte(agency_id
 ALTER TABLE wochenberichte ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Wochenberichte lesen" ON wochenberichte FOR SELECT TO authenticated USING (public.can_access_agency(agency_id));
 -- Schreiben nur serverseitig (Service-Role)
+
+-- Gespeicherte Berichte enthalten die interne Ampel → nur fürs Team lesbar (Kunden sehen den Überblick über /api/wochenbericht)
+DROP POLICY IF EXISTS "Wochenberichte lesen" ON wochenberichte;
+CREATE POLICY "Wochenberichte intern lesen" ON wochenberichte FOR SELECT TO authenticated USING (public.is_internal_user());

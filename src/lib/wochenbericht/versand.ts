@@ -3,6 +3,7 @@ import { sendeWochenberichtEmail } from '@/lib/email/resend';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { ladeBerichtKunden, ladeWochenbericht } from './laden';
 import { betreffWochenbericht, wochenberichtHtml } from './email';
+import { fuerKunde } from './berechnung';
 
 /** Schalter „Wochenberichte automatisch montags senden“ (system_einstellungen) */
 export const AKTIV_KEY = 'wochenberichte_aktiv';
@@ -66,7 +67,8 @@ export async function sendeWochenberichte(
         out.push({ ...basis, status: bericht.status, ergebnis: 'kein_empfaenger' });
         continue;
       }
-      await sendeWochenberichtEmail(empfaenger, betreffWochenbericht(bericht), wochenberichtHtml(bericht, `${cloudUrl}/reports`));
+      const ueberblick = fuerKunde(bericht);
+      await sendeWochenberichtEmail(empfaenger, betreffWochenbericht(ueberblick), wochenberichtHtml(ueberblick, `${cloudUrl}/dashboard`));
       await svc.from('wochenberichte').update({ gesendet_am: new Date().toISOString() }).eq('agency_id', k.id).eq('jahr', bericht.jahr).eq('kw', bericht.kw);
       out.push({ ...basis, status: bericht.status, ergebnis: 'gesendet' });
       await new Promise((r) => setTimeout(r, 400)); // Resend-Limit
@@ -77,7 +79,7 @@ export async function sendeWochenberichte(
     }
   }
 
-  // Team informieren: wer ist nicht auf Kurs?
+  // Team informieren (intern): bei wem läuft es nicht rund?
   const kritisch = out.filter((x) => x.status === 'kritisch').map((x) => x.name);
   const achtung = out.filter((x) => x.status === 'achtung').map((x) => x.name);
   if (!opts.nurId && (kritisch.length || achtung.length)) {

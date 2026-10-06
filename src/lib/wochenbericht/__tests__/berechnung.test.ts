@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { berechneWochenbericht, isoWoche, type WochenberichtEingabe } from '../berechnung';
+import { berechneWochenbericht, fuerKunde, isoWoche, type WochenberichtEingabe } from '../berechnung';
 import { wochenberichtHtml, betreffWochenbericht } from '../email';
 
 const jetzt = new Date('2026-10-12T06:00:00Z'); // Montag
@@ -59,13 +59,22 @@ describe('Wochenbericht', () => {
     const b = berechneWochenbericht(basis({ kandidaten: [bewerber(10, true)] }));
     expect(b.status).toBe('kritisch');
     expect(b.punkte[0]).toMatchObject({ stufe: 'rot' });
-    expect(b.empfehlung).toBeNull();
+    // Kunde sieht nur neutrale Zahlen – keine Ampel, kein negativer Vorwochen-Vergleich
+    const k = fuerKunde(b);
+    expect(k).not.toHaveProperty('status');
+    expect(k).not.toHaveProperty('punkte');
+    expect(k.kunde.kennzahlen.find((x) => x.label === 'Neue Bewerber')).toMatchObject({ wert: '0', vorwoche: null });
   });
 
   it('kritisch: Bewerber werden nicht angerufen – Ansprache je nachdem, wer bearbeitet', () => {
     const k = [1, 2, 3, 4].map((t) => bewerber(t, false));
     expect(berechneWochenbericht(basis({ kandidaten: k })).punkte.some((p) => p.stufe === 'rot' && p.text.includes('verlorenes Geld'))).toBe(true);
-    expect(berechneWochenbericht(basis({ kandidaten: k, wirBearbeiten: true })).punkte.some((p) => p.text.includes('unser Innendienst'))).toBe(true);
+    const innen = berechneWochenbericht(basis({ kandidaten: k, wirBearbeiten: true }));
+    expect(innen.punkte.some((p) => p.text.includes('unser Innendienst'))).toBe(true);
+    // Innendienst-Kunde: schwache Kontaktquote (unsere Arbeit) taucht beim Kunden nicht auf, keine Anruf-Aufforderung
+    expect(innen.kunde.kennzahlen.map((x) => x.label)).not.toContain('Kontaktiert');
+    expect(innen.kunde.naechsteSchritte).toEqual([]);
+    expect(berechneWochenbericht(basis({ kandidaten: k })).kunde.naechsteSchritte[0]).toContain('2 Bewerber warten noch auf den ersten Anruf');
   });
 
   it('Achtung: langsamer Erstkontakt, fehlende Umsätze', () => {
@@ -87,13 +96,14 @@ describe('Wochenbericht', () => {
     expect(b.modus).toBe('aufbau');
     expect(b.status).toBe('achtung');
     expect(b.kennzahlen[0]).toEqual({ label: 'Fortschritt bis zum Start', wert: '50 %', vorwoche: null });
-    expect(b.deineAufgaben).toEqual(['Indeed-Zugang gegeben (überfällig)', 'Onboarding-Formular']);
+    expect(b.deineAufgaben).toEqual(['Indeed-Zugang gegeben', 'Onboarding-Formular']);
   });
 
   it('E-Mail: Betreff mit Status, Inhalte escaped', () => {
     const b = berechneWochenbericht(basis({ firma: '<b>X</b>', kandidaten: [bewerber(1, true)] }));
-    expect(betreffWochenbericht(b)).toContain('KW 41');
-    const html = wochenberichtHtml(b, 'https://cloud.zoeppmedia.de/reports');
+    expect(betreffWochenbericht(fuerKunde(b))).toBe('Dein Wochenüberblick KW 41 – <b>X</b>');
+    const html = wochenberichtHtml(fuerKunde(b), 'https://cloud.zoeppmedia.de/dashboard');
+    expect(html).not.toMatch(/Achtung|Gegensteuern|Auf Kurs|kritisch/i);
     expect(html).toContain('&lt;b&gt;X&lt;/b&gt;');
     expect(html).not.toContain('<b>X</b>');
   });

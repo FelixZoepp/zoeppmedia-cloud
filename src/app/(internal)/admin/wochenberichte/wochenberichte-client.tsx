@@ -72,7 +72,7 @@ export function WochenberichteClient() {
     <div>
       <PageHeader
         title="Wochenberichte"
-        description="Jeder Kunde bekommt montags seinen Stand: auf Kurs, Achtung oder Gegensteuern – mit Zahlen, offenen Aufgaben und was wir erledigt haben."
+        description="Jeder Kunde bekommt montags einen neutralen Wochenüberblick: Zahlen, seine nächsten Schritte und was wir erledigt haben. Die Ampel hier ist nur intern – der Kunde sieht sie nie."
       />
 
       {d && (
@@ -81,7 +81,7 @@ export function WochenberichteClient() {
             <div>
               <p className="text-[16px] font-medium">Automatischer Versand montags um 8 Uhr</p>
               <p className="text-[13.5px] text-gray-600">
-                {d.aktiv ? 'Ist an.' : 'Ist aus – schau dir vorher ein paar Vorschauen an.'} Kritische Kunden meldet die Cloud danach dem Team.
+                {d.aktiv ? 'Ist an.' : 'Ist aus – schau dir vorher ein paar Vorschauen an.'} Kunden mit Handlungsbedarf (interne Ampel) meldet die Cloud danach dem Team.
               </p>
             </div>
             {d.darfSenden && (
