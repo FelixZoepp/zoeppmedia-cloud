@@ -151,13 +151,10 @@ export async function sendAgencyCalendarInvite(
   });
 }
 
-export async function sendWeeklyReportEmail(to: string, kw: number, html: string) {
-  return getResend().emails.send({
-    from: FROM,
-    to,
-    subject: `Dein Wochenbericht — KW ${kw}`,
-    html,
-  });
+/** Wochenbericht an die Kunden-Logins (Resend wirft nicht – Fehler kommen im Ergebnis) */
+export async function sendeWochenberichtEmail(to: string[], betreff: string, html: string) {
+  const { error } = await getResend().emails.send({ from: FROM, to, subject: betreff, html });
+  if (error) throw new Error(error.message);
 }
 
 export async function sendReportEmail(

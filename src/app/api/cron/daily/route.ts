@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { detectProblemsForAgency } from '@/lib/problems/detect';
-import { sendWeeklyReports, WeeklyReportResult } from '@/lib/email/weekly-report-send';
 
 // Vercel Cron: GET /api/cron/daily at 08:00 UTC daily
 
@@ -257,17 +256,7 @@ async function runDailyJobs() {
     kpiSnapshots = await writeKpiSnapshots(supabase);
   } catch { /* silent */ }
 
-  // 7. Weekly report — only on Mondays
-  // DEAKTIVIERT (2026-09-17, Felix): Wochenberichte vorerst nicht versenden.
-  // Zum Reaktivieren: WEEKLY_REPORTS_ENABLED=true als Env-Var setzen.
-  let weeklyReport: WeeklyReportResult | null = null;
-  if (now.getDay() === 1 && process.env.WEEKLY_REPORTS_ENABLED === 'true') {
-    try {
-      weeklyReport = await sendWeeklyReports(supabase);
-    } catch {
-      weeklyReport = { ok: false, sent: 0, skipped: 0, errors: 1, details: [] };
-    }
-  }
+  // 7. Wochenberichte laufen über /api/cron/weekly-report (montags, Schalter unter Admin → Wochenberichte)
 
   // 8. SEPA Pre-Debit Notifications (1 day before debit)
   let preDebitSent = 0;
@@ -391,7 +380,6 @@ async function runDailyJobs() {
     metaSynced,
     kpiSnapshots,
     backupAdAccountTasksCreated,
-    weeklyReport,
     preDebitSent,
     accessReminders,
     stepReminders,

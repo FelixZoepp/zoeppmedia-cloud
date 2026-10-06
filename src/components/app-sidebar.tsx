@@ -43,6 +43,7 @@ import {
   Plug,
   Lightbulb,
   MessagesSquare,
+  Mail,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -54,6 +55,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
       { id: 'kunden-anfragen', label: 'Kunden-Anfragen', icon: <MessagesSquare className="w-5 h-5" />, href: '/admin/support' },
+      { id: 'wochenberichte', label: 'Wochenberichte', icon: <Mail className="w-5 h-5" />, href: '/admin/wochenberichte' },
       { id: 'start-analyse', label: 'Start-Analyse', icon: <Timer className="w-5 h-5" />, href: '/start-analyse' },
       { id: 'kapazitaet', label: 'Kapazität', icon: <Gauge className="w-5 h-5" />, href: '/admin/kapazitaet' },
       { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
@@ -254,6 +256,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
               items: [
                 { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
                 { id: 'kunden-anfragen', label: 'Kunden-Anfragen', icon: <MessagesSquare className="w-5 h-5" />, href: '/admin/support' },
+                { id: 'wochenberichte', label: 'Wochenberichte', icon: <Mail className="w-5 h-5" />, href: '/admin/wochenberichte' },
               ],
             },
             // Eintrag steht schon oben – nicht doppelt im Cockpit
