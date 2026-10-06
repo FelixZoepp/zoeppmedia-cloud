@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { agencyLogo } from '@/lib/branding/logo';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+import { mitInnendienst } from '@/lib/fulfillment/pakete';
 
 /** Innendienst-Übersicht: je Kunde, was in seiner Cloud gerade zu tun ist. */
 
@@ -87,7 +88,7 @@ export async function ladeArbeit(svc: SupabaseClient, jetzt: Date = new Date()):
   const [{ data: ags }, { data: stages }, { data: convs }] = await Promise.all([
     svc
       .from('agencies')
-      .select('id, name, slug, settings, fulfillment_phase, pausiert_grund')
+      .select('id, name, slug, settings, fulfillment_phase, pausiert_grund, bausteine')
       .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
       .order('name'),
     svc.from('pipeline_stages').select('id, stage_type'),
@@ -114,7 +115,10 @@ export async function ladeArbeit(svc: SupabaseClient, jetzt: Date = new Date()):
   }
 
   return berechneArbeit(
-    ((ags ?? []) as Parameters<typeof berechneArbeit>[0]).filter((a) => a.fulfillment_phase !== 'beendet'),
+    // Nur Kunden, deren Bewerber wir bearbeiten (Baustein Innendienst; Bestandskunden ohne Angabe wie bisher)
+    ((ags ?? []) as Array<Parameters<typeof berechneArbeit>[0][number] & { bausteine: unknown }>).filter(
+      (a) => a.fulfillment_phase !== 'beendet' && mitInnendienst(a.bausteine),
+    ),
     kandidaten,
     new Map(((stages ?? []) as Array<{ id: string; stage_type: string | null }>).map((s) => [s.id, s.stage_type])),
     ungelesen,

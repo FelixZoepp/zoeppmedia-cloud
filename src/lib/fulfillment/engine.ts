@@ -8,7 +8,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   STEP_BY_KEY,
   nextPhase,
-  stepsForPhase,
+  stepsForKunde,
+  gilt,
   mapLegacyPhase,
   type AutoSignal,
   type Funktion,
@@ -16,6 +17,7 @@ import {
   type StepDef,
 } from './catalog';
 import { createNotification } from '@/lib/notifications/create';
+import { bausteineVon, type Baustein } from './pakete';
 
 export type StepStatus = 'offen' | 'in_arbeit' | 'zur_pruefung' | 'erledigt' | 'nicht_noetig';
 
@@ -64,6 +66,12 @@ export async function resolveOwner(svc: SupabaseClient, funktion: Funktion): Pro
   return (admin as { id: string } | null)?.id ?? null;
 }
 
+/** Gebuchte Bausteine eines Kunden (bestimmen, welche Schritte angelegt werden). */
+async function ladeBausteine(svc: SupabaseClient, agencyId: string): Promise<Baustein[]> {
+  const { data } = await svc.from('agencies').select('bausteine').eq('id', agencyId).maybeSingle();
+  return bausteineVon((data as { bausteine?: unknown } | null)?.bausteine);
+}
+
 /**
  * Phase starten: Kunde auf die Phase setzen und deren Schritte anlegen.
  * Fristen zählen ab jetzt, in der Continuity ab Kampagnenstart (launch_datum).
@@ -91,7 +99,7 @@ export async function startPhase(
   if (moveErr) throw new Error(`Phase konnte nicht gesetzt werden: ${moveErr.message}`);
   if (opts.vonPhase && !((moved ?? []) as unknown[]).length) return false;
 
-  const defs = stepsForPhase(phase);
+  const defs = stepsForKunde(phase, await ladeBausteine(svc, agencyId));
   const owners = new Map<Funktion, string | null>();
   for (const f of new Set(defs.map((d) => d.funktion))) owners.set(f, await resolveOwner(svc, f));
 
@@ -293,6 +301,14 @@ export async function isSignalSatisfied(svc: SupabaseClient, agencyId: string, s
       const { data } = await svc.from('ad_items').select('id').eq('agency_id', agencyId).limit(1).maybeSingle();
       return !!data;
     }
+    case 'ads_freigegeben': {
+      // Alles freigegeben: nichts mehr in Arbeit oder beim Kunden, mindestens eine Ad/Anzeige bereit oder live
+      const [{ data: offen }, { data: fertig }] = await Promise.all([
+        svc.from('ad_items').select('id').eq('agency_id', agencyId).in('stage', ['idee', 'material', 'bearbeitung', 'freigabe_kunde']).limit(1),
+        svc.from('ad_items').select('id').eq('agency_id', agencyId).in('stage', ['bereit', 'live']).limit(1),
+      ]);
+      return !(offen ?? []).length && !!(fertig ?? []).length;
+    }
     case 'kickoff_gebucht':
     case 'testimonial_gebucht':
       return false; // kommen nur live über den Calendly-Webhook
@@ -349,15 +365,20 @@ export async function reassignOpenStepsToFunktion(svc: SupabaseClient, userId: s
 export async function ergaenzeFehlendeSchritte(svc: SupabaseClient, agencyId: string): Promise<number> {
   const { data: a } = await svc
     .from('agencies')
-    .select('fulfillment_phase, fulfillment_phase_seit, launch_datum')
+    .select('fulfillment_phase, fulfillment_phase_seit, launch_datum, bausteine')
     .eq('id', agencyId)
     .maybeSingle();
-  const agency = a as { fulfillment_phase: Phase | null; fulfillment_phase_seit: string | null; launch_datum: string | null } | null;
-  if (!agency?.fulfillment_phase) return 0;
+  const agency = a as {
+    fulfillment_phase: Phase | null;
+    fulfillment_phase_seit: string | null;
+    launch_datum: string | null;
+    bausteine?: unknown;
+  } | null;
+  if (!agency?.fulfillment_phase || agency.fulfillment_phase === 'beendet') return 0;
 
   const { data: vorhanden } = await svc.from('client_steps').select('step_key').eq('agency_id', agencyId);
   const keys = new Set(((vorhanden ?? []) as Array<{ step_key: string }>).map((r) => r.step_key));
-  const fehlend = stepsForPhase(agency.fulfillment_phase).filter((d) => !keys.has(d.key));
+  const fehlend = stepsForKunde(agency.fulfillment_phase, bausteineVon(agency.bausteine)).filter((d) => !keys.has(d.key));
   if (!fehlend.length) return 0;
 
   const base =
@@ -379,4 +400,34 @@ export async function ergaenzeFehlendeSchritte(svc: SupabaseClient, agencyId: st
   await svc.from('client_steps').upsert(rows, { onConflict: 'agency_id,step_key', ignoreDuplicates: true });
   await applySatisfiedSignals(svc, agencyId, fehlend);
   return rows.length;
+}
+
+/**
+ * Gebuchte Bausteine ändern (z. B. Upsell von „nur Indeed“ auf Funnel + Meta):
+ * neue Schritte der laufenden Phase nachtragen, nicht mehr gebuchte offene Schritte auf „nicht nötig“.
+ */
+export async function aendereBausteine(
+  svc: SupabaseClient,
+  agencyId: string,
+  bausteine: Baustein[],
+  userId: string | null = null,
+): Promise<{ neu: number; entfallen: number }> {
+  const { error } = await svc.from('agencies').update({ bausteine }).eq('id', agencyId);
+  if (error) throw new Error(`Leistungen konnten nicht gespeichert werden: ${error.message}`);
+
+  const { data } = await svc
+    .from('client_steps')
+    .select('id, step_key, status')
+    .eq('agency_id', agencyId)
+    .not('status', 'in', '(erledigt,nicht_noetig)');
+  const weg = ((data ?? []) as Array<{ id: string; step_key: string }>).filter((r) => {
+    const def = STEP_BY_KEY.get(r.step_key);
+    return def && !gilt(def, bausteine);
+  });
+  // Erst nachtragen, dann streichen – sonst könnte die Phase weiterrutschen, bevor neue Schritte da sind
+  const neu = await ergaenzeFehlendeSchritte(svc, agencyId);
+  for (const r of weg) {
+    await setStepStatus(svc, r.id, 'nicht_noetig', { userId, kommentar: 'Leistung nicht gebucht' });
+  }
+  return { neu, entfallen: weg.length };
 }

@@ -10,6 +10,8 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { KundenZugaengeCard } from '@/components/clients/kunden-zugaenge-card';
+import { LeistungenCard } from '@/components/clients/leistungen-card';
+import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
 import { agencyLogo } from '@/lib/branding/logo';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
@@ -585,6 +587,10 @@ export default function ClientDetailPage() {
           }}
         />
       </Card>
+
+      <LeistungenCard agencyId={id} onGeaendert={load} />
+
+      <IndeedAnzeigeCard agencyId={id} />
 
       <KundenZugaengeCard agencyId={id} />
 

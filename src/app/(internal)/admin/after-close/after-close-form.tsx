@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
-import { Rocket, CheckCircle2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Rocket, CheckCircle2, ExternalLink, AlertTriangle, Check } from 'lucide-react';
+import { BAUSTEINE, PAKET_VORLAGEN, paketVorlage, type Baustein } from '@/lib/fulfillment/pakete';
 
 interface FormData {
   // Kunde
@@ -21,6 +22,7 @@ interface FormData {
   ust_id: string;
   // Vertrag
   paket: string;
+  bausteine: Baustein[];
   setup_betrag: string;
   mrr: string;
   laufzeit_monate: string;
@@ -54,6 +56,7 @@ const initialForm: FormData = {
   rechnungsmail: '',
   ust_id: '',
   paket: 'starter',
+  bausteine: ['indeed', 'meta'],
   setup_betrag: '',
   mrr: '',
   laufzeit_monate: '12',
@@ -68,12 +71,10 @@ const initialForm: FormData = {
   sonderfaelle: '',
 };
 
-const paketOptions = [
-  { value: 'starter', label: 'Starter' },
-  { value: 'growth', label: 'Growth' },
-  { value: 'scale', label: 'Scale' },
-  { value: 'custom', label: 'Custom' },
-];
+const paketOptions = PAKET_VORLAGEN.map((p) => ({
+  value: p.key,
+  label: p.retainer ? `${p.name} · ${p.retainer.toLocaleString('de-DE')} €/Monat` : p.name,
+}));
 
 const branchenOptions = [
   { value: '', label: 'Bitte wählen...' },
@@ -113,6 +114,28 @@ export function AfterCloseForm() {
     };
   }
 
+  /** Paket wählen → Leistungen, Preis und Laufzeit vorbelegen (danach frei anpassbar) */
+  function waehlePaket(key: string) {
+    const v = paketVorlage(key);
+    setForm((prev) => ({
+      ...prev,
+      paket: key,
+      ...(v && {
+        bausteine: v.bausteine,
+        mrr: v.retainer ? String(v.retainer) : prev.mrr,
+        setup_betrag: v.setup ? String(v.setup) : '',
+        laufzeit_monate: String(v.laufzeit),
+      }),
+    }));
+  }
+
+  function toggleBaustein(b: Baustein) {
+    setForm((prev) => ({
+      ...prev,
+      bausteine: prev.bausteine.includes(b) ? prev.bausteine.filter((x) => x !== b) : [...prev.bausteine, b],
+    }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -128,6 +151,7 @@ export function AfterCloseForm() {
       rechnungsmail: form.rechnungsmail.trim() || undefined,
       ust_id: form.ust_id.trim() || undefined,
       paket: form.paket,
+      bausteine: form.bausteine,
       setup_betrag: form.setup_betrag ? parseFloat(form.setup_betrag) : undefined,
       mrr: form.mrr ? parseFloat(form.mrr) : undefined,
       laufzeit_monate: form.laufzeit_monate ? parseInt(form.laufzeit_monate, 10) : undefined,
@@ -333,7 +357,7 @@ export function AfterCloseForm() {
                 <FieldLabel required>Paket</FieldLabel>
                 <Select
                   value={form.paket}
-                  onChange={update('paket')}
+                  onChange={(e) => waehlePaket(e.target.value)}
                   options={paketOptions}
                 />
               </div>
@@ -345,6 +369,41 @@ export function AfterCloseForm() {
                   onChange={update('setup_betrag')}
                   placeholder="z.B. 2500"
                 />
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel required>Was wir liefern</FieldLabel>
+              <p className="text-xs text-gray-500 mb-2">
+                Bestimmt die Schritte im Fulfillment. Cloud-Zugang und Masterclass mit Skripten sind immer dabei.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {BAUSTEINE.map((b) => {
+                  const an = form.bausteine.includes(b.key);
+                  return (
+                    <button
+                      key={b.key}
+                      type="button"
+                      onClick={() => toggleBaustein(b.key)}
+                      aria-pressed={an}
+                      className={`flex items-start gap-2.5 rounded-xl border p-3 text-left transition-colors ${
+                        an ? 'border-red-700 bg-red-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                          an ? 'border-red-700 bg-red-700 text-white' : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        {an && <Check className="h-3.5 w-3.5" />}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold text-gray-900">{b.label}</span>
+                        <span className="block text-xs text-gray-500">{b.hinweis}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -489,12 +548,12 @@ export function AfterCloseForm() {
         {/* Submit */}
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-2">
-            <Badge tone="softAccent">{form.paket}</Badge>
+            <Badge tone="softAccent">{paketVorlage(form.paket)?.name ?? form.paket}</Badge>
             {form.firma && (
               <span className="text-sm text-gray-500">{form.firma}</span>
             )}
           </div>
-          <Button type="submit" size="lg" disabled={submitting} glow>
+          <Button type="submit" size="lg" disabled={submitting || form.bausteine.length === 0} glow>
             <Rocket className="w-5 h-5" />
             {submitting ? 'Wird angelegt...' : 'Kunde anlegen & Projekt starten'}
           </Button>

@@ -9,6 +9,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
+import { isSignalSatisfied, signalSafe } from '@/lib/fulfillment/engine';
 
 import { AD_ASSET_BUCKET, type AdStage, type AdItem } from './constants';
 
@@ -81,11 +82,16 @@ export async function customerDecision(
   if (ad.stage !== 'freigabe_kunde') throw new Error('Diese Ad wartet gerade nicht auf deine Freigabe');
   if (aktion === 'aendern' && !kommentar?.trim()) throw new Error('Bitte kurz beschreiben, was geändert werden soll');
 
-  return moveAd(svc, adId, aktion === 'freigeben' ? 'bereit' : 'bearbeitung', {
+  const ergebnis = await moveAd(svc, adId, aktion === 'freigeben' ? 'bereit' : 'bearbeitung', {
     userId,
     kommentar: kommentar?.trim() || null,
     vonKunde: true,
   });
+  // Letzte offene Freigabe erteilt → Fulfillment-Schritt „Ads & Texte freigegeben“ abhaken
+  if (aktion === 'freigeben' && (await isSignalSatisfied(svc, agencyId, 'ads_freigegeben').catch(() => false))) {
+    await signalSafe(svc, agencyId, 'ads_freigegeben');
+  }
+  return ergebnis;
 }
 
 /** Signierte Vorschau-URL für hochgeladene Dateien (1 Stunde gültig). */

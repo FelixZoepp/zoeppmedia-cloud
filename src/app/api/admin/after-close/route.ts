@@ -6,6 +6,7 @@ import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { createProjectFromClose } from '@/lib/fulfillment/create-project';
 import { startPhase, setStepStatus } from '@/lib/fulfillment/engine';
+import { bausteineBereinigen, paketVorlage } from '@/lib/fulfillment/pakete';
 
 interface AfterCloseBody {
   // Kunde
@@ -19,6 +20,8 @@ interface AfterCloseBody {
   ust_id?: string;
   // Vertrag
   paket: string;
+  /** gebuchte Leistungen: indeed / meta / innendienst */
+  bausteine?: string[];
   setup_betrag?: number;
   mrr?: number;
   laufzeit_monate?: number;
@@ -52,6 +55,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const bausteine = Array.isArray(body.bausteine)
+    ? bausteineBereinigen(body.bausteine)
+    : (paketVorlage(body.paket)?.bausteine ?? ['indeed', 'meta']);
+  if (!bausteine) {
+    return NextResponse.json({ error: 'Bitte mindestens eine Leistung auswählen (Indeed, Funnel + Meta oder Innendienst).' }, { status: 400 });
+  }
+
   const admin = createAdminClient();
 
   // Get the current user for activity logging
@@ -76,6 +86,7 @@ export async function POST(request: Request) {
       rechnungsmail: body.rechnungsmail || null,
       ust_id: body.ust_id || null,
       paket: body.paket,
+      bausteine,
       setup_betrag: body.setup_betrag ?? null,
       mrr: body.mrr ?? null,
       laufzeit_monate: body.laufzeit_monate ?? null,
@@ -103,6 +114,18 @@ export async function POST(request: Request) {
     await admin.from('client_profiles').insert({
       agency_id: agencyId,
       gesuchte_rolle: body.gesuchte_rolle || null,
+    });
+
+    // Onboarding-Formular mit den Infos aus dem Abschluss vorbefüllen (Kunde ergänzt nur noch)
+    // – auch Grundlage für die 1-Klick-Indeed-Anzeige
+    await admin.from('onboarding_submissions').insert({
+      agency_id: agencyId,
+      status: 'in_progress',
+      company_name: body.firma,
+      job_title: body.gesuchte_rolle || null,
+      regions: body.regionen?.length ? body.regionen : null,
+      product: body.produkt || null,
+      industry: body.branche || null,
     });
 
     // --- 3. Create invite token ---
@@ -236,6 +259,7 @@ export async function POST(request: Request) {
       action_type: 'after_close',
       metadata: {
         paket: body.paket,
+        bausteine,
         mrr: body.mrr,
         tasks_created,
         access_items_created,

@@ -10,12 +10,17 @@
  *
  * Sind alle Schritte einer Phase erledigt/nicht nötig, rutscht der Kunde in die nächste
  * Phase und deren Schritte werden angelegt. Offboarding wird nur manuell gestartet.
+ *
+ * `nur` = Schritt gibt es nur, wenn der Kunde mindestens einen dieser Bausteine gebucht hat
+ * (siehe pakete.ts) – z. B. kein Werbemanager bei „nur Indeed“.
  */
+
+import type { Baustein } from './pakete';
 
 export type Phase = 'zahlung' | 'onboarding' | 'setup' | 'continuity' | 'offboarding' | 'beendet';
 
 /** Zuständige Funktion intern (users.funktion): Nils = media_buyer, Petra = backoffice, Felix = csm */
-export type Funktion = 'csm' | 'media_buyer' | 'backoffice' | 'content' | 'ops';
+export type Funktion = 'csm' | 'media_buyer' | 'backoffice' | 'content' | 'ops' | 'innendienst';
 
 export type AutoSignal =
   | 'kickoff_gebucht'
@@ -25,7 +30,8 @@ export type AutoSignal =
   | 'whatsapp_verbunden'
   | 'werbekonto_verbunden'
   | 'testimonial_gebucht'
-  | 'ad_ideen_angelegt';
+  | 'ad_ideen_angelegt'
+  | 'ads_freigegeben';
 
 export interface StepDef {
   key: string;
@@ -43,6 +49,8 @@ export interface StepDef {
   anleitung?: { schritte: string[]; pdf_seiten?: string };
   /** optional: Schritt darf übersprungen werden ("nicht nötig") */
   optional?: boolean;
+  /** nur bei diesen Bausteinen (mind. einer gebucht); ohne Angabe: immer */
+  nur?: Baustein[];
 }
 
 export const PHASES: Array<{ key: Phase; label: string; farbe: string; beschreibung: string }> = [
@@ -71,21 +79,25 @@ const meta = (
   frist_tage: 3,
   pruefen: true,
   anleitung: { schritte, pdf_seiten },
+  nur: ['meta'],
 });
 
 export const STEPS: StepDef[] = [
   // ── 1 · Zahlungsabwicklung ───────────────────────────────────────────────
   { key: 'z_vertrag', phase: 'zahlung', titel: 'Vertrag unterschrieben', wer: 'zoepp', funktion: 'csm', frist_tage: 0 },
-  { key: 'z_rechnung_setup', phase: 'zahlung', titel: 'Rechnung Einrichtungsgebühr geschrieben', wer: 'zoepp', funktion: 'backoffice', frist_tage: 0 },
   {
-    key: 'z_zahlung_setup', phase: 'zahlung', titel: 'Zahlungseingang Einrichtungsgebühr',
+    key: 'z_rechnung_setup', phase: 'zahlung', titel: 'Erste Rechnung geschrieben',
+    beschreibung: 'Einrichtungsgebühr – oder ohne Einrichtungsgebühr der erste Monat.', wer: 'zoepp', funktion: 'backoffice', frist_tage: 0,
+  },
+  {
+    key: 'z_zahlung_setup', phase: 'zahlung', titel: 'Erste Zahlung eingegangen',
     beschreibung: 'Erst nach Zahlungseingang startet das Onboarding.', wer: 'zoepp', funktion: 'backoffice', frist_tage: 7,
   },
 
   // ── 2 · Onboarding ───────────────────────────────────────────────────────
-  { key: 'o_kickoff_gebucht', phase: 'onboarding', titel: 'Kick-off-Meeting gebucht', wer: 'kunde', funktion: 'csm', frist_tage: 1, auto: 'kickoff_gebucht' },
-  { key: 'o_kickoff', phase: 'onboarding', titel: 'Kick-off-Meeting durchgeführt', wer: 'zoepp', funktion: 'csm', frist_tage: 3 },
-  { key: 'o_transkript', phase: 'onboarding', titel: 'Transkript hochgeladen', wer: 'zoepp', funktion: 'csm', frist_tage: 3, auto: 'transkript_hochgeladen' },
+  { key: 'o_kickoff_gebucht', phase: 'onboarding', titel: 'Kick-off-Meeting gebucht', wer: 'kunde', funktion: 'csm', frist_tage: 1, auto: 'kickoff_gebucht', nur: ['meta', 'innendienst'] },
+  { key: 'o_kickoff', phase: 'onboarding', titel: 'Kick-off-Meeting durchgeführt', wer: 'zoepp', funktion: 'csm', frist_tage: 3, nur: ['meta', 'innendienst'] },
+  { key: 'o_transkript', phase: 'onboarding', titel: 'Transkript hochgeladen', wer: 'zoepp', funktion: 'csm', frist_tage: 3, auto: 'transkript_hochgeladen', nur: ['meta', 'innendienst'] },
   { key: 'o_cloud_login', phase: 'onboarding', titel: 'In der Zoepp Cloud eingeloggt', wer: 'kunde', funktion: 'csm', frist_tage: 1, auto: 'kunde_eingeloggt' },
   {
     key: 'o_inhaltsfunnel', phase: 'onboarding', titel: 'Inhaltsfunnel ausgefüllt',
@@ -95,6 +107,7 @@ export const STEPS: StepDef[] = [
   {
     key: 'o_bilder', phase: 'onboarding', titel: 'Bilder & Branding hochgeladen',
     beschreibung: 'Logo, Farben, Fotos vom Team und vom Arbeitsalltag.', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true,
+    nur: ['meta'],
   },
   meta('o_meta_seite', 'Zugriff auf Facebook-Seite gegeben', [
     'Meta Business Suite öffnen und mit FACEBOOK anmelden (nicht Instagram)',
@@ -126,31 +139,41 @@ export const STEPS: StepDef[] = [
   meta('o_meta_zahlung', 'Zahlungsmethode im Werbekonto hinterlegt', [
     'Werbekonto öffnen → Abrechnung & Zahlungen → Zahlungsmethode hinzufügen',
   ], 'S. 2'),
-  { key: 'o_indeed', phase: 'onboarding', titel: 'Indeed-Zugang gegeben', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true, optional: true },
+  { key: 'o_indeed', phase: 'onboarding', titel: 'Indeed-Zugang gegeben', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true, nur: ['indeed'] },
   { key: 'o_whatsapp', phase: 'onboarding', titel: 'WhatsApp-Nummer verbunden', wer: 'kunde', funktion: 'csm', frist_tage: 3, auto: 'whatsapp_verbunden', optional: true },
-  { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode funktionieren.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
+  { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Meta: Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode. Indeed: Konto, Benachrichtigungen, Weiterleitung an die Cloud.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
   {
     key: 'o_systemnutzer', phase: 'onboarding', titel: 'Systemnutzer zugewiesen & Werbekonto-ID eingetragen',
     beschreibung: 'Im Business Manager unseren Systemnutzer dem Werbekonto des Kunden zuweisen, dann beim Kunden unter Integrationen die Werbekonto-ID eintragen – ab dann zieht die Cloud täglich die Werbedaten.',
-    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, auto: 'werbekonto_verbunden',
+    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, auto: 'werbekonto_verbunden', nur: ['meta'],
   },
 
   // ── 3 · Setup ────────────────────────────────────────────────────────────
   {
     key: 's_ideen', phase: 'setup', titel: 'Ad-Ideen angelegt (Video-Skripte oder Grafik-Ideen)',
     beschreibung: 'Im Ads-Board pro Idee eine Karte anlegen. Video-Skripte nur, wenn der Kunde Videos macht – sonst Grafik-Ideen.',
-    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 2, auto: 'ad_ideen_angelegt',
+    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 2, auto: 'ad_ideen_angelegt', nur: ['meta'],
   },
-  { key: 's_grafiken', phase: 'setup', titel: 'Grafiken gebaut', beschreibung: '3–5 Bild-Ads.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 3 },
-  { key: 's_funnel', phase: 'setup', titel: 'Funnel aufgebaut', beschreibung: 'Perspective-Template, Branding, Texte, Formular, Danke-Seite.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
-  { key: 's_funnel_tracking', phase: 'setup', titel: 'Funnel-Domain & Pixel eingerichtet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
-  { key: 's_testlead', phase: 'setup', titel: 'Test-Lead durchgespielt', beschreibung: 'Funnel → Cloud → WhatsApp einmal komplett.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5 },
-  { key: 's_werbemanager', phase: 'setup', titel: 'Werbemanager eingerichtet', beschreibung: 'Conversion-Events, Kampagne, Zielgruppe, Budget.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5 },
-  { key: 's_ads_vorbereitet', phase: 'setup', titel: 'Ads vorbereitet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5 },
+  { key: 's_grafiken', phase: 'setup', titel: 'Grafiken gebaut', beschreibung: '3–5 Bild-Ads.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 3, nur: ['meta'] },
+  { key: 's_funnel', phase: 'setup', titel: 'Funnel aufgebaut', beschreibung: 'Perspective-Template, Branding, Texte, Formular, Danke-Seite.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, nur: ['meta'] },
+  { key: 's_funnel_tracking', phase: 'setup', titel: 'Funnel-Domain & Pixel eingerichtet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, nur: ['meta'] },
+  {
+    key: 's_indeed_anzeige', phase: 'setup', titel: 'Indeed-Anzeige erstellt',
+    beschreibung: 'Auf der Kundenseite „Indeed-Anzeige generieren“, prüfen und an den Kunden zur Freigabe schicken – hakt sich dann selbst ab.',
+    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 2, nur: ['indeed'],
+  },
+  {
+    key: 's_innendienst', phase: 'setup', titel: 'Innendienst eingeteilt',
+    beschreibung: 'Zuständige Person im Innendienst festlegen und mit dem Kunden abstimmen: Termine, Ablauf, wer welche Bewerber anruft.',
+    wer: 'zoepp', funktion: 'innendienst', frist_tage: 5, nur: ['innendienst'],
+  },
+  { key: 's_testlead', phase: 'setup', titel: 'Test-Lead durchgespielt', beschreibung: 'Funnel bzw. Indeed → Cloud → WhatsApp einmal komplett.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5 },
+  { key: 's_werbemanager', phase: 'setup', titel: 'Werbemanager eingerichtet', beschreibung: 'Conversion-Events, Kampagne, Zielgruppe, Budget.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5, nur: ['meta'] },
+  { key: 's_ads_vorbereitet', phase: 'setup', titel: 'Ads vorbereitet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5, nur: ['meta'] },
   {
     key: 's_freigabe', phase: 'setup', titel: 'Ads & Texte freigegeben',
     beschreibung: 'Bitte schau dir die Ads und Texte an und gib sie frei – oder schreib uns, was wir ändern sollen.',
-    wer: 'kunde', funktion: 'media_buyer', frist_tage: 7,
+    wer: 'kunde', funktion: 'media_buyer', frist_tage: 7, auto: 'ads_freigegeben',
   },
   { key: 's_starttermin', phase: 'setup', titel: 'Starttermin vereinbart', wer: 'zoepp', funktion: 'csm', frist_tage: 7 },
   { key: 's_launch', phase: 'setup', titel: 'Kampagne live', beschreibung: 'Ads und Indeed-Anzeige gestartet, Kunde informiert.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 8 },
@@ -181,6 +204,15 @@ export const STEP_BY_KEY = new Map(STEPS.map((s) => [s.key, s]));
 
 export function stepsForPhase(phase: Phase): StepDef[] {
   return STEPS.filter((s) => s.phase === phase);
+}
+
+/** Schritte einer Phase, die für diesen Kunden gelten (nach gebuchten Bausteinen). */
+export function stepsForKunde(phase: Phase, bausteine: Baustein[]): StepDef[] {
+  return stepsForPhase(phase).filter((s) => gilt(s, bausteine));
+}
+
+export function gilt(s: StepDef, bausteine: Baustein[]): boolean {
+  return !s.nur || s.nur.some((b) => bausteine.includes(b));
 }
 
 /** Phase, die nach `phase` kommt (Continuity bleibt bis zum manuellen Offboarding stehen). */
