@@ -141,11 +141,18 @@ const agencyGroups: SidebarGroup[] = [
     label: 'Recruiting',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, href: '/dashboard' },
-      { id: 'inbox', label: 'Inbox', icon: <MessageSquare className="w-5 h-5" />, href: '/inbox' },
-      { id: 'jobs', label: 'Stellenanzeigen', icon: <Briefcase className="w-5 h-5" />, href: '/jobs' },
       { id: 'candidates', label: 'Bewerber', icon: <ClipboardList className="w-5 h-5" />, href: '/candidates' },
-      { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/reports' },
+      { id: 'anrufen', label: 'Anrufen', icon: <PhoneCall className="w-5 h-5" />, href: '/anrufen' },
+      { id: 'inbox', label: 'Chat', icon: <MessageSquare className="w-5 h-5" />, href: '/inbox' },
+      { id: 'termine', label: 'Kalender', icon: <CalendarDays className="w-5 h-5" />, href: '/termine' },
       { id: 'statistiken', label: 'Statistiken', icon: <BarChart3 className="w-5 h-5" />, href: '/statistiken' },
+    ],
+  },
+  {
+    label: 'Kampagne',
+    items: [
+      { id: 'jobs', label: 'Stellenanzeigen', icon: <Briefcase className="w-5 h-5" />, href: '/jobs' },
+      { id: 'reports', label: 'Monatsreport', icon: <FileBarChart className="w-5 h-5" />, href: '/reports' },
     ],
   },
   {
@@ -158,6 +165,7 @@ const agencyGroups: SidebarGroup[] = [
   {
     label: 'Einstellungen',
     items: [
+      { id: 'team-zugaenge', label: 'Team & Zugänge', icon: <Users className="w-5 h-5" />, href: '/settings/team' },
       { id: 'whatsapp', label: 'WhatsApp', icon: <Smartphone className="w-5 h-5" />, href: '/settings/whatsapp' },
     ],
   },
@@ -242,7 +250,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
       brand={isInternal ? 'Z' : initial}
       brandImage={isInternal ? null : logoUrl ?? null}
       brandLabel={isInternal ? 'Zoepp Media' : userName}
-      brandSub={role === 'admin' ? 'Admin' : role === 'employee' ? 'Mitarbeiter' : undefined}
+      brandSub={role === 'admin' ? 'Admin' : role === 'employee' ? 'Mitarbeiter' : 'Recruiting Cloud'}
       groups={groups}
       bottomItems={bottomItems}
       promo={<InstallPromo />}
@@ -268,9 +276,9 @@ const MOBILE_TABS: Record<'internal_admin' | 'internal_employee' | 'agency', Sid
   ],
   agency: [
     { id: 'dashboard', label: 'Start', icon: <LayoutDashboard />, href: '/dashboard' },
-    { id: 'inbox', label: 'Inbox', icon: <MessageSquare />, href: '/inbox' },
     { id: 'candidates', label: 'Bewerber', icon: <ClipboardList />, href: '/candidates' },
-    { id: 'statistiken', label: 'Zahlen', icon: <BarChart3 />, href: '/statistiken' },
+    { id: 'anrufen', label: 'Anrufen', icon: <PhoneCall />, href: '/anrufen' },
+    { id: 'inbox', label: 'Chat', icon: <MessageSquare />, href: '/inbox' },
   ],
 };
 

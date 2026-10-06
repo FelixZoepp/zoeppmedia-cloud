@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import { AvatarUpload } from '@/components/avatar-upload';
+import { KundenZugaengeCard } from '@/components/clients/kunden-zugaenge-card';
 import { agencyLogo } from '@/lib/branding/logo';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
@@ -584,6 +585,8 @@ export default function ClientDetailPage() {
           }}
         />
       </Card>
+
+      <KundenZugaengeCard agencyId={id} />
 
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (

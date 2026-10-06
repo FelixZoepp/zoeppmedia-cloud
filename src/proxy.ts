@@ -32,6 +32,7 @@ export async function proxy(request: NextRequest) {
   // Public routes
   if (
     pathname.startsWith('/login') ||
+    pathname.startsWith('/k/') ||
     pathname === '/apply' || pathname.startsWith('/apply/') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/register-employee') ||
@@ -70,7 +71,8 @@ export async function proxy(request: NextRequest) {
 
     const role = profile?.role as string;
 
-    if ((role === 'agency_owner' || role === 'agency_member') && profile?.agency_id) {
+    // Onboarding füllt nur der Inhaber aus – Mitarbeiter des Kunden dürfen direkt arbeiten
+    if (role === 'agency_owner' && profile?.agency_id) {
       const { data: agency } = await supabase
         .from('agencies')
         .select('onboarding_completed')

@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
+import { AnrufStatsSection } from './anruf-stats-section';
 import type { RecruitingStatsPayload, JobTableRow } from '@/lib/kpi/get-recruiting-stats';
 import type { KpiTiles } from '@/lib/kpi/recruiting-kpis';
 
@@ -472,6 +473,9 @@ export function RecruitingStatsView() {
               </div>
             </Card>
           </div>
+
+          {/* Anrufe (Erreichbarkeit, je Person, Speed-to-Lead, No-Shows) */}
+          <AnrufStatsSection zeitraum={zeitraum} />
 
           {/* 6. Jobs-Tabelle */}
           <Card padding="md">

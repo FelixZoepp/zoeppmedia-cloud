@@ -1,4 +1,4 @@
-import { getCurrentUser, isInternal } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { calculateRecruitingKpis } from '@/lib/recruiting/kpis';
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (isInternal(user.role) && agencyIdParam) {
     agencyId = agencyIdParam;
   } else {
-    agencyId = user.agency_id;
+    agencyId = await getEffectiveAgencyId();
   }
 
   if (!agencyId) {

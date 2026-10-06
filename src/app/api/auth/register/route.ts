@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
     agency_id: invite.agency_id,
     email,
     name,
-    role: 'agency_owner',
+    // Rolle aus der Einladung: Inhaber, Mitarbeiter (Innendienst des Kunden) oder nur lesen
+    role: ['agency_owner', 'agency_member', 'agency_viewer'].includes(invite.role) ? invite.role : 'agency_owner',
   });
 
   if (userError) {

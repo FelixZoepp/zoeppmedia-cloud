@@ -37,7 +37,7 @@ describe('berechneArbeit', () => {
 
   it('zählt Eingang, ohne Kontakt, heute, fällige Anrufe und ungelesene Nachrichten', () => {
     const a = r.find((x) => x.id === 'a')!;
-    expect(a).toMatchObject({ zuBearbeiten: 3, ohneKontakt: 2, neuHeute: 3, anrufeFaellig: 1, ungelesen: 0, logo_url: 'https://x/logo.png' });
+    expect(a).toMatchObject({ slug: null, zuBearbeiten: 3, ohneKontakt: 2, neuHeute: 3, anrufeFaellig: 1, ungelesen: 0, logo_url: 'https://x/logo.png' });
     expect(a.aeltesterOhneKontakt).toBe('2026-10-01T08:00:00Z');
     expect(r.find((x) => x.id === 'b')).toMatchObject({ zuBearbeiten: 1, ohneKontakt: 1, ungelesen: 4, pausiert: true });
   });

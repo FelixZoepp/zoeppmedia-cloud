@@ -1,4 +1,4 @@
-import { getCurrentUser, isInternal } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { transitionCandidate } from '@/lib/recruiting/stage-transition';
 import { NextRequest, NextResponse } from 'next/server';
@@ -45,7 +45,7 @@ export async function POST(
       return NextResponse.json({ error: 'Bewerber nicht gefunden' }, { status: 404 });
     }
 
-    if (candidate.agency_id !== user.agency_id) {
+    if (candidate.agency_id !== (await getEffectiveAgencyId())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
   }

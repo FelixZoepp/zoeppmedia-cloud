@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getCurrentUser, isAgency } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (!isAgency(user.role) || !user.agency_id) {
+  // Kunde: eigene Agentur; Admin/Innendienst: die geöffnete Kunden-Cloud
+  const agencyId = await getEffectiveAgencyId();
+  if (!agencyId) {
     return NextResponse.json({ error: 'Nur fuer Agenturen' }, { status: 403 });
   }
 
@@ -15,7 +17,7 @@ export async function GET() {
   const { data: agency, error } = await supabase
     .from('agencies')
     .select('fulfillment_phase, pausiert_grund, garantie_start, garantie_ende')
-    .eq('id', user.agency_id)
+    .eq('id', agencyId)
     .single();
 
   if (error || !agency) {

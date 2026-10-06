@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -9,12 +10,18 @@ export async function GET() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('role')
+    .select('role, agency_id')
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'employee')) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!profile) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // Kunden-Nutzer: eigenes Team (z. B. für die Bewerber-Zuweisung), gleiche Form wie team_members
+  if (profile.role !== 'admin' && profile.role !== 'employee') {
+    if (!profile.agency_id) return NextResponse.json([]);
+    // RLS zeigt Kunden nur die eigene Zeile → nach Prüfung der Agentur per Service-Client lesen
+    const { data: kollegen } = await createAdminClient().from('users').select('id, name').eq('agency_id', profile.agency_id).order('name');
+    return NextResponse.json((kollegen ?? []).map((k) => ({ id: k.id, user_id: k.id, name: k.name, agencies: [] })));
   }
 
   const supabaseServer = supabase;

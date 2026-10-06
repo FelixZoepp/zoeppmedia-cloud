@@ -4,12 +4,12 @@ import { logActivity } from '@/lib/activity/log';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { fireEvent } from '@/lib/automations/fire';
+import { requireAgencyScope } from '@/lib/recruiting/agency-scope';
 
 export async function GET(request: NextRequest) {
+  const scope = await requireAgencyScope();
+  if (scope instanceof NextResponse) return scope;
   const supabase = await createServerClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = request.nextUrl;
   const limit = parseInt(searchParams.get('limit') ?? '50', 10);
@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
   const { data: candidates, count } = await supabase
     .from('candidates')
     .select('*, current_stage:pipeline_stages(*)', { count: 'exact' })
+    // immer nur die Bewerber der eigenen bzw. geöffneten Kunden-Cloud (intern sieht RLS alle Agenturen)
+    .eq('agency_id', scope.agencyId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -31,18 +34,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
+  const scope = await requireAgencyScope();
+  if (scope instanceof NextResponse) return scope;
+  const { user } = scope;
+  const profile = { agency_id: scope.agencyId };
   const supabase = await createServerClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('agency_id')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
   const { name, email, phone, source } = await request.json();
 

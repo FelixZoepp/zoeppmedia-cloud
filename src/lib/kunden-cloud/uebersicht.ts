@@ -7,6 +7,8 @@ import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 export interface KundeArbeit {
   id: string;
   name: string;
+  /** für den Kunden-Login-Link /k/<slug> */
+  slug: string | null;
   logo_url: string | null;
   phase: string | null;
   pausiert: boolean;
@@ -40,7 +42,7 @@ type Kandidat = {
 };
 
 export function berechneArbeit(
-  agencies: Array<{ id: string; name: string; settings: unknown; fulfillment_phase: string | null; pausiert_grund: string | null }>,
+  agencies: Array<{ id: string; name: string; slug?: string | null; settings: unknown; fulfillment_phase: string | null; pausiert_grund: string | null }>,
   kandidaten: Kandidat[],
   stageTyp: Map<string, string | null>,
   ungelesen: Map<string, number>,
@@ -62,6 +64,7 @@ export function berechneArbeit(
       return {
         id: a.id,
         name: a.name,
+        slug: a.slug ?? null,
         logo_url: agencyLogo(a.settings),
         phase: a.fulfillment_phase,
         pausiert: !!a.pausiert_grund,
@@ -84,7 +87,7 @@ export async function ladeArbeit(svc: SupabaseClient, jetzt: Date = new Date()):
   const [{ data: ags }, { data: stages }, { data: convs }] = await Promise.all([
     svc
       .from('agencies')
-      .select('id, name, settings, fulfillment_phase, pausiert_grund')
+      .select('id, name, slug, settings, fulfillment_phase, pausiert_grund')
       .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
       .order('name'),
     svc.from('pipeline_stages').select('id, stage_type'),

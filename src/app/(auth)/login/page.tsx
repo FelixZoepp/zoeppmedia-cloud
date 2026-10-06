@@ -2,7 +2,7 @@
 import { SplitText } from '@/components/ui/motion';
 
 import { createClient } from '@/lib/supabase/client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Mail, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,17 @@ export default function LoginPage() {
   const [mfaFactorId, setMfaFactorId] = useState('');
   const [mfaError, setMfaError] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
+
+  // Kunden-Cloud: /k/<slug> bzw. /login?kunde=<slug> zeigt Name und Logo des Kunden
+  const [kunde, setKunde] = useState<{ name: string; logo_url: string | null } | null>(null);
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get('kunde');
+    if (!slug) return;
+    fetch(`/api/public/kunde/${encodeURIComponent(slug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setKunde(d))
+      .catch(() => {});
+  }, []);
 
   const supabase = createClient();
 
@@ -184,12 +195,22 @@ export default function LoginPage() {
     <div className="w-full max-w-sm">
       <Card padding="lg" className="shadow-[0_30px_80px_-40px_#1a151466]">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-11 h-11 rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 flex items-center justify-center text-white shadow-hero font-bold text-lg">
-            Z
-          </div>
-          <div>
-            <SplitText as="h1" text="Zoepp Media Cloud" className="text-[24px] font-semibold leading-tight tracking-[-0.035em]" />
-            <p className="text-sm text-gray-600">Willkommen zurück</p>
+          {kunde?.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={kunde.logo_url} alt="" className="h-11 w-11 flex-none rounded-[12px] bg-white object-contain shadow-hero" />
+          ) : (
+            <div className="w-11 h-11 flex-none rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 flex items-center justify-center text-white shadow-hero font-bold text-lg">
+              {(kunde?.name ?? 'Z').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0">
+            <SplitText
+              key={kunde?.name ?? 'zoepp'}
+              as="h1"
+              text={kunde ? kunde.name : 'Zoepp Media Cloud'}
+              className="text-[24px] font-semibold leading-tight tracking-[-0.035em]"
+            />
+            <p className="text-sm text-gray-600">{kunde ? 'Recruiting Cloud · Willkommen zurück' : 'Willkommen zurück'}</p>
           </div>
         </div>
 

@@ -1,3 +1,4 @@
+import { getEffectiveAgencyId } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const requestedAgencyId = searchParams.get('agencyId');
   const isInternal = profile.role === 'admin' || profile.role === 'employee';
-  const agencyId = isInternal && requestedAgencyId ? requestedAgencyId : profile.agency_id;
+  const agencyId = isInternal && requestedAgencyId ? requestedAgencyId : await getEffectiveAgencyId();
 
   if (!agencyId) {
     return NextResponse.json({ totalCandidates: 0 });

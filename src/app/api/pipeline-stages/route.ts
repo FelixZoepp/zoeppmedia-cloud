@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getCurrentUser, isInternal } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -15,12 +15,8 @@ export async function GET(request: NextRequest) {
   const agencyIdParam = request.nextUrl.searchParams.get('agency_id');
 
   // Admins/employees can query any agency; others only their own
-  let agencyId: string | null;
-  if (isInternal(user.role) && agencyIdParam) {
-    agencyId = agencyIdParam;
-  } else {
-    agencyId = user.agency_id;
-  }
+  // (Innendienst/Admin ohne Parameter: die gerade geöffnete Kunden-Cloud)
+  const agencyId = isInternal(user.role) && agencyIdParam ? agencyIdParam : await getEffectiveAgencyId();
 
   const stages = await getStagesForAgency(admin, agencyId);
   return NextResponse.json(stages);

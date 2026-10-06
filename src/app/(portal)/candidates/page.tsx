@@ -32,7 +32,8 @@ export default function CandidatesPage() {
         fetch('/api/pipeline-stages').then((r) => (r.ok ? r.json() : [])),
         fetch('/api/applications').then((r) => r.json()),
         fetch('/api/jobs').then((r) => r.json()),
-        fetch('/api/team').then((r) => r.json()),
+        // Kunden-Team + Innendienst – funktioniert für Kunden und in der geöffneten Kunden-Cloud
+        fetch('/api/agency-team').then((r) => (r.ok ? r.json() : null)),
       ]);
       if (Array.isArray(stagesRes)) setStages(stagesRes);
       if (Array.isArray(appsRes)) setApplications(appsRes);
@@ -41,8 +42,8 @@ export default function CandidatesPage() {
         setJobs(mapped);
         if (mapped.length > 0 && !csvImportJobId) setCsvImportJobId(mapped[0].id);
       }
-      if (Array.isArray(usersRes)) {
-        setUsers(usersRes.map((u: { user_id: string; name: string }) => ({ id: u.user_id, name: u.name })));
+      if (usersRes && Array.isArray(usersRes.zuweisbar)) {
+        setUsers(usersRes.zuweisbar.map((u: { user_id: string; name: string }) => ({ id: u.user_id, name: u.name })));
       }
       setTableLoaded(true);
     } finally {

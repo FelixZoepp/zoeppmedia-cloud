@@ -18,7 +18,7 @@ interface ShellUser {
   avatar_url?: string | null;
   /** Bereich intern (users.funktion) – steuert Zusatz-Menüpunkte */
   funktion?: string | null;
-  /** Intern in einer Kunden-Cloud eingeloggt: Name des Kunden (Menü wie beim Kunden) */
+  /** Kunden-Cloud: Firmenname des Kunden als Marke (bei internen Nutzern zusätzlich Menü wie beim Kunden) */
   kunde?: string | null;
   /** Kunden-Logo (nur Portal) */
   logo_url?: string | null;

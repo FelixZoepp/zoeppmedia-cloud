@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createServerClient();
 
-  const agencyId = user.agency_id;
+  const agencyId = await getEffectiveAgencyId();
   const period = request.nextUrl.searchParams.get('period') ?? 'all';
 
   let fromDate: Date | null = null;

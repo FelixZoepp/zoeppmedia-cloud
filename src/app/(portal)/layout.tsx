@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isAgency } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { agencyLogo } from '@/lib/branding/logo';
 import { LayoutShell } from '@/components/layout-shell';
@@ -27,7 +27,8 @@ export default async function PortalLayout({ children }: { children: React.React
         role: user.role,
         avatar_url: user.avatar_url ?? null,
         logo_url: agencyLogo(agency?.settings),
-        kunde: inKundenCloud ? (agency?.name ?? 'Kunde') : null,
+        // Marke der Cloud: Firmenname des Kunden (auch für den Kunden selbst, nicht sein Personenname)
+        kunde: inKundenCloud || isAgency(user.role) ? (agency?.name ?? null) : null,
       }}
     >
       <ImpersonationBanner />

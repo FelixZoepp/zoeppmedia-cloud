@@ -1,4 +1,4 @@
-import { getCurrentUser, isInternal } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
     agencyId = agencyIdParam;
   } else {
-    agencyId = user.agency_id;
+    agencyId = await getEffectiveAgencyId();
   }
 
   const admin = createAdminClient();

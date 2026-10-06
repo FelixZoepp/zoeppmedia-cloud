@@ -21,8 +21,8 @@ export async function PATCH(
   // Update candidate's current stage (+ Absagegrund, falls mitgeschickt)
   const updatePayload: Record<string, unknown> = { current_stage_id: stage_id };
   if (typeof rejection_reason === 'string' && rejection_reason.trim()) {
-    updatePayload.rejection_reason = rejection_reason.trim();
-    updatePayload.rejected_at = new Date().toISOString();
+    // Spalte heißt live „ablehngrund“ (rejection_reason/rejected_at gibt es in candidates nicht)
+    updatePayload.ablehngrund = rejection_reason.trim();
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -52,6 +52,21 @@ export async function PATCH(
     .select('agency_id')
     .eq('id', id)
     .single();
+
+  // Bewerbungen mitziehen, damit Kanban (applications.stage_id) und Bewerberakte nicht auseinanderlaufen
+  if (candidate) {
+    const { data: stage } = await supabase.from('pipeline_stages').select('stage_type').eq('id', stage_id).maybeSingle();
+    const typ = (stage as { stage_type: string | null } | null)?.stage_type;
+    await supabase
+      .from('applications')
+      .update({
+        stage_id,
+        status: typ === 'hired' ? 'hired' : typ === 'rejected' ? 'rejected' : 'open',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('candidate_id', id)
+      .eq('agency_id', candidate.agency_id);
+  }
 
   if (candidate) {
     fireEvent('stage_changed', candidate.agency_id, { candidate_id: id, extra: { new_stage_id: stage_id } }).catch(() => {});

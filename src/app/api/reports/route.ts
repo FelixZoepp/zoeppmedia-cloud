@@ -1,4 +1,4 @@
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
@@ -32,7 +32,9 @@ export async function GET(request: Request) {
   const supabase = await createServerClient();
 
   const { searchParams } = new URL(request.url);
-  const agencyId = searchParams.get('agency_id') || currentUser.agency_id;
+  // agency_id-Parameter nur intern; sonst eigene bzw. geöffnete Kunden-Cloud
+  const agencyParam = searchParams.get('agency_id');
+  const agencyId = isInternal(currentUser.role) && agencyParam ? agencyParam : await getEffectiveAgencyId();
   const period = searchParams.get('period') || 'all';
 
   if (!agencyId) return NextResponse.json({ error: 'No agency' }, { status: 400 });

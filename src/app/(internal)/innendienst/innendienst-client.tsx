@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Inbox, MessageCircle, PhoneCall, RefreshCw, Search, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Inbox, Link2, MessageCircle, PhoneCall, RefreshCw, Search, UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
 import { Avatar, Button, Card, Input, PageHeader, SegmentedControl, StatCard } from '@/components/ui';
 import type { KundeArbeit } from '@/lib/kunden-cloud/uebersicht';
 
@@ -154,6 +155,20 @@ function KundeKarte({ k, index, jetzt }: { k: KundeArbeit; index: number; jetzt:
             {k.neuHeute === 0 && k.neu7Tage > 0 && <span> · {k.neu7Tage} in 7 Tagen</span>}
           </p>
         </div>
+        {k.slug && (
+          <button
+            type="button"
+            onClick={() => {
+              void navigator.clipboard.writeText(`${window.location.origin}/k/${k.slug}`);
+              toast.success('Login-Link für den Kunden kopiert');
+            }}
+            title="Login-Link für den Kunden kopieren"
+            aria-label={`Login-Link für ${k.name} kopieren`}
+            className="grid h-9 w-9 flex-none place-items-center rounded-full text-gray-500 hover:bg-panel hover:text-ink"
+          >
+            <Link2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2 rounded-[16px] bg-panel p-3 text-center">

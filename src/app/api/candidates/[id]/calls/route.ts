@@ -86,6 +86,13 @@ export async function POST(
       .eq('id', id);
   }
 
+  // Anruf-Modus: eigene Sperre nach dem Protokollieren lösen
+  await supabase
+    .from('candidates')
+    .update({ locked_by: null, locked_until: null })
+    .eq('id', id)
+    .eq('locked_by', user.id);
+
   await logActivity(supabase, {
     agency_id: candidate.agency_id,
     user_id: user.id,

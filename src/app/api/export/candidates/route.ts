@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 
 export async function GET() {
@@ -8,14 +8,16 @@ export async function GET() {
 
   const supabase = await createServerClient();
 
-  // Agency users export their own candidates; admins export all
+  // Kunden exportieren ihre Bewerber; intern die geöffnete Kunden-Cloud (ohne geöffnete Cloud: alle)
+  const agencyId = await getEffectiveAgencyId();
+  if (!agencyId && !isInternal(user.role)) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   let query = supabase
     .from('candidates')
     .select('name, email, phone, source, current_stage:pipeline_stages(name), created_at')
     .order('created_at', { ascending: false });
 
-  if (user.agency_id) {
-    query = query.eq('agency_id', user.agency_id);
+  if (agencyId) {
+    query = query.eq('agency_id', agencyId);
   }
 
   const { data, error } = await query;
