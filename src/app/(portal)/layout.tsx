@@ -6,6 +6,7 @@ import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
+import { aktiveAnsicht } from '@/lib/ansicht';
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -17,6 +18,7 @@ export default async function PortalLayout({ children }: { children: React.React
     ? await createAdminClient().from('agencies').select('name, settings').eq('id', agencyId).maybeSingle()
     : { data: null };
   // Intern eingeloggt in eine Kunden-Cloud → Menü und Logo des Kunden zeigen
+  const ansicht = await aktiveAnsicht(user);
   const inKundenCloud = (user.role === 'admin' || user.role === 'employee') && !!agencyId && agencyId !== user.agency_id && agencyId !== SALES_AGENCY_ID;
 
   return (
@@ -24,14 +26,17 @@ export default async function PortalLayout({ children }: { children: React.React
       user={{
         name: user.name,
         email: user.email,
-        role: user.role,
+        // Demo-Ansicht „Kunde“: genau wie der Kunde (Menü, Dashboard, KI)
+        role: ansicht === 'kunde' ? 'agency_owner' : user.role,
+        istAdmin: user.role === 'admin',
+        vorschau: ansicht === 'kunde' ? `Kunde ${agency?.name ?? ''}`.trim() : null,
         avatar_url: user.avatar_url ?? null,
         logo_url: agencyLogo(agency?.settings),
         // Marke der Cloud: Firmenname des Kunden (auch für den Kunden selbst, nicht sein Personenname)
         kunde: inKundenCloud || isAgency(user.role) ? (agency?.name ?? null) : null,
       }}
     >
-      <ImpersonationBanner />
+      {ansicht !== 'kunde' && <ImpersonationBanner />}
       {children}
       <PushManager />
     </LayoutShell>

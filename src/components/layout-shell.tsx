@@ -12,6 +12,7 @@ import { AssistantPanel } from '@/components/assistant/assistant-panel';
 import { NeueBewerber } from '@/components/live/neue-bewerber';
 import { siehtLiveBewerber } from '@/lib/live/bewerber';
 import type { UserRole } from '@/lib/auth';
+import { AnsichtLeiste, AnsichtWechsler } from '@/components/ansicht/ansicht-wechsler';
 
 interface ShellUser {
   name: string;
@@ -22,6 +23,10 @@ interface ShellUser {
   funktion?: string | null;
   /** Kunden-Cloud: Firmenname des Kunden als Marke (bei internen Nutzern zusätzlich Menü wie beim Kunden) */
   kunde?: string | null;
+  /** Echter Admin (für den Umschalter „Ansicht als …“) */
+  istAdmin?: boolean;
+  /** Aktive Demo-Ansicht, z. B. „Innendienst“ oder „Kunde: Fadi Abbes“ */
+  vorschau?: string | null;
   /** Kunden-Logo (nur Portal) */
   logo_url?: string | null;
 }
@@ -127,6 +132,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
           <span className="flex-1 text-[17px] font-semibold tracking-[-0.03em] md:hidden">Zoepp Cloud</span>
           {internal && <GlobalSearch />}
           <div className="ml-auto flex items-center gap-3">
+            {user.istAdmin && !user.vorschau && <AnsichtWechsler />}
             <NotificationBell />
             <Link
               href={internal ? '/profile' : '/settings'}
@@ -150,6 +156,7 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
         {/* Inhalt als eigene Fläche */}
         <main id="inhalt" className="min-w-0 rounded-2xl bg-panel px-4 pb-6 pt-6 md:px-[22px] md:pb-[22px] md:pt-7">
           <div ref={boardRef} className="mx-auto max-w-[1400px]">
+            {user.vorschau && <AnsichtLeiste label={user.vorschau} />}
             {children}
           </div>
         </main>

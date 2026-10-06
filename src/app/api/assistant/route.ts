@@ -6,6 +6,7 @@ import { audienceFor } from '@/lib/help/articles';
 import { toolsFor, type ToolContext } from '@/lib/assistant/tools';
 import { systemPromptFor } from '@/lib/assistant/prompt';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
+import { aktiveAnsicht, ANSICHTEN } from '@/lib/ansicht';
 
 export const maxDuration = 120;
 
@@ -41,18 +42,22 @@ export async function POST(req: NextRequest) {
   }
   const page = typeof body.page === 'string' ? body.page.slice(0, 200) : '/';
 
-  const audience = audienceFor(user.role);
+  // Demo-Ansicht (Admin): KI verhält sich wie für die gewählte Rolle – inkl. der Kunden-Regeln
+  const ansicht = await aktiveAnsicht(user);
+  const audience = ansicht === 'kunde' ? 'kunde' : ansicht ? 'team' : audienceFor(user.role);
+  const funktion = ansicht ? ANSICHTEN[ansicht].funktion : (user.funktion ?? null);
   // Kunde: eigene Agentur. Intern: nur wenn gerade eine Kunden-Cloud geöffnet ist (nicht die interne Sales-Agentur).
   const effektiv = await getEffectiveAgencyId();
-  const imKunden = isInternal(user.role) && !!effektiv && effektiv !== user.agency_id && effektiv !== SALES_AGENCY_ID;
+  const intern = isInternal(user.role) && audience !== 'kunde';
+  const imKunden = intern && !!effektiv && effektiv !== user.agency_id && effektiv !== SALES_AGENCY_ID;
   const ctx: ToolContext = {
     svc: createAdminClient(),
     userId: user.id,
     audience,
-    agencyId: isInternal(user.role) ? (imKunden ? effektiv : null) : effektiv,
-    funktion: user.funktion ?? null,
+    agencyId: intern ? (imKunden ? effektiv : null) : effektiv,
+    funktion,
   };
-  const defs = toolsFor(audience, user.funktion ?? null, imKunden);
+  const defs = toolsFor(audience, funktion, imKunden);
   const tools = defs.map((d) => d.tool);
   const byName = new Map(defs.map((d) => [d.tool.name, d]));
 
@@ -77,7 +82,7 @@ export async function POST(req: NextRequest) {
             betas: ['server-side-fallback-2026-07-01'],
             fallbacks: 'default',
             output_config: { effort: 'low' },
-            system: [{ type: 'text', text: systemPromptFor(audience, user.name, user.funktion ?? null), cache_control: { type: 'ephemeral' } }],
+            system: [{ type: 'text', text: systemPromptFor(audience, user.name, funktion), cache_control: { type: 'ephemeral' } }],
             tools,
             messages,
           });
