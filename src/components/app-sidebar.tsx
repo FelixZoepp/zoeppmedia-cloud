@@ -40,6 +40,7 @@ import {
   LifeBuoy,
   Headset,
   TrendingUp,
+  Plug,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -65,6 +66,7 @@ const adminGroups: SidebarGroup[] = [
     label: 'Recruiting-Cloud',
     items: [
       { id: 'innendienst', label: 'Innendienst', icon: <Headset className="w-5 h-5" />, href: '/innendienst' },
+      { id: 'anbindung', label: 'Bewerber-Anbindung', icon: <Plug className="w-5 h-5" />, href: '/admin/anbindung' },
       { id: 'admin-recruiting', label: 'Kunden-Übersicht', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin/recruiting' },
     ],
   },
