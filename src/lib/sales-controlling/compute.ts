@@ -534,9 +534,13 @@ export function berechneSalesControlling(e: Eingaben) {
   const rang = { kritisch: 0, wichtig: 1, hinweis: 2 };
   probleme.sort((a, b) => rang[a.stufe] - rang[b.stufe]);
 
+  // Datenqualität: gewonnene Deals ohne Abschlussdatum werden am Statuswechsel gezählt (ungenauer)
+  const wonOhneDatum = e.opps.filter((o) => klassifiziere(statusById.get(o.status_id)) === 'won' && !o.date_won).length;
+
   return {
     zeitraum: e.zeitraum,
     stand: jetzt.toISOString(),
+    datenqualitaet: { wonOhneAbschlussdatum: wonOhneDatum, wonGesamt: e.opps.filter((o) => klassifiziere(statusById.get(o.status_id)) === 'won').length },
     ziel,
     zahlen: z,
     vergleich: vg,

@@ -151,3 +151,34 @@ describe('Abschlussdatum', () => {
     expect(august.zahlen.auftragsvolumen).toBe(0);
   });
 });
+
+describe('Zeiträume mit den echten Abschlüssen aus Close (Stand 06.10.2026)', () => {
+  // [Abschlussdatum, Wert] der 24 gewonnenen Deals – viele davon am 08.08./14.08. gesammelt nachgetragen
+  const deals: Array<[string, number]> = [
+    ['2026-09-16', 2380], ['2026-09-21', 10700], ['2026-09-21', 2380], ['2026-09-22', 5950], ['2026-09-18', 5950], ['2026-09-09', 5950],
+    ['2026-08-26', 5950], ['2026-08-25', 5900], ['2026-08-22', 36000], ['2026-08-25', 950], ['2026-08-11', 2380], ['2026-08-06', 2975],
+    ['2026-08-08', 5950], ['2026-08-08', 9000], ['2026-08-18', 5950], ['2026-08-13', 5950],
+    ['2026-07-09', 5950], ['2026-07-02', 14700], ['2026-07-27', 5950],
+    ['2026-05-13', 11000], ['2026-05-12', 6000],
+    ['2026-04-29', 7120], ['2026-04-15', 1500], ['2026-04-07', 6000],
+  ];
+  const opps = deals.map(([d, v], i) => ({ ...opp(`w${i}`, 'won', v, `${d}T08:00:00Z`), date_won: d }));
+  // Nachgetragene Statuswechsel, die NICHT zählen dürfen
+  const events = opps.map((o) => ev(o.id, 'ct', 'won', '2026-08-08T13:41:00Z'));
+  const rechne = (von: string, bis: string) =>
+    berechneSalesControlling(eingaben(opps, events, { zeitraum: { von, bis, label: '' }, jetzt: new Date('2026-10-06T12:00:00Z') })).zahlen;
+
+  it.each([
+    ['Dieser Monat (Okt)', '2026-10-01', '2026-11-01', 0, 0],
+    ['Vormonat (Sep)', '2026-09-01', '2026-10-01', 33310, 6],
+    ['August', '2026-08-01', '2026-09-01', 81005, 10],
+    ['Letztes Quartal (Q3)', '2026-07-01', '2026-10-01', 140915, 19],
+    ['Dieses Quartal (Q4 bisher)', '2026-10-01', '2026-10-07', 0, 0],
+    ['90 Tage', '2026-07-08', '2026-10-07', 126215, 18],
+    ['Jahr', '2026-01-01', '2026-10-07', 172535, 24],
+  ])('%s', (_, von, bis, volumen, anzahl) => {
+    const z = rechne(von, bis);
+    expect(z.auftragsvolumen).toBe(volumen);
+    expect(z.gewonnen).toBe(anzahl);
+  });
+});

@@ -216,6 +216,13 @@ export function VertriebClient() {
               <Personen d={d} />
             </>
           )}
+          {d.datenqualitaet.wonOhneAbschlussdatum > 0 && (
+            <p className="flex items-start gap-1.5 px-1 text-[12.5px] text-amber-800">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+              Bei {d.datenqualitaet.wonOhneAbschlussdatum} von {d.datenqualitaet.wonGesamt} gewonnenen Deals fehlt in Close das Abschlussdatum – sie zählen
+              am Tag des Statuswechsels.
+            </p>
+          )}
           <p className="px-1 text-[12px] text-gray-500">
             Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert gewonnener Deals, gezählt am Abschlussdatum
             („Close date“) des Deals in Close. Stand: {new Date(d.stand).toLocaleString('de-DE')}.
