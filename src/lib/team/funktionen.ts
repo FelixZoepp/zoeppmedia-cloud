@@ -38,8 +38,11 @@ export function istBereich(v: unknown): v is Bereich {
   return typeof v === 'string' && BEREICHE.some((b) => b.value === v);
 }
 
-/** Bereiche, die sich mit einem Klick in die Cloud eines Kunden einloggen dürfen (Admins immer) */
-export const KUNDEN_CLOUD_BEREICHE: readonly string[] = ['innendienst', 'csm'];
+/**
+ * Bereiche, die sich mit einem Klick in die Cloud eines Kunden einloggen dürfen (Admins immer).
+ * Nur der Innendienst – Kundenberater sehen die Ergebnisse in der Übersicht /ergebnisse.
+ */
+export const KUNDEN_CLOUD_BEREICHE: readonly string[] = ['innendienst'];
 
 /** Postgres-Check-Constraint verletzt → Datenbank kennt den Bereich noch nicht (Migration fehlt) */
 export function bereichFehltInDb(error: { code?: string } | null | undefined): boolean {

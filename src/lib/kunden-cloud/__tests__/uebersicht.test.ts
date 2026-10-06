@@ -48,10 +48,10 @@ describe('berechneArbeit', () => {
 });
 
 describe('darfKundenCloud', () => {
-  it('Admins und Innendienst/Kundenbetreuung ja, andere nein', () => {
+  it('Admins und Innendienst ja, Kundenberater und andere nein', () => {
     expect(darfKundenCloud({ role: 'admin', funktion: null })).toBe(true);
     expect(darfKundenCloud({ role: 'employee', funktion: 'innendienst' })).toBe(true);
-    expect(darfKundenCloud({ role: 'employee', funktion: 'csm' })).toBe(true);
+    expect(darfKundenCloud({ role: 'employee', funktion: 'csm' })).toBe(false);
     expect(darfKundenCloud({ role: 'employee', funktion: 'setter' })).toBe(false);
     expect(darfKundenCloud({ role: 'agency_owner', funktion: 'innendienst' })).toBe(false);
     expect(darfKundenCloud(null)).toBe(false);

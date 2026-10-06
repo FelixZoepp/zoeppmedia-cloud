@@ -39,6 +39,7 @@ import {
   Menu,
   LifeBuoy,
   Headset,
+  TrendingUp,
 } from 'lucide-react';
 
 const adminGroups: SidebarGroup[] = [
@@ -48,6 +49,7 @@ const adminGroups: SidebarGroup[] = [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
+      { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
       { id: 'start-analyse', label: 'Start-Analyse', icon: <Timer className="w-5 h-5" />, href: '/start-analyse' },
       { id: 'kapazitaet', label: 'Kapazität', icon: <Gauge className="w-5 h-5" />, href: '/admin/kapazitaet' },
       { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
@@ -123,6 +125,7 @@ const employeeGroups: SidebarGroup[] = [
     items: [
       { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
+      { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/employee-reports' },
       { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
     ],
@@ -229,7 +232,16 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
           },
           ...employeeGroups,
         ]
-      : role === 'employee' && SALES_BEREICHE.includes(funktion ?? '')
+      : role === 'employee' && funktion === 'csm'
+        ? [
+            {
+              label: 'Kundenbetreuung',
+              items: [{ id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' }],
+            },
+            // Eintrag steht schon oben – nicht doppelt im Cockpit
+            ...employeeGroups.map((g) => ({ ...g, items: g.items.filter((i) => i.id !== 'ergebnisse') })),
+          ]
+        : role === 'employee' && SALES_BEREICHE.includes(funktion ?? '')
       ? [
           {
             label: 'Sales',
