@@ -33,7 +33,7 @@ describe('Bausteine', () => {
     expect(bausteineBereinigen('indeed')).toBeNull();
   });
 
-  it('Indeed Start: 500 €, 12 Monate, nur Indeed', () => {
+  it('Vertriebs KI Agent: 500 €, 12 Monate, nur Indeed', () => {
     expect(paketVorlage('indeed_start')).toMatchObject({ retainer: 500, laufzeit: 12, bausteine: ['indeed'] });
   });
 

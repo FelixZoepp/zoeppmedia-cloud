@@ -27,7 +27,7 @@ export interface PaketVorlage {
 
 /** Vorbelegung im After-Close – Bausteine lassen sich pro Kunde trotzdem frei anpassen. */
 export const PAKET_VORLAGEN: PaketVorlage[] = [
-  { key: 'indeed_start', name: 'Indeed Start', bausteine: ['indeed'], retainer: 500, setup: 0, laufzeit: 12 },
+  { key: 'indeed_start', name: 'Vertriebs KI Agent', bausteine: ['indeed'], retainer: 500, setup: 0, laufzeit: 12 },
   { key: 'starter', name: 'Starter', bausteine: ['indeed', 'meta'], retainer: 2380, setup: 0, laufzeit: 6 },
   { key: 'growth', name: 'Growth', bausteine: ['indeed', 'meta'], retainer: 4150, setup: 0, laufzeit: 12 },
   { key: 'scale', name: 'Scale', bausteine: ['indeed', 'meta'], retainer: 5950, setup: 2500, laufzeit: 12 },
