@@ -5,6 +5,7 @@
  */
 
 import { createHmac } from 'crypto';
+import { LEADQUELLE_CF, QUELLEN_FELDER, leseLeadFelder, type LeadFelder } from './leadquelle';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 
@@ -215,11 +216,14 @@ export async function addCloseTaskForLead(leadId: string, text: string, date: st
   if (!res.ok) throw new Error(`Close-Aufgabe fehlgeschlagen (${res.status})`);
 }
 
-/** Lead mit Kontakten und Leadquelle laden (für Eintragungen) */
-export async function ladeCloseLead(leadId: string): Promise<{ id: string; name: string; email: string | null; phone: string | null; quelle: string | null; erstellt: string } | null> {
+/** Lead mit Kontakten, Leadquelle und Funnel-Feldern laden (für Eintragungen) */
+export async function ladeCloseLead(
+  leadId: string,
+): Promise<{ id: string; name: string; email: string | null; phone: string | null; quelle: string | null; erstellt: string; felder: LeadFelder } | null> {
   const apiKey = process.env.CLOSE_API_KEY;
   if (!apiKey) return null;
-  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=id,display_name,contacts,date_created,custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8`, {
+  const felder = QUELLEN_FELDER.map((f) => `custom.${f}`).join(',');
+  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=id,display_name,contacts,date_created,${felder}`, {
     headers: closeHeaders(apiKey),
   });
   if (!res.ok) return null;
@@ -231,14 +235,45 @@ export async function ladeCloseLead(leadId: string): Promise<{ id: string; name:
     [k: string]: unknown;
   };
   const c = l.contacts?.[0];
+  const f = leseLeadFelder(l);
   return {
     id: l.id,
     name: c?.name || l.display_name || 'Lead',
     email: c?.emails?.[0]?.email ?? null,
     phone: c?.phones?.[0]?.phone ?? null,
-    quelle: (l['custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8'] as string | undefined) ?? null,
+    quelle: f.leadquelle,
     erstellt: l.date_created,
+    felder: f,
   };
+}
+
+/** Close-Feld „Leadquelle“ setzen */
+export async function setzeCloseLeadquelle(leadId: string, quelle: string): Promise<void> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/`, {
+    method: 'PUT',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({ [`custom.${LEADQUELLE_CF}`]: quelle }),
+  });
+  if (!res.ok) throw new Error(`Leadquelle nicht gesetzt (${res.status})`);
+}
+
+/** Alle Leads (ab Datum) mit Quellen-Feldern – für das Nachtragen fehlender Leadquellen */
+export async function ladeLeadsMitQuellen(ab?: Date): Promise<Array<{ id: string; name: string; erstellt: string; felder: LeadFelder }>> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return [];
+  const felder = QUELLEN_FELDER.map((f) => `custom.${f}`).join(',');
+  const query = ab ? `&query=${encodeURIComponent(`created > "${ab.toISOString().slice(0, 10)}"`)}` : '';
+  const out: Array<{ id: string; name: string; erstellt: string; felder: LeadFelder }> = [];
+  for (let skip = 0; skip < 5000; skip += 100) {
+    const res = await fetch(`${CLOSE_BASE}/lead/?_limit=100&_skip=${skip}&_fields=id,display_name,date_created,${felder}${query}`, { headers: closeHeaders(apiKey) });
+    if (!res.ok) throw new Error(`Close-Leads nicht ladbar (${res.status})`);
+    const page = (await res.json()) as { data: Array<Record<string, unknown> & { id: string; display_name?: string; date_created: string }>; has_more?: boolean };
+    for (const l of page.data) out.push({ id: l.id, name: l.display_name || 'Lead', erstellt: l.date_created, felder: leseLeadFelder(l) });
+    if (!page.has_more) break;
+  }
+  return out;
 }
 
 /** Notiz am Close-Lead des Prospects anlegen. Gibt true zurück, wenn eine Notiz geschrieben wurde. */

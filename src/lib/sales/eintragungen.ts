@@ -1,12 +1,14 @@
 /**
  * Eintragungen (neue Leads in Close) → bucht der Lead direkt einen Termin?
  * Nach 10 Minuten ohne Buchung: Aufgabe „Jetzt anrufen“ in Close + Benachrichtigung (Speed-to-Lead).
- * Kennzahlen fürs Sales-Controlling: Direktbuchungen, kein Termin nach 10 Min., später gebucht.
+ * Von Hand angelegte Leads (keine UTM-Daten, keine Funnel-Fragen) zählen nicht als Eintragung und bekommen keine Anruf-Aufgabe.
+ * Kennzahlen fürs Sales-Controlling: Direktbuchungen, kein Termin nach 10 Min., später gebucht – auch je Leadquelle.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SALES_AGENCY_ID } from './calendly-chain';
-import { addCloseTaskForLead, ladeCloseLead } from './close';
+import { addCloseTaskForLead, ladeCloseLead, setzeCloseLeadquelle } from './close';
+import { automatischeLeadquelle, istFunnelLead } from './leadquelle';
 import { notifySales } from './notify';
 
 export const WARTEZEIT_MIN = 10;
@@ -14,7 +16,7 @@ const MIN = 60_000;
 
 const ziffern = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').replace(/^00/, '').replace(/^49/, '').replace(/^0/, '');
 
-export type Ergebnis = 'offen' | 'direkt_gebucht' | 'nicht_gebucht' | 'spaeter_gebucht';
+export type Ergebnis = 'offen' | 'direkt_gebucht' | 'nicht_gebucht' | 'spaeter_gebucht' | 'manuell';
 
 /** Ergebnis aus Eintragungs- und Buchungszeit (rein, testbar) */
 export function ergebnisFuer(eingetragen: Date, gebucht: Date | null, jetzt: Date): Ergebnis {
@@ -26,7 +28,7 @@ export function ergebnisFuer(eingetragen: Date, gebucht: Date | null, jetzt: Dat
 export async function erfasseEintragung(svc: SupabaseClient, leadId: string): Promise<boolean> {
   const lead = await ladeCloseLead(leadId);
   if (!lead) return false;
-  const eingetragen = new Date(lead.erstellt);
+  const eingetragen = new Date(lead.felder.datumEintragung ?? lead.erstellt);
   const { error } = await svc.from('sales_eintragungen').upsert(
     { lead_id: lead.id, name: lead.name, email: lead.email, phone: lead.phone, quelle: lead.quelle, eingetragen_am: eingetragen.toISOString() },
     { onConflict: 'lead_id', ignoreDuplicates: true },
@@ -72,6 +74,25 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
   const e = data as { lead_id: string; name: string | null; email: string | null; phone: string | null; eingetragen_am: string; gebucht_am: string | null; quelle: string | null } | null;
   if (!e) return 'offen';
 
+  // Lead neu laden: Funnel-Felder kommen evtl. erst nach dem Anlegen dazu
+  const lead = await ladeCloseLead(e.lead_id).catch(() => null);
+  if (lead && !istFunnelLead(lead.felder)) {
+    // Von Hand angelegt → keine „Jetzt anrufen“-Aufgabe, nur an die Leadquelle erinnern
+    await svc.from('sales_eintragungen').update({ ergebnis: 'manuell', quelle: lead.quelle }).eq('lead_id', e.lead_id);
+    if (!lead.quelle) {
+      await addCloseTaskForLead(e.lead_id, 'Leadquelle eintragen (z. B. Empfehlung – Name, LinkedIn, Kaltakquise, Event)', heute).catch((err) =>
+        console.error('[sales] Aufgabe (Leadquelle) fehlgeschlagen:', err),
+      );
+    }
+    return 'manuell';
+  }
+  if (lead) {
+    const auto = automatischeLeadquelle(lead.felder);
+    if (auto) await setzeCloseLeadquelle(e.lead_id, auto).catch((err) => console.error('[sales] Leadquelle nicht gesetzt:', err));
+    e.quelle = lead.quelle ?? auto ?? e.quelle;
+    await svc.from('sales_eintragungen').update({ quelle: e.quelle }).eq('lead_id', e.lead_id);
+  }
+
   // Buchung evtl. noch nicht zugeordnet (z. B. andere Schreibweise der Nummer) → in den Calendly-Buchungen nachsehen
   let gebucht = e.gebucht_am ? new Date(e.gebucht_am) : null;
   if (!gebucht) {
@@ -115,9 +136,16 @@ export interface EintragungsZahlen {
   ohneTermin: number;
   /** Median Minuten bis zur Buchung (nur gebuchte) */
   medianMinBisBuchung: number | null;
+  /** Von Hand angelegte Leads (nicht mitgezählt) */
+  manuell: number;
+  /** Je Leadquelle: Eintragungen und Direktbuchungs-Quote */
+  quellen: Array<{ quelle: string; eintragungen: number; direkt: number; direktQuote: number | null }>;
 }
 
-export function eintragungsZahlen(rows: Array<{ eingetragen_am: string; gebucht_am: string | null; ergebnis: Ergebnis }>): EintragungsZahlen {
+type ZahlRow = { eingetragen_am: string; gebucht_am: string | null; ergebnis: Ergebnis; quelle?: string | null };
+
+export function eintragungsZahlen(alle: ZahlRow[]): EintragungsZahlen {
+  const rows = alle.filter((r) => r.ergebnis !== 'manuell');
   const n = rows.length;
   const direkt = rows.filter((r) => r.ergebnis === 'direkt_gebucht').length;
   const spaeter = rows.filter((r) => r.ergebnis === 'spaeter_gebucht').length;
@@ -137,5 +165,12 @@ export function eintragungsZahlen(rows: Array<{ eingetragen_am: string; gebucht_
     spaeter,
     ohneTermin: rows.filter((r) => r.ergebnis === 'nicht_gebucht').length,
     medianMinBisBuchung: minuten.length ? Math.round(minuten[Math.floor(minuten.length / 2)]) : null,
+    manuell: alle.length - n,
+    quellen: [...rows.reduce((m, r) => m.set(r.quelle || 'Ohne Quelle', [...(m.get(r.quelle || 'Ohne Quelle') ?? []), r]), new Map<string, ZahlRow[]>())]
+      .map(([quelle, rs]) => {
+        const d = rs.filter((r) => r.ergebnis === 'direkt_gebucht').length;
+        return { quelle, eintragungen: rs.length, direkt: d, direktQuote: Math.round((d / rs.length) * 100) };
+      })
+      .sort((a, b) => b.eintragungen - a.eintragungen),
   };
 }

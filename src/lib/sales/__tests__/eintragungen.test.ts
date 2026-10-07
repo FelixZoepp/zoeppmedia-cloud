@@ -21,4 +21,18 @@ describe('Eintragung → Termin', () => {
     expect(z).toMatchObject({ eintragungen: 4, direkt: 1, direktQuote: 25, nichtGebucht10: 3, nichtGebucht10Quote: 75, spaeter: 1, ohneTermin: 2 });
     expect(z.medianMinBisBuchung).toBe(90);
   });
+
+  it('zählt von Hand angelegte Leads nicht mit und gruppiert nach Quelle', () => {
+    const z = eintragungsZahlen([
+      { eingetragen_am: t(0).toISOString(), gebucht_am: t(3).toISOString(), ergebnis: 'direkt_gebucht', quelle: 'Meta Ads – Instagram' },
+      { eingetragen_am: t(0).toISOString(), gebucht_am: null, ergebnis: 'nicht_gebucht', quelle: 'Meta Ads – Instagram' },
+      { eingetragen_am: t(0).toISOString(), gebucht_am: null, ergebnis: 'nicht_gebucht', quelle: null },
+      { eingetragen_am: t(0).toISOString(), gebucht_am: null, ergebnis: 'manuell', quelle: 'Empfehlung - X' },
+    ]);
+    expect(z).toMatchObject({ eintragungen: 3, manuell: 1 });
+    expect(z.quellen).toEqual([
+      { quelle: 'Meta Ads – Instagram', eintragungen: 2, direkt: 1, direktQuote: 50 },
+      { quelle: 'Ohne Quelle', eintragungen: 1, direkt: 0, direktQuote: 0 },
+    ]);
+  });
 });

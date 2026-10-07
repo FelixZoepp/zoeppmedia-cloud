@@ -293,6 +293,16 @@ async function runDailyJobs() {
     }
   }
 
+  // 7b4. Fehlende Leadquellen der letzten Tage aus UTM-Daten nachtragen
+  if (process.env.CLOSE_API_KEY) {
+    try {
+      const { trageLeadquellenNach } = await import('@/lib/sales/leadquellen-sync');
+      await trageLeadquellenNach({ ab: new Date(Date.now() - 3 * 864e5) });
+    } catch (err) {
+      console.error('[cron] Leadquellen nachtragen fehlgeschlagen:', err);
+    }
+  }
+
   // 7c. Close-Telefonate mit Aufnahme der letzten 2 Tage an Fireflies geben (Analyse kommt per Webhook)
   if (process.env.FIREFLIES_API_KEY && process.env.CLOSE_API_KEY) {
     try {
