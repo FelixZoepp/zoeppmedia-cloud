@@ -110,16 +110,28 @@ const APP = () => process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.d
 /** Link zur vollständigen Auswertung im Sales-Controlling */
 export const analyseLink = (firefliesId: string) => `${APP()}/admin/vertrieb?ansicht=gespraeche&g=${encodeURIComponent(firefliesId)}`;
 
+const ABKUERZUNG = /(?:\b(?:Mio|Mrd|Tsd|ca|bzw|z\.\s?B|u\.\s?a|d\.\s?h|Nr|inkl|zzgl|ggf|evtl|etc|vgl|Dr|St|Std|Min|Sek|Jan|Feb|Mär|Apr|Jun|Jul|Aug|Sep|Okt|Nov|Dez)|\d)\.$/i;
+
+/** Text in Sätze teilen – Abkürzungen („Mio.“, „z. B.“) und Zahlen („28.10.“) beenden keinen Satz */
+export function saetze(text: string): string[] {
+  const teile = text.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ„"])/);
+  const out: string[] = [];
+  for (const t of teile) {
+    if (out.length && ABKUERZUNG.test(out[out.length - 1])) out[out.length - 1] += ` ${t}`;
+    else out.push(t);
+  }
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+
 /** Erste 1–2 Sätze als Kurzfassung */
 export function kurzfassung(text: string, max = 280): string {
-  const saetze = text.match(/[^.!?]+[.!?]+/g) ?? [text];
   let out = '';
-  for (const s of saetze) {
-    if ((out + s).length > max && out) break;
-    out += s;
+  for (const s of saetze(text)) {
+    if (out && (out + ' ' + s).length > max) break;
+    out = out ? `${out} ${s}` : s;
     if (out.length > 120) break;
   }
-  return out.trim();
+  return out.length > max ? `${out.slice(0, max - 1).trimEnd()}…` : out;
 }
 
 /**

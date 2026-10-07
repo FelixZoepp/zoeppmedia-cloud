@@ -97,3 +97,13 @@ describe('Close-Telefonate', () => {
     expect(leadAusRef('irgendwas')).toBeNull();
   });
 });
+
+describe('Kurzfassung', () => {
+  it('bricht nicht bei Abkürzungen oder Datumsangaben ab', async () => {
+    const { kurzfassung } = await import('../analyse');
+    const k = kurzfassung('Solvico macht über 5 Mio. € Auftragseingang mit 3–4 Vertrieblern. Miró will z. B. erst die Agentur abwarten. Folgetermin am 28.10. um 16 Uhr.');
+    expect(k).toContain('über 5 Mio. € Auftragseingang mit 3–4 Vertrieblern.');
+    expect(k).toContain('Miró will z. B. erst die Agentur abwarten.');
+    expect(k.length).toBeLessThanOrEqual(280);
+  });
+});
