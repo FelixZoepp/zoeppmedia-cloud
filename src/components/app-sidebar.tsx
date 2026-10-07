@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Sidebar, type SidebarGroup, type SidebarItem } from '@/components/ui/sidebar';
 import { InstallPromo } from '@/components/install-promo';
@@ -11,27 +12,21 @@ import {
   UserPlus,
   Settings,
   ClipboardList,
-  Sparkles,
   FolderKanban,
   GraduationCap,
   BarChart3,
   Building2,
   Target,
-  FileText,
   UserCircle,
   LogOut,
   Megaphone,
-  Handshake,
   BarChart3 as ChartBar,
   CalendarDays,
   Timer,
   Shield,
   CheckSquare,
   FileBarChart,
-  Activity,
-  Gauge,
   Receipt,
-  PlusCircle,
   PhoneCall,
   Briefcase,
   MessageSquare,
@@ -45,73 +40,43 @@ import {
   MessagesSquare,
   Mail,
 } from 'lucide-react';
+import { ADMIN_BEREICHE } from '@/lib/navigation/bereiche';
+
+/** Bereich aus ADMIN_BEREICHE als ein Menüpunkt – die Unterseiten zeigen BereichTabs */
+function bereichItem(id: string, icon: ReactNode): SidebarItem {
+  const b = ADMIN_BEREICHE.find((x) => x.id === id)!;
+  return { id: b.id, label: b.label, icon, href: b.tabs[0].href, also: b.tabs.slice(1).map((t) => t.href) };
+}
 
 const adminGroups: SidebarGroup[] = [
   {
-    label: 'Cockpit',
+    label: 'Überblick',
     items: [
-      { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
-      { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
-      { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
-      { id: 'kunden-anfragen', label: 'Kunden-Anfragen', icon: <MessagesSquare className="w-5 h-5" />, href: '/admin/support' },
-      { id: 'wochenberichte', label: 'Wochenberichte', icon: <Mail className="w-5 h-5" />, href: '/admin/wochenberichte' },
-      { id: 'start-analyse', label: 'Start-Analyse', icon: <Timer className="w-5 h-5" />, href: '/start-analyse' },
-      { id: 'kapazitaet', label: 'Kapazität', icon: <Gauge className="w-5 h-5" />, href: '/admin/kapazitaet' },
-      { id: 'team', label: 'Team', icon: <Users className="w-5 h-5" />, href: '/team' },
+      { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'kalender', label: 'Kalender', icon: <CalendarDays className="w-5 h-5" />, href: '/kalender' },
     ],
   },
   {
-    label: 'Fulfillment',
+    label: 'Kunden & Fulfillment',
     items: [
-    ],
-  },
-  {
-    label: 'Recruiting-Cloud',
-    items: [
-      { id: 'innendienst', label: 'Innendienst', icon: <Headset className="w-5 h-5" />, href: '/innendienst' },
-      { id: 'anbindung', label: 'Bewerber-Anbindung', icon: <Plug className="w-5 h-5" />, href: '/admin/anbindung' },
-      { id: 'admin-recruiting', label: 'Kunden-Übersicht', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin/recruiting' },
-    ],
-  },
-  {
-    label: 'Sales',
-    items: [
-      { id: 'vertrieb', label: 'Sales-Controlling', icon: <Target className="w-5 h-5" />, href: '/admin/vertrieb' },
-      { id: 'sales', label: 'Sales Pipeline', icon: <Handshake className="w-5 h-5" />, href: '/admin/sales' },
-      { id: 'sales-inbox', label: 'Sales-WhatsApp', icon: <MessageSquare className="w-5 h-5" />, href: '/api/admin/sales-inbox' },
-      { id: 'wochenbericht', label: 'Wochenbericht', icon: <CalendarDays className="w-5 h-5" />, href: '/admin/wochenbericht' },
-    ],
-  },
-  {
-    label: 'Marketing',
-    items: [
-      { id: 'marketing', label: 'Meta Ads', icon: <Megaphone className="w-5 h-5" />, href: '/admin/marketing' },
-      { id: 'report', label: 'Funnel Report', icon: <ChartBar className="w-5 h-5" />, href: '/admin/report' },
-    ],
-  },
-  {
-    label: 'Buchhaltung',
-    items: [
-      { id: 'rechnungen-mahnwesen', label: 'Rechnungen & Mahnwesen', icon: <Receipt className="w-5 h-5" />, href: '/buchhaltung' },
-      { id: 'buchhaltung', label: 'Übersicht & Freigaben', icon: <Receipt className="w-5 h-5" />, href: '/admin/buchhaltung' },
-      { id: 'finanzen-kunden', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/admin/finanzen/kunden' },
-    ],
-  },
-  {
-    label: 'Verwaltung',
-    items: [
+      bereichItem('kunden', <Building2 className="w-5 h-5" />),
       { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
-      { id: 'after-close', label: 'After-Close', icon: <PlusCircle className="w-5 h-5" />, href: '/admin/after-close' },
-      { id: 'admin-reports', label: 'Reports', icon: <FileBarChart className="w-5 h-5" />, href: '/admin/reports' },
-      { id: 'health', label: 'Health', icon: <Activity className="w-5 h-5" />, href: '/admin/health' },
-      { id: 'masterclass', label: 'Masterclass', icon: <GraduationCap className="w-5 h-5" />, href: '/admin/masterclass' },
-      { id: 'kpi', label: 'KPI Einstellungen', icon: <Target className="w-5 h-5" />, href: '/admin/kpi' },
-      { id: 'templates', label: 'Templates', icon: <FileText className="w-5 h-5" />, href: '/admin/templates' },
-      { id: 'invites', label: 'Einladungen', icon: <UserPlus className="w-5 h-5" />, href: '/invites' },
-      { id: 'audit', label: 'Audit Log', icon: <Shield className="w-5 h-5" />, href: '/admin/audit' },
+      bereichItem('recruiting-cloud', <Headset className="w-5 h-5" />),
+      bereichItem('team', <Users className="w-5 h-5" />),
     ],
+  },
+  {
+    label: 'Wachstum',
+    items: [
+      bereichItem('sales', <Target className="w-5 h-5" />),
+      bereichItem('marketing', <ChartBar className="w-5 h-5" />),
+      bereichItem('finanzen', <Receipt className="w-5 h-5" />),
+    ],
+  },
+  {
+    label: 'System',
+    items: [bereichItem('verwaltung', <Shield className="w-5 h-5" />)],
   },
 ];
 

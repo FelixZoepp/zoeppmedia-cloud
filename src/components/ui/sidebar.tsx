@@ -11,6 +11,8 @@ export interface SidebarItem {
   icon: ReactNode;
   href: string;
   badge?: ReactNode;
+  /** Weitere Seiten, auf denen der Punkt aktiv ist (Bereich mit Tabs) */
+  also?: string[];
 }
 
 export interface SidebarGroup {
@@ -44,9 +46,9 @@ export function Sidebar({ brand, brandImage, brandLabel, brandSub, groups, botto
 
   // Längster passender Pfad gewinnt (z.B. /admin/kpi vor /admin)
   const activeHref = allGroups
-    .flatMap((g) => g.items)
-    .filter((i) => !i.href.startsWith('/api/') && (pathname === i.href || pathname.startsWith(i.href + '/')))
-    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+    .flatMap((g) => g.items.flatMap((i) => [i.href, ...(i.also ?? [])].map((h) => ({ item: i.href, h }))))
+    .filter(({ h }) => !h.startsWith('/api/') && (pathname === h || pathname.startsWith(h + '/')))
+    .sort((a, b) => b.h.length - a.h.length)[0]?.item;
 
   // Der Balken wandert zum aktiven Link und streckt sich im Flug
   useLayoutEffect(() => {

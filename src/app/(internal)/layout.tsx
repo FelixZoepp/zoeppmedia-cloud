@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
+import { BereichTabs } from '@/components/bereich-tabs';
 import { aktiveAnsicht, ANSICHTEN } from '@/lib/ansicht';
 
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
@@ -56,6 +57,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           </span>
         </div>
       )}
+      {user.role === 'admin' && !ansicht && <BereichTabs />}
       {children}
       <PushManager />
     </LayoutShell>
