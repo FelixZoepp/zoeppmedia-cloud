@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ExternalLink, PlayCircle } from 'lucide-react';
 import { Card, SegmentedControl } from '@/components/ui';
 import type { GespraechAnalyse } from '@/lib/gespraeche/analyse';
+import { MarketingFeedbackKarte } from './marketing-feedback';
 
 interface Gespraech {
   fireflies_id: string;
@@ -125,6 +126,7 @@ export function GespraecheBereich() {
 
   return (
     <div className="space-y-4">
+      <MarketingFeedbackKarte />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <h3 className="text-[17px] font-medium">Gesprächsqualität</h3>

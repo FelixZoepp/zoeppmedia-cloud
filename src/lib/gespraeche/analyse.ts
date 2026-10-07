@@ -31,6 +31,7 @@ export const AnalyseSchema = z.object({
     zeitrahmen: z.string(),
   }).describe('Leerer String, wenn im Gespräch nicht geklärt'),
   einwaende: z.array(z.string()),
+  fragen: z.array(z.string()).describe('Fragen und Unsicherheiten des Interessenten (wörtlich sinngemäß, kurz) – wichtig fürs Marketing'),
   naechste_schritte: z.array(z.string()),
   abschluss_chance: z.number().describe('0–100, nur bei Verkaufsgesprächen sinnvoll, sonst 0'),
   punkte: z.number().describe('Bewertung der Gesprächsführung 0–100'),

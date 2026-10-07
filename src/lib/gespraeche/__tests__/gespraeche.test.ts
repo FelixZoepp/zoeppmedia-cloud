@@ -66,7 +66,7 @@ describe('Fireflies-Gespräche', () => {
   it('Close-Notiz ist kurz und verlinkt die volle Analyse', () => {
     const a: GespraechAnalyse = {
       art: 'closing', zusammenfassung: 'Solvigo sucht 5 Vertriebler. Miró will erst die laufende Agentur abwarten. Folgetermin am 28.10.', situation: { teamgroesse: '3–4', ziel: '5 neue', budget: '', entscheider: 'Miró', zeitrahmen: 'Q4' },
-      einwaende: ['Lieber intern'], naechste_schritte: ['Angebot senden', 'Folgetermin 28.10.'], abschluss_chance: 55, punkte: 68, staerken: ['Gute Fragen'],
+      einwaende: ['Lieber intern'], fragen: [], naechste_schritte: ['Angebot senden', 'Folgetermin 28.10.'], abschluss_chance: 55, punkte: 68, staerken: ['Gute Fragen'],
       fehler: [{ fehler: 'Preis vor Budget genannt', zitat: 'Das kostet 2.000 Euro', sekunden: 754, besser: 'Erst Budget klären' }], tipp_naechstes_gespraech: 'Entscheidung im Termin',
     };
     const n = closeNotiz({ id: '01M3YF', titel: t.title, datum: '2026-10-07T11:00:00Z', dauerMin: 23 }, a);

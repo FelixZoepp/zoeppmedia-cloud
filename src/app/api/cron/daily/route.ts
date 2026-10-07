@@ -283,6 +283,16 @@ async function runDailyJobs() {
     console.error('[cron] Gesprächs-Ausgänge fehlgeschlagen:', err);
   }
 
+  // 7b3. Montags: Marketing-Feedback aus Einwänden und Fragen der letzten Woche
+  if (now.getDay() === 1 && process.env.ANTHROPIC_API_KEY) {
+    try {
+      const { erstelleMarketingFeedback } = await import('@/lib/gespraeche/marketing');
+      await erstelleMarketingFeedback(supabase, 7);
+    } catch (err) {
+      console.error('[cron] Marketing-Feedback fehlgeschlagen:', err);
+    }
+  }
+
   // 7c. Close-Telefonate mit Aufnahme der letzten 2 Tage an Fireflies geben (Analyse kommt per Webhook)
   if (process.env.FIREFLIES_API_KEY && process.env.CLOSE_API_KEY) {
     try {
