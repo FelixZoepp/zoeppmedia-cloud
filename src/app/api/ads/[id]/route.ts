@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AD_STAGES, AD_TYPEN, moveAd, type AdStage } from '@/lib/ads/ads';
+import { darfZumKunden, freigabeStatus, versionsKey } from '@/lib/ads/ki-pruefung';
 
 const EDITABLE = ['titel', 'idee', 'typ', 'assignee_id', 'faellig_am', 'material_urls', 'asset_url', 'asset_path'] as const;
 
@@ -30,6 +31,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const stage = (cur as { stage: string } | null)?.stage;
       if (stage && stage !== 'bereit' && stage !== 'live') {
         return NextResponse.json({ error: 'Der Kunde hat diese Ad noch nicht freigegeben.', code: 'freigabe_fehlt' }, { status: 409 });
+      }
+    }
+    // Doppelter Boden: zum Kunden nur mit grüner/gelber KI-Prüfung der aktuellen Version – oder begründet übersteuert
+    if (body.stage === 'freigabe_kunde') {
+      const { data: cur } = await svc.from('ad_items').select('*').eq('id', id).maybeSingle();
+      if (!cur) return NextResponse.json({ error: 'Ad nicht gefunden' }, { status: 404 });
+      const grund = typeof body.ki_override_grund === 'string' ? body.ki_override_grund.trim() : '';
+      if (grund) {
+        if (grund.length < 10) return NextResponse.json({ error: 'Bitte kurz begründen (mind. 10 Zeichen)' }, { status: 400 });
+        await svc
+          .from('ad_items')
+          .update({ ki_override: { grund, user_id: user.id, am: new Date().toISOString(), fuer: versionsKey(cur as never) } })
+          .eq('id', id);
+      } else {
+        const status = freigabeStatus(cur as never);
+        if (!darfZumKunden(status)) {
+          return NextResponse.json(
+            { error: status === 'rot' ? 'Die KI-Prüfung ist rot – bitte erst verbessern oder begründet übersteuern.' : 'Bitte erst die KI-Prüfung laufen lassen.', code: 'ki_pruefung', status },
+            { status: 409 },
+          );
+        }
       }
     }
     await moveAd(svc, id, body.stage as AdStage, { userId: user.id, kommentar: (body.kommentar as string) ?? null });

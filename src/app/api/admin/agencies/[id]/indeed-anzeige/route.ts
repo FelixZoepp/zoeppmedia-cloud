@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { moveAd } from '@/lib/ads/ads';
 import { setStepStatus } from '@/lib/fulfillment/engine';
+import { darfZumKunden, freigabeStatus, kiFehlertext, pruefeAd, versionsKey, type KiPruefung } from '@/lib/ads/ki-pruefung';
 import {
   IndeedAnzeigeSchema,
   anzeigeAlsText,
@@ -15,12 +16,12 @@ import {
 export const maxDuration = 120;
 
 type Ctx = { params: Promise<{ id: string }> };
-type Karte = { id: string; stage: string; inhalt: IndeedAnzeige | null; kunden_kommentar: string | null; updated_at: string };
+type Karte = { id: string; stage: string; inhalt: IndeedAnzeige | null; kunden_kommentar: string | null; updated_at: string; ki_pruefung: KiPruefung | null };
 
 async function aktuelleKarte(svc: ReturnType<typeof createAdminClient>, agencyId: string): Promise<Karte | null> {
   const { data } = await svc
     .from('ad_items')
-    .select('id, stage, inhalt, kunden_kommentar, updated_at')
+    .select('id, stage, inhalt, kunden_kommentar, updated_at, ki_pruefung')
     .eq('agency_id', agencyId)
     .eq('typ', 'indeed')
     .neq('stage', 'verworfen')
@@ -87,7 +88,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const user = await getCurrentUser();
   if (!user || !isInternal(user.role)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { id } = await params;
-  const body = (await req.json().catch(() => ({}))) as { inhalt?: unknown; aktion?: string };
+  const body = (await req.json().catch(() => ({}))) as { inhalt?: unknown; aktion?: string; ki_override_grund?: string };
   const svc = createAdminClient();
   const karte = await aktuelleKarte(svc, id);
   if (!karte) return NextResponse.json({ error: 'Noch keine Indeed-Anzeige vorhanden' }, { status: 404 });
@@ -105,6 +106,30 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (body.aktion === 'zur_freigabe') {
     if (['freigabe_kunde', 'bereit', 'live'].includes(karte.stage)) {
       return NextResponse.json({ error: 'Die Anzeige liegt schon beim Kunden bzw. ist freigegeben' }, { status: 409 });
+    }
+    // Doppelter Boden: KI-Prüfung der aktuellen Fassung (läuft automatisch, falls noch keine da ist)
+    const grund = body.ki_override_grund?.trim() ?? '';
+    const { data: cur } = await svc.from('ad_items').select('*').eq('id', karte.id).maybeSingle();
+    if (grund) {
+      if (grund.length < 10) return NextResponse.json({ error: 'Bitte kurz begründen (mind. 10 Zeichen)' }, { status: 400 });
+      await svc.from('ad_items').update({ ki_override: { grund, user_id: user.id, am: new Date().toISOString(), fuer: versionsKey(cur as never) } }).eq('id', karte.id);
+    } else {
+      let status = freigabeStatus(cur as never);
+      if (status === 'fehlt') {
+        try {
+          await pruefeAd(svc, karte.id);
+          const { data: neu } = await svc.from('ad_items').select('*').eq('id', karte.id).maybeSingle();
+          status = freigabeStatus(neu as never);
+        } catch (err) {
+          return NextResponse.json({ error: kiFehlertext(err), code: 'ki_pruefung', anzeige: await aktuelleKarte(svc, id) }, { status: 409 });
+        }
+      }
+      if (!darfZumKunden(status)) {
+        return NextResponse.json(
+          { error: 'Die KI-Prüfung ist rot – bitte die Punkte unten verbessern oder begründet übersteuern.', code: 'ki_pruefung', anzeige: await aktuelleKarte(svc, id) },
+          { status: 409 },
+        );
+      }
     }
     await moveAd(svc, karte.id, 'freigabe_kunde', { userId: user.id });
     // Fulfillment: „Indeed-Anzeige erstellt“ abhaken

@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { AD_STAGES } from '@/lib/ads/constants';
 import type { IndeedAnzeige } from '@/lib/indeed/anzeige';
+import type { KiPruefung } from '@/lib/ads/ki-pruefung';
+import { KiPruefungAnzeige } from '@/components/ads/ki-pruefung-anzeige';
 
 interface Karte {
   id: string;
@@ -13,6 +15,7 @@ interface Karte {
   inhalt: IndeedAnzeige | null;
   kunden_kommentar: string | null;
   updated_at: string;
+  ki_pruefung: KiPruefung | null;
 }
 
 interface Daten {
@@ -81,15 +84,25 @@ export function IndeedAnzeigeCard({ agencyId }: { agencyId: string }) {
     uebernehmen(data.anzeige);
   }
 
-  async function speichern(aktion?: 'zur_freigabe') {
+  async function speichern(aktion?: 'zur_freigabe', kiOverrideGrund?: string) {
     setBusy(aktion ? 'freigabe' : 'speichern');
     const res = await fetch(`/api/admin/agencies/${agencyId}/indeed-anzeige`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...(geaendert && entwurf ? { inhalt: entwurf } : {}), aktion }),
+      body: JSON.stringify({ ...(geaendert && entwurf ? { inhalt: entwurf } : {}), aktion, ki_override_grund: kiOverrideGrund }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(null);
+    if (res.status === 409 && data.code === 'ki_pruefung') {
+      // Prüfung ist rot oder die KI war nicht erreichbar → Ergebnis zeigen, optional begründet übersteuern
+      if (data.anzeige) {
+        setD((prev) => (prev ? { ...prev, anzeige: data.anzeige } : prev));
+        uebernehmen(data.anzeige);
+      }
+      const grund = window.prompt(`${data.error}\n\nTrotzdem zum Kunden? Dann kurz begründen (wird gespeichert):`);
+      if (grund) await speichern('zur_freigabe', grund);
+      return;
+    }
     if (!res.ok) return void toast.error(data.error ?? 'Speichern fehlgeschlagen');
     toast.success(aktion ? 'An den Kunden zur Freigabe geschickt' : 'Gespeichert');
     setD((prev) => (prev ? { ...prev, anzeige: data.anzeige } : prev));
@@ -219,6 +232,7 @@ export function IndeedAnzeigeCard({ agencyId }: { agencyId: string }) {
               </Button>
             )}
           </div>
+          {karte?.ki_pruefung && <KiPruefungAnzeige p={karte.ki_pruefung} veraltet={geaendert} />}
           {karte?.stage === 'freigabe_kunde' && (
             <p className="text-right text-[13px] text-gray-600">Liegt beim Kunden unter „Deine Aufgaben“ – du wirst benachrichtigt, sobald er freigibt.</p>
           )}

@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AD_TYPEN, withPreviewUrls, type AdItem } from '@/lib/ads/ads';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+import { freigabeStatus } from '@/lib/ads/ki-pruefung';
 import { signalSafe } from '@/lib/fulfillment/engine';
 
 /** Ads-Board: alle Ads (ohne Verworfene/alte Live-Ads), plus Kunden und Team für Formulare. */
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ads: (await withPreviewUrls(svc, list)).map((a) => ({
       ...a,
+      ki_status: freigabeStatus(a),
       agency_name: names.get(a.agency_id) ?? '–',
       assignee_name: a.assignee_id ? people.get(a.assignee_id) ?? null : null,
     })),

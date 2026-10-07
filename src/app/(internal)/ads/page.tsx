@@ -9,8 +9,24 @@ import { PageHeader } from '@/components/ui/page-header';
 import { createClient } from '@/lib/supabase/client';
 import { AssetPreview, isLinkErlaubt } from '@/components/ads/asset-preview';
 import { AD_STAGES, AD_TYPEN, AD_ASSET_BUCKET, type AdItem, type AdStage } from '@/lib/ads/constants';
+import { KiPruefungAnzeige, videoStandbilder } from '@/components/ads/ki-pruefung-anzeige';
+import type { FreigabeStatus, KiPruefung } from '@/lib/ads/ki-pruefung';
 
-type AdRow = AdItem & { agency_name: string; assignee_name: string | null; vorschau_url: string | null };
+type AdRow = AdItem & {
+  agency_name: string;
+  assignee_name: string | null;
+  vorschau_url: string | null;
+  ki_pruefung: KiPruefung | null;
+  ki_status: FreigabeStatus;
+};
+
+const KI_PUNKT: Record<FreigabeStatus, { cls: string; titel: string }> = {
+  ok: { cls: 'bg-green-500', titel: 'KI-Prüfung grün' },
+  warnung: { cls: 'bg-amber-500', titel: 'KI-Prüfung gelb' },
+  rot: { cls: 'bg-red-600', titel: 'KI-Prüfung rot' },
+  uebersteuert: { cls: 'bg-gray-500', titel: 'Ohne grüne KI-Prüfung freigegeben (begründet)' },
+  fehlt: { cls: 'bg-gray-200', titel: 'Noch nicht KI-geprüft' },
+};
 interface BoardData {
   ads: AdRow[];
   agencies: Array<{ id: string; name: string }>;
@@ -36,6 +52,31 @@ function AdDetail({
   const [link, setLink] = useState('');
   const [assetLink, setAssetLink] = useState(ad.asset_url ?? '');
   const [uploading, setUploading] = useState(false);
+  const [prueft, setPrueft] = useState(false);
+
+  const kiPruefen = async () => {
+    setPrueft(true);
+    try {
+      // Video aus dem eigenen Speicher: Standbilder im Browser ziehen (Drive-Videos: Vorschaubild serverseitig)
+      const frames =
+        ad.typ !== 'grafik' && ad.typ !== 'karussell' && ad.typ !== 'indeed' && ad.asset_path && ad.vorschau_url
+          ? await videoStandbilder(ad.vorschau_url)
+          : [];
+      const res = await fetch(`/api/ads/${ad.id}/ki-pruefung`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frames }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? 'KI-Prüfung fehlgeschlagen');
+      toast.success(d.pruefung.ampel === 'gruen' ? 'KI-Prüfung grün' : d.pruefung.ampel === 'gelb' ? 'KI-Prüfung gelb – Verbesserungen ansehen' : 'KI-Prüfung rot – bitte verbessern');
+      await onSave({});
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'KI-Prüfung fehlgeschlagen');
+    } finally {
+      setPrueft(false);
+    }
+  };
 
   const upload = async (file: File) => {
     if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
@@ -124,6 +165,24 @@ function AdDetail({
             <Upload className="w-3 h-3" /> {uploading ? 'Lädt hoch …' : `oder Datei hochladen (max. ${MAX_UPLOAD_MB} MB)`}
             <input type="file" className="hidden" accept="image/*,video/*" disabled={uploading} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
           </label>
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase">KI-Prüfung (doppelter Boden vor dem Kunden)</p>
+            <button
+              onClick={kiPruefen}
+              disabled={prueft}
+              className="h-8 rounded-lg border border-gray-300 bg-white px-3 text-[13px] font-semibold hover:bg-gray-50 disabled:opacity-50"
+            >
+              {prueft ? 'Prüft … (bis zu 1 Min.)' : ad.ki_pruefung ? 'Erneut prüfen' : 'Mit KI prüfen'}
+            </button>
+          </div>
+          {ad.ki_pruefung ? (
+            <KiPruefungAnzeige p={ad.ki_pruefung} veraltet={ad.ki_status === 'fehlt'} />
+          ) : (
+            <p className="text-[13px] text-gray-500">Noch nicht geprüft. Vor „An Kunden zur Freigabe“ einmal prüfen lassen.</p>
+          )}
         </div>
 
         <div>
@@ -227,8 +286,17 @@ export default function AdsPage() {
   );
 
   const save = async (id: string, patch: Record<string, unknown>) => {
+    if (!Object.keys(patch).length) return void (await load());
     let res = await fetch(`/api/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
     if (res.status === 409) {
+      const info = (await res.clone().json().catch(() => ({}))) as { code?: string; error?: string };
+      if (info.code === 'ki_pruefung') {
+        const grund = window.prompt(`${info.error ?? 'KI-Prüfung fehlt.'}\n\nTrotzdem zum Kunden? Dann kurz begründen (wird gespeichert):`);
+        if (!grund) return void (await load());
+        res = await fetch(`/api/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...patch, ki_override_grund: grund }) });
+        if (!res.ok) toast.error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Konnte nicht gespeichert werden');
+        return void (await load());
+      }
       // Live ohne Kundenfreigabe nur nach ausdrücklicher Bestätigung
       if (confirm('Der Kunde hat diese Ad noch nicht freigegeben. Trotzdem live schalten?')) {
         res = await fetch(`/api/ads/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...patch, ohne_freigabe: true }) });
@@ -312,6 +380,7 @@ export default function AdsPage() {
                         {a.typ === 'grafik' || a.typ === 'karussell' ? <ImageIcon className="w-3 h-3" /> : <Film className="w-3 h-3" />}
                         {AD_TYPEN.find((t) => t.key === a.typ)?.label}
                       </span>
+                      <span title={KI_PUNKT[a.ki_status].titel} className={`h-2 w-2 rounded-full ${KI_PUNKT[a.ki_status].cls}`} />
                       {a.assignee_name && <span>· {a.assignee_name}</span>}
                       {a.faellig_am && (
                         <span className="inline-flex items-center gap-1">
