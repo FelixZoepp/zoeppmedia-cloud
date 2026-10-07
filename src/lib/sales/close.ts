@@ -64,10 +64,13 @@ export async function findCloseLeadIdByName(name: string): Promise<string | null
   const apiKey = process.env.CLOSE_API_KEY;
   const needle = normName(name ?? '');
   if (!apiKey || needle.split(' ').length < 2) return null;
-  const leads = await searchLeads(apiKey, `"${name.trim()}"`);
+  // Mit und ohne Akzente suchen („Miró“ ↔ „Miro“)
+  const ascii = name.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const gefunden = await searchLeads(apiKey, `"${name.trim()}"`);
+  const leads = ascii !== name.trim() ? [...gefunden, ...(await searchLeads(apiKey, `"${ascii}"`))] : gefunden;
   const teile = needle.split(' ');
   const passt = (s?: string) => !!s && teile.every((t) => normName(s).split(' ').includes(t));
-  const treffer = leads.filter((l) => l.contacts?.some((c) => passt(c.name)) || passt(l.display_name));
+  const treffer = [...new Map(leads.filter((l) => l.contacts?.some((c) => passt(c.name)) || passt(l.display_name)).map((l) => [l.id, l])).values()];
   // Nur eindeutige Treffer – lieber keine Notiz als eine am falschen Lead
   return treffer.length === 1 ? treffer[0].id : null;
 }

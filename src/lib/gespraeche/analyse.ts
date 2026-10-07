@@ -145,15 +145,25 @@ export async function findeLead(svc: SupabaseClient, t: FfTranskript): Promise<{
     const bis = new Date(d.getTime() + 3 * 3600_000).toISOString();
     const { data } = await svc
       .from('calendly_events')
-      .select('invitee_name, invitee_email, invitee_phone, start_time')
+      .select('invitee_name, invitee_email, invitee_phone, start_time, candidate_id')
       .eq('agency_id', SALES_AGENCY_ID)
       .gte('start_time', von)
       .lte('start_time', bis);
-    const evs = (data ?? []) as Array<{ invitee_name: string | null; invitee_email: string | null; invitee_phone: string | null }>;
+    const evs = (data ?? []) as Array<{ invitee_name: string | null; invitee_email: string | null; invitee_phone: string | null; candidate_id: string | null }>;
     const passend = name ? evs.filter((e) => e.invitee_name && norm(e.invitee_name).includes(norm(name).split(' ')[0])) : evs;
     const ev = passend.length === 1 ? passend[0] : evs.length === 1 && !name ? evs[0] : null;
     if (ev) {
-      const leadId = await findCloseLeadId({ email: ev.invitee_email, phone: ev.invitee_phone }).catch(() => null);
+      // Telefonnummer fehlt bei manchen Buchungen → aus dem Lead in der Cloud oder einer anderen Buchung derselben Person
+      let phone = ev.invitee_phone;
+      if (!phone && ev.candidate_id) {
+        const { data: c } = await svc.from('candidates').select('phone').eq('id', ev.candidate_id).maybeSingle();
+        phone = (c as { phone: string | null } | null)?.phone ?? null;
+      }
+      if (!phone && ev.invitee_email) {
+        const { data: andere } = await svc.from('calendly_events').select('invitee_phone').eq('agency_id', SALES_AGENCY_ID).eq('invitee_email', ev.invitee_email).not('invitee_phone', 'is', null).limit(1).maybeSingle();
+        phone = (andere as { invitee_phone: string | null } | null)?.invitee_phone ?? null;
+      }
+      const leadId = await findCloseLeadId({ email: ev.invitee_email, phone }).catch(() => null);
       if (leadId) return { leadId, zuordnung: `Calendly-Termin (${ev.invitee_email ?? ev.invitee_phone})` };
     }
   }
