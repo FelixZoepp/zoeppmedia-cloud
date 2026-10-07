@@ -38,7 +38,12 @@ export async function POST(req: NextRequest) {
   try {
     const liste = await listeTranskripte(new Date(Date.now() - tage * 864e5));
     const { data: vorhanden } = await svc.from('gespraech_analysen').select('fireflies_id, status').in('fireflies_id', liste.map((t) => t.id));
-    const fertig = new Set(((vorhanden ?? []) as Array<{ fireflies_id: string; status: string }>).filter((v) => b.erneut ? false : v.status !== 'fehler').map((v) => v.fireflies_id));
+    // Fertig = schon in Close oder bewusst übersprungen; „kein Lead“ und Fehler werden erneut versucht (z. B. Lead inzwischen angelegt)
+    const fertig = new Set(
+      ((vorhanden ?? []) as Array<{ fireflies_id: string; status: string }>)
+        .filter((v) => (b.erneut ? false : v.status === 'in_close' || v.status === 'uebersprungen'))
+        .map((v) => v.fireflies_id),
+    );
     const offen = liste.filter((t) => !fertig.has(t.id)).slice(0, max);
     const ergebnisse: Array<{ id: string; titel: string | null; ergebnis: string }> = [];
     for (const t of offen) ergebnisse.push({ id: t.id, titel: t.title, ergebnis: await verarbeiteGespraech(svc, t.id, { erneut: b.erneut }) });
