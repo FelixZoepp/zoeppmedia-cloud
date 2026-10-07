@@ -258,6 +258,23 @@ async function runDailyJobs() {
 
   // 7. Wochenberichte laufen über /api/cron/weekly-report (montags, Schalter unter Admin → Wochenberichte)
 
+  // 7b. Fireflies-Gespräche der letzten 2 Tage nachholen, falls ein Webhook ausgeblieben ist
+  let gespraecheNachgeholt = 0;
+  if (process.env.FIREFLIES_API_KEY) {
+    try {
+      const { listeTranskripte } = await import('@/lib/gespraeche/fireflies');
+      const { verarbeiteGespraech } = await import('@/lib/gespraeche/analyse');
+      const liste = await listeTranskripte(new Date(Date.now() - 2 * 864e5), 20);
+      const { data: da } = await supabase.from('gespraech_analysen').select('fireflies_id').in('fireflies_id', liste.map((t) => t.id));
+      const fertig = new Set(((da ?? []) as Array<{ fireflies_id: string }>).map((x) => x.fireflies_id));
+      for (const t of liste.filter((x) => !fertig.has(x.id)).slice(0, 3)) {
+        if ((await verarbeiteGespraech(supabase, t.id)) === 'in_close') gespraecheNachgeholt++;
+      }
+    } catch (err) {
+      console.error('[cron] Fireflies-Nachholen fehlgeschlagen:', err);
+    }
+  }
+
   // 8. SEPA Pre-Debit Notifications (1 day before debit)
   let preDebitSent = 0;
   try {
@@ -381,6 +398,7 @@ async function runDailyJobs() {
     kpiSnapshots,
     backupAdAccountTasksCreated,
     preDebitSent,
+    gespraecheNachgeholt,
     accessReminders,
     stepReminders,
     umsatzErinnerungen,
@@ -391,6 +409,9 @@ async function runDailyJobs() {
     ingestErrorRateAlerts,
   };
 }
+
+// Viele Teilschritte (u. a. KI-Analysen nachholen) – volle Laufzeit erlauben
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;

@@ -17,7 +17,8 @@ function closeHeaders(apiKey: string): HeadersInit {
 
 interface CloseLead {
   id: string;
-  contacts?: Array<{ id?: string; emails?: Array<{ email: string }>; phones?: Array<{ phone: string }> }>;
+  display_name?: string;
+  contacts?: Array<{ id?: string; name?: string; emails?: Array<{ email: string }>; phones?: Array<{ phone: string }> }>;
 }
 
 function digits(phone: string): string {
@@ -27,7 +28,7 @@ function digits(phone: string): string {
 }
 
 async function searchLeads(apiKey: string, query: string): Promise<CloseLead[]> {
-  const params = new URLSearchParams({ query, _fields: 'id,contacts', _limit: '10' });
+  const params = new URLSearchParams({ query, _fields: 'id,display_name,contacts', _limit: '10' });
   // contacts enthält id, phones, emails — für die Zuordnung von WhatsApp-Aktivitäten
   const res = await fetch(`${CLOSE_BASE}/lead/?${params}`, { headers: closeHeaders(apiKey) });
   if (!res.ok) throw new Error(`Close-Suche fehlgeschlagen (${res.status})`);
@@ -54,6 +55,33 @@ export async function findCloseLeadIdByPhone(phone: string): Promise<string | nu
   // Nationale Ziffern (ohne +49/0) — so findet die Close-Volltextsuche Nummern in jedem Format
   const leads = await searchLeads(apiKey, needle);
   return leads.find((l) => l.contacts?.some((c) => c.phones?.some((p) => digits(p.phone) === needle)))?.id ?? null;
+}
+
+const normName = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** Lead-ID zum Namen einer Person finden (Kontaktname oder Lead-Name muss alle Namensteile enthalten). */
+export async function findCloseLeadIdByName(name: string): Promise<string | null> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  const needle = normName(name ?? '');
+  if (!apiKey || needle.split(' ').length < 2) return null;
+  const leads = await searchLeads(apiKey, `"${name.trim()}"`);
+  const teile = needle.split(' ');
+  const passt = (s?: string) => !!s && teile.every((t) => normName(s).split(' ').includes(t));
+  const treffer = leads.filter((l) => l.contacts?.some((c) => passt(c.name)) || passt(l.display_name));
+  // Nur eindeutige Treffer – lieber keine Notiz als eine am falschen Lead
+  return treffer.length === 1 ? treffer[0].id : null;
+}
+
+/** Notiz direkt an einen bekannten Lead schreiben. */
+export async function addCloseNote(leadId: string, note: string): Promise<void> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const res = await fetch(`${CLOSE_BASE}/activity/note/`, {
+    method: 'POST',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({ lead_id: leadId, note }),
+  });
+  if (!res.ok) throw new Error(`Close-Notiz fehlgeschlagen (${res.status})`);
 }
 
 /** Lead + Kontakt zur Telefonnummer (sonst E-Mail) finden — Ziel für WhatsApp-Aktivitäten. */
