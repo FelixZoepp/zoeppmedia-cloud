@@ -64,3 +64,15 @@ describe('Lektion speichern', () => {
     expect(lessonPatchSchema.safeParse({ status: 'entwurf', tags: ['Akquise'] }).success).toBe(true);
   });
 });
+
+describe('Google Drive', () => {
+  it('erkennt Drive-Freigabelinks und bettet sie als Vorschau ein', () => {
+    expect(detectProvider('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing')).toBe('drive');
+    expect(videoEmbedUrl('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing')).toBe('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/preview');
+    expect(videoEmbedUrl('https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp')).toBe('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/preview');
+  });
+  it('alte Datenbank ohne Migration: Drive fällt auf youtube zurück', () => {
+    expect(prepareLessonPatch({ video_url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view' }, false).video_provider).toBe('youtube');
+    expect(prepareLessonPatch({ video_url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view' }, true).video_provider).toBe('drive');
+  });
+});

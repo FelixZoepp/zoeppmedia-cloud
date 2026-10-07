@@ -18,7 +18,7 @@ export interface Lesson {
   title: string;
   description: string | null;
   video_url: string | null;
-  video_provider: 'youtube' | 'vimeo' | 'loom' | null;
+  video_provider: 'youtube' | 'vimeo' | 'loom' | 'drive' | null;
   duration_minutes: number | null;
   sort_order: number;
   status: 'entwurf' | 'veroeffentlicht';
@@ -82,14 +82,23 @@ export function normalizeLesson(row: Record<string, unknown>): Lesson {
 /* ── Video ─────────────────────────────────────────────────────── */
 
 /** Anbieter aus der URL erkennen */
-export function detectProvider(url: string): 'youtube' | 'vimeo' | 'loom' | null {
+export function detectProvider(url: string): 'youtube' | 'vimeo' | 'loom' | 'drive' | null {
   if (/youtu\.?be/.test(url)) return 'youtube';
   if (/vimeo\.com/.test(url)) return 'vimeo';
   if (/loom\.com/.test(url)) return 'loom';
+  if (/drive\.google\.com/.test(url)) return 'drive';
   return null;
 }
 
-/** Einbett-URL für YouTube/Vimeo/Loom, optional mit Startzeit (Kapitel) */
+/** Google-Drive-Datei-ID aus Freigabe-Links (…/file/d/<id>/view, ?id=<id>) */
+function driveId(url: string): string | null {
+  return url.match(/drive\.google\.com\/file\/d\/([\w-]{10,})/)?.[1] ?? url.match(/drive\.google\.com\/(?:open|uc)\?(?:.*&)?id=([\w-]{10,})/)?.[1] ?? null;
+}
+
+/**
+ * Einbett-URL für YouTube/Vimeo/Loom/Google Drive, optional mit Startzeit (Kapitel).
+ * Drive: Datei muss „Jeder mit dem Link“ freigegeben sein; Kapitel-Sprünge kann der Drive-Player nicht.
+ */
 export function videoEmbedUrl(url: string | null, start = 0): string | null {
   if (!url) return null;
   const s = Math.max(0, Math.floor(start));
@@ -99,6 +108,8 @@ export function videoEmbedUrl(url: string | null, start = 0): string | null {
   if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}${vimeo[2] ? `?h=${vimeo[2]}` : ''}${s ? `${vimeo[2] ? '&' : '?'}autoplay=1#t=${s}s` : ''}`;
   const loom = url.match(/loom\.com\/(?:share|embed)\/([\w]+)/);
   if (loom) return `https://www.loom.com/embed/${loom[1]}${s ? `?t=${s}` : ''}`;
+  const drive = driveId(url);
+  if (drive) return `https://drive.google.com/file/d/${drive}/preview`;
   return null;
 }
 
@@ -212,8 +223,8 @@ export function prepareLessonPatch(patch: LessonPatch, schemaReady: boolean): Re
   if (patch.tags) row.tags = [...new Set(patch.tags)];
   if (!schemaReady) {
     for (const c of NEW_LESSON_COLUMNS) delete row[c];
-    // Loom kennt die alte Datenbank noch nicht
-    if (row.video_provider === 'loom') row.video_provider = 'youtube';
+    // Loom/Drive kennt die alte Datenbank noch nicht
+    if (row.video_provider === 'loom' || row.video_provider === 'drive') row.video_provider = 'youtube';
   } else {
     row.updated_at = new Date().toISOString();
   }

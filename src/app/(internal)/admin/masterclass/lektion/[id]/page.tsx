@@ -309,8 +309,8 @@ export default function LessonEditorPage() {
                   </Field>
                   {form.typ === 'video' && (
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
-                      <Field label="Video-Link" hint="YouTube, Vimeo oder Loom">
-                        <Input value={form.video_url ?? ''} onChange={(e) => set('video_url', e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
+                      <Field label="Video-Link" hint="Loom, Google Drive (Freigabe: Jeder mit dem Link), YouTube oder Vimeo">
+                        <Input value={form.video_url ?? ''} onChange={(e) => set('video_url', e.target.value)} placeholder="https://www.loom.com/share/… oder https://drive.google.com/file/d/…" />
                       </Field>
                       <Field label="Dauer (Min.)">
                         <Input
