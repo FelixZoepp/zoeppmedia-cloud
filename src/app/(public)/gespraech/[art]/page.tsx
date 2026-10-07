@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { VIDEO_BASIS } from '@/lib/sales/ablauf-videos';
 
 export const metadata: Metadata = { title: 'So läuft das Gespräch ab – Zoepp Media', robots: { index: false } };
-
-const VIDEO_BASIS = 'https://qfzqoxeocyuqfreihiok.supabase.co/storage/v1/object/public/videos';
 
 /** Videos „So läuft das Gespräch ab“ – Ziel der Short-Links aus den WhatsApp-Terminbestätigungen */
 const GESPRAECHE: Record<string, { titel: string; text: string; datei: string }> = {

@@ -1,7 +1,13 @@
 import type { Metadata } from 'next';
 import { CalendarPlus, Clock, MapPin } from 'lucide-react';
-import { googleLink, outlookLink, terminText } from '@/lib/sales/termin-kalender';
+import { headers } from 'next/headers';
+import { after } from 'next/server';
+import { terminText } from '@/lib/sales/termin-kalender';
 import { ladeSalesTermin } from '@/lib/sales/termin-laden';
+import { erfasseTerminAktion } from '@/lib/sales/termin-tracking';
+import { ABLAUF_VIDEO, ablaufVideoUrl } from '@/lib/sales/ablauf-videos';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { AblaufVideo } from '@/components/sales/ablauf-video';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Termin in den Kalender – Zoepp Media', robots: { index: false } };
@@ -12,6 +18,11 @@ const TZ = 'Europe/Berlin';
 export default async function TerminSeite({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const t = await ladeSalesTermin(id);
+  // Öffnen der Seite erfassen (Notiz in Close) – nach dem Ausliefern, Link-Vorschau-Bots zählen nicht
+  if (t && !t.abgesagt) {
+    const ua = (await headers()).get('user-agent');
+    after(() => erfasseTerminAktion(createAdminClient(), id, 'seite', ua));
+  }
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-page p-4">
@@ -69,17 +80,20 @@ function TerminInhalt({ t }: { t: NonNullable<Awaited<ReturnType<typeof ladeSale
         <CalendarPlus className="h-4 w-4" /> In deinen Kalender eintragen
       </p>
       <div className="mt-3 space-y-2.5">
-        <a href={googleLink(t)} target="_blank" rel="noopener noreferrer" className={`${knopf} bg-gradient-to-b from-red-700 to-red-950 text-red-50 shadow-hero`}>
+        <a href={`/api/termin/${t.id}/eintragen?ziel=google`} target="_blank" rel="noopener noreferrer" className={`${knopf} bg-gradient-to-b from-red-700 to-red-950 text-red-50 shadow-hero`}>
           Google Kalender
         </a>
         <a href={`/api/termin/${t.id}/ics`} className={`${knopf} bg-card text-ink shadow-[inset_0_0_0_1.5px_var(--hair)]`}>
           iPhone / Apple Kalender
         </a>
-        <a href={outlookLink(t)} target="_blank" rel="noopener noreferrer" className={`${knopf} bg-card text-ink shadow-[inset_0_0_0_1.5px_var(--hair)]`}>
+        <a href={`/api/termin/${t.id}/eintragen?ziel=outlook`} target="_blank" rel="noopener noreferrer" className={`${knopf} bg-card text-ink shadow-[inset_0_0_0_1.5px_var(--hair)]`}>
           Outlook
         </a>
       </div>
       <p className="mt-5 text-center text-[12.5px] text-gray-500">Mit einer Erinnerung 15 Minuten vorher.</p>
+
+      <p className="mt-7 text-[14px] font-medium text-gray-700">{ABLAUF_VIDEO[t.art].titel}</p>
+      <AblaufVideo terminId={t.id} src={ablaufVideoUrl(t.art)} titel={ABLAUF_VIDEO[t.art].titel} />
     </div>
   );
 }
