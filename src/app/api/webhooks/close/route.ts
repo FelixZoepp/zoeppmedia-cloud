@@ -4,9 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { CLOSE_STATUS_SETTING_NO_SHOW, closeWebhookToken } from '@/lib/sales/close';
 import { handleCloseSettingNoShow } from '@/lib/sales/noshow';
 import { syncFollowupForOpportunity } from '@/lib/sales/followup';
+import { erfasseEintragung } from '@/lib/sales/eintragungen';
 
 /**
- * Close-Webhook (Sales-Bot). Abo: opportunity.created / opportunity.updated.
+ * Close-Webhook (Sales-Bot). Abo: opportunity.created / opportunity.updated / lead.created.
+ * - Neuer Lead → Eintragung merken, nach 10 Min. prüfen, ob ein Termin gebucht wurde
  * - Wechsel auf "Setting - No Show" → WhatsApp noshow_1_anruf
  * - Status "… - Follow Up" + Feld "Follow-up-Rhythmus" → Follow-up-Kette starten/umplanen/stoppen
  * Auth: geheimer Token in der URL (?token=…, abgeleitet aus CRON_SECRET).
@@ -52,6 +54,14 @@ export async function POST(request: NextRequest) {
     ev.data?.status_id === CLOSE_STATUS_SETTING_NO_SHOW &&
     ev.previous_data?.status_id !== CLOSE_STATUS_SETTING_NO_SHOW;
 
+  if (ev?.object_type === 'lead' && ev.action === 'created' && ev.object_id) {
+    try {
+      return NextResponse.json({ ok: true, eintragung: await erfasseEintragung(createAdminClient(), ev.object_id) });
+    } catch (err) {
+      console.error('[close-webhook] Eintragung fehlgeschlagen:', err);
+      return NextResponse.json({ error: 'Verarbeitung fehlgeschlagen' }, { status: 500 });
+    }
+  }
   if (ev?.object_type !== 'opportunity' || !ev.object_id) return NextResponse.json({ ok: true, action: 'ignored' });
   const svc = createAdminClient();
   const result: Record<string, unknown> = {};

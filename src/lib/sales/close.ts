@@ -203,6 +203,44 @@ export async function addCloseTask(
   return leadId;
 }
 
+/** Aufgabe direkt an einem bekannten Lead (fällig an `date`, YYYY-MM-DD). */
+export async function addCloseTaskForLead(leadId: string, text: string, date: string): Promise<void> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const res = await fetch(`${CLOSE_BASE}/task/`, {
+    method: 'POST',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({ _type: 'lead', lead_id: leadId, text, date }),
+  });
+  if (!res.ok) throw new Error(`Close-Aufgabe fehlgeschlagen (${res.status})`);
+}
+
+/** Lead mit Kontakten und Leadquelle laden (für Eintragungen) */
+export async function ladeCloseLead(leadId: string): Promise<{ id: string; name: string; email: string | null; phone: string | null; quelle: string | null; erstellt: string } | null> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) return null;
+  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=id,display_name,contacts,date_created,custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8`, {
+    headers: closeHeaders(apiKey),
+  });
+  if (!res.ok) return null;
+  const l = (await res.json()) as {
+    id: string;
+    display_name?: string;
+    date_created: string;
+    contacts?: Array<{ name?: string; emails?: Array<{ email: string }>; phones?: Array<{ phone: string }> }>;
+    [k: string]: unknown;
+  };
+  const c = l.contacts?.[0];
+  return {
+    id: l.id,
+    name: c?.name || l.display_name || 'Lead',
+    email: c?.emails?.[0]?.email ?? null,
+    phone: c?.phones?.[0]?.phone ?? null,
+    quelle: (l['custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8'] as string | undefined) ?? null,
+    erstellt: l.date_created,
+  };
+}
+
 /** Notiz am Close-Lead des Prospects anlegen. Gibt true zurück, wenn eine Notiz geschrieben wurde. */
 export async function addCloseNoteByEmail(email: string | null, note: string, phone?: string | null): Promise<boolean> {
   const apiKey = process.env.CLOSE_API_KEY;
@@ -267,6 +305,8 @@ export async function getCloseLeadContacts(leadId: string): Promise<CloseLeadCon
 const WEBHOOK_EVENTS = [
   { object_type: 'opportunity', action: 'created' },
   { object_type: 'opportunity', action: 'updated' },
+  // Neue Leads (Eintragungen) → 10-Minuten-Check auf Terminbuchung
+  { object_type: 'lead', action: 'created' },
 ];
 
 /** Webhook-Abo in Close anlegen bzw. auf die aktuellen Events bringen (idempotent). */

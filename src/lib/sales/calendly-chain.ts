@@ -278,6 +278,14 @@ export async function handleSalesBooking(
     { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true },
   );
 
+  // Eintragung (neuer Lead) dieser Buchung zuordnen → Direktbuchung oder später gebucht
+  try {
+    const { markiereBuchung } = await import('./eintragungen');
+    await markiereBuchung(svc, { email: input.inviteeEmail, phone: phoneE164 ?? input.phone, gebuchtAm: now });
+  } catch (err) {
+    console.error('[sales] Eintragung nicht zugeordnet:', err);
+  }
+
   if (!salesRemindersEnabled()) return { prospectId, jobsScheduled: false };
 
   await scheduleSalesJobs(svc, input, now);

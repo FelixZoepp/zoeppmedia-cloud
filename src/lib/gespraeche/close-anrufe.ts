@@ -5,6 +5,25 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ladeAudioHoch } from './fireflies';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
+import { terminArt } from '@/lib/sales/termin-kalender';
+
+/**
+ * KI-Auswertung nur für Setting- und Verkaufsgespräche: ein Telefonat zählt, wenn es zur Zeit eines
+ * gebuchten Termins (Calendly, -30 bis +60 Min.) stattfand. Opening- und Follow-up-Anrufe kosten so nichts.
+ */
+export async function istTerminGespraech(svc: SupabaseClient, c: Pick<CloseAnruf, 'date_created'>): Promise<boolean> {
+  const t = new Date(c.date_created).getTime();
+  const { data } = await svc
+    .from('calendly_events')
+    .select('event_type, event_name, status')
+    .eq('agency_id', SALES_AGENCY_ID)
+    .gte('start_time', new Date(t - 60 * 60_000).toISOString())
+    .lte('start_time', new Date(t + 30 * 60_000).toISOString());
+  return ((data ?? []) as Array<{ event_type: string | null; event_name: string | null; status: string | null }>).some(
+    (e) => e.status !== 'cancelled' && e.status !== 'canceled' && ['setting', 'beratung'].includes(terminArt(e.event_type, e.event_name)),
+  );
+}
 
 const CLOSE = 'https://api.close.com/api/v1';
 /** Unter 2 Minuten (Mailbox, „ruf später an“, kurzes Abwimmeln) lohnt keine Analyse – echte Gespräche ab 2 Min. werden erfasst */
@@ -63,9 +82,14 @@ export function leadAusRef(ref: unknown): string | null {
 }
 
 /** Einen Anruf an Fireflies geben (je Anruf nur einmal) */
-export async function schickeAnruf(svc: SupabaseClient, c: CloseAnruf): Promise<'hochgeladen' | 'schon' | 'fehler'> {
+export async function schickeAnruf(
+  svc: SupabaseClient,
+  c: CloseAnruf,
+  opts: { auchOhneTermin?: boolean } = {},
+): Promise<'hochgeladen' | 'schon' | 'fehler' | 'kein_termin'> {
   const { data: schon } = await svc.from('close_anruf_uploads').select('status').eq('call_id', c.id).maybeSingle();
   if ((schon as { status: string } | null)?.status === 'hochgeladen') return 'schon';
+  if (!opts.auchOhneTermin && !(await istTerminGespraech(svc, c))) return 'kein_termin';
   const datum = new Date(c.date_created);
   const titel = `${await leadName(c.lead_id)}: Telefonat ${datum.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}`;
   try {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, PhoneCall, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
 import { GespraecheBereich } from './gespraeche-bereich';
+import { EintragungenBereich } from './eintragungen-bereich';
 import type { SalesControlling } from '@/lib/sales-controlling/compute';
 import type { SalesDetails } from '@/lib/sales-controlling/detail';
 import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche';
@@ -218,6 +219,7 @@ export function VertriebClient() {
                 <SettingBereich d={d} />
                 <ClosingBereich d={d} />
               </div>
+              <EintragungenBereich zeitraum={zeitraum} />
               <Problemfelder d={d} nur={['Setting', 'Closing', 'Pipeline']} titel="Problemfelder Sales" />
               <ShowDetail s={d.details.shows} durchlauf={d.details.durchlauf} />
               <Funnel d={d} />
@@ -232,7 +234,12 @@ export function VertriebClient() {
               am Tag des Statuswechsels.
             </p>
           )}
-          {ansicht === 'telefonie' && <TelefonieBereich t={d.details.telefonie} verbunden={d.telefonieVerbunden} label={d.zeitraum.label} />}
+          {ansicht === 'telefonie' && (
+            <>
+              <TelefonieBereich t={d.details.telefonie} verbunden={d.telefonieVerbunden} label={d.zeitraum.label} />
+              <EintragungenBereich zeitraum={zeitraum} />
+            </>
+          )}
 
           {ansicht === 'followups' && <FollowupBereich f={d.details.followups} verbunden={d.aufgabenVerbunden} />}
 

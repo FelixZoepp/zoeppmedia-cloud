@@ -242,6 +242,11 @@ export async function GET(request: NextRequest) {
         case 'sales.close_log':
           await processSalesCloseLog(payload as unknown as SalesCloseLogPayload);
           break;
+        case 'sales.eintragung_check': {
+          const { pruefeEintragung } = await import('@/lib/sales/eintragungen');
+          await pruefeEintragung(svc, payload as unknown as { lead_id: string }, todayBerlin());
+          break;
+        }
         case 'sales.unconfirmed_check':
           await processSalesUnconfirmedCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
           break;
