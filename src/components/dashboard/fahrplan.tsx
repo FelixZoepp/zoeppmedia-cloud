@@ -66,7 +66,28 @@ export function Fahrplan({ mitLink = true }: { mitLink?: boolean }) {
     };
   }, []);
 
-  if (!f || f.live || f.phase === 'offboarding' || f.phase === 'beendet') return null;
+  if (!f || f.phase === 'offboarding' || f.phase === 'beendet') return null;
+  if (f.live) {
+    if (!f.nachlauf.length) return null;
+    return (
+      <Card className="mb-6">
+        <h2 className="text-[19px] font-medium tracking-[-0.02em]">Noch im Aufbau</h2>
+        <div className={`mt-3 rounded-xl px-3.5 py-2.5 text-[14px] ${f.ball.wer === 'kunde' ? 'bg-amber-50 text-amber-900' : 'bg-gray-50 text-gray-800'}`}>
+          {f.ball.text}
+          {f.ball.wer === 'kunde' && mitLink && (
+            <Link href="/deine-aufgaben" className="ml-1.5 font-semibold text-red-700 hover:underline">
+              Zu deinen Aufgaben →
+            </Link>
+          )}
+        </div>
+        <ul className="mt-2">
+          {f.nachlauf.map((s) => (
+            <Schritt key={s.key} s={s} />
+          ))}
+        </ul>
+      </Card>
+    );
+  }
   const aktivePhase = f.phasen.find((p) => p.status === 'aktiv');
   const sichtbar = offen ? f.phasen.filter((p) => p.key !== 'continuity') : aktivePhase ? [aktivePhase] : [];
 

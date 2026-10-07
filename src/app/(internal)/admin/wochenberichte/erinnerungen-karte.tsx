@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card } from '@/components/ui';
 
 interface Daten {
   aktiv: boolean;
   darfSchalten: boolean;
-  faellig: Array<{ agency_id: string; name: string; aufgaben: string[]; an: string[] }>;
+  vorlage: string;
+  faellig: Array<{ agency_id: string; name: string; aufgaben: string[]; nummer: string | null; text: string; ergebnis: string }>;
 }
 
 /** Automatische Erinnerungen an Kunden mit offenen Aufgaben – Schalter + wer heute dran wäre */
@@ -43,8 +43,9 @@ export function ErinnerungenKarte() {
         <div className="min-w-0">
           <p className="text-[16px] font-medium">Erinnerungen an offene Kunden-Aufgaben</p>
           <p className="text-[13.5px] text-gray-600">
-            Ist eine Frist abgelaufen (Zugänge, Formular, Bilder …), bekommt der Kunde morgens eine freundliche E-Mail und eine Benachrichtigung – höchstens alle 2 Tage, max. 3-mal. Danach steht er im Cockpit zum Anrufen.{' '}
-            {d.aktiv ? 'Ist an.' : 'Ist aus.'}
+            Ist eine Frist abgelaufen (Zugänge, Formular, Bilder …), schreibt der WhatsApp-Bot dem Kunden morgens über die Sales-Nummer (Vorlage mit Button zu „Deine Aufgaben“) – höchstens alle 2 Tage, max. 3-mal. Danach steht er im Cockpit zum Anrufen.{' '}
+            {d.aktiv ? 'Ist an.' : 'Ist aus.'} WhatsApp-Vorlage bei Meta:{' '}
+            <strong className="font-semibold">{d.vorlage === 'approved' ? 'freigegeben' : d.vorlage === 'pending' ? 'wird geprüft' : d.vorlage === 'rejected' ? 'abgelehnt' : 'noch nicht eingereicht'}</strong>
           </p>
         </div>
         {d.darfSchalten && (
@@ -60,19 +61,10 @@ export function ErinnerungenKarte() {
         ) : (
           <ul className="mt-1 space-y-1.5">
             {d.faellig.map((k) => (
-              <li key={k.agency_id} className="flex flex-wrap items-center justify-between gap-2 text-[14px]">
-                <span className="min-w-0">
-                  <span className="font-medium">{k.name}</span>
-                  <span className="text-gray-500"> · {k.aufgaben.length} offen: {k.aufgaben.slice(0, 3).join(', ')}{k.aufgaben.length > 3 ? ' …' : ''}</span>
-                </span>
-                <a
-                  href={`/api/admin/kunden-erinnerungen?vorschau=${k.agency_id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[13px] font-medium text-red-700 hover:underline"
-                >
-                  <Eye className="h-3.5 w-3.5" /> Mail ansehen
-                </a>
+              <li key={k.agency_id} className="text-[14px]">
+                <span className="font-medium">{k.name}</span>
+                <span className={k.nummer ? 'text-gray-500' : 'font-medium text-amber-700'}> · {k.nummer ?? 'keine Handynummer – bitte beim Kunden eintragen'}</span>
+                <p className="mt-0.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-[13px] text-gray-700">{k.text}</p>
               </li>
             ))}
           </ul>

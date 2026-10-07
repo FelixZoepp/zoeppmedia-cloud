@@ -5,6 +5,7 @@ import { ConversationList } from '@/components/inbox/conversation-list';
 import { ChatPane } from '@/components/inbox/chat-pane';
 import { CandidateSidebar } from '@/components/inbox/candidate-sidebar';
 import { PageHeader } from '@/components/ui/page-header';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { createClient } from '@/lib/supabase/client';
 import { MessageCircle } from 'lucide-react';
 import type { InboxKind } from '@/components/inbox/format';
@@ -17,6 +18,8 @@ export default function InboxPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<InboxKind>('recruiting');
+  // Sales-Inbox: Leads oder Kunden
+  const [gruppe, setGruppe] = useState<'leads' | 'kunden'>('leads');
   // Kontakt-Details nur auf breiten Bildschirmen direkt offen, sonst verdecken sie den Chat
   const [showInfo, setShowInfo] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches);
   const deepLinkHandled = useRef(false);
@@ -25,7 +28,7 @@ export default function InboxPage() {
   const supabase = useMemo(() => createClient(), []);
 
   const loadConversations = useCallback(async () => {
-    const params = new URLSearchParams({ filter });
+    const params = new URLSearchParams({ filter, gruppe });
     if (search) params.set('search', search);
     const res = await fetch(`/api/conversations?${params}`);
     if (res.ok) {
@@ -40,7 +43,7 @@ export default function InboxPage() {
       const fromUrl = new URLSearchParams(window.location.search).get('conversation');
       if (fromUrl) setSelectedId(fromUrl);
     }
-  }, [filter, search]);
+  }, [filter, search, gruppe]);
 
   const loadMessages = useCallback(async (convId: string) => {
     const res = await fetch(`/api/conversations/${convId}/messages`);
@@ -120,11 +123,26 @@ export default function InboxPage() {
         title={kind === 'sales' ? 'Sales-WhatsApp' : 'Inbox'}
         description={
           kind === 'sales'
-            ? 'Alle WhatsApp-Gespräche mit Leads – neue Nummern landen automatisch im CRM.'
+            ? 'Alle WhatsApp-Gespräche mit Leads und Kunden – neue Nummern landen automatisch im CRM.'
             : 'Alle WhatsApp-Gespräche mit deinen Bewerbern – neue Nummern landen automatisch im CRM.'
         }
         counter={unread > 0 ? `${unread} ungelesen` : undefined}
       />
+
+      {kind === 'sales' && (
+        <SegmentedControl
+          className="mb-3"
+          items={[
+            { value: 'leads', label: 'Leads' },
+            { value: 'kunden', label: 'Kunden' },
+          ]}
+          value={gruppe}
+          onChange={(v) => {
+            setGruppe(v as 'leads' | 'kunden');
+            setSelectedId(null);
+          }}
+        />
+      )}
 
       <div className="relative flex h-[calc(100dvh-300px)] min-h-[500px] overflow-hidden rounded-xl bg-card shadow-sm md:h-[calc(100dvh-268px)]">
         {/* Gesprächsliste (Handy: nur ohne offene Konversation) */}

@@ -12,10 +12,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const user = await getCurrentUser();
   if (!user || !isInternal(user.role)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { id } = await params;
-  const { data } = await createAdminClient().from('agencies').select('paket, bausteine').eq('id', id).maybeSingle();
+  const { data } = await createAdminClient().from('agencies').select('paket, bausteine, fulfillment_phase').eq('id', id).maybeSingle();
   if (!data) return NextResponse.json({ error: 'Kunde nicht gefunden' }, { status: 404 });
-  const a = data as { paket: string | null; bausteine: unknown };
-  return NextResponse.json({ paket: a.paket, bausteine: bausteineVon(a.bausteine), gesetzt: Array.isArray(a.bausteine), darfAendern: user.role === 'admin' });
+  const a = data as { paket: string | null; bausteine: unknown; fulfillment_phase: string | null };
+  return NextResponse.json({ paket: a.paket, bausteine: bausteineVon(a.bausteine), gesetzt: Array.isArray(a.bausteine), phase: a.fulfillment_phase, darfAendern: user.role === 'admin' });
 }
 
 /** PATCH { bausteine } – Leistungen ändern (Admin): Schritte werden nachgetragen bzw. entfallen */

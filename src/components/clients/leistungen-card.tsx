@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Package } from 'lucide-react';
+import { Check, Package, Rocket } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card } from '@/components/ui';
 import { BAUSTEINE, paketVorlage, type Baustein } from '@/lib/fulfillment/pakete';
@@ -10,6 +10,7 @@ interface Daten {
   paket: string | null;
   bausteine: Baustein[];
   gesetzt: boolean;
+  phase: string | null;
   darfAendern: boolean;
 }
 
@@ -18,6 +19,8 @@ export function LeistungenCard({ agencyId, onGeaendert }: { agencyId: string; on
   const [d, setD] = useState<Daten | null>(null);
   const [auswahl, setAuswahl] = useState<Baustein[]>([]);
   const [speichert, setSpeichert] = useState(false);
+  const [liveOffen, setLiveOffen] = useState(false);
+  const [folgt, setFolgt] = useState<Baustein[]>([]);
 
   const laden = useCallback(async () => {
     const res = await fetch(`/api/admin/agencies/${agencyId}/leistungen`, { cache: 'no-store' });
@@ -53,6 +56,26 @@ export function LeistungenCard({ agencyId, onGeaendert }: { agencyId: string; on
     await laden();
     onGeaendert?.();
   }
+
+  async function kampagneLive() {
+    const namen = folgt.map((b) => BAUSTEINE.find((x) => x.key === b)?.label ?? b).join(', ');
+    if (!confirm(`Kampagne als live markieren?${namen ? ` ${namen} folgt noch – diese Schritte bleiben offen.` : ''} Alle übrigen Aufbau-Schritte werden abgehakt.`)) return;
+    setSpeichert(true);
+    const res = await fetch(`/api/admin/agencies/${agencyId}/kampagne-live`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folgt }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSpeichert(false);
+    if (!res.ok) return void toast.error(data.error ?? 'Fehlgeschlagen');
+    toast.success(`Kampagne live – ${data.abgehakt} Schritte abgehakt${data.offen?.length ? `, offen: ${data.offen.join(', ')}` : ''}`);
+    setLiveOffen(false);
+    await laden();
+    onGeaendert?.();
+  }
+
+  const imAufbau = ['zahlung', 'onboarding', 'setup'].includes(d.phase ?? '');
 
   return (
     <Card className="mb-6">
@@ -98,6 +121,45 @@ export function LeistungenCard({ agencyId, onGeaendert }: { agencyId: string; on
           );
         })}
       </div>
+
+      {d.darfAendern && imAufbau && !geaendert && (
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          {!liveOffen ? (
+            <Button variant="secondary" onClick={() => setLiveOffen(true)}>
+              <Rocket className="h-4 w-4" /> Kampagne ist live
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[13.5px] text-gray-700">Läuft schon alles? Sonst ankreuzen, was noch folgt – diese Schritte bleiben offen, der Rest wird abgehakt.</p>
+              <div className="flex flex-wrap gap-2">
+                {BAUSTEINE.filter((b) => d.bausteine.includes(b.key)).map((b) => {
+                  const an = folgt.includes(b.key);
+                  return (
+                    <button
+                      key={b.key}
+                      type="button"
+                      aria-pressed={an}
+                      onClick={() => setFolgt((prev) => (an ? prev.filter((x) => x !== b.key) : [...prev, b.key]))}
+                      className={`rounded-full border px-3 py-1.5 text-[13px] ${an ? 'border-red-700 bg-red-50 font-medium text-red-800' : 'border-gray-200 bg-white text-gray-700'}`}
+                    >
+                      {an ? '✓ ' : ''}
+                      {b.label} folgt noch
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={kampagneLive} disabled={speichert}>
+                  {speichert ? 'Speichert…' : 'Als live markieren'}
+                </Button>
+                <Button variant="ghost" onClick={() => setLiveOffen(false)}>
+                  Abbrechen
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {d.darfAendern && geaendert && (
         <div className="mt-3 flex flex-wrap items-center justify-end gap-3">

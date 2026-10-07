@@ -39,6 +39,17 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
       { type: 'URL', text: 'So läuft das Gespräch ab', url: 'https://ressourcen.felixzoepp.de/erstgespraech' },
     ],
   },
+  {
+    // Kunden-Erinnerung an offene Aufgaben (Zugänge, Formular …) – siehe fulfillment/kunden-erinnerung.ts
+    name: 'kunde_aufgaben_erinnerung',
+    category: 'UTILITY',
+    body:
+      'Hallo {{1}}, kurzes Update zu deinem Projekt mit Zoepp Media: Damit es weitergeht, fehlt uns noch {{2}}.\n\n' +
+      'Zu jedem Punkt findest du in der Zoepp Cloud eine kurze Anleitung, meist dauert es nur ein paar Minuten. Bei Fragen antworte einfach hier.',
+    variables: ['vorname', 'aufgaben'],
+    beispiel: ['Mehmet', 'der Indeed-Zugang und deine Bilder fürs Branding'],
+    buttons: [{ type: 'URL', text: 'Zu deinen Aufgaben', url: 'https://cloud.zoeppmedia.de/deine-aufgaben' }],
+  },
 ];
 
 async function zugang(svc: SupabaseClient): Promise<{ wabaId: string; token: string }> {

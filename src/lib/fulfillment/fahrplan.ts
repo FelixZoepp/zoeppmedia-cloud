@@ -57,6 +57,8 @@ export interface Fahrplan {
   gesamt: number;
   ball: { wer: 'kunde' | 'zoepp' | null; text: string };
   live: boolean;
+  /** Kampagne läuft, aber ein Baustein ist noch im Aufbau (z. B. Indeed folgt) */
+  nachlauf: FahrplanSchritt[];
   /** Voraussichtlicher Kampagnenstart (YYYY-MM-DD) */
   startDatum: string | null;
   phasen: Array<{ key: Phase; label: string; status: 'fertig' | 'aktiv' | 'kommt'; schritte: FahrplanSchritt[] }>;
@@ -129,12 +131,17 @@ export function baueFahrplan(input: {
   const erledigt = live ? bisStart.length : bisStart.filter((s) => s.status === 'erledigt').length;
   const gesamt = bisStart.length;
 
+  const nachlauf = live ? phasen.filter((p) => p.key !== 'continuity').flatMap((p) => p.schritte.filter((s) => s.status !== 'erledigt' && s.status !== 'geplant')) : [];
+
   // Wer ist dran? Offene Kunden-Aufgaben der aktuellen Phase zuerst
   const aktiv = phasen.find((p) => p.status === 'aktiv');
   const duOffen = aktiv?.schritte.filter((s) => s.status === 'du') ?? [];
   const wir = aktiv?.schritte.filter((s) => s.status === 'in_arbeit' || s.status === 'pruefung') ?? [];
   let ball: Fahrplan['ball'];
-  if (live) ball = { wer: null, text: 'Deine Kampagne läuft. Neue Bewerber findest du unter „Bewerber“.' };
+  const nlDu = nachlauf.filter((s) => s.status === 'du');
+  if (live && nlDu.length) ball = { wer: 'kunde', text: `Deine Kampagne läuft. Für den nächsten Baustein brauchen wir noch: ${nlDu.map((s) => s.titel).join(', ')}` };
+  else if (live && nachlauf.length) ball = { wer: 'zoepp', text: `Deine Kampagne läuft. Parallel richten wir noch ein: ${nachlauf.map((s) => s.titel).join(', ')}` };
+  else if (live) ball = { wer: null, text: 'Deine Kampagne läuft. Neue Bewerber findest du unter „Bewerber“.' };
   else if (duOffen.length)
     ball = {
       wer: 'kunde',
@@ -155,6 +162,7 @@ export function baueFahrplan(input: {
     gesamt,
     ball,
     live,
+    nachlauf,
     startDatum: live ? null : schaetzeStart(phase, rows, bausteine, heute),
     phasen,
   };

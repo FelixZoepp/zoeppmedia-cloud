@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { erinnerungsMail, faelligeErinnerungen, type OffeneKundenAufgabe } from '../kunden-erinnerung';
+import { aufgabenImSatz, faelligeErinnerungen, type OffeneKundenAufgabe } from '../kunden-erinnerung';
 
 const jetzt = new Date('2026-10-07T08:00:00Z');
 const heute = '2026-10-07';
@@ -30,10 +30,11 @@ describe('Kunden-Erinnerungen', () => {
     expect(faelligeErinnerungen([a({ kunde_erinnert_am: '2026-10-01T08:00:00Z', kunde_erinnerungen: 3 })], heute, jetzt).size).toBe(0);
   });
 
-  it('Mail: freundlich, Aufgaben escaped', () => {
-    const m = erinnerungsMail('Max Muster', ['Indeed-Zugang gegeben', '<b>x</b>'], 'https://x/deine-aufgaben');
-    expect(m.betreff).toBe('Kurz noch 2 Dinge für deinen Kampagnenstart');
-    expect(m.html).toContain('Hallo Max,');
-    expect(m.html).toContain('&lt;b&gt;x&lt;/b&gt;');
+  it('Aufgaben im Satz für die WhatsApp-Vorlage', () => {
+    expect(aufgabenImSatz(['o_indeed'])).toBe('der Indeed-Zugang');
+    expect(aufgabenImSatz(['o_indeed', 'o_bilder'])).toBe('der Indeed-Zugang und deine Bilder fürs Branding');
+    expect(aufgabenImSatz(['o_meta_seite', 'o_meta_pixel', 'o_meta_domain', 'o_meta_zahlung', 'o_indeed'])).toBe(
+      'der Zugriff auf deine Facebook-Seite, der Zugriff auf dein Pixel, die Domain-Bestätigung bei Facebook und 2 weitere Punkte',
+    );
   });
 });

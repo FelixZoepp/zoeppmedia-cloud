@@ -174,6 +174,9 @@ export async function loadMyTodos(svc: SupabaseClient, userId: string, now: Date
 }
 
 /** "Deine Aufgaben" im Kundenportal: Kunden-Schritte der aktuellen Phase (+ erledigte zur Übersicht). */
+const PHASEN_FOLGE: Phase[] = ['zahlung', 'onboarding', 'setup', 'continuity', 'offboarding', 'beendet'];
+const frueherOderJetzt = (schritt: Phase, aktuell: Phase) => PHASEN_FOLGE.indexOf(schritt) <= PHASEN_FOLGE.indexOf(aktuell);
+
 export async function loadCustomerTasks(svc: SupabaseClient, agencyId: string, now: Date = new Date()) {
   const phase = await ensureFulfillment(svc, agencyId, now);
   const { data: rows } = await svc.from('client_steps').select('*').eq('agency_id', agencyId).eq('wer', 'kunde');
@@ -184,7 +187,10 @@ export async function loadCustomerTasks(svc: SupabaseClient, agencyId: string, n
   return {
     phase,
     // Ads-Freigabe läuft über die Freigabe-Karten (Signal ads_freigegeben), nicht über „Erledigt“
-    offen: steps.filter((s) => s.phase === phase && (s.status === 'offen' || s.status === 'in_arbeit') && s.step_key !== 's_freigabe'),
+    // Offene Schritte früherer Phasen bleiben sichtbar (z. B. Indeed folgt nach dem Kampagnenstart)
+    offen: steps.filter(
+      (s) => frueherOderJetzt(s.phase, phase) && (s.status === 'offen' || s.status === 'in_arbeit') && s.step_key !== 's_freigabe',
+    ),
     in_pruefung: steps.filter((s) => s.status === 'zur_pruefung'),
     erledigt: steps.filter((s) => s.status === 'erledigt'),
   };

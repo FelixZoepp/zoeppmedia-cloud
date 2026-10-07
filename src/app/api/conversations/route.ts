@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     .from('conversations')
     .select(`
       id, state, window_expires_at, unread_count, last_message_at, assigned_to,
-      candidate:candidates!inner(id, name, phone_e164, email, source, consent_source, created_at, location, current_stage:pipeline_stages(name, color)),
+      candidate:candidates!inner(id, name, phone_e164, email, source, consent_source, created_at, location, kunde_agency_id, current_stage:pipeline_stages(name, color)),
       application:applications(id, job:jobs(title), stage:pipeline_stages(name, color))
     `)
     .eq('agency_id', agencyId)
@@ -42,6 +42,11 @@ export async function GET(request: NextRequest) {
       break;
     }
   }
+
+  // Sales-Inbox: Tabs „Leads“ und „Kunden“ (Kontakt mit kunde_agency_id)
+  const gruppe = request.nextUrl.searchParams.get('gruppe');
+  if (agencyId === SALES_AGENCY_ID && gruppe === 'kunden') query = query.not('candidate.kunde_agency_id', 'is', null);
+  if (agencyId === SALES_AGENCY_ID && gruppe === 'leads') query = query.is('candidate.kunde_agency_id', null);
 
   // Suche — zwei Schritte, da PostgREST kein .or() auf joined columns unterstützt (I-2).
   // Kommas im Suchbegriff werden entfernt um .or()-Syntax nicht zu brechen.

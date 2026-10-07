@@ -303,7 +303,13 @@ async function runDailyJobs() {
     }
   }
 
-  // 7b5. Kunden an überfällige Aufgaben erinnern (Schalter in /admin/wochenberichte)
+  // 7b5. Kunden im Sales-WhatsApp markieren, dann an überfällige Aufgaben erinnern (Schalter in /admin/wochenberichte)
+  try {
+    const { verknuepfeKundenKontakte } = await import('@/lib/fulfillment/kunden-kontakt');
+    await verknuepfeKundenKontakte(supabase);
+  } catch (err) {
+    console.error('[cron] Kunden-Kontakte verknüpfen fehlgeschlagen:', err);
+  }
   try {
     const { erinnereKunden, erinnerungenAktiv } = await import('@/lib/fulfillment/kunden-erinnerung');
     if (await erinnerungenAktiv(supabase)) await erinnereKunden(supabase);
