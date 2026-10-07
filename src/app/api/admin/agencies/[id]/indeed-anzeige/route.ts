@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { moveAd } from '@/lib/ads/ads';
 import { setStepStatus } from '@/lib/fulfillment/engine';
+import { speichereIndeedAnzeige } from '@/lib/indeed/speichern';
 import { darfZumKunden, freigabeStatus, kiFehlertext, pruefeAd, versionsKey, type KiPruefung } from '@/lib/ads/ki-pruefung';
 import {
   IndeedAnzeigeSchema,
@@ -71,14 +72,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     );
   }
 
-  const felder = { titel: `Indeed: ${anzeige.titel}`, idee: anzeigeAlsText(anzeige), inhalt: anzeige, updated_at: new Date().toISOString() };
-  // Noch nicht freigegeben → dieselbe Karte überarbeiten (zurück in die Bearbeitung); sonst neue Version
-  if (karte && !['bereit', 'live'].includes(karte.stage)) {
-    await svc.from('ad_items').update(felder).eq('id', karte.id);
-    if (karte.stage !== 'bearbeitung') await moveAd(svc, karte.id, 'bearbeitung', { userId: user.id, kommentar: 'neu generiert' });
-  } else {
-    const { error } = await svc.from('ad_items').insert({ agency_id: id, typ: 'indeed', stage: 'bearbeitung', assignee_id: user.id, ...felder });
-    if (error) return NextResponse.json({ error: `Speichern fehlgeschlagen: ${error.message}` }, { status: 500 });
+  try {
+    await speichereIndeedAnzeige(svc, id, anzeige, user.id);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Speichern fehlgeschlagen' }, { status: 500 });
   }
   return NextResponse.json({ anzeige: await aktuelleKarte(svc, id) });
 }

@@ -255,7 +255,10 @@ function AdDetail({
 
 export default function AdsPage() {
   const [data, setData] = useState<BoardData | null>(null);
-  const [agencyFilter, setAgencyFilter] = useState('');
+  // ?kunde=<id> (z. B. aus dem Fulfillment-Generator) filtert direkt auf den Kunden
+  const [agencyFilter, setAgencyFilter] = useState(() =>
+    typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('kunde') ?? '',
+  );
   const [nurMeine, setNurMeine] = useState(false);
   const [me, setMe] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
