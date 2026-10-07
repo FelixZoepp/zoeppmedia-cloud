@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     .from('candidates')
     .select('id, name, created_at, source, indeed_job_title, meta_campaign, agency_id')
     .is('deleted_at', null)
+    // Test-Leads aus „Test-Lead durchspielen“ nicht als neue Bewerber melden
+    .or('externe_id.is.null,externe_id.not.like."perspective:testlead-*"')
     .gt('created_at', seit)
     .order('created_at', { ascending: false })
     .limit(10);

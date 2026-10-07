@@ -77,6 +77,19 @@ export function createFakeDb(initial: Record<string, Row[]> = {}) {
         }
         return chain;
       },
+      // einfache PostgREST-or-Ausdrücke: "a.eq.x,b.is.null"
+      or: (expr: string) => {
+        const teile = expr.split(',').map((x) => x.split('.'));
+        filters.push((r) =>
+          teile.some(([c, op, ...rest]) => {
+            const v = rest.join('.');
+            if (op === 'eq') return String(r[c]) === v;
+            if (op === 'is' && v === 'null') return (r[c] ?? null) === null;
+            return false;
+          }),
+        );
+        return chain;
+      },
       order: (col: string, o?: { ascending?: boolean }) => ((order = { col, asc: o?.ascending !== false }), chain),
       limit: (n: number) => ((limit = n), chain),
       insert: (p: Row | Row[]) => ((mode = 'insert'), (payload = p), chain),

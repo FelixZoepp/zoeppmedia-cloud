@@ -12,6 +12,7 @@ import { AvatarUpload } from '@/components/avatar-upload';
 import { KundenZugaengeCard } from '@/components/clients/kunden-zugaenge-card';
 import { LeistungenCard } from '@/components/clients/leistungen-card';
 import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
+import { TestleadCard } from '@/components/clients/testlead-card';
 import { agencyLogo } from '@/lib/branding/logo';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
@@ -591,6 +592,8 @@ export default function ClientDetailPage() {
       <LeistungenCard agencyId={id} onGeaendert={load} />
 
       <IndeedAnzeigeCard agencyId={id} />
+
+      <TestleadCard agencyId={id} onFertig={load} />
 
       <KundenZugaengeCard agencyId={id} />
 

@@ -172,7 +172,7 @@ export const STEPS: StepDef[] = [
     beschreibung: 'Zuständige Person im Innendienst festlegen und mit dem Kunden abstimmen: Termine, Ablauf, wer welche Bewerber anruft.',
     wer: 'zoepp', funktion: 'innendienst', frist_tage: 5, nur: ['innendienst'],
   },
-  { key: 's_testlead', phase: 'setup', titel: 'Test-Lead durchgespielt', beschreibung: 'Funnel bzw. Indeed → Cloud → WhatsApp einmal komplett.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5 },
+  { key: 's_testlead', phase: 'setup', titel: 'Test-Lead durchgespielt', beschreibung: 'Auf der Kundenseite „Test-Lead durchspielen“ – Eingang → Cloud → WhatsApp wird geprüft, der Schritt hakt sich bei Erfolg selbst ab.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5 },
   { key: 's_werbemanager', phase: 'setup', titel: 'Werbemanager eingerichtet', beschreibung: 'Conversion-Events, Kampagne, Zielgruppe, Budget.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5, nur: ['meta'] },
   { key: 's_ads_vorbereitet', phase: 'setup', titel: 'Ads vorbereitet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 5, nur: ['meta'] },
   {
