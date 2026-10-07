@@ -4,6 +4,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -35,7 +36,7 @@ const anthropic = (): Anthropic => {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY nicht konfiguriert');
   }
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return anthropicClient();
 };
 
 // Hilfsfunktion: System-Blöcke in SDK-Format übersetzen

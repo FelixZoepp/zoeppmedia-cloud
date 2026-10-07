@@ -7,7 +7,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -190,7 +190,7 @@ export async function pruefeAd(
     .filter(Boolean)
     .join('\n\n');
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = anthropicClient();
   const res = await client.messages.parse({
     model: KI_MODELL,
     max_tokens: 8000,

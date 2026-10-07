@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -24,7 +25,7 @@ export async function GET(req: Request) {
   }
   const start = Date.now();
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const client = anthropicClient();
     const msg = await client.beta.messages.create({
       model: 'claude-opus-5-5',
       max_tokens: 64,
@@ -44,6 +45,10 @@ export async function GET(req: Request) {
           : err instanceof Error
             ? err.message
             : String(err),
+      hinweis:
+        err instanceof Error && /not scoped to a workspace/i.test(err.message)
+          ? 'Schlüssel ohne Workspace: in Vercel ANTHROPIC_WORKSPACE_ID setzen (Console → Workspaces → ID) oder einen Schlüssel innerhalb eines Workspaces anlegen.'
+          : undefined,
       dauer_ms: Date.now() - start,
     });
   }

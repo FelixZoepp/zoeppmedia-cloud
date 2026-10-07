@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 
 interface GeneratedTask {
   titel: string;
@@ -80,7 +80,7 @@ export async function generateTasksFromTranscript(
 }
 
 async function deriveTasksWithClaude(antwortenText: string): Promise<GeneratedTask[]> {
-  const anthropic = new Anthropic();
+  const anthropic = anthropicClient();
 
   const systemPrompt = `Du bist Fulfillment-Leiter einer Recruiting-Agentur für D2D-Vertriebsteams. Aus den Antworten eines Onboarding-Gesprächs mit einem neuen Kunden leitest du konkrete Setup-Aufgaben für das interne Team ab, die VOR dem Kickoff-Call erledigt sein müssen.
 

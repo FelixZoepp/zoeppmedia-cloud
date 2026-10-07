@@ -11,7 +11,7 @@
  * Danach: Team prüft (KI-Prüfung als doppelter Boden), Kunde gibt in seiner Cloud frei.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -116,7 +116,7 @@ Regeln:
 
 async function frage<T>(schema: z.ZodType<T>, auftrag: string): Promise<T> {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY ist nicht hinterlegt');
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = anthropicClient();
   const res = await client.messages.parse({
     model: GEN_MODELL,
     max_tokens: 16000,

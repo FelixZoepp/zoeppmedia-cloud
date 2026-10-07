@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 
 export interface CvData {
   full_name: string | null;
@@ -34,7 +34,7 @@ export async function extractCvData(pdfText: string): Promise<CvData> {
   if (!pdfText || pdfText.length < 20) return EMPTY_CV;
 
   try {
-    const anthropic = new Anthropic();
+    const anthropic = anthropicClient();
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,

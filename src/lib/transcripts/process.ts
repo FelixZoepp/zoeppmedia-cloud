@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { transcribeAudio } from '@/lib/recordings/transcribe';
 
 interface TranscriptQuestion {
@@ -153,7 +153,7 @@ async function extractAnswersWithClaude(
   volltext: string,
   questions: TranscriptQuestion[]
 ): Promise<ExtractedAnswer[]> {
-  const anthropic = new Anthropic();
+  const anthropic = anthropicClient();
 
   const questionList = questions
     .map((q, i) => `${i + 1}. key: "${q.key}" — Frage: "${q.frage_text}"`)

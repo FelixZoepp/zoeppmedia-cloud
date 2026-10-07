@@ -4,7 +4,7 @@
  * Danach: Team prüft → Kunde gibt in seiner Cloud frei → Anzeige wird bei Indeed geschaltet.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -164,7 +164,7 @@ export async function generiereIndeedAnzeige(
   opts: { zusatz?: string | null; vorher?: IndeedAnzeige | null; feedback?: string | null } = {},
 ): Promise<IndeedAnzeige> {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY ist nicht hinterlegt');
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = anthropicClient();
 
   let auftrag = `<briefing>\n${briefingText(b, opts.zusatz ?? null)}\n</briefing>\n\nSchreib die Indeed-Anzeige.`;
   if (opts.vorher && opts.feedback?.trim()) {

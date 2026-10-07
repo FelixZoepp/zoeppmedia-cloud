@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { getCurrentUser } from '@/lib/auth';
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
   const notizen = typeof body.notizen === 'string' ? body.notizen.slice(0, 40_000) : '';
   const beschreibung = typeof body.beschreibung === 'string' ? body.beschreibung.slice(0, 2000) : '';
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = anthropicClient();
   try {
     const res = await client.messages.parse({
       model: 'claude-opus-5-5',

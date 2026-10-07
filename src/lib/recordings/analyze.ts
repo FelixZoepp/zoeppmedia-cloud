@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import type { CallRecordingAnalysis } from '@/lib/types/database';
 
 const EMPTY_ANALYSIS: CallRecordingAnalysis = {
@@ -19,7 +19,7 @@ export async function analyzeCallRecording(
   if (!transcript || transcript.length < 50) return EMPTY_ANALYSIS;
 
   try {
-    const anthropic = new Anthropic();
+    const anthropic = anthropicClient();
 
     const typeLabel: Record<string, string> = {
       erstgespraech: 'Erstgespräch / Kaltakquise-Anruf',

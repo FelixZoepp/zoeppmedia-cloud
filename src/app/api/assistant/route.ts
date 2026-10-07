@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { anthropicClient } from '@/lib/ai/anthropic';
 import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { audienceFor } from '@/lib/help/articles';
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     { role: 'user', content: `[Heute: ${heute} · Seite: ${page}]\n\n${question}` },
   ];
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = anthropicClient();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
