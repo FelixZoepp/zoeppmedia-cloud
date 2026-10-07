@@ -140,7 +140,6 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Fulfillment',
     items: [
-      { id: 'ai-tools', label: 'AI Tools', icon: <Sparkles className="w-5 h-5" />, href: '/ai-tools' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
     ],
   },

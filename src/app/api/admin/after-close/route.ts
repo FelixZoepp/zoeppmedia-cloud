@@ -4,7 +4,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/admin';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
-import { createProjectFromClose } from '@/lib/fulfillment/create-project';
 import { startPhase, setStepStatus } from '@/lib/fulfillment/engine';
 import { bausteineBereinigen, paketVorlage } from '@/lib/fulfillment/pakete';
 
@@ -138,14 +137,6 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteUrl = invite ? `${baseUrl}/register/${invite.token}` : null;
 
-    // --- 4 & 5. Create access_items and project_tasks ---
-    const produkt = body.produkt || body.paket;
-    const { tasks_created, access_items_created } = await createProjectFromClose(
-      admin,
-      agencyId,
-      produkt
-    );
-
     // --- 4a. Fulfillment v2: Kunde startet in der Phase "Zahlung", Vertrag ist unterschrieben ---
     try {
       await startPhase(admin, agencyId, 'zahlung');
@@ -261,15 +252,11 @@ export async function POST(request: Request) {
         paket: body.paket,
         bausteine,
         mrr: body.mrr,
-        tasks_created,
-        access_items_created,
       },
     });
 
     return NextResponse.json({
       agency,
-      tasks_created,
-      access_items_created,
       invite_url: inviteUrl,
       billing_plan_id: billingPlanId,
       lex_contact_id: lexContactId,

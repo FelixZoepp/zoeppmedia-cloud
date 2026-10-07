@@ -137,7 +137,7 @@ export function EmployeeDashboardView() {
 
       {/* Quick link: Meine Aufgaben */}
       <div>
-        <Link href="/meine-aufgaben" className="group block">
+        <Link href="/meine-todos" className="group block">
           <Card
             hero
             padding="md"

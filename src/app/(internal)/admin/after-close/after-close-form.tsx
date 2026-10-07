@@ -41,8 +41,6 @@ interface FormData {
 
 interface SuccessResult {
   agency: { id: string; name: string };
-  tasks_created: number;
-  access_items_created: number;
   invite_url: string | null;
 }
 
@@ -209,15 +207,11 @@ export function AfterCloseForm() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-gray-900">{result.tasks_created}</p>
-              <p className="text-sm text-gray-500">Aufgaben erstellt</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-gray-900">{result.access_items_created}</p>
-              <p className="text-sm text-gray-500">Zugänge angelegt</p>
-            </div>
+          <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
+            Der Kunde steht jetzt in der Phase „Zahlungsabwicklung“ – alle Schritte nach gebuchten Leistungen sind angelegt.{' '}
+            <a href={`/clients/${result.agency.id}`} className="font-semibold text-red-700 underline underline-offset-2">
+              Zur Kundenseite
+            </a>
           </div>
 
           {result.invite_url && (

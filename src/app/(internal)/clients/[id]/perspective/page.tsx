@@ -134,10 +134,10 @@ export default function PerspectiveFunnelPage() {
   return (
     <div className="max-w-4xl">
       <Link
-        href={`/clients/${id}/fulfillment`}
+        href={`/clients/${id}`}
         className="inline-flex items-center gap-1.5 text-gray-600 hover:text-red-500 text-sm mb-8 transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" /> Zurück zum Fulfillment
+        <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
       </Link>
 
       <PageHeader
@@ -452,9 +452,9 @@ export default function PerspectiveFunnelPage() {
             </p>
 
             <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-              <Link href={`/clients/${id}/fulfillment`}>
+              <Link href={`/clients/${id}`}>
                 <Button variant="secondary" size="sm">
-                  <ArrowLeft className="w-4 h-4" /> Zurück zum Fulfillment
+                  <ArrowLeft className="w-4 h-4" /> Zurück zum Kunden
                 </Button>
               </Link>
               <a
