@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isInternal } from '@/lib/auth';
-import { getAdminDashboardData } from '@/lib/admin-dashboard';
-import { AdminDashboardView } from '@/components/dashboard/admin-dashboard-view';
+import { CockpitView } from '@/components/dashboard/cockpit-view';
 import { EmployeeDashboardView } from '@/components/dashboard/employee-dashboard-view';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +13,6 @@ export default async function AdminPage() {
     return <EmployeeDashboardView />;
   }
 
-  const data = await getAdminDashboardData();
-
-  return <AdminDashboardView data={data} />;
+  // Admin: Cockpit für das eine Steuerungs-Meeting pro Woche
+  return <CockpitView />;
 }

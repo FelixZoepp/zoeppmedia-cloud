@@ -51,7 +51,7 @@ const adminGroups: SidebarGroup[] = [
     label: 'Cockpit',
     items: [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
-      { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
+      { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
       { id: 'kunden-anfragen', label: 'Kunden-Anfragen', icon: <MessagesSquare className="w-5 h-5" />, href: '/admin/support' },
@@ -130,7 +130,7 @@ const employeeGroups: SidebarGroup[] = [
   {
     label: 'Cockpit',
     items: [
-      { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
+      { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/employee-reports' },
@@ -319,7 +319,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
 
 const MOBILE_TABS: Record<'internal_admin' | 'internal_employee' | 'agency', SidebarItem[]> = {
   internal_admin: [
-    { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard />, href: '/admin' },
+    { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard />, href: '/admin' },
     { id: 'meine-todos', label: 'Aufgaben', icon: <CheckSquare />, href: '/meine-todos' },
     { id: 'clients', label: 'Kunden', icon: <Building2 />, href: '/clients' },
     { id: 'team', label: 'Team', icon: <Users />, href: '/team' },
