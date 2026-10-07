@@ -275,6 +275,14 @@ async function runDailyJobs() {
     }
   }
 
+  // 7b2. Ausgang der analysierten Gespräche aus Close (gewonnen/verloren)
+  try {
+    const { aktualisiereAusgaenge } = await import('@/lib/gespraeche/analyse');
+    await aktualisiereAusgaenge(supabase);
+  } catch (err) {
+    console.error('[cron] Gesprächs-Ausgänge fehlgeschlagen:', err);
+  }
+
   // 7c. Close-Telefonate mit Aufnahme der letzten 2 Tage an Fireflies geben (Analyse kommt per Webhook)
   if (process.env.FIREFLIES_API_KEY && process.env.CLOSE_API_KEY) {
     try {

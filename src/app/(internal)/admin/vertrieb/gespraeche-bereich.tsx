@@ -16,6 +16,8 @@ interface Gespraech {
   close_lead_id: string | null;
   fehler: string | null;
   ergebnis: GespraechAnalyse | null;
+  ausgang: 'offen' | 'gewonnen' | 'verloren';
+  ausgang_am: string | null;
 }
 
 const ART: Record<string, string> = { opening: 'Opening', setting: 'Setting', follow_up: 'Follow-up', closing: 'Closing', kunde: 'Kunde', intern: 'Intern', sonstiges: 'Sonstiges' };
@@ -107,6 +109,9 @@ export function GespraecheBereich() {
   const schnitt = (xs: number[]) => (xs.length ? Math.round(xs.reduce((s, x) => s + x, 0) / xs.length) : null);
   const ØPunkte = schnitt(sichtbar.map((g) => g.ergebnis!.punkte));
   const ØChance = schnitt(sichtbar.filter((g) => VERKAUF.includes(g.ergebnis!.art)).map((g) => g.ergebnis!.abschluss_chance));
+  // Prognose vs. Ergebnis: Abschlussquote der Closing-Gespräche mit bekanntem Ausgang
+  const closings = analysiert.filter((g) => g.ergebnis!.art === 'closing');
+  const gewonnen = closings.filter((g) => g.ausgang === 'gewonnen').length;
   // Gespräche je Phase (für das Sales-Controlling: wo im Prozess wird telefoniert und wie gut)
   const phasen = VERKAUF.map((p) => {
     const xs = analysiert.filter((g) => g.ergebnis!.art === p);
@@ -128,6 +133,12 @@ export function GespraecheBereich() {
             <div><p className="text-[12.5px] text-gray-500">Ø Gesprächsführung</p><p className={`text-[26px] font-semibold ${farbe(ØPunkte)}`}>{ØPunkte ?? '–'}</p></div>
             <div><p className="text-[12.5px] text-gray-500">Ø Abschlusschance</p><p className="text-[26px] font-semibold">{ØChance === null ? '–' : `${ØChance} %`}</p></div>
           </div>
+          {closings.length > 0 && (
+            <p className="mt-2 text-[13px] text-gray-600">
+              Closing-Gespräche: <strong className="font-semibold text-ink">{gewonnen} von {closings.length} gewonnen</strong> (
+              {Math.round((gewonnen / closings.length) * 100)} %) – laut Close.
+            </p>
+          )}
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {phasen.map((x) => (
               <div key={x.p} className="rounded-lg bg-gray-50 px-3 py-2">
@@ -187,6 +198,8 @@ export function GespraecheBereich() {
                   </span>
                   <span className={`text-[14px] font-semibold ${farbe(a.punkte)}`}>{a.punkte}/100</span>
                   {VERKAUF.includes(a.art) && <span className="text-[13px] text-gray-600">Chance {a.abschluss_chance} %</span>}
+                  {g.ausgang === 'gewonnen' && <span className="rounded-full bg-green-100 px-2 py-0.5 text-[12px] font-semibold text-green-800">Gewonnen</span>}
+                  {g.ausgang === 'verloren' && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[12px] font-semibold text-gray-700">Verloren</span>}
                   <a href={ff(g.fireflies_id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] font-semibold text-red-700">
                     <PlayCircle className="h-4 w-4" /> Aufnahme
                   </a>

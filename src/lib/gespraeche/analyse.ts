@@ -268,3 +268,33 @@ export async function kuerzeAlteNotizen(svc: SupabaseClient): Promise<{ gekuerzt
   }
   return { gekuerzt, nichtGefunden };
 }
+
+/**
+ * Ausgang der Gespräche aus Close übernehmen: Deal des Leads nach dem Gespräch gewonnen/verloren.
+ * Läuft täglich; manuell gesetzte Ausgänge werden nur überschrieben, wenn Close etwas anderes sagt.
+ */
+export async function aktualisiereAusgaenge(svc: SupabaseClient): Promise<number> {
+  const key = process.env.CLOSE_API_KEY;
+  if (!key) return 0;
+  const auth = `Basic ${Buffer.from(`${key}:`).toString('base64')}`;
+  const { data } = await svc.from('gespraech_analysen').select('fireflies_id, close_lead_id, datum, ausgang').not('close_lead_id', 'is', null);
+  const rows = (data ?? []) as Array<{ fireflies_id: string; close_lead_id: string; datum: string | null; ausgang: string }>;
+  const cache = new Map<string, Array<{ status_type: string; date_won: string | null; date_lost: string | null; date_updated: string }>>();
+  let geaendert = 0;
+  for (const r of rows) {
+    if (!cache.has(r.close_lead_id)) {
+      const res = await fetch(`https://api.close.com/api/v1/opportunity/?lead_id=${r.close_lead_id}&_fields=status_type,date_won,date_lost,date_updated`, { headers: { Authorization: auth } });
+      cache.set(r.close_lead_id, res.ok ? ((await res.json()) as { data: never[] }).data : []);
+    }
+    const ab = (r.datum ?? '').slice(0, 10);
+    const opps = cache.get(r.close_lead_id)!;
+    const won = opps.filter((o) => o.status_type === 'won' && (o.date_won ?? '') >= ab).sort((a, b) => (a.date_won ?? '').localeCompare(b.date_won ?? ''))[0];
+    const lost = opps.filter((o) => o.status_type === 'lost' && (o.date_lost ?? o.date_updated.slice(0, 10)) >= ab)[0];
+    const neu = won ? { ausgang: 'gewonnen', ausgang_am: won.date_won } : lost ? { ausgang: 'verloren', ausgang_am: lost.date_lost ?? lost.date_updated.slice(0, 10) } : null;
+    if (neu && neu.ausgang !== r.ausgang) {
+      await svc.from('gespraech_analysen').update(neu).eq('fireflies_id', r.fireflies_id);
+      geaendert++;
+    }
+  }
+  return geaendert;
+}
