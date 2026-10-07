@@ -181,7 +181,11 @@ export async function findeLead(svc: SupabaseClient, t: FfTranskript): Promise<{
 }
 
 /** Ein Gespräch verarbeiten (idempotent: schon in Close → nichts tun) */
-export async function verarbeiteGespraech(svc: SupabaseClient, firefliesId: string, opts: { erneut?: boolean } = {}): Promise<string> {
+export async function verarbeiteGespraech(
+  svc: SupabaseClient,
+  firefliesId: string,
+  opts: { erneut?: boolean; leadId?: string | null } = {},
+): Promise<string> {
   const { data: schon } = await svc.from('gespraech_analysen').select('status').eq('fireflies_id', firefliesId).maybeSingle();
   if ((schon as { status: string } | null)?.status === 'in_close' && !opts.erneut) return 'schon_in_close';
 
@@ -199,7 +203,8 @@ export async function verarbeiteGespraech(svc: SupabaseClient, firefliesId: stri
       await merke({ ...basis, status: 'uebersprungen', fehler: 'zu kurz oder ohne Transkript' });
       return 'uebersprungen';
     }
-    const { leadId, zuordnung } = await findeLead(svc, t);
+    // Close-Telefonat: Lead steht schon fest (aus client_reference_id)
+    const { leadId, zuordnung } = opts.leadId ? { leadId: opts.leadId, zuordnung: 'Close-Telefonat' } : await findeLead(svc, t);
     const a = await analysiere(t);
     if (!leadId) {
       await merke({ ...basis, status: a.art === 'intern' ? 'uebersprungen' : 'kein_lead', zuordnung, punkte: a.punkte, ergebnis: a });

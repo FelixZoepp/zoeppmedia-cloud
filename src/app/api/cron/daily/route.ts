@@ -275,6 +275,16 @@ async function runDailyJobs() {
     }
   }
 
+  // 7c. Close-Telefonate mit Aufnahme der letzten 2 Tage an Fireflies geben (Analyse kommt per Webhook)
+  if (process.env.FIREFLIES_API_KEY && process.env.CLOSE_API_KEY) {
+    try {
+      const { ladeAnrufe, schickeAnruf } = await import('@/lib/gespraeche/close-anrufe');
+      for (const c of (await ladeAnrufe(new Date(Date.now() - 2 * 864e5))).slice(0, 20)) await schickeAnruf(supabase, c);
+    } catch (err) {
+      console.error('[cron] Close-Anrufe an Fireflies fehlgeschlagen:', err);
+    }
+  }
+
   // 8. SEPA Pre-Debit Notifications (1 day before debit)
   let preDebitSent = 0;
   try {

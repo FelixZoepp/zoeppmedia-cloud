@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verarbeiteGespraech } from '@/lib/gespraeche/analyse';
 import { signaturOk } from '@/lib/gespraeche/signatur';
+import { leadAusRef } from '@/lib/gespraeche/close-anrufe';
 
 // Transkript laden + KI-Analyse + Close-Notiz laufen nach der Antwort weiter
 export const maxDuration = 300;
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
   // Erst nach der Zusammenfassung verarbeiten; „transcribed“ nur, falls „summarized“ nicht abonniert ist (Dublette wird übersprungen)
   if (!['meeting.summarized', 'meeting.transcribed', 'Transcription completed'].includes(event)) return NextResponse.json({ ok: true, ignoriert: event });
 
-  after(() => verarbeiteGespraech(createAdminClient(), id).then(() => undefined));
+  const leadId = leadAusRef(body.client_reference_id ?? body.clientReferenceId);
+  after(() => verarbeiteGespraech(createAdminClient(), id, { leadId }).then(() => undefined));
   return NextResponse.json({ ok: true });
 }

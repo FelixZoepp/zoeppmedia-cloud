@@ -85,3 +85,14 @@ describe('Namen aus dem Titel', () => {
     expect(namenAusTitel('Sinan Kilic')).toEqual(['Sinan Kilic']);
   });
 });
+
+describe('Close-Telefonate', () => {
+  it('Lead steckt in der Referenz', async () => {
+    const { anrufRef, leadAusRef } = await import('../close-anrufe');
+    const ref = anrufRef('lead_vEDslmxsWk9Y', 'acti_X3Y3HE');
+    expect(ref).toBe('close:lead_vEDslmxsWk9Y:acti_X3Y3HE');
+    expect(leadAusRef(ref)).toBe('lead_vEDslmxsWk9Y');
+    expect(leadAusRef(undefined)).toBeNull();
+    expect(leadAusRef('irgendwas')).toBeNull();
+  });
+});

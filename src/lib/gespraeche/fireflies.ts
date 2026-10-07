@@ -57,6 +57,23 @@ export async function listeTranskripte(ab: Date, limit = 50): Promise<Array<{ id
   return d.transcripts ?? [];
 }
 
+/** Aufnahme (öffentlicher/signierter Link) an Fireflies zur Transkription geben */
+export async function ladeAudioHoch(input: { url: string; title: string; clientRef: string; datum?: string | null }): Promise<void> {
+  const d = await gql<{ uploadAudio: { success: boolean; message: string | null } }>(
+    `mutation Upload($input: AudioUploadInput) { uploadAudio(input: $input) { success title message } }`,
+    {
+      input: {
+        url: input.url,
+        title: input.title,
+        client_reference_id: input.clientRef,
+        custom_language: 'de',
+        ...(input.datum ? { meeting_date: input.datum } : {}),
+      },
+    },
+  );
+  if (!d.uploadAudio?.success) throw new Error(`Fireflies-Upload abgelehnt: ${d.uploadAudio?.message ?? 'unbekannt'}`);
+}
+
 export const fireflieLink = (id: string, sekunden?: number) =>
   `https://app.fireflies.ai/view/${id}${sekunden !== undefined ? `?t=${Math.max(0, Math.floor(sekunden))}` : ''}`;
 
