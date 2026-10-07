@@ -77,3 +77,11 @@ describe('Fireflies-Gespräche', () => {
     expect(n).not.toContain('Budget:');
   });
 });
+
+describe('Namen aus dem Titel', () => {
+  it('mehrere Personen', async () => {
+    const { namenAusTitel } = await import('../fireflies');
+    expect(namenAusTitel('Murat Aslan & Sedat Özdemir: 60min Beratungsgespräch')).toEqual(['Murat Aslan', 'Sedat Özdemir']);
+    expect(namenAusTitel('Sinan Kilic')).toEqual(['Sinan Kilic']);
+  });
+});

@@ -72,6 +72,15 @@ export function nameAusTitel(titel: string | null): string | null {
   return vorne.split(/\s*(?:&|und|,)\s*/)[0]?.trim() || null;
 }
 
+/** Alle Personennamen aus dem Titel („Murat Aslan & Sedat Özdemir: …“ → beide) */
+export function namenAusTitel(titel: string | null): string[] {
+  const erster = nameAusTitel(titel);
+  if (!erster || !titel) return [];
+  const vorne = titel.includes(':') ? titel.split(':')[0] : titel;
+  const alle = vorne.split(/\s*(?:&|und|,)\s*/).map((x) => x.trim()).filter((x) => /^[\p{L}'-]+(?:\s[\p{L}'-]+){1,3}$/u.test(x));
+  return alle.length ? alle : [erster];
+}
+
 export function datumVon(t: { date: number | string | null }): Date | null {
   if (t.date === null || t.date === undefined) return null;
   const d = typeof t.date === 'number' ? new Date(t.date) : new Date(/^\d+$/.test(t.date) ? Number(t.date) : t.date);

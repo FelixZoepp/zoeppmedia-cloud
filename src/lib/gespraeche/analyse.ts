@@ -10,7 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { anthropicClient } from '@/lib/ai/anthropic';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { addCloseNote, findCloseLeadId, findCloseLeadIdByName } from '@/lib/sales/close';
-import { datumVon, fireflieLink, ladeTranskript, nameAusTitel, type FfTranskript } from './fireflies';
+import { datumVon, fireflieLink, ladeTranskript, nameAusTitel, namenAusTitel, type FfTranskript } from './fireflies';
 
 export const ANALYSE_MODELL = 'claude-opus-5-5';
 const EIGENE_DOMAINS = /@(zoeppmedia\.de|zoepp-gruppe\.de|felixzoepp\.de|content-leads\.de)$/i;
@@ -173,9 +173,9 @@ export async function findeLead(svc: SupabaseClient, t: FfTranskript): Promise<{
       if (leadId) return { leadId, zuordnung: `Teilnehmer ${a.email}` };
     }
   }
-  if (name) {
-    const leadId = await findCloseLeadIdByName(name).catch(() => null);
-    if (leadId) return { leadId, zuordnung: `Name „${name}“` };
+  for (const n of namenAusTitel(t.title)) {
+    const leadId = await findCloseLeadIdByName(n).catch(() => null);
+    if (leadId) return { leadId, zuordnung: `Name „${n}“` };
   }
   return { leadId: null, zuordnung: name ? `kein eindeutiger Lead zu „${name}“` : 'kein Name im Titel' };
 }

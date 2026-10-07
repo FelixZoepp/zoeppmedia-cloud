@@ -70,9 +70,18 @@ export async function findCloseLeadIdByName(name: string): Promise<string | null
   const leads = ascii !== name.trim() ? [...gefunden, ...(await searchLeads(apiKey, `"${ascii}"`))] : gefunden;
   const teile = needle.split(' ');
   const passt = (s?: string) => !!s && teile.every((t) => normName(s).split(' ').includes(t));
-  const treffer = [...new Map(leads.filter((l) => l.contacts?.some((c) => passt(c.name)) || passt(l.display_name)).map((l) => [l.id, l])).values()];
+  const eindeutig = (liste: CloseLead[]) => [...new Map(liste.map((l) => [l.id, l])).values()];
+  const treffer = eindeutig(leads.filter((l) => l.contacts?.some((c) => passt(c.name)) || passt(l.display_name)));
   // Nur eindeutige Treffer – lieber keine Notiz als eine am falschen Lead
-  return treffer.length === 1 ? treffer[0].id : null;
+  if (treffer.length === 1) return treffer[0].id;
+  if (treffer.length > 1) return null;
+  // Rückfall: nur der Nachname, wenn er genau einen Lead trifft (z. B. Firma „TRAPP management“)
+  const nachname = teile[teile.length - 1];
+  if (nachname.length < 4) return null;
+  const nachNach = eindeutig([...leads, ...(await searchLeads(apiKey, `"${nachname}"`))]).filter(
+    (l) => normName(l.display_name ?? '').split(' ').includes(nachname) || l.contacts?.some((c) => normName(c.name ?? '').split(' ').includes(nachname)),
+  );
+  return nachNach.length === 1 ? nachNach[0].id : null;
 }
 
 /** Notiz direkt an einen bekannten Lead schreiben. */
