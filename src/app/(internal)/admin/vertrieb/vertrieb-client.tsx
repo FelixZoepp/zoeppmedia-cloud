@@ -7,6 +7,7 @@ import { GespraecheBereich } from './gespraeche-bereich';
 import { EintragungenBereich } from './eintragungen-bereich';
 import type { SalesControlling } from '@/lib/sales-controlling/compute';
 import type { SalesDetails } from '@/lib/sales-controlling/detail';
+import { WhatsAppBereich } from './whatsapp-bereich';
 import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche';
 
 type Daten = SalesControlling & { metaVerbunden: boolean; details: SalesDetails; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
@@ -220,6 +221,7 @@ export function VertriebClient() {
                 <ClosingBereich d={d} />
               </div>
               <EintragungenBereich zeitraum={zeitraum} />
+              <WhatsAppBereich zeitraum={zeitraum} />
               <Problemfelder d={d} nur={['Setting', 'Closing', 'Pipeline']} titel="Problemfelder Sales" />
               <ShowDetail s={d.details.shows} durchlauf={d.details.durchlauf} />
               <Funnel d={d} />

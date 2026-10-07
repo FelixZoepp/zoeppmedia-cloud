@@ -8,6 +8,7 @@ interface Daten {
   aktiv: boolean;
   darfSchalten: boolean;
   vorlage: string;
+  ohneNummer: Array<{ id: string; name: string; kontakt: string | null }>;
   faellig: Array<{ agency_id: string; name: string; aufgaben: string[]; nummer: string | null; text: string; ergebnis: string }>;
 }
 
@@ -15,6 +16,7 @@ interface Daten {
 export function ErinnerungenKarte() {
   const [d, setD] = useState<Daten | null>(null);
   const [busy, setBusy] = useState(false);
+  const [nummern, setNummern] = useState<Record<string, string>>({});
 
   const laden = useCallback(async () => {
     const r = await fetch('/api/admin/kunden-erinnerungen', { cache: 'no-store' });
@@ -33,6 +35,18 @@ export function ErinnerungenKarte() {
     setBusy(false);
     if (!r.ok) return void toast.error('Konnte nicht gespeichert werden');
     toast.success(!d.aktiv ? 'Erinnerungen an – täglich morgens' : 'Erinnerungen aus');
+    void laden();
+  }
+
+  async function nummerSpeichern(id: string) {
+    const r = await fetch('/api/admin/kunden-erinnerungen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aktion: 'nummer', agency_id: id, nummer: nummern[id] ?? '' }),
+    });
+    const x = await r.json().catch(() => ({}));
+    if (!r.ok) return void toast.error(x.error ?? 'Fehler');
+    toast.success('Nummer gespeichert – Kunde steht jetzt im Sales-WhatsApp unter „Kunden“');
     void laden();
   }
 
@@ -70,6 +84,34 @@ export function ErinnerungenKarte() {
           </ul>
         )}
       </div>
+      {d.ohneNummer.length > 0 && (
+        <div className="mt-4 border-t border-gray-100 pt-3">
+          <p className="text-[12.5px] font-semibold uppercase tracking-wide text-gray-500">Handynummer fehlt ({d.ohneNummer.length})</p>
+          <p className="text-[13px] text-gray-600">Ohne Nummer kann der Bot nicht erinnern. Auch in Close ist keine hinterlegt.</p>
+          <ul className="mt-2 space-y-1.5">
+            {d.ohneNummer.map((k) => (
+              <li key={k.id} className="flex flex-wrap items-center gap-2 text-[14px]">
+                <span className="min-w-[180px] flex-1 truncate">
+                  {k.name}
+                  {k.kontakt && <span className="text-gray-500"> · {k.kontakt}</span>}
+                </span>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="0170 1234567"
+                  value={nummern[k.id] ?? ''}
+                  onChange={(e) => setNummern((n) => ({ ...n, [k.id]: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && nummerSpeichern(k.id)}
+                  className="h-9 w-44 rounded-lg border border-gray-300 px-2.5 text-[14px]"
+                />
+                <Button size="sm" variant="secondary" disabled={!nummern[k.id]?.trim()} onClick={() => nummerSpeichern(k.id)}>
+                  Speichern
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }
