@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, PhoneCall, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
+import { GespraecheBereich } from './gespraeche-bereich';
 import type { SalesControlling } from '@/lib/sales-controlling/compute';
 import type { SalesDetails } from '@/lib/sales-controlling/detail';
 import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche';
@@ -77,7 +78,9 @@ export function VertriebClient() {
   // Ansicht merken (Vertriebsleitung schaut meist auf Sales, Marketing auf Marketing)
   const [ansicht, setAnsicht] = useState<string>(() => {
     try {
-      return (typeof window !== 'undefined' && window.localStorage.getItem('vertrieb-ansicht')) || 'gesamt';
+      if (typeof window === 'undefined') return 'gesamt';
+      // Link aus der Close-Notiz: ?ansicht=gespraeche&g=<id>
+      return new URLSearchParams(window.location.search).get('ansicht') || window.localStorage.getItem('vertrieb-ansicht') || 'gesamt';
     } catch {
       return 'gesamt';
     }
@@ -175,6 +178,7 @@ export function VertriebClient() {
               { value: 'sales', label: 'Sales & Shows' },
               { value: 'telefonie', label: 'Telefonie' },
               { value: 'followups', label: 'Follow-ups' },
+              { value: 'gespraeche', label: 'Gespräche' },
             ]}
             value={ansicht}
             onChange={wähleAnsicht}
@@ -231,6 +235,8 @@ export function VertriebClient() {
           {ansicht === 'telefonie' && <TelefonieBereich t={d.details.telefonie} verbunden={d.telefonieVerbunden} label={d.zeitraum.label} />}
 
           {ansicht === 'followups' && <FollowupBereich f={d.details.followups} verbunden={d.aufgabenVerbunden} />}
+
+          {ansicht === 'gespraeche' && <GespraecheBereich />}
 
           <p className="px-1 text-[12px] text-gray-500">
             Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert gewonnener Deals, gezählt am Abschlussdatum

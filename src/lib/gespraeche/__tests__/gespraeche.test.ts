@@ -63,18 +63,19 @@ describe('Fireflies-Gespräche', () => {
     expect(await findeLead(client, { ...t, title: 'Sinan Kilic' })).toMatchObject({ leadId: 'lead_sinan', zuordnung: 'Name „Sinan Kilic“' });
   });
 
-  it('Close-Notiz mit Sprungmarken zu den Fehlern', () => {
+  it('Close-Notiz ist kurz und verlinkt die volle Analyse', () => {
     const a: GespraechAnalyse = {
-      art: 'closing', zusammenfassung: 'Solvigo sucht 5 Vertriebler.', situation: { teamgroesse: '3–4', ziel: '5 neue', budget: '', entscheider: 'Miró', zeitrahmen: 'Q4' },
-      einwaende: ['Lieber intern'], naechste_schritte: ['Angebot senden'], abschluss_chance: 55, punkte: 68, staerken: ['Gute Fragen zur Ausgangslage'],
-      fehler: [{ fehler: 'Preis vor Budget genannt', zitat: 'Das kostet 2.000 Euro', sekunden: 754, besser: 'Erst Budget und Entscheider klären' }], tipp_naechstes_gespraech: 'Folgetermin mit Entscheidung',
+      art: 'closing', zusammenfassung: 'Solvigo sucht 5 Vertriebler. Miró will erst die laufende Agentur abwarten. Folgetermin am 28.10.', situation: { teamgroesse: '3–4', ziel: '5 neue', budget: '', entscheider: 'Miró', zeitrahmen: 'Q4' },
+      einwaende: ['Lieber intern'], naechste_schritte: ['Angebot senden', 'Folgetermin 28.10.'], abschluss_chance: 55, punkte: 68, staerken: ['Gute Fragen'],
+      fehler: [{ fehler: 'Preis vor Budget genannt', zitat: 'Das kostet 2.000 Euro', sekunden: 754, besser: 'Erst Budget klären' }], tipp_naechstes_gespraech: 'Entscheidung im Termin',
     };
-    const n = closeNotiz(t, a);
-    expect(n).toContain(`Aufzeichnung: ${fireflieLink('01M3YF')}`);
-    expect(n).toContain('GESPRÄCHSFÜHRUNG: 68/100');
-    expect(n).toContain('1. Preis vor Budget genannt (bei 12:34 → https://app.fireflies.ai/view/01M3YF?t=754)');
-    expect(n).toContain('• Entscheider: Miró');
-    expect(n).not.toContain('Budget:');
+    const n = closeNotiz({ id: '01M3YF', titel: t.title, datum: '2026-10-07T11:00:00Z', dauerMin: 23 }, a);
+    expect(n.split('\n').length).toBeLessThanOrEqual(6);
+    expect(n).toContain('Nächste Schritte: Angebot senden · Folgetermin 28.10.');
+    expect(n).toContain('Abschlusschance 55 % · Gesprächsführung 68/100');
+    expect(n).toContain(`Aufnahme: ${fireflieLink('01M3YF')}`);
+    expect(n).toContain('/admin/vertrieb?ansicht=gespraeche&g=01M3YF');
+    expect(n).not.toContain('Preis vor Budget');
   });
 });
 

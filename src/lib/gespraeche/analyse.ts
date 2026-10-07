@@ -13,10 +13,15 @@ import { addCloseNote, findCloseLeadId, findCloseLeadIdByName } from '@/lib/sale
 import { datumVon, fireflieLink, ladeTranskript, nameAusTitel, namenAusTitel, type FfTranskript } from './fireflies';
 
 export const ANALYSE_MODELL = 'claude-opus-5-5';
+/** Kurze Telefonate (Opening, kurze Follow-ups) mit dem günstigeren Modell auswerten */
+export const ANALYSE_MODELL_KURZ = 'claude-haiku-4-5';
+export const KURZ_BIS_MIN = 6;
 const EIGENE_DOMAINS = /@(zoeppmedia\.de|zoepp-gruppe\.de|felixzoepp\.de|content-leads\.de)$/i;
 
 export const AnalyseSchema = z.object({
-  art: z.enum(['closing', 'setting', 'kunde', 'intern', 'sonstiges']).describe('closing = Beratungs-/Abschlussgespräch, setting = Erst-/Analysegespräch, kunde = Gespräch mit bestehendem Kunden'),
+  art: z
+    .enum(['opening', 'setting', 'follow_up', 'closing', 'kunde', 'intern', 'sonstiges'])
+    .describe('opening = Erstkontakt/Kaltakquise am Telefon, setting = Erst-/Analysegespräch mit Terminziel, follow_up = Nachfassen nach Angebot/No-Show, closing = Beratungs-/Abschlussgespräch, kunde = bestehender Kunde'),
   zusammenfassung: z.string().describe('3–5 Sätze'),
   situation: z.object({
     teamgroesse: z.string(),
@@ -55,7 +60,9 @@ Maßstab für Verkaufsgespräche (Closing/Beratungsgespräch):
 7. Einwände erst verstanden (nachgefragt), dann behandelt.
 8. Klarer Abschluss: Entscheidung im Gespräch oder fester Folgetermin mit konkretem nächsten Schritt.
 9. Redeanteil des Verkäufers eher unter 50 %, offene Fragen, aktiv zuhören.
+Für Opening (Erstkontakt/Kaltakquise): Einstieg in 10 Sekunden mit Grund des Anrufs, Interesse wecken, Einwand am Telefon kurz auffangen, Ziel = Setting-Termin oder klarer nächster Schritt.
 Für Setting-Gespräche: kurz, Qualifizierung (Bedarf, Entscheider, Budget, Zeitpunkt), Termin fest gebucht.
+Für Follow-ups: Bezug zum letzten Gespräch, offene Punkte/Einwände klären, Entscheidung oder fester Termin – nicht nur „melde dich“.
 Für Kundengespräche: Ergebnisse besprochen, nächste Schritte, Zufriedenheit, Upsell-Chance erkannt.
 
 Regeln: Nur auf das Transkript stützen, nichts erfinden. Zitate wörtlich und kurz. Sekunden aus den Zeitmarken übernehmen.
@@ -82,7 +89,7 @@ export async function analysiere(t: FfTranskript): Promise<GespraechAnalyse> {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY ist nicht hinterlegt');
   const anteile = redeanteile(t).map((r) => `${r.name} ${r.prozent} %`).join(', ');
   const res = await anthropicClient().messages.parse({
-    model: ANALYSE_MODELL,
+    model: (t.duration ?? 0) < KURZ_BIS_MIN ? ANALYSE_MODELL_KURZ : ANALYSE_MODELL,
     max_tokens: 16000,
     system: SYSTEM,
     messages: [
@@ -98,39 +105,38 @@ export async function analysiere(t: FfTranskript): Promise<GespraechAnalyse> {
   return { ...a, punkte: Math.max(0, Math.min(100, Math.round(a.punkte))), abschluss_chance: Math.max(0, Math.min(100, Math.round(a.abschluss_chance))) };
 }
 
-/** Notiztext für Close (Klartext, mit Sprungmarken in die Aufzeichnung) */
-export function closeNotiz(t: FfTranskript, a: GespraechAnalyse): string {
-  const d = datumVon(t);
-  const kopf = `🎥 Gesprächsanalyse: ${t.title ?? 'Gespräch'}${d ? ` · ${d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}` : ''} · ${Math.round(t.duration ?? 0)} Min.`;
-  const sit = Object.entries({ Team: a.situation.teamgroesse, Ziel: a.situation.ziel, Budget: a.situation.budget, Entscheider: a.situation.entscheider, Zeitrahmen: a.situation.zeitrahmen })
-    .filter(([, v]) => v.trim())
-    .map(([k, v]) => `• ${k}: ${v}`);
-  const anteile = redeanteile(t).slice(0, 3).map((r) => `${r.name} ${r.prozent} %`).join(' · ');
+const APP = () => process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
+
+/** Link zur vollständigen Auswertung im Sales-Controlling */
+export const analyseLink = (firefliesId: string) => `${APP()}/admin/vertrieb?ansicht=gespraeche&g=${encodeURIComponent(firefliesId)}`;
+
+/** Erste 1–2 Sätze als Kurzfassung */
+export function kurzfassung(text: string, max = 280): string {
+  const saetze = text.match(/[^.!?]+[.!?]+/g) ?? [text];
+  let out = '';
+  for (const s of saetze) {
+    if ((out + s).length > max && out) break;
+    out += s;
+    if (out.length > 120) break;
+  }
+  return out.trim();
+}
+
+/**
+ * Kurze Notiz für Close – die volle Auswertung (Fehler, Zitate, Coaching) steht gesammelt im Sales-Controlling.
+ */
+export function closeNotiz(g: { id: string; titel: string | null; datum: string | null; dauerMin: number | null }, a: GespraechAnalyse): string {
+  const d = g.datum ? new Date(g.datum) : null;
+  const kopf = `🎥 ${g.titel ?? 'Gespräch'}${d ? ` · ${d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}` : ''} · ${Math.round(g.dauerMin ?? 0)} Min.`;
+  const schritte = a.naechste_schritte.slice(0, 3).join(' · ');
+  const chance = ['closing', 'setting', 'follow_up', 'opening'].includes(a.art) ? `Abschlusschance ${a.abschluss_chance} % · ` : '';
   return [
     kopf,
-    `Aufzeichnung: ${fireflieLink(t.id)}`,
-    '',
-    'ZUSAMMENFASSUNG',
-    a.zusammenfassung,
-    ...(sit.length ? ['', 'SITUATION', ...sit] : []),
-    ...(a.einwaende.length ? ['', 'EINWÄNDE', ...a.einwaende.map((x) => `• ${x}`)] : []),
-    ...(a.naechste_schritte.length ? ['', 'NÄCHSTE SCHRITTE', ...a.naechste_schritte.map((x) => `• ${x}`)] : []),
-    ...(a.art === 'closing' || a.art === 'setting' ? ['', `Abschlusschance: ${a.abschluss_chance} %`] : []),
-    '',
-    `GESPRÄCHSFÜHRUNG: ${a.punkte}/100${anteile ? ` · Redeanteil: ${anteile}` : ''}`,
-    ...a.staerken.map((x) => `✅ ${x}`),
-    ...(a.fehler.length
-      ? [
-          '',
-          'FEHLER & BESSER',
-          ...a.fehler.flatMap((f, i) => [
-            `${i + 1}. ${f.fehler} (bei ${mmss(f.sekunden)} → ${fireflieLink(t.id, f.sekunden)})`,
-            `   Gesagt: „${f.zitat}“`,
-            `   Besser: ${f.besser}`,
-          ]),
-        ]
-      : []),
-    ...(a.tipp_naechstes_gespraech ? ['', `💡 Nächstes Mal: ${a.tipp_naechstes_gespraech}`] : []),
+    kurzfassung(a.zusammenfassung),
+    ...(schritte ? [`Nächste Schritte: ${schritte}`] : []),
+    `${chance}Gesprächsführung ${a.punkte}/100`,
+    `Aufnahme: ${fireflieLink(g.id)}`,
+    `Volle Analyse: ${analyseLink(g.id)}`,
   ].join('\n');
 }
 
@@ -199,7 +205,7 @@ export async function verarbeiteGespraech(
       return 'fehler';
     }
     const basis = { titel: t.title, datum: datumVon(t)?.toISOString() ?? null, dauer_min: t.duration };
-    if ((t.duration ?? 0) < 3 || !(t.sentences ?? []).length) {
+    if ((t.duration ?? 0) < 1 || !(t.sentences ?? []).length) {
       await merke({ ...basis, status: 'uebersprungen', fehler: 'zu kurz oder ohne Transkript' });
       return 'uebersprungen';
     }
@@ -210,8 +216,8 @@ export async function verarbeiteGespraech(
       await merke({ ...basis, status: a.art === 'intern' ? 'uebersprungen' : 'kein_lead', zuordnung, punkte: a.punkte, ergebnis: a });
       return 'kein_lead';
     }
-    await addCloseNote(leadId, closeNotiz(t, a));
-    await merke({ ...basis, status: 'in_close', close_lead_id: leadId, zuordnung, punkte: a.punkte, ergebnis: a, fehler: null });
+    const noteId = await addCloseNote(leadId, closeNotiz({ id: t.id, titel: t.title, datum: basis.datum, dauerMin: t.duration }, a));
+    await merke({ ...basis, status: 'in_close', close_lead_id: leadId, close_note_id: noteId, zuordnung, punkte: a.punkte, ergebnis: a, fehler: null });
     return 'in_close';
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Fehler';
@@ -219,4 +225,34 @@ export async function verarbeiteGespraech(
     await merke({ status: 'fehler', fehler: msg.slice(0, 500) });
     return 'fehler';
   }
+}
+
+/**
+ * Bereits geschriebene lange Analyse-Notizen in Close durch die Kurzfassung ersetzen.
+ * Findet die Notiz über die gespeicherte ID oder über den Fireflies-Link in der Notiz.
+ */
+export async function kuerzeAlteNotizen(svc: SupabaseClient): Promise<{ gekuerzt: number; nichtGefunden: number }> {
+  const { updateCloseNote, ladeCloseNotizen } = await import('@/lib/sales/close');
+  const { data } = await svc
+    .from('gespraech_analysen')
+    .select('fireflies_id, titel, datum, dauer_min, close_lead_id, close_note_id, ergebnis')
+    .eq('status', 'in_close');
+  let gekuerzt = 0;
+  let nichtGefunden = 0;
+  for (const r of (data ?? []) as Array<{ fireflies_id: string; titel: string | null; datum: string | null; dauer_min: number | null; close_lead_id: string; close_note_id: string | null; ergebnis: GespraechAnalyse }>) {
+    const text = closeNotiz({ id: r.fireflies_id, titel: r.titel, datum: r.datum, dauerMin: r.dauer_min }, r.ergebnis);
+    let noteId = r.close_note_id;
+    if (!noteId) {
+      const notizen = await ladeCloseNotizen(r.close_lead_id);
+      noteId = notizen.find((n) => n.note?.includes(`fireflies.ai/view/${r.fireflies_id}`) && n.note.includes('FEHLER & BESSER'))?.id ?? null;
+    }
+    if (!noteId) {
+      nichtGefunden++;
+      continue;
+    }
+    await updateCloseNote(noteId, text);
+    await svc.from('gespraech_analysen').update({ close_note_id: noteId, updated_at: new Date().toISOString() }).eq('fireflies_id', r.fireflies_id);
+    gekuerzt++;
+  }
+  return { gekuerzt, nichtGefunden };
 }

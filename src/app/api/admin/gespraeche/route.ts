@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { listeTranskripte } from '@/lib/gespraeche/fireflies';
-import { verarbeiteGespraech } from '@/lib/gespraeche/analyse';
+import { kuerzeAlteNotizen, verarbeiteGespraech } from '@/lib/gespraeche/analyse';
 
 export const maxDuration = 300;
 
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   if (!(await erlaubt(req, svc))) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { data } = await svc
     .from('gespraech_analysen')
-    .select('fireflies_id, titel, datum, dauer_min, status, punkte, zuordnung, close_lead_id, fehler')
+    .select('fireflies_id, titel, datum, dauer_min, status, punkte, zuordnung, close_lead_id, fehler, ergebnis')
     .order('datum', { ascending: false })
     .limit(100);
   return NextResponse.json({ gespraeche: data ?? [] });
@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const svc = createAdminClient();
   if (!(await erlaubt(req, svc))) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
-  const b = (await req.json().catch(() => ({}))) as { tage?: number; max?: number; erneut?: boolean };
+  const b = (await req.json().catch(() => ({}))) as { tage?: number; max?: number; erneut?: boolean; aktion?: string };
+  if (b.aktion === 'notizen_kuerzen') return NextResponse.json(await kuerzeAlteNotizen(svc));
   const tage = Math.min(60, Math.max(1, Number(b.tage) || 7));
   const max = Math.min(10, Math.max(1, Number(b.max) || 5));
   try {

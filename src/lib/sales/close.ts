@@ -84,8 +84,8 @@ export async function findCloseLeadIdByName(name: string): Promise<string | null
   return nachNach.length === 1 ? nachNach[0].id : null;
 }
 
-/** Notiz direkt an einen bekannten Lead schreiben. */
-export async function addCloseNote(leadId: string, note: string): Promise<void> {
+/** Notiz direkt an einen bekannten Lead schreiben – gibt die Notiz-ID zurück. */
+export async function addCloseNote(leadId: string, note: string): Promise<string | null> {
   const apiKey = process.env.CLOSE_API_KEY;
   if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
   const res = await fetch(`${CLOSE_BASE}/activity/note/`, {
@@ -94,6 +94,24 @@ export async function addCloseNote(leadId: string, note: string): Promise<void> 
     body: JSON.stringify({ lead_id: leadId, note }),
   });
   if (!res.ok) throw new Error(`Close-Notiz fehlgeschlagen (${res.status})`);
+  return ((await res.json()) as { id?: string }).id ?? null;
+}
+
+/** Bestehende Notiz ersetzen */
+export async function updateCloseNote(noteId: string, note: string): Promise<void> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const res = await fetch(`${CLOSE_BASE}/activity/note/${noteId}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ note }) });
+  if (!res.ok) throw new Error(`Close-Notiz nicht aktualisiert (${res.status})`);
+}
+
+/** Notizen eines Leads (für das nachträgliche Kürzen alter Analyse-Notizen) */
+export async function ladeCloseNotizen(leadId: string): Promise<Array<{ id: string; note: string }>> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const res = await fetch(`${CLOSE_BASE}/activity/note/?lead_id=${leadId}&_fields=id,note&_limit=100`, { headers: closeHeaders(apiKey) });
+  if (!res.ok) throw new Error(`Close-Notizen nicht ladbar (${res.status})`);
+  return ((await res.json()) as { data: Array<{ id: string; note: string }> }).data;
 }
 
 /** Lead + Kontakt zur Telefonnummer (sonst E-Mail) finden — Ziel für WhatsApp-Aktivitäten. */

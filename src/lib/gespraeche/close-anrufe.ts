@@ -7,8 +7,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { ladeAudioHoch } from './fireflies';
 
 const CLOSE = 'https://api.close.com/api/v1';
-/** Kürzere Anrufe (Mailbox, „ruf später an“) lohnen keine Analyse */
-export const MIN_SEKUNDEN = 120;
+/** Unter einer Minute (Mailbox, „ruf später an“) lohnt keine Analyse – Opening-Calls ab 60 Sek. werden erfasst */
+export const MIN_SEKUNDEN = 60;
 
 function auth(): string {
   const key = process.env.CLOSE_API_KEY;
