@@ -31,4 +31,16 @@ describe('Cockpit-Ausnahmen', () => {
       ['gelb', 'Özdemir seit 16 Tagen in Setup – Kampagne noch nicht live'],
     ]);
   });
+
+  it('Aufbau mit Zuständigkeit und Eskalation nach Erinnerungen', () => {
+    const a = baueAusnahmen({
+      ...leer,
+      langImAufbau: [{ id: 'k', name: 'Rönnefahrt', phase: 'Onboarding', tage: 16, wartet: 'kunde' }],
+      kundenNachErinnerung: [{ id: 'k', name: 'Rönnefahrt', offen: 4 }],
+    });
+    expect(a.map((x) => x.text)).toEqual([
+      'Rönnefahrt: 4 Aufgaben trotz 3 Erinnerungen offen – kurz anrufen',
+      'Rönnefahrt seit 16 Tagen in Onboarding – Kampagne noch nicht live (wartet auf den Kunden)',
+    ]);
+  });
 });

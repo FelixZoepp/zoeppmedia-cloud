@@ -8,6 +8,7 @@ import { AssetPreview } from '@/components/ads/asset-preview';
 import { PageHeader } from '@/components/ui/page-header';
 import { META_PARTNER_ID, META_CHECKLISTE_PDF, phaseLabel, type Phase } from '@/lib/fulfillment/catalog';
 import type { StepView } from '@/lib/fulfillment/views';
+import { Fahrplan } from '@/components/dashboard/fahrplan';
 
 interface Aufgaben {
   phase: Phase;
@@ -292,6 +293,10 @@ export default function DeineAufgabenPage() {
           </div>
         </details>
       )}
+
+      <div className="mt-8">
+        <Fahrplan mitLink={false} />
+      </div>
     </div>
   );
 }

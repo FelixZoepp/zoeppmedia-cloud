@@ -11,6 +11,7 @@ import { ProjectOverview } from './project-overview';
 import { MasterclassProgress } from './masterclass-progress';
 import { KundenKennzahlen, type KundenKennzahlenDaten } from './kunden-kennzahlen';
 import { Wochenstand } from './wochenstand';
+import { Fahrplan } from './fahrplan';
 import { Avatar, Badge, CountUp, SplitText, StatCard } from '@/components/ui';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -124,6 +125,9 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, 
         <SplitText as="h1" text="Dashboard" className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
         <p className="fx-fade mt-2 text-[15px] text-gray-600">Dein Recruiting bei {agencyName} – alles an einem ruhigen Ort.</p>
       </div>
+
+      {/* ── Fahrplan bis zum Kampagnenstart (nur vor dem Start) ── */}
+      <Fahrplan />
 
       {/* ── Auf Kurs? Stand der letzten 7 Tage ── */}
       <Wochenstand />

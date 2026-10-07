@@ -183,7 +183,8 @@ export async function loadCustomerTasks(svc: SupabaseClient, agencyId: string, n
     .sort((x, y) => catalogIndex(x.step_key) - catalogIndex(y.step_key));
   return {
     phase,
-    offen: steps.filter((s) => s.phase === phase && (s.status === 'offen' || s.status === 'in_arbeit')),
+    // Ads-Freigabe läuft über die Freigabe-Karten (Signal ads_freigegeben), nicht über „Erledigt“
+    offen: steps.filter((s) => s.phase === phase && (s.status === 'offen' || s.status === 'in_arbeit') && s.step_key !== 's_freigabe'),
     in_pruefung: steps.filter((s) => s.status === 'zur_pruefung'),
     erledigt: steps.filter((s) => s.status === 'erledigt'),
   };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Eye, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge, Button, Card, PageHeader } from '@/components/ui';
+import { ErinnerungenKarte } from './erinnerungen-karte';
 
 type Status = 'auf_kurs' | 'achtung' | 'kritisch';
 interface Kunde {
@@ -101,6 +102,8 @@ export function WochenberichteClient() {
           </div>
         </Card>
       )}
+
+      <ErinnerungenKarte />
 
       <Card padding="none">
         <ul className="divide-y divide-gray-100">

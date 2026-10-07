@@ -4,6 +4,7 @@
  * Vertrieb (Close) lädt der Browser separat über /api/admin/vertrieb (gecacht, langsamer).
  */
 
+import { MAX_ERINNERUNGEN } from '@/lib/fulfillment/kunden-erinnerung';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ladeErgebnisse } from '@/lib/kunden-cloud/ergebnisse';
 import { loadTeamWorkload } from '@/lib/team/workload';
@@ -53,7 +54,9 @@ const TAG = 864e5;
 export function baueAusnahmen(e: {
   roteKunden: Array<{ id: string; name: string; hinweise: string[] }>;
   ueberfaelligNachOwner: Array<{ name: string; anzahl: number; maxTage: number }>;
-  langImAufbau: Array<{ id: string; name: string; phase: string; tage: number }>;
+  langImAufbau: Array<{ id: string; name: string; phase: string; tage: number; wartet?: 'kunde' | 'uns' }>;
+  /** Kunden-Aufgaben trotz aller automatischen Erinnerungen offen → anrufen */
+  kundenNachErinnerung?: Array<{ id: string; name: string; offen: number }>;
   kundenAufgabenUeberfaellig: number;
   anfragenAlt: number;
   upsellOffen: number;
@@ -73,7 +76,10 @@ export function baueAusnahmen(e: {
     });
   }
   for (const k of e.langImAufbau) {
-    a.push({ stufe: k.tage > 30 ? 'rot' : 'gelb', bereich: 'Fulfillment', text: `${k.name} seit ${k.tage} Tagen in ${k.phase} – Kampagne noch nicht live`, link: `/clients/${k.id}` });
+    a.push({ stufe: k.tage > 30 ? 'rot' : 'gelb', bereich: 'Fulfillment', text: `${k.name} seit ${k.tage} Tagen in ${k.phase} – Kampagne noch nicht live${k.wartet === 'kunde' ? ' (wartet auf den Kunden)' : k.wartet === 'uns' ? ' (liegt bei uns)' : ''}`, link: `/clients/${k.id}` });
+  }
+  for (const k of e.kundenNachErinnerung ?? []) {
+    a.push({ stufe: 'rot', bereich: 'Kunden', text: `${k.name}: ${k.offen} Aufgabe${k.offen === 1 ? '' : 'n'} trotz 3 Erinnerungen offen – kurz anrufen`, link: `/clients/${k.id}` });
   }
   if (e.kundenAufgabenUeberfaellig) a.push({ stufe: 'gelb', bereich: 'Kunden', text: `${e.kundenAufgabenUeberfaellig} Kunden-Aufgaben überfällig (Zugänge, Formular …) – nachfassen`, link: '/clients' });
   if (e.upsellOffen) a.push({ stufe: 'gelb', bereich: 'Anfragen', text: `${e.upsellOffen} Upsell-Interesse${e.upsellOffen === 1 ? '' : 'n'} wartet auf Rückmeldung`, link: '/admin/support' });
@@ -99,7 +105,7 @@ export async function ladeCockpit(svc: SupabaseClient, jetzt: Date = new Date())
         .from('agencies')
         .select('id, name, mrr, fulfillment_phase, fulfillment_phase_seit, launch_datum, pausiert_grund')
         .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`),
-      svc.from('client_steps').select('agency_id, step_key, wer, status, faellig_am, owner_user_id').in('status', ['offen', 'in_arbeit']),
+      svc.from('client_steps').select('agency_id, step_key, wer, status, faellig_am, owner_user_id, kunde_erinnerungen').in('status', ['offen', 'in_arbeit']),
       svc.from('support_anfragen').select('art, status, created_at').neq('status', 'erledigt'),
       svc.from('scheduled_jobs').select('id').eq('status', 'dead').gte('updated_at', vor7),
       svc.from('ad_items').select('id, ki_override').not('ki_override', 'is', null).gte('updated_at', vor7),
@@ -137,7 +143,7 @@ export async function ladeCockpit(svc: SupabaseClient, jetzt: Date = new Date())
   const mrr = { summe: mrrWerte.reduce<number>((s, v) => s + (v ?? 0), 0), gepflegt: mrrWerte.filter((v) => v !== null && v > 0).length, gesamt: agencies.length };
 
   // Fulfillment
-  const offen = ((steps ?? []) as Array<{ agency_id: string; step_key: string; wer: string; status: string; faellig_am: string | null; owner_user_id: string | null }>).filter((s) =>
+  const offen = ((steps ?? []) as Array<{ agency_id: string; step_key: string; wer: string; status: string; faellig_am: string | null; owner_user_id: string | null; kunde_erinnerungen: number | null }>).filter((s) =>
     aktiveIds.has(s.agency_id),
   );
   const ueberfaellig = offen.filter((s) => s.faellig_am && s.faellig_am < heute);
@@ -153,8 +159,16 @@ export async function ladeCockpit(svc: SupabaseClient, jetzt: Date = new Date())
   const aufbau = agencies.filter((a) => ['zahlung', 'onboarding', 'setup'].includes(a.fulfillment_phase!));
   const PHASE: Record<string, string> = { zahlung: 'Zahlung', onboarding: 'Onboarding', setup: 'Setup' };
   const langImAufbau = aufbau
-    .map((a) => ({ id: a.id, name: a.name, phase: PHASE[a.fulfillment_phase!], tage: a.fulfillment_phase_seit ? Math.round((jetzt.getTime() - new Date(a.fulfillment_phase_seit).getTime()) / TAG) : 0 }))
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      phase: PHASE[a.fulfillment_phase!],
+      tage: a.fulfillment_phase_seit ? Math.round((jetzt.getTime() - new Date(a.fulfillment_phase_seit).getTime()) / TAG) : 0,
+      wartet: (kunde_.some((s) => s.agency_id === a.id) ? 'kunde' : 'uns') as 'kunde' | 'uns',
+    }))
     .filter((a) => a.tage > 14 && !agencies.find((x) => x.id === a.id)?.pausiert_grund);
+  const nachErinnerung = new Map<string, number>();
+  for (const s of kunde_) if ((s.kunde_erinnerungen ?? 0) >= MAX_ERINNERUNGEN) nachErinnerung.set(s.agency_id, (nachErinnerung.get(s.agency_id) ?? 0) + 1);
   // Anstehende Starts: offener Schritt „Kampagne live“ mit Frist in den nächsten 7 Tagen
   const starts7 = offen
     .filter((s) => s.step_key === 's_launch' && s.faellig_am && s.faellig_am <= in7)
@@ -184,6 +198,7 @@ export async function ladeCockpit(svc: SupabaseClient, jetzt: Date = new Date())
     roteKunden: erg.filter((e) => e.ampel === 'rot' && !e.pausiert).map((e) => ({ id: e.id, name: e.name, hinweise: e.hinweise })),
     ueberfaelligNachOwner: [...nachOwner.entries()].map(([n, x]) => ({ name: n, ...x })).sort((x, y) => y.maxTage - x.maxTage),
     langImAufbau,
+    kundenNachErinnerung: [...nachErinnerung].map(([id, n]) => ({ id, name: name.get(id) ?? '–', offen: n })),
     kundenAufgabenUeberfaellig: kunde_.length,
     anfragenAlt: a_.filter((x) => x.art !== 'interesse' && x.created_at < vor2).length,
     upsellOffen: anfragen.upsell,

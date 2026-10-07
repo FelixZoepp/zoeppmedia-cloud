@@ -303,6 +303,14 @@ async function runDailyJobs() {
     }
   }
 
+  // 7b5. Kunden an überfällige Aufgaben erinnern (Schalter in /admin/wochenberichte)
+  try {
+    const { erinnereKunden, erinnerungenAktiv } = await import('@/lib/fulfillment/kunden-erinnerung');
+    if (await erinnerungenAktiv(supabase)) await erinnereKunden(supabase);
+  } catch (err) {
+    console.error('[cron] Kunden-Erinnerungen fehlgeschlagen:', err);
+  }
+
   // 7c. Close-Telefonate mit Aufnahme der letzten 2 Tage an Fireflies geben (Analyse kommt per Webhook)
   if (process.env.FIREFLIES_API_KEY && process.env.CLOSE_API_KEY) {
     try {
