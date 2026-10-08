@@ -29,7 +29,7 @@ export const PROTOKOLL_FELDER = {
   entscheiderErgebnis: 'cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1',
   /** Terminierung: „📞 Wen erreicht?“ (Gatekeeper / Assistenz · Lead · Niemand / Mailbox) */
   wenErreicht: 'cf_U3JJwHBkSgOGtEKO4wd7b5EeLbUyv0uBXAQuG3GgEu6',
-  settingNaechsterSchritt: 'cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B',
+  settingNaechsterSchritt: 'cf_76Hh4UwJmO29mcOhNZdGglGCNpQyccCBbZSciCF3fb3',
   closingNaechsterSchritt: 'cf_BhCW7idf0P9fl8ba0D6OZJIwuUDqiiBhHwgJCJbScuJ',
   followUpNaechsterSchritt: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
 } as const;
