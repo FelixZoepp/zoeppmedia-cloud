@@ -72,6 +72,7 @@ export const ADMIN_BEREICHE: Bereich[] = [
     label: 'Verwaltung',
     tabs: [
       { label: 'Masterclass', href: '/admin/masterclass' },
+      { label: 'Team-Akademie', href: '/admin/akademie' },
       { label: 'Einladungen', href: '/invites' },
       { label: 'Templates', href: '/admin/templates' },
       { label: 'KPI', href: '/admin/kpi' },

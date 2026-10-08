@@ -12,6 +12,9 @@ import { ladeEmpfehlungen } from '@/lib/empfehlungen/laden';
 import { erstelleAnfrage } from '@/lib/support/anfragen';
 import { ladeSalesControlling, ZEITRÄUME, type Zeitraum } from '@/lib/sales-controlling/laden';
 import { KUNDEN_CLOUD_BEREICHE, SALES_BEREICHE } from '@/lib/team/funktionen';
+import { sucheArtikel, suchTextVon } from '@/lib/akademie/daten';
+import { ladeZugriff } from '@/lib/akademie/zugriff';
+import { merkeLuecke } from '@/lib/akademie/bot';
 
 /**
  * Werkzeuge des KI-Assistenten. Alle nur lesend und an die Rolle gebunden:
@@ -398,6 +401,33 @@ const salesKennzahlen: ToolDef = {
   },
 };
 
+const akademie: ToolDef = {
+  label: 'Sucht in der Team-Akademie',
+  tool: {
+    name: 'sop_suchen',
+    description:
+      'Durchsucht die Team-Akademie (SOPs, Skripte, Wissen, FAQ) nach Anleitungen für interne Arbeit – wie ein Ablauf-Schritt geht, was die Cloud automatisch macht, Skripte, Rollen. Liefert nur Artikel, die für den Nutzer freigeschaltet sind. Antworte nur aus den Treffern und verlinke sie; ohne Treffer ehrlich sagen, dass es noch keine Anleitung gibt.',
+    input_schema: {
+      type: 'object',
+      properties: { frage: { type: 'string', description: 'Frage oder Stichworte, z. B. „Pixel im Funnel prüfen“' } },
+      required: ['frage'],
+    },
+  },
+  run: async (input, ctx) => {
+    const frage = str(input.frage, 300);
+    if (!frage) return { treffer: [] };
+    const z = await ladeZugriff(ctx.svc, { id: ctx.userId, role: ctx.audience === 'admin' ? 'admin' : 'employee', funktion: ctx.funktion ?? null });
+    const treffer = await sucheArtikel(ctx.svc, z, frage, 3);
+    if (!treffer.length) {
+      await merkeLuecke(ctx.svc, frage, z.admin ? [] : [...z.positionen]);
+      return { treffer: [], hinweis: 'Dazu gibt es noch keine Anleitung in der Akademie – die Frage wurde als Wissenslücke gemeldet.' };
+    }
+    return {
+      treffer: treffer.map((a) => ({ titel: a.titel, link: `/akademie/${a.slug}`, status: a.status, text: suchTextVon(a).slice(0, 1500) })),
+    };
+  },
+};
+
 /**
  * Werkzeuge je Rolle. Kunden bekommen ausschließlich Werkzeuge, die auf ihre eigene Agentur
  * (ctx.agencyId) beschränkt sind – Fragen nach anderen Kunden laufen technisch ins Leere.
@@ -405,7 +435,7 @@ const salesKennzahlen: ToolDef = {
 export function toolsFor(audience: Audience, funktion?: string | null, imKunden = false): ToolDef[] {
   if (audience === 'kunde') return [meineErgebnisse, recruitingZahlen, bewerberSuchen, deineAufgaben, empfehlungen, interesseMelden, hilfe];
 
-  const set = new Set<ToolDef>([meineAufgaben, kundenSuchen, kalender, hilfe]);
+  const set = new Set<ToolDef>([meineAufgaben, kundenSuchen, kalender, hilfe, akademie]);
   const f = funktion ?? '';
   if (audience === 'admin') {
     [kundenErgebnisse, innendienstArbeit, kundenChancen, teamAuslastung, salesKennzahlen].forEach((t) => set.add(t));

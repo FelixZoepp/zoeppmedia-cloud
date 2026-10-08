@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { SopLink } from '@/components/akademie/sop-link';
 import { Check, RotateCcw, Ban, Play, Building2, AlertTriangle, MessageSquare } from 'lucide-react';
 import type { StepView } from '@/lib/fulfillment/views';
 
@@ -72,6 +73,7 @@ export function StepRow({
           )}
         </div>
         {step.beschreibung && !done && <p className="text-xs text-gray-500 mt-0.5">{step.beschreibung}</p>}
+        {!done && <SopLink stepKey={step.step_key} className="mt-0.5" />}
         {step.kommentar && (
           <p className="text-xs text-gray-600 mt-1 flex items-start gap-1">
             <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" /> {step.kommentar}

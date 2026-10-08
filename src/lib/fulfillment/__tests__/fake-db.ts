@@ -1,6 +1,6 @@
 /**
  * Minimaler In-Memory-Ersatz für den Supabase-Client — genug für die Fulfillment-Logik:
- * select (auch count/head)/eq/neq/in/not(in)/is/like/order/limit/maybeSingle/single, insert/update/upsert (onConflict, ignoreDuplicates).
+ * select (auch count/head)/eq/neq/in/not(in)/is/like/textSearch/contains/order/limit/maybeSingle/single, insert/update/upsert (onConflict, ignoreDuplicates).
  */
 
 type Row = Record<string, unknown>;
@@ -97,6 +97,16 @@ export function createFakeDb(initial: Record<string, Row[]> = {}) {
         );
         return chain;
       },
+      // grobe Volltextsuche für Tests: „a or b“ = irgendein Teil, sonst alle Wörter in titel + such_text
+      textSearch: (_c: string, q: string) => {
+        const teile = q.toLowerCase().split(' or ');
+        filters.push((r) => {
+          const text = `${String(r.titel ?? '')} ${String(r.such_text ?? '')}`.toLowerCase();
+          return teile.some((t) => t.split(/\s+/).filter(Boolean).every((w) => text.includes(w)));
+        });
+        return chain;
+      },
+      contains: (c: string, v: unknown[]) => (filters.push((r) => v.every((x) => ((r[c] as unknown[]) ?? []).includes(x))), chain),
       order: (col: string, o?: { ascending?: boolean }) => ((order = { col, asc: o?.ascending !== false }), chain),
       limit: (n: number) => ((limit = n), chain),
       insert: (p: Row | Row[]) => ((mode = 'insert'), (payload = p), chain),

@@ -198,6 +198,13 @@ const helpItem: SidebarItem = {
   href: '/hilfe',
 };
 
+const akademieItem: SidebarItem = {
+  id: 'akademie',
+  label: 'Team-Akademie',
+  icon: <GraduationCap className="w-5 h-5" />,
+  href: '/akademie',
+};
+
 const logoutItem: SidebarItem = {
   id: 'logout',
   label: 'Logout',
@@ -263,7 +270,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
   const isInternal = role === 'admin' || role === 'employee';
 
   const bottomItems = isInternal
-    ? [profileItem, settingsItem, helpItem, logoutItem]
+    ? [akademieItem, profileItem, settingsItem, helpItem, logoutItem]
     : [settingsItem, kundenHilfeItem, logoutItem];
 
   return (

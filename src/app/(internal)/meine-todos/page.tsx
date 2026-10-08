@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SopLink } from '@/components/akademie/sop-link';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Clock, Flag, MoreHorizontal, Plus, Receipt } from 'lucide-react';
@@ -74,6 +75,8 @@ interface Task {
   blockiert: boolean;
   /** nur Ads: aktuelle Stage */
   stage?: string;
+  /** nur Kunden-Schritte: Schlüssel im Ablauf (für „SOP ansehen“) */
+  stepKey?: string;
 }
 
 const SPALTEN: { key: Spalte; label: string; dot: string; leer: string }[] = [
@@ -142,6 +145,7 @@ function toTasks(steps: StepView[], ads: MeineAd[], weitere: WeitereAufgabe[], e
       link: `/clients/${s.agency_id}/ablauf`,
       ueberfaellig: s.ueberfaellig,
       blockiert: false,
+      stepKey: s.step_key,
     })),
     ...ads.map<Task>((a) => ({
       key: `ad-${a.id}`,
@@ -550,6 +554,7 @@ function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; h
         <p className={`mt-3 text-[16.5px] font-medium leading-snug ${done ? 'text-gray-500 line-through' : ''}`}>{t.titel}</p>
       )}
       {t.hinweis && !done && <p className="mt-1.5 text-[13px] leading-snug text-gray-600">{t.hinweis}</p>}
+      {t.stepKey && !done && <SopLink stepKey={t.stepKey} className="mt-1.5" />}
 
       <div className="mt-3.5 flex items-center gap-3 text-[13px] text-gray-600">
         {frist && (
