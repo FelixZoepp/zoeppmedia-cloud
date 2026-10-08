@@ -221,7 +221,7 @@ export async function sendeAbendbericht(svc: SupabaseClient, tag: string): Promi
   ].map((x) => ({ ...x, label: x.label + label }));
 
   const fehler: string[] = [];
-  const marketingKanal = process.env.SLACK_MARKETING_CHANNEL;
+  const marketingKanal = process.env.SLACK_MARKETING_CHANNEL?.trim();
   if (marketingKanal) {
     const teile = d.metaVerbunden
       ? zeitraeume('').map((x) => ({ label: x.label, zeilen: marketingZeilen(summiere(x.tage.map((t) => d.marketing.get(t) ?? LEER_MARKETING), LEER_MARKETING)) }))
@@ -229,7 +229,7 @@ export async function sendeAbendbericht(svc: SupabaseClient, tag: string): Promi
     await postSlack(marketingKanal, abschnitte(`📣 Marketing – ${datum}${zusatz}`, teile), `Marketing ${datum}`).catch((e) => fehler.push(String(e)));
   }
 
-  const salesKanal = process.env.SLACK_SALES_CHANNEL;
+  const salesKanal = process.env.SLACK_SALES_CHANNEL?.trim();
   if (salesKanal) {
     const teile = zeitraeume('').map((x) => ({ label: x.label, zeilen: salesZeilen(summiere(x.tage.map((t) => d.sales.get(t) ?? LEER_SALES), LEER_SALES)) }));
     await postSlack(salesKanal, abschnitte(`💼 Sales – ${datum}${zusatz}`, teile), `Sales ${datum}`).catch((e) => fehler.push(String(e)));

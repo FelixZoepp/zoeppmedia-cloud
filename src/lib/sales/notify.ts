@@ -49,7 +49,7 @@ export function buildSalesSlackMessage(n: SalesNotice): { text: string; blocks: 
 
 export async function postSalesSlack(n: SalesNotice): Promise<void> {
   const token = process.env.SLACK_BOT_TOKEN;
-  const channel = process.env.SLACK_SALES_CHANNEL;
+  const channel = process.env.SLACK_SALES_CHANNEL?.trim();
   if (!token || !channel) return;
 
   const res = await fetch('https://slack.com/api/chat.postMessage', {
