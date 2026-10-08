@@ -13,7 +13,7 @@ const CLOSE_BASE = 'https://api.close.com/api/v1';
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky'; // D2D Sales
 const OPP_SETTING_TERMINIERT = 'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH';
 const LEAD_STATUS_LEADPOOL = 'stat_sgDNPr29uwT7tMPTxzQKW6DDCjbM2JMZzdX3UpeRGLb';
-const LEAD_STATUS_SETTING = 'stat_E0PMV0VE8R9KIyqq8aGpBMyvBqjmaih50lXRczPpQ2L';
+export const LEAD_STATUS_SETTING = 'stat_E0PMV0VE8R9KIyqq8aGpBMyvBqjmaih50lXRczPpQ2L';
 
 /** Geheimer URL-Token für den Funnel-Webhook, abgeleitet aus CRON_SECRET (keine extra Env-Variable). */
 export function salesFunnelWebhookToken(): string | null {
@@ -229,16 +229,22 @@ export async function bucheSettingInClose(b: BuchungFuerClose): Promise<{ leadId
     await fetch(`${CLOSE_BASE}/lead/${leadId}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: LEAD_STATUS_SETTING }) });
   }
 
+  const termin = new Date(b.startTime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return { leadId, opportunity: await legeSettingOpportunityAn(leadId, `Setting gebucht über Calendly: ${termin} Uhr`) };
+}
+
+/** Opportunity „Setting – Terminiert“ anlegen – nur wenn der Lead noch keine aktive Opportunity hat */
+export async function legeSettingOpportunityAn(leadId: string, note: string): Promise<'angelegt' | 'vorhanden'> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
   const offen = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&_fields=id`, { headers: closeHeaders(apiKey) });
   if (!offen.ok) throw new Error(`Close-Opportunities nicht lesbar (${offen.status})`);
-  if (((await offen.json()) as { data: unknown[] }).data.length > 0) return { leadId, opportunity: 'vorhanden' };
-
-  const termin = new Date(b.startTime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  if (((await offen.json()) as { data: unknown[] }).data.length > 0) return 'vorhanden';
   const opp = await fetch(`${CLOSE_BASE}/opportunity/`, {
     method: 'POST',
     headers: closeHeaders(apiKey),
-    body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_SETTING_TERMINIERT, note: `Setting gebucht über Calendly: ${termin} Uhr` }),
+    body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_SETTING_TERMINIERT, note }),
   });
   if (!opp.ok) throw new Error(`Opportunity nicht angelegt (${opp.status}): ${await opp.text()}`);
-  return { leadId, opportunity: 'angelegt' };
+  return 'angelegt';
 }

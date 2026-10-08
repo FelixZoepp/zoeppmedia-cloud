@@ -6,7 +6,7 @@
  * Definitionen:
  * - Anwahlen: ausgehende Anrufe
  * - Gespräche: angenommene Anrufe ab 30 Sekunden (wie in der Telefonie-Auswertung)
- * - Entscheider gesprochen: Cold-Call-Protokolle mit „Entscheider Ergebnis“ + Follow-up-Protokolle mit Ergebnis außer „Nicht erreicht“
+ * - Entscheider gesprochen: Terminierungs-Protokolle mit „Wen erreicht = Lead“ oder Ergebnis + Follow-up-Protokolle mit Ergebnis außer „Nicht erreicht“
  * - Protokolle fehlen: Gespräch ohne Gesprächsprotokoll am selben Lead am selben Tag
  * - Settings/Closings gebucht, gehalten, No-Show, Abschlüsse: aus den Statuswechseln der Pipeline „D2D Sales“
  * - Unqualifiziert: Setting-Protokoll „Unqualifiziert“/„Disqualifiziert“
@@ -27,6 +27,8 @@ export const PROTOKOLL_TYPEN = {
 
 export const PROTOKOLL_FELDER = {
   entscheiderErgebnis: 'cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1',
+  /** Terminierung: „📞 Wen erreicht?“ (Gatekeeper / Assistenz · Lead · Niemand / Mailbox) */
+  wenErreicht: 'cf_U3JJwHBkSgOGtEKO4wd7b5EeLbUyv0uBXAQuG3GgEu6',
   settingNaechsterSchritt: 'cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B',
   closingNaechsterSchritt: 'cf_BhCW7idf0P9fl8ba0D6OZJIwuUDqiiBhHwgJCJbScuJ',
   followUpNaechsterSchritt: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
@@ -99,7 +101,7 @@ const tagVon = (iso: string) => berlinTag(new Date(iso));
 const quote = (z: number, n: number) => (n > 0 ? Math.round((z / n) * 1000) / 10 : null);
 
 export function istEntscheiderProtokoll(p: Protokoll): boolean {
-  if (p.typ === PROTOKOLL_TYPEN.coldCall) return !!p.felder[PROTOKOLL_FELDER.entscheiderErgebnis];
+  if (p.typ === PROTOKOLL_TYPEN.coldCall) return p.felder[PROTOKOLL_FELDER.wenErreicht] === 'Lead' || !!p.felder[PROTOKOLL_FELDER.entscheiderErgebnis];
   if (p.typ === PROTOKOLL_TYPEN.followUp) {
     const s = p.felder[PROTOKOLL_FELDER.followUpNaechsterSchritt];
     return !!s && !s.includes('Nicht erreicht');

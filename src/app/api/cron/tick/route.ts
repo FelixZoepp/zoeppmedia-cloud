@@ -259,6 +259,11 @@ export async function GET(request: NextRequest) {
           await pruefeEintragung(svc, payload as unknown as { lead_id: string }, todayBerlin());
           break;
         }
+        case 'sales.protokoll': {
+          const { verarbeiteProtokoll } = await import('@/lib/sales/protokolle');
+          await verarbeiteProtokoll(svc, (payload as { activity_id: string }).activity_id);
+          break;
+        }
         case 'berichte.abend': {
           const { sendeAbendbericht } = await import('@/lib/berichte/abendbericht');
           await sendeAbendbericht(svc, (payload as { tag: string }).tag);

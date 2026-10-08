@@ -342,6 +342,9 @@ const WEBHOOK_EVENTS = [
   { object_type: 'opportunity', action: 'updated' },
   // Neue Leads (Eintragungen) → 10-Minuten-Check auf Terminbuchung
   { object_type: 'lead', action: 'created' },
+  // Gesprächsprotokolle → Automatik (Sperre, Status, Opportunity) + Auswertung
+  { object_type: 'activity.custom_activity', action: 'created' },
+  { object_type: 'activity.custom_activity', action: 'updated' },
 ];
 
 /** Webhook-Abo in Close anlegen bzw. auf die aktuellen Events bringen (idempotent). */

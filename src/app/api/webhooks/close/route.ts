@@ -5,9 +5,11 @@ import { CLOSE_STATUS_SETTING_NO_SHOW, closeWebhookToken } from '@/lib/sales/clo
 import { handleCloseSettingNoShow } from '@/lib/sales/noshow';
 import { syncFollowupForOpportunity } from '@/lib/sales/followup';
 import { erfasseEintragung } from '@/lib/sales/eintragungen';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 
 /**
- * Close-Webhook (Sales-Bot). Abo: opportunity.created / opportunity.updated / lead.created.
+ * Close-Webhook (Sales-Bot). Abo: opportunity.created / opportunity.updated / lead.created / activity.custom_activity.
+ * - Gesprächsprotokoll → speichern + Automatik (src/lib/sales/protokolle.ts)
  * - Neuer Lead → Eintragung merken, nach 10 Min. prüfen, ob ein Termin gebucht wurde
  * - Wechsel auf "Setting - No Show" → WhatsApp noshow_1_anruf
  * - Status "… - Follow Up" + Feld "Follow-up-Rhythmus" → Follow-up-Kette starten/umplanen/stoppen
@@ -61,6 +63,23 @@ export async function POST(request: NextRequest) {
       console.error('[close-webhook] Eintragung fehlgeschlagen:', err);
       return NextResponse.json({ error: 'Verarbeitung fehlgeschlagen' }, { status: 500 });
     }
+  }
+  // Gesprächsprotokoll (Custom Activity) → Job: speichern + Automatik (Sperre, Status, Opportunity)
+  if (ev?.object_type === 'activity.custom_activity' && (ev.action === 'created' || ev.action === 'updated') && ev.object_id) {
+    const { error } = await createAdminClient().from('scheduled_jobs').insert({
+      agency_id: SALES_AGENCY_ID,
+      type: 'sales.protokoll',
+      run_at: new Date().toISOString(),
+      payload: { activity_id: ev.object_id },
+      status: 'pending',
+      // created + updated (Entwurf → veröffentlicht) dürfen beide planen; der Job ist idempotent
+      dedupe_key: `sales.protokoll:${ev.object_id}:${ev.action}:${Math.floor(Date.now() / 60_000)}`,
+    });
+    if (error && error.code !== '23505') {
+      console.error('[close-webhook] Protokoll-Job nicht geplant:', error.message);
+      return NextResponse.json({ error: 'Verarbeitung fehlgeschlagen' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, protokoll: 'geplant' });
   }
   if (ev?.object_type !== 'opportunity' || !ev.object_id) return NextResponse.json({ ok: true, action: 'ignored' });
   const svc = createAdminClient();
