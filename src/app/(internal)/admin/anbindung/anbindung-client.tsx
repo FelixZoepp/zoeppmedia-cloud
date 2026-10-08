@@ -31,7 +31,7 @@ function kopieren(text: string, was: string) {
 }
 
 export function AnbindungClient() {
-  const [d, setD] = useState<{ kunden: KundeAnbindung[]; metaSync: boolean; perspectiveWebhook: string } | null>(null);
+  const [d, setD] = useState<{ kunden: KundeAnbindung[]; metaSync: boolean; perspectiveWebhook: string; salesFunnelWebhook: string | null } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [filter, setFilter] = useState('offen');
 
@@ -65,6 +65,26 @@ export function AnbindungClient() {
       </div>
 
       <PerspectiveVerbindung />
+
+      {d?.salesFunnelWebhook && (
+        <Card className="mb-4">
+          <p className="text-[15px] font-semibold text-gray-900">Eigene Funnels → Close</p>
+          <p className="mt-1 text-[13.5px] text-gray-600">
+            Diese URL im Perspective-Funnel von Zoepp Media als Webhook eintragen: Jeder Eintrag wird als Lead in Close angelegt (Leadquelle aus UTM,
+            Antworten in die Close-Felder). Nach 10 Minuten ohne Termin entsteht die Aufgabe „Jetzt anrufen“, mit Termin die Opportunity „Setting – Terminiert“.
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-50 px-3 py-2 text-[12.5px] text-gray-700">{d.salesFunnelWebhook}</code>
+            <button
+              type="button"
+              onClick={() => kopieren(d.salesFunnelWebhook!, 'Funnel-Webhook')}
+              className="inline-flex flex-none items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Copy className="h-4 w-4" /> Kopieren
+            </button>
+          </div>
+        </Card>
+      )}
 
       {d && !d.metaSync && (
         <Card className="mb-4 flex items-start gap-3 text-amber-900">

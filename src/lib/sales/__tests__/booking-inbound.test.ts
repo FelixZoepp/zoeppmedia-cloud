@@ -72,6 +72,10 @@ const booking = {
   phone: '+49 177 1908503',
 };
 
+/** WhatsApp-/Erinnerungs-Jobs – der Close-Job (sales.close_buchung) läuft unabhängig davon immer */
+const istWaJob = (c: { table: string; args: unknown[] }) =>
+  c.table === 'scheduled_jobs' && (c.args[0] as { type?: string } | undefined)?.type !== 'sales.close_buchung';
+
 describe('handleSalesBooking', () => {
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => vi.unstubAllEnvs());
@@ -84,7 +88,7 @@ describe('handleSalesBooking', () => {
 
     expect(result).toEqual({ prospectId: 'prospect-1', jobsScheduled: true });
     const eventUpsert = calls.findIndex((c) => c.table === 'calendly_events' && c.method === 'upsert');
-    const firstJob = calls.findIndex((c) => c.table === 'scheduled_jobs' && c.method === 'insert');
+    const firstJob = calls.findIndex((c) => istWaJob(c) && c.method === 'insert');
     expect(eventUpsert).toBeGreaterThan(-1);
     expect(firstJob).toBeGreaterThan(eventUpsert);
 
@@ -99,6 +103,7 @@ describe('handleSalesBooking', () => {
       .filter((c) => c.table === 'scheduled_jobs' && c.method === 'insert')
       .map((c) => (c.args[0] as { type: string }).type);
     expect(jobTypes).toEqual([
+      'sales.close_buchung',
       'sales.booking', 'sales.confirmation', 'sales.reminder', 'sales.unconfirmed_check', 'sales.noshow_check',
     ]);
     const unconfirmed = calls.find((c) => c.table === 'scheduled_jobs' && (c.args[0] as { type: string }).type === 'sales.unconfirmed_check');
@@ -113,7 +118,8 @@ describe('handleSalesBooking', () => {
 
     expect(result).toEqual({ prospectId: null, jobsScheduled: false });
     expect(calls.some((c) => c.table === 'calendly_events' && c.method === 'upsert')).toBe(true);
-    expect(calls.some((c) => c.table === 'scheduled_jobs')).toBe(false);
+    expect(calls.some(istWaJob)).toBe(false);
+    expect(calls.some((c) => c.table === 'scheduled_jobs' && (c.args[0] as { type?: string })?.type === 'sales.close_buchung')).toBe(true);
     expect(createNotificationForInternals).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ title: 'Sales: Buchung ohne Handynummer: Riccardo Marini' }),
@@ -124,7 +130,8 @@ describe('handleSalesBooking', () => {
     const { svc, calls } = makeSvc({ candidates: { id: 'prospect-1' } });
     const result = await handleSalesBooking(svc, booking);
     expect(result).toEqual({ prospectId: 'prospect-1', jobsScheduled: false });
-    expect(calls.some((c) => c.table === 'scheduled_jobs')).toBe(false);
+    expect(calls.some(istWaJob)).toBe(false);
+    expect(calls.some((c) => c.table === 'scheduled_jobs' && (c.args[0] as { type?: string })?.type === 'sales.close_buchung')).toBe(true);
   });
 
   it('fasst nie Recruiting-Tabellen an (applications, appointments)', async () => {

@@ -261,6 +261,20 @@ export async function handleSalesBooking(
   );
   if (error) throw new Error(`Sales-Buchung konnte nicht gespeichert werden: ${error.message}`);
 
+  // Setting in Close eintragen (Lead + Opportunity „Setting – Terminiert“). Als Job mit kurzer Verzögerung,
+  // damit ein gleichzeitig angelegter Funnel-Lead schon in der Close-Suche steht.
+  if (input.chain === 'setting') {
+    const { error: closeJobErr } = await svc.from('scheduled_jobs').insert({
+      agency_id: SALES_AGENCY_ID,
+      type: 'sales.close_buchung',
+      run_at: new Date(now.getTime() + 90_000).toISOString(),
+      payload: { name: input.inviteeName, email: input.inviteeEmail, phone: phoneE164 ?? input.phone, startTime: input.startTime, calendlyEventId: input.calendlyEventId },
+      status: 'pending',
+      dedupe_key: `sales.close_buchung:${input.calendlyEventId}`,
+    });
+    if (closeJobErr && closeJobErr.code !== '23505') console.error('[sales] Close-Buchung nicht geplant:', closeJobErr.message);
+  }
+
   if (!prospectId) {
     await notifySales(svc, {
       emoji: '⚠️',

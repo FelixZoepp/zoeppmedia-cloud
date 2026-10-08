@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ladeAnbindung } from '@/lib/anbindung/status';
+import { salesFunnelWebhookToken } from '@/lib/sales/funnel-lead';
 
 /** GET /api/admin/anbindung – Bewerber-Anbindung aller Kunden (Meta/Funnel, Indeed, Werbekonto, WhatsApp) */
 export async function GET(req: NextRequest) {
@@ -14,7 +15,10 @@ export async function GET(req: NextRequest) {
       user.role === 'admin' && process.env.PERSPECTIVE_WEBHOOK_SECRET
         ? `${basis}?secret=${encodeURIComponent(process.env.PERSPECTIVE_WEBHOOK_SECRET)}`
         : basis;
-    return NextResponse.json({ kunden: await ladeAnbindung(createAdminClient()), metaSync: !!process.env.META_SYSTEM_USER_TOKEN, perspectiveWebhook });
+    // Eigene Vertriebs-Funnels → Close (nur für Admins sichtbar, die URL enthält den Token)
+    const token = user.role === 'admin' ? salesFunnelWebhookToken() : null;
+    const salesFunnelWebhook = token ? `${req.nextUrl.origin}/api/webhooks/sales-funnel?token=${token}` : null;
+    return NextResponse.json({ kunden: await ladeAnbindung(createAdminClient()), metaSync: !!process.env.META_SYSTEM_USER_TOKEN, perspectiveWebhook, salesFunnelWebhook });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Fehler' }, { status: 500 });
   }

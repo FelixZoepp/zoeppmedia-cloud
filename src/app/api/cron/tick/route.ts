@@ -251,6 +251,11 @@ export async function GET(request: NextRequest) {
           await pruefeEintragung(svc, payload as unknown as { lead_id: string }, todayBerlin());
           break;
         }
+        case 'sales.close_buchung': {
+          const { bucheSettingInClose } = await import('@/lib/sales/funnel-lead');
+          await bucheSettingInClose(payload as unknown as import('@/lib/sales/funnel-lead').BuchungFuerClose);
+          break;
+        }
         case 'sales.unconfirmed_check':
           await processSalesUnconfirmedCheck(svc, job.agency_id, payload as unknown as SalesJobPayload);
           break;
