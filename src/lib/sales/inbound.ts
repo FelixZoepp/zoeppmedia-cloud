@@ -189,6 +189,16 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     return;
   }
 
+  // Schnellantwort im 2-Wochen-Zufriedenheits-Check (Button-Payload „umfrage:<token>:<wert>“)
+  if (msg.button?.payload?.startsWith('umfrage:')) {
+    const { verarbeiteUmfrageAntwort } = await import('@/lib/surveys/whatsapp');
+    const erledigt = await verarbeiteUmfrageAntwort(svc, msg.button.payload, { conversationId, phone: senderPhone, waAccountId: waAccount.id }).catch((err) => {
+      console.error('[sales-inbound] Umfrage-Antwort fehlgeschlagen', err);
+      return false;
+    });
+    if (erledigt) return;
+  }
+
   const kind = await handleSalesReply(svc, {
     agencyId,
     candidateId: prospect.id,

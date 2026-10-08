@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { upsell, zufriedenheit } from '../kunden-sync';
 
 describe('Kunden-Abgleich', () => {
-  it('Zufriedenheit = Schnitt der letzten 2 Umfragen (rating oder Einzelfragen)', () => {
-    expect(zufriedenheit([{ rating: 9, answers: null }, { rating: null, answers: { a: 8, b: 6 } }, { rating: 2, answers: null }])).toBe(8);
+  it('Zufriedenheit = Schnitt der letzten 2 Umfragen, 1–5 auf 1–10 umgerechnet', () => {
+    expect(zufriedenheit([{ rating: 5, answers: null }, { rating: null, answers: { overall: 3 } }, { rating: 1, answers: null }])).toBe(8);
     expect(zufriedenheit([])).toBeNull();
   });
   it('Upsell nur bei Zufriedenheit ≥ 8, guten Ergebnissen und passender Leistung', () => {

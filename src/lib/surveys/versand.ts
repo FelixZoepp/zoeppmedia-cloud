@@ -81,6 +81,10 @@ export async function versendeUmfragen(
     const { sendSurveyNotification } = await import('@/lib/email/resend');
     return sendSurveyNotification(to, name, titel, link);
   },
+  whatsapp: ((s: { agency_id: string; token: string }) => Promise<string>) | null = async (s) => {
+    const { sendeUmfrageWhatsApp } = await import('./whatsapp');
+    return sendeUmfrageWhatsApp(svc, s, 'start');
+  },
 ): Promise<number> {
   const { data: offen, error } = await svc
     .from('survey_schedule')
@@ -98,15 +102,27 @@ export async function versendeUmfragen(
   let versendet = 0;
   for (const s of (offen ?? []) as unknown as Array<{ id: string; agency_id: string; token: string; survey_templates: { title: string } | null }>) {
     const empfaenger = ownerByAgency.get(s.agency_id);
-    if (!empfaenger?.email) continue;
     const titel = s.survey_templates?.title ?? 'Feedback-Check';
-    try {
-      const res = (await senden(empfaenger.email, empfaenger.name, titel, umfrageLink(s.token))) as { error?: unknown } | null;
-      if (res && typeof res === 'object' && 'error' in res && res.error) throw res.error;
-      await svc.from('survey_schedule').update({ sent_at: new Date().toISOString() }).eq('id', s.id).is('sent_at', null);
+    let mailOk = false;
+    if (empfaenger?.email) {
+      try {
+        const res = (await senden(empfaenger.email, empfaenger.name, titel, umfrageLink(s.token))) as { error?: unknown } | null;
+        if (res && typeof res === 'object' && 'error' in res && res.error) throw res.error;
+        mailOk = true;
+      } catch (err) {
+        console.error('[umfragen] Mail-Versand fehlgeschlagen', s.id, err);
+      }
+    }
+    // Zusätzlich per WhatsApp (E-Mails liest kaum jemand) – mit Schnellantwort im Chat
+    const wa = whatsapp ? await whatsapp(s).catch(() => 'fehler' as const) : 'vorlage_fehlt';
+    if (mailOk || wa === 'gesendet') {
+      const jetzt = new Date().toISOString();
+      await svc
+        .from('survey_schedule')
+        .update({ sent_at: jetzt, ...(wa === 'gesendet' ? { wa_gesendet_am: jetzt } : {}) })
+        .eq('id', s.id)
+        .is('sent_at', null);
       versendet++;
-    } catch (err) {
-      console.error('[umfragen] Versand fehlgeschlagen', s.id, err);
     }
   }
   return versendet;
@@ -116,6 +132,8 @@ export async function versendeUmfragen(
 
 export interface UmfrageAnsicht {
   status: 'offen' | 'erledigt';
+  /** Schnellantwort aus WhatsApp (1–5) – im Formular als Gesamtnote vorbelegt */
+  vorbelegung: Record<string, number>;
   titel: string;
   beschreibung: string | null;
   kunde: string;
@@ -126,6 +144,7 @@ const TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 
 type ScheduleMitVorlage = {
   id: string;
+  schnell_bewertung: number | null;
   agency_id: string;
   template_id: string;
   completed_at: string | null;
@@ -137,7 +156,7 @@ async function ladeNachToken(svc: SupabaseClient, token: string): Promise<Schedu
   if (!TOKEN_RE.test(token)) return null;
   const { data } = await svc
     .from('survey_schedule')
-    .select('id, agency_id, template_id, completed_at, survey_templates(title, description, questions), agencies(name)')
+    .select('id, agency_id, template_id, completed_at, schnell_bewertung, survey_templates(title, description, questions), agencies(name)')
     .eq('token', token)
     .maybeSingle();
   return (data as unknown as ScheduleMitVorlage | null) ?? null;
@@ -148,6 +167,7 @@ export async function ladeUmfrage(svc: SupabaseClient, token: string): Promise<U
   if (!s?.survey_templates) return null;
   return {
     status: s.completed_at ? 'erledigt' : 'offen',
+    vorbelegung: s.schnell_bewertung ? { overall: s.schnell_bewertung } : {},
     titel: s.survey_templates.title,
     beschreibung: s.survey_templates.description ?? null,
     kunde: s.agencies?.name ?? '',
@@ -181,6 +201,7 @@ export async function beantworteUmfrage(
     .select('id');
   if (!claim?.length) return { ok: false, status: 409, error: 'Diese Umfrage wurde bereits beantwortet' };
 
+  if (typeof antworten.overall !== 'number' && s.schnell_bewertung) antworten.overall = s.schnell_bewertung;
   const overall = typeof antworten.overall === 'number' ? antworten.overall : null;
   const { data: resp, error } = await svc
     .from('survey_responses')
@@ -229,7 +250,8 @@ export async function legeFolgeAufgabenAn(
   antworten: Record<string, string | number>,
 ): Promise<number> {
   const f = folgenAusAntwort(fragen, antworten);
-  if (!f.kritisch && !f.empfehlung && !f.upsell) return 0;
+  const testimonial = /^ja/i.test(String(antworten.testimonial_ok ?? '')) && !f.kritisch;
+  if (!f.kritisch && !f.empfehlung && !f.upsell && !testimonial) return 0;
 
   const { data: ag } = await svc.from('agencies').select('csm_user_id').eq('id', agencyId).maybeSingle();
   const betreuer = (ag as { csm_user_id: string | null } | null)?.csm_user_id ?? (await resolveOwner(svc, 'csm'));
@@ -260,6 +282,17 @@ export async function legeFolgeAufgabenAn(
       title: `${kunde}: Upsell ansprechen`,
       description: `Umfrage „${umfrage}“: Kunde signalisiert Bedarf (mehr Bewerber / weitere Regionen / mehr Budget).`,
       assigned_to: await vertriebsPerson(svc),
+      priority: 'medium',
+      due_date: inTagen(3),
+    });
+  }
+
+  if (testimonial) {
+    const zitat = [antworten.erfolg_highlight, antworten.vorher_nachher].filter((x) => typeof x === 'string' && x).join(' – ');
+    aufgaben.push({
+      title: `${kunde}: Kundenstimme freigegeben (${antworten.testimonial_ok})`,
+      description: `Umfrage „${umfrage}“. Zitat: „${zitat || '—'}“. In die Kundenstimmen der Cloud übernehmen, ggf. Video-Testimonial anfragen.`,
+      assigned_to: betreuer,
       priority: 'medium',
       due_date: inTagen(3),
     });

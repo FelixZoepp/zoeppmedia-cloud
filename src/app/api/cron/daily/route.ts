@@ -13,7 +13,7 @@ async function runDailyJobs() {
 
   const { data: agencies, error } = await supabase
     .from('agencies')
-    .select('id, name, onboarding_completed, created_at, meta_ad_account_id, settings');
+    .select('id, name, onboarding_completed, created_at, meta_ad_account_id, settings, fulfillment_phase');
 
   if (error) {
     return { ok: false, error: error.message };
@@ -359,23 +359,19 @@ async function runDailyJobs() {
     results.usage_aggregation = { error: String(e) };
   }
 
-  // Zufriedenheits-Umfragen: fällige einplanen und mit persönlichem Link (ohne Login) verschicken.
-  // Nur Zeitpunkte ab dem Stichtag – verpasste Umfragen von Bestandskunden werden nicht nachgeholt.
-  // Nur Automatik-Kunden (neue Fulfillment-Strecke) – Bestandskunden bekommen nichts automatisch
+  // Zufriedenheits-Umfragen: fällige einplanen, per WhatsApp (Schnellantwort + Link) und Mail verschicken, offene erinnern.
+  // Alle aktiven Kunden; nur Zeitpunkte ab dem Stichtag – verpasste Umfragen werden nicht nachgeholt.
   try {
     const { planeUmfragen, versendeUmfragen } = await import('@/lib/surveys/versand');
-    const { automatikAgencyIds } = await import('@/lib/fulfillment/automatik');
-    const automatik = new Set(await automatikAgencyIds(supabase));
-    surveysScheduled = await planeUmfragen(
-      supabase,
-      (agencies ?? []).filter((a) => !HIDDEN_AGENCY_IDS.includes(a.id) && automatik.has(a.id)),
-      now,
+    const { erinnereUmfragen } = await import('@/lib/surveys/whatsapp');
+    const { aktualisiereSalesVorlagen } = await import('@/lib/sales/vorlagen');
+    await aktualisiereSalesVorlagen(supabase).catch((err) => console.error('[cron-daily] Vorlagen-Status', err));
+    const aktiv = (agencies ?? []).filter(
+      (a) => !HIDDEN_AGENCY_IDS.includes(a.id) && !['offboarding', 'beendet'].includes((a as { fulfillment_phase?: string | null }).fulfillment_phase ?? ''),
     );
-    results.surveys_sent = await versendeUmfragen(
-      supabase,
-      new Map([...ownerByAgency].filter(([agencyId]) => automatik.has(agencyId))),
-      now,
-    );
+    surveysScheduled = await planeUmfragen(supabase, aktiv, now);
+    results.surveys_sent = await versendeUmfragen(supabase, ownerByAgency, now);
+    results.surveys_reminded = await erinnereUmfragen(supabase, now);
   } catch (err) {
     console.error('[cron-daily] Umfragen fehlgeschlagen', err);
     results.surveys = { error: String(err) };

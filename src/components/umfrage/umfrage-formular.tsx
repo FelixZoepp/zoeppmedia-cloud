@@ -5,8 +5,8 @@ import { Send, Star } from 'lucide-react';
 import type { Frage } from '@/lib/surveys/planung';
 
 /** Öffentliches Umfrage-Formular für den persönlichen Link – gleiche Bedienung wie im Kundenportal */
-export function UmfrageFormular({ token, fragen }: { token: string; fragen: Frage[] }) {
-  const [antworten, setAntworten] = useState<Record<string, string | number>>({});
+export function UmfrageFormular({ token, fragen, vorbelegung = {} }: { token: string; fragen: Frage[]; vorbelegung?: Record<string, number> }) {
+  const [antworten, setAntworten] = useState<Record<string, string | number>>(vorbelegung);
   const [kommentar, setKommentar] = useState('');
   const [sendet, setSendet] = useState(false);
   const [fertig, setFertig] = useState(false);

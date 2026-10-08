@@ -53,13 +53,14 @@ export async function stelleCloseKundenFelderSicher(svc: SupabaseClient): Promis
   return ids;
 }
 
-/** Zufriedenheit eines Kunden: Schnitt der letzten 2 Umfragen (1–10), null ohne Umfrage */
+/** Zufriedenheit eines Kunden: Schnitt der letzten 2 Umfragen, umgerechnet auf 1–10 (Gesamtnote 1–5 × 2), null ohne Umfrage */
 export function zufriedenheit(antworten: Array<{ rating: number | null; answers: Record<string, unknown> | null }>): number | null {
   const noten = antworten
     .map((r) => {
-      if (typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 10) return r.rating;
-      const werte = Object.values(r.answers ?? {}).filter((v): v is number => typeof v === 'number' && v >= 1 && v <= 10);
-      return werte.length ? werte.reduce((a, b) => a + b, 0) / werte.length : null;
+      // Gesamtnote 1–5 (Frage „overall“) → Skala 1–10
+      if (typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 5) return r.rating * 2;
+      const overall = r.answers?.overall;
+      return typeof overall === 'number' && overall >= 1 && overall <= 5 ? overall * 2 : null;
     })
     .filter((n): n is number => n !== null)
     .slice(0, 2);

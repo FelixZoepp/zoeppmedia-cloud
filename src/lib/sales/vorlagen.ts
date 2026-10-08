@@ -16,7 +16,7 @@ export interface SalesVorlage {
   body: string;
   variables: string[];
   beispiel: string[];
-  buttons: Array<{ type: 'URL'; text: string; url: string; example?: string[] }>;
+  buttons: Array<{ type: 'URL'; text: string; url: string; example?: string[] } | { type: 'QUICK_REPLY'; text: string }>;
 }
 
 export const SALES_VORLAGEN: SalesVorlage[] = [
@@ -49,6 +49,45 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     variables: ['vorname', 'aufgaben'],
     beispiel: ['Mehmet', 'der Indeed-Zugang und deine Bilder fürs Branding'],
     buttons: [{ type: 'URL', text: 'Zu deinen Aufgaben', url: 'https://cloud.zoeppmedia.de/deine-aufgaben' }],
+  },
+  {
+    // 2-Wochen-Zufriedenheits-Check (surveys/whatsapp.ts): Schnellantwort im Chat oder kompletter Check per Link
+    name: 'kunde_zufriedenheit',
+    category: 'UTILITY',
+    body:
+      'Hallo {{1}}, dein 2-Wochen-Check von Zoepp Media ist da 🙌\n\n' +
+      'Wie läuft dein Recruiting gerade? Tipp einfach unten auf eine Antwort – oder nimm dir 2 Minuten für den kompletten Check, ' +
+      'damit wir genau dort nachschärfen, wo es dir am meisten bringt.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [
+      { type: 'QUICK_REPLY', text: '😍 Läuft richtig gut' },
+      { type: 'QUICK_REPLY', text: '🙂 Läuft solide' },
+      { type: 'QUICK_REPLY', text: '😐 Da geht noch mehr' },
+      {
+        type: 'URL',
+        text: 'Zum 2-Minuten-Check',
+        url: 'https://cloud.zoeppmedia.de/umfrage/{{1}}',
+        example: ['https://cloud.zoeppmedia.de/umfrage/6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f'],
+      },
+    ],
+  },
+  {
+    name: 'kunde_zufriedenheit_erinnerung',
+    category: 'UTILITY',
+    body:
+      'Hallo {{1}}, kurze Erinnerung: Dein 2-Wochen-Check ist noch offen. ' +
+      '2 Minuten – und wir wissen, wo wir für dich als Nächstes ansetzen.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [
+      {
+        type: 'URL',
+        text: 'Zum 2-Minuten-Check',
+        url: 'https://cloud.zoeppmedia.de/umfrage/{{1}}',
+        example: ['https://cloud.zoeppmedia.de/umfrage/6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f'],
+      },
+    ],
   },
 ];
 

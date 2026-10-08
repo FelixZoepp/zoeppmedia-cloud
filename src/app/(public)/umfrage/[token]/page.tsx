@@ -19,7 +19,7 @@ export default async function UmfragePage({ params }: { params: Promise<{ token:
         {umfrage.status === 'erledigt' ? (
           <p className="py-6 text-center text-gray-700">Danke, dein Feedback ist schon bei uns angekommen.</p>
         ) : (
-          <UmfrageFormular token={token} fragen={umfrage.fragen} />
+          <UmfrageFormular token={token} fragen={umfrage.fragen} vorbelegung={umfrage.vorbelegung} />
         )}
       </div>
     </div>

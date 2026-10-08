@@ -96,17 +96,17 @@ describe('Versand – kein Nachholen', () => {
   it('verschickt fällige Umfragen ab dem Stichtag mit persönlichem Link und merkt sich den Versand', async () => {
     const { client, tables } = db();
     const senden = vi.fn(async () => ({ data: { id: 'm1' }, error: null }));
-    const n = await versendeUmfragen(client, owner, new Date('2026-10-11T08:00:00Z'), senden);
+    const n = await versendeUmfragen(client, owner, new Date('2026-10-11T08:00:00Z'), senden, null);
     expect(n).toBe(1);
     expect(senden).toHaveBeenCalledWith('chef@muster.de', 'Chef', 'Kundenzufriedenheit (2-Wochen-Check)', expect.stringContaining(`/umfrage/${TOKEN}`));
     expect(tables.survey_schedule[0].sent_at).toBeTruthy();
-    expect(await versendeUmfragen(client, owner, new Date('2026-10-12T08:00:00Z'), senden)).toBe(0);
+    expect(await versendeUmfragen(client, owner, new Date('2026-10-12T08:00:00Z'), senden, null)).toBe(0);
   });
 
   it('alte, nie verschickte Einträge vor dem Stichtag bleiben liegen', async () => {
     const { client, tables } = db({ scheduled_at: '2026-09-14T08:22:00Z' });
     const senden = vi.fn(async () => ({ data: null, error: null }));
-    expect(await versendeUmfragen(client, owner, new Date('2026-10-11T08:00:00Z'), senden)).toBe(0);
+    expect(await versendeUmfragen(client, owner, new Date('2026-10-11T08:00:00Z'), senden, null)).toBe(0);
     expect(senden).not.toHaveBeenCalled();
     expect(tables.survey_schedule[0].sent_at).toBeNull();
   });
@@ -114,7 +114,7 @@ describe('Versand – kein Nachholen', () => {
   it('fehlgeschlagener Versand wird nicht als verschickt markiert', async () => {
     const { client, tables } = db();
     const senden = vi.fn(async () => ({ data: null, error: { message: 'Resend down' } }));
-    expect(await versendeUmfragen(client, owner, new Date('2026-10-11T08:00:00Z'), senden)).toBe(0);
+    expect(await versendeUmfragen(client, owner, new Date('2026-10-11T08:00:00Z'), senden, null)).toBe(0);
     expect(tables.survey_schedule[0].sent_at).toBeNull();
   });
 
