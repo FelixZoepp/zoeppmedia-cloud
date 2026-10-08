@@ -154,6 +154,9 @@ export async function POST(
       isHumanUiSend: true,
     });
 
+    // Datei an der Nachricht vermerken, damit der Chat sie wie eingehende Medien anzeigen kann
+    await svc.from('messages').update({ media_path: storagePath }).eq('id', result.messageRowId).eq('agency_id', agencyId);
+
     return NextResponse.json({ ok: true, messageId: result.messageId });
   } catch (err) {
     return NextResponse.json(

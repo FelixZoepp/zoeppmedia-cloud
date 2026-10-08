@@ -9,6 +9,7 @@ export interface InboxCandidate {
   consent_source?: string | null;
   created_at?: string | null;
   location?: string | null;
+  kunde_agency_id?: string | null;
   current_stage?: { name: string; color: string | null } | null;
 }
 
@@ -22,6 +23,8 @@ export interface InboxConversation {
   candidate: InboxCandidate;
   application: Array<{ id: string; job: { title: string } | null; stage: { name: string; color: string } | null }> | null;
   last_message?: { body: string | null; type: string; direction: string; sender_type: string; created_at: string } | null;
+  /** Sales-Inbox: Name des Kunden, wenn der Kontakt zu einem Kunden gehört */
+  kunde_name?: string | null;
 }
 
 export type InboxKind = 'sales' | 'recruiting';

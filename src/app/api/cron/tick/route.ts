@@ -328,7 +328,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 5. Laufende Funnel-Bauten in Perspective weitertreiben (ohne PERSPECTIVE_API_KEY sofort 0)
+  // 5. Laufende Funnel-Bauten in Perspective weitertreiben (ohne Perspective-Verbindung sofort 0)
   let funnelBauten = 0;
   if (Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 10_000) {
     try {

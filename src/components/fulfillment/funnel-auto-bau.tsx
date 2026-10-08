@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
+import { PerspectiveVerbindung } from '@/components/perspective/perspective-verbindung';
 
 interface Bau {
   id: string;
@@ -99,7 +100,7 @@ export function FunnelAutoBau({ agencyId }: { agencyId: string }) {
         )}
       </div>
 
-      {!konfiguriert && <p className="text-xs text-amber-700 mt-2">PERSPECTIVE_API_KEY ist nicht gesetzt – Funnel bitte von Hand bauen.</p>}
+      {!konfiguriert && <PerspectiveVerbindung kompakt onVerbunden={() => void laden()} />}
 
       {!bau && konfiguriert && (
         <label className="flex items-center gap-2 text-xs text-gray-600 mt-2">

@@ -93,7 +93,8 @@ export async function customerDecision(
     await signalSafe(svc, agencyId, 'ads_freigegeben');
     // Funnel mit den freigegebenen Texten bauen; /api/cron/tick treibt den Bau weiter
     // Nur Automatik-Kunden ohne vorhandenen Funnel (Bestandskunden mit Hand-Funnel nicht doppeln)
-    const automatik = process.env.PERSPECTIVE_API_KEY ? await istAutomatikKunde(svc, agencyId) : false;
+    const { istPerspectiveVerbunden } = await import('@/lib/perspective/oauth');
+    const automatik = (await istPerspectiveVerbunden(svc)) ? await istAutomatikKunde(svc, agencyId) : false;
     const { count: funnelAnzahl } = automatik
       ? await svc.from('perspective_funnels').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId)
       : { count: null };

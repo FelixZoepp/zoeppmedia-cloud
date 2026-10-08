@@ -19,6 +19,7 @@ import type { FunnelTexte } from '@/lib/fulfillment/generator';
 import { setStepStatus } from '@/lib/fulfillment/engine';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { PerspectiveMcp, feld } from './mcp-client';
+import { istPerspectiveVerbunden } from './oauth';
 
 export type BauStatus = 'gestartet' | 'dupliziert' | 'texte_in_arbeit' | 'texte_fertig' | 'veroeffentlicht' | 'fehler';
 export const AKTIVE_BAU_STATUS: BauStatus[] = ['gestartet', 'dupliziert', 'texte_in_arbeit', 'texte_fertig'];
@@ -107,8 +108,8 @@ export async function starteFunnelBau(
     .maybeSingle();
   if (vorhanden) return { ok: true, funnel: vorhanden as FunnelBauZeile, neu: false };
 
-  if (!opts.mcp && !process.env.PERSPECTIVE_API_KEY) {
-    return { ok: false, grund: 'nicht_konfiguriert', meldung: 'PERSPECTIVE_API_KEY ist nicht gesetzt – Funnel bitte von Hand bauen.' };
+  if (!opts.mcp && !(await istPerspectiveVerbunden(svc))) {
+    return { ok: false, grund: 'nicht_konfiguriert', meldung: 'Perspective ist nicht verbunden (Admin → Anbindung) – Funnel bitte von Hand bauen.' };
   }
 
   const [{ data: ag }, { data: inhalt }, { data: onb }] = await Promise.all([
@@ -201,7 +202,7 @@ export async function treibeFunnelBauVoran(
   if (!f || !f.bau_status || !AKTIVE_BAU_STATUS.includes(f.bau_status)) return f;
 
   try {
-    const mcp = opts.mcp ?? PerspectiveMcp.ausEnv();
+    const mcp = opts.mcp ?? (await PerspectiveMcp.ausVerbindung(svc));
 
     if (f.bau_status === 'gestartet') {
       const { data: row } = await svc.from('perspective_funnels').select('vorlage_funnel_id').eq('id', f.id).maybeSingle();
@@ -299,7 +300,7 @@ export async function baueFunnelBisFertig(
 
 /** Für einen regelmäßigen Lauf (z. B. /api/cron/tick): alle offenen Bauten ein Stück weiter. */
 export async function treibeAlleFunnelBautenVoran(svc: SupabaseClient, opts: { mcp?: PerspectiveMcp; max?: number } = {}): Promise<number> {
-  if (!opts.mcp && !process.env.PERSPECTIVE_API_KEY) return 0;
+  if (!opts.mcp && !(await istPerspectiveVerbunden(svc))) return 0;
   const { data } = await svc
     .from('perspective_funnels')
     .select('id')

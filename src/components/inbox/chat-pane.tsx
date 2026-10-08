@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TemplatePicker } from './template-picker';
 import { QuickReplyModal } from './quick-reply-modal';
-import { Send, Bot, CheckCheck, Check, X, Paperclip, Sparkles, ChevronLeft, Info, FileText } from 'lucide-react';
+import { Send, Bot, CheckCheck, Check, X, Paperclip, Sparkles, ChevronLeft, Info, FileText, Clock } from 'lucide-react';
 import { friendlyWhatsAppError } from '@/lib/whatsapp/template-text';
 import { Avatar } from '@/components/ui/avatar';
 import { formatPhone } from './format';
@@ -29,16 +29,74 @@ function dayLabel(iso: string): string {
   gestern.setDate(heute.getDate() - 1);
   if (d.toDateString() === heute.toDateString()) return 'Heute';
   if (d.toDateString() === gestern.toDateString()) return 'Gestern';
-  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  return d.toLocaleDateString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(d.getFullYear() !== heute.getFullYear() ? { year: 'numeric' } : {}),
+  });
 }
 
+/** Häkchen wie in WhatsApp: gesendet ✓, zugestellt ✓✓, gelesen ✓✓ blau */
 const STATUS_ICONS: Record<string, React.ReactNode> = {
-  queued:    <span className="opacity-60">&#x25cf;</span>,
-  sent:      <Check className="w-3 h-3 opacity-70" />,
-  delivered: <CheckCheck className="w-3 h-3 opacity-70" />,
-  read:      <CheckCheck className="w-3 h-3 text-sky-300" />,
-  failed:    <X className="w-3 h-3 text-red-500" />,
+  queued:    <Clock className="h-3.5 w-3.5" />,
+  sent:      <Check className="h-3.5 w-3.5" />,
+  delivered: <CheckCheck className="h-3.5 w-3.5" />,
+  read:      <CheckCheck className="h-3.5 w-3.5 text-sky-500" />,
+  failed:    <X className="h-3.5 w-3.5 text-red-600" />,
 };
+
+interface ChatMessage {
+  id: string;
+  direction: string;
+  sender_type: string;
+  body: string | null;
+  status: string;
+  error_code: string | null;
+  created_at: string;
+  type?: string;
+  vorlage?: boolean;
+  fehler_text?: string | null;
+  media_url?: string | null;
+}
+
+/** Vorlagen als normaler Text: Platzhalter ausblenden, reinen Vorlagennamen lesbar machen */
+function nachrichtenText(msg: ChatMessage): string {
+  const istVorlage = msg.vorlage || msg.type === 'template';
+  const body = msg.body ?? '';
+  if (!istVorlage) return body;
+  if (/^[a-z0-9_]+$/.test(body)) return body.replace(/_/g, ' ');
+  return body.replace(/\{\{\d+\}\}/g, '…');
+}
+
+/** Platzhaltertext wie „[Bild]“ nicht doppelt zur Datei anzeigen */
+const istMedienPlatzhalter = (t: string) => /^\[(Bild|Video|Dokument[^\]]*|Sprachnachricht|Sticker)\]$/.test(t.trim());
+
+function Medien({ msg }: { msg: ChatMessage }) {
+  if (!msg.media_url) return null;
+  if (msg.type === 'image') {
+    return (
+      <a href={msg.media_url} target="_blank" rel="noreferrer" className="-mx-1.5 -mt-0.5 mb-1 block overflow-hidden rounded-[12px]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- signierte Storage-URL, kein next/image-Loader */}
+        <img src={msg.media_url} alt="Bild" className="max-h-72 w-full object-cover" loading="lazy" />
+      </a>
+    );
+  }
+  if (msg.type === 'audio') {
+    return <audio controls preload="none" src={msg.media_url} className="mb-1 h-10 w-60 max-w-full" />;
+  }
+  return (
+    <a
+      href={msg.media_url}
+      target="_blank"
+      rel="noreferrer"
+      className="mb-1 flex items-center gap-2 rounded-[10px] bg-black/5 px-3 py-2 text-[13.5px] font-medium hover:bg-black/10"
+    >
+      <FileText className="h-4 w-4 flex-none" />
+      <span className="min-w-0 truncate">{(msg.body && !istMedienPlatzhalter(msg.body) ? msg.body : 'Dokument öffnen')}</span>
+    </a>
+  );
+}
 
 
 export function ChatPane({ conversationId, messages, conversation, onMessageSent, onBack, onToggleInfo }: Props) {
@@ -235,32 +293,24 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
       </div>
 
       {/* Nachrichten */}
-      <div className="flex-1 space-y-2 overflow-y-auto bg-panel/60 px-3 py-4 md:px-6">
+      <div className="flex-1 overflow-y-auto bg-panel/60 px-3 py-4 md:px-6">
         {messages.length === 0 && <p className="py-10 text-center text-sm text-gray-500">Noch keine Nachrichten</p>}
         {messages.map((m, i) => {
-          const msg = m as {
-            id: string;
-            direction: string;
-            sender_type: string;
-            body: string | null;
-            status: string;
-            error_code: string | null;
-            created_at: string;
-            type?: string;
-            vorlage?: boolean;
-            fehler_text?: string | null;
-          };
-          const istVorlage = msg.vorlage || msg.type === 'template';
-          const text = istVorlage && msg.body ? (/^[a-z0-9_]+$/.test(msg.body) ? `Vorlage „${msg.body.replace(/_/g, ' ')}“` : msg.body.replace(/\{\{\d+\}\}/g, '…')) : msg.body;
+          const msg = m as unknown as ChatMessage;
+          const text = nachrichtenText(msg);
           const fehler = msg.status === 'failed' ? (msg.fehler_text ?? friendlyWhatsAppError(msg.error_code) ?? 'Nicht gesendet') : null;
-          const prev = messages[i - 1] as { created_at: string } | undefined;
+          const prev = messages[i - 1] as unknown as ChatMessage | undefined;
           const neuerTag = !prev || new Date(prev.created_at).toDateString() !== new Date(msg.created_at).toDateString();
+          // Folgenachricht derselben Seite → kleinerer Abstand, kein „Schwänzchen“ (wie WhatsApp)
+          const gleicheSeite = !!prev && !neuerTag && prev.direction === msg.direction && prev.sender_type !== 'system';
           const isOut = msg.direction === 'out';
           const system = msg.sender_type === 'system';
           const bot = msg.sender_type === 'bot';
+          const zeigeText = !!text && !(msg.media_url && istMedienPlatzhalter(text));
+          const zeit = new Date(msg.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 
           return (
-            <div key={msg.id}>
+            <div key={msg.id} className={gleicheSeite ? 'mt-0.5' : 'mt-2'}>
               {neuerTag && (
                 <div className="my-3 flex justify-center">
                   <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-gray-600 shadow-[0_0_0_1px_var(--hair)]">{dayLabel(msg.created_at)}</span>
@@ -271,26 +321,31 @@ export function ChatPane({ conversationId, messages, conversation, onMessageSent
               ) : (
                 <div className={`flex ${isOut ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-[78%] px-4 py-2.5 shadow-sm md:max-w-[65%] ${
-                      isOut
-                        ? bot
-                          ? 'rounded-[18px] rounded-br-[6px] bg-sky-50 text-sky-950'
-                          : 'rounded-[18px] rounded-br-[6px] bg-gradient-to-b from-red-800 to-red-950 text-red-50'
-                        : 'rounded-[18px] rounded-bl-[6px] bg-card text-ink'
-                    }`}
+                    className={`relative max-w-[85%] rounded-[16px] px-3 pb-1.5 pt-2 text-ink shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] md:max-w-[65%] ${
+                      isOut ? 'bg-red-100' : 'bg-card'
+                    } ${gleicheSeite ? '' : isOut ? 'rounded-tr-[4px]' : 'rounded-tl-[4px]'}`}
                   >
-                    {(bot || istVorlage) && (
-                      <span className={`mb-0.5 flex items-center gap-1 text-[11px] font-medium ${bot ? 'text-sky-700' : isOut ? 'text-red-200' : 'text-gray-500'}`}>
-                        {bot ? <Bot className="h-3 w-3" /> : <FileText className="h-3 w-3" />} {bot ? 'Bot' : 'Vorlage'}
+                    {bot && (
+                      <span className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-gray-500">
+                        <Bot className="h-3 w-3" /> Bot
                       </span>
                     )}
-                    <p className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">{text}</p>
-                    <div className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${isOut && !bot ? 'text-red-200' : 'text-gray-500'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                    <Medien msg={msg} />
+                    {zeigeText && (
+                      <p className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">
+                        {text}
+                        {/* Platz für Uhrzeit/Häkchen in der letzten Zeile */}
+                        <span className={`inline-block ${isOut ? 'w-16' : 'w-11'}`} aria-hidden />
+                      </p>
+                    )}
+                    <span
+                      className={`flex items-center justify-end gap-1 text-[11px] leading-none text-gray-500 ${zeigeText ? '-mt-3.5' : 'mt-0.5'}`}
+                    >
+                      {zeit}
                       {isOut && STATUS_ICONS[msg.status]}
-                    </div>
+                    </span>
                     {fehler && (
-                      <p className={`mt-1.5 flex items-start gap-1 rounded-[10px] px-2 py-1 text-xs ${isOut && !bot ? 'bg-white/15 text-red-50' : 'bg-red-50 text-red-700'}`}>
+                      <p className="mt-1.5 flex items-start gap-1 rounded-[10px] bg-red-50 px-2 py-1 text-xs text-red-700">
                         <X className="mt-px h-3 w-3 flex-none" /> {fehler}
                       </p>
                     )}

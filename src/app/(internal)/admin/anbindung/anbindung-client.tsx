@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, Card, PageHeader, SegmentedControl, StatCard } from '@/components/ui';
 import type { KanalStatus, KundeAnbindung } from '@/lib/anbindung/status';
+import { PerspectiveVerbindung } from '@/components/perspective/perspective-verbindung';
 
 const STATUS: Record<KanalStatus, { label: string; cls: string }> = {
   aktiv: { label: 'Läuft', cls: 'bg-green-50 text-green-800' },
@@ -62,6 +63,8 @@ export function AnbindungClient() {
         <StatCard title="Indeed läuft" value={zähle((k) => k.indeed.status === 'aktiv')} note={`${zähle((k) => k.indeed.status === 'fehlt')} ohne Weiterleitung`} />
         <StatCard title="Werbekonto hinterlegt" value={zähle((k) => k.werbekonto.status !== 'fehlt')} note={d && !d.metaSync ? 'Meta-Abgleich nicht eingerichtet' : 'für Kosten & Ergebnisse'} />
       </div>
+
+      <PerspectiveVerbindung />
 
       {d && !d.metaSync && (
         <Card className="mb-4 flex items-start gap-3 text-amber-900">

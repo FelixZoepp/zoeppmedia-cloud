@@ -3,16 +3,19 @@
  *
  * Die REST-API von Perspective kennt nur Workspaces, Kontakte und Kennzahlen – Funnels anlegen,
  * duplizieren, per KI bearbeiten und veröffentlichen geht nur über die MCP-Tools
- * (https://developers.perspective.co/mcp/overview). Server-zu-Server authentifizieren wir mit dem
- * API-Key im Header `x-perspective-api-key` – so leitet auch die offizielle Desktop-Erweiterung (DXT)
- * den Key an den gehosteten Server weiter (https://developers.perspective.co/mcp/authentication).
+ * (https://developers.perspective.co/mcp/overview). Der gehostete Server akzeptiert OAuth-Bearer-Tokens
+ * (Verbindung per „Perspective verbinden“, siehe oauth.ts); falls doch ein API-Key gesetzt ist, geht er
+ * wie bei der Desktop-Erweiterung im Header `x-perspective-api-key` mit
+ * (https://developers.perspective.co/mcp/authentication).
  */
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { holeAccessToken } from './oauth';
 
 const PROTOCOL_VERSION = '2025-06-18';
 
 export class PerspectiveNichtKonfiguriert extends Error {
   constructor() {
-    super('PERSPECTIVE_API_KEY ist nicht gesetzt');
+    super('Perspective ist nicht verbunden – unter Admin → Anbindung „Perspective verbinden“');
     this.name = 'PerspectiveNichtKonfiguriert';
   }
 }
@@ -62,21 +65,30 @@ export function toolInhalt(tool: string, result: unknown): Record<string, unknow
   }
 }
 
+export type PerspectiveAuth = { typ: 'bearer'; token: string } | { typ: 'key'; key: string };
+
 export class PerspectiveMcp {
   private sessionId: string | null = null;
   private initialisiert = false;
   private naechsteId = 1;
 
+  private auth: PerspectiveAuth;
+
   constructor(
-    private apiKey: string,
+    auth: PerspectiveAuth | string,
     private url: string = process.env.PERSPECTIVE_MCP_URL || 'https://api.perspective.co/mcp',
     private fetchFn: typeof fetch = fetch,
-  ) {}
+  ) {
+    this.auth = typeof auth === 'string' ? { typ: 'key', key: auth } : auth;
+  }
 
-  static ausEnv(fetchFn: typeof fetch = fetch): PerspectiveMcp {
+  /** OAuth-Verbindung bevorzugt, sonst PERSPECTIVE_API_KEY; ohne beides PerspectiveNichtKonfiguriert. */
+  static async ausVerbindung(svc: SupabaseClient, fetchFn: typeof fetch = fetch): Promise<PerspectiveMcp> {
+    const token = await holeAccessToken(svc, { fetchFn });
+    if (token) return new PerspectiveMcp({ typ: 'bearer', token }, undefined, fetchFn);
     const key = process.env.PERSPECTIVE_API_KEY;
-    if (!key) throw new PerspectiveNichtKonfiguriert();
-    return new PerspectiveMcp(key, undefined, fetchFn);
+    if (key) return new PerspectiveMcp({ typ: 'key', key }, undefined, fetchFn);
+    throw new PerspectiveNichtKonfiguriert();
   }
 
   private async senden(method: string, params?: unknown, benachrichtigung = false): Promise<unknown> {
@@ -84,9 +96,10 @@ export class PerspectiveMcp {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
       accept: 'application/json, text/event-stream',
-      'x-perspective-api-key': this.apiKey,
       'mcp-protocol-version': PROTOCOL_VERSION,
     };
+    if (this.auth.typ === 'bearer') headers.authorization = `Bearer ${this.auth.token}`;
+    else headers['x-perspective-api-key'] = this.auth.key;
     if (this.sessionId) headers['mcp-session-id'] = this.sessionId;
     const body = benachrichtigung ? { jsonrpc: '2.0', method, params } : { jsonrpc: '2.0', id, method, params };
 

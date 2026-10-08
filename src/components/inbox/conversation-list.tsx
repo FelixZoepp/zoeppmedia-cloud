@@ -108,7 +108,11 @@ export function ConversationList({ conversations, selectedId, onSelect, filter, 
                         {stage.name}
                       </span>
                     ) : null}
-                    {kind === 'sales' && !neu && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-800">Lead</span>}
+                    {kind === 'sales' && c.kunde_name ? (
+                      <span className="max-w-[160px] truncate rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Kunde: {c.kunde_name}</span>
+                    ) : kind === 'sales' && !neu ? (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-800">Lead</span>
+                    ) : null}
                     {c.state === 'bot_active' && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">Bot</span>}
                     {countdown && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-amber-700">

@@ -53,6 +53,47 @@ export function CandidateSidebar({ conversation, kind = 'recruiting', onChanged,
     setEditName(false);
   }
 
+  // Sales-Inbox: Kontakt als Kunde oder Lead markieren
+  const [kunden, setKunden] = useState<Array<{ id: string; name: string }>>([]);
+  const [kundeId, setKundeId] = useState<string>(candidate.kunde_agency_id ?? '');
+  const [kundeSpeichert, setKundeSpeichert] = useState(false);
+  const [kundeFuer, setKundeFuer] = useState(candidate.id);
+  if (kundeFuer !== candidate.id) {
+    setKundeFuer(candidate.id);
+    setKundeId(candidate.kunde_agency_id ?? '');
+  }
+
+  useEffect(() => {
+    if (kind !== 'sales') return;
+    fetch(`/api/admin/sales-kontakt/${candidate.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { kunde_agency_id: string | null; kunden: Array<{ id: string; name: string }> } | null) => {
+        if (!d) return;
+        setKunden(d.kunden ?? []);
+        setKundeId(d.kunde_agency_id ?? '');
+      })
+      .catch(() => {});
+  }, [kind, candidate.id]);
+
+  async function speichereKunde(wert: string) {
+    const vorher = kundeId;
+    setKundeId(wert);
+    setKundeSpeichert(true);
+    const res = await fetch(`/api/admin/sales-kontakt/${candidate.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kunde_agency_id: wert || null }),
+    }).catch(() => null);
+    setKundeSpeichert(false);
+    if (!res?.ok) {
+      setKundeId(vorher);
+      toast.error('Konnte nicht gespeichert werden');
+      return;
+    }
+    toast.success(wert ? 'Als Kunde markiert' : 'Als Lead markiert');
+    onChanged?.();
+  }
+
   useEffect(() => {
     fetch('/api/team/members')
       .then((r) => (r.ok ? r.json() : []))
@@ -205,6 +246,24 @@ export function CandidateSidebar({ conversation, kind = 'recruiting', onChanged,
             {copied ? 'Kopiert' : 'Nummer'}
           </button>
         </div>
+      )}
+
+      {kind === 'sales' && (
+        <section className="rounded-[16px] p-4 shadow-[inset_0_0_0_1.5px_var(--hair)]">
+          <h4 className="text-xs font-medium uppercase tracking-[0.06em] text-gray-500">Kunde oder Lead</h4>
+          <select
+            value={kundeId}
+            disabled={kundeSpeichert}
+            onChange={(e) => speichereKunde(e.target.value)}
+            className="mt-3 w-full rounded-[12px] bg-panel px-3 py-2 text-[14px] outline-none focus:ring-2 focus:ring-red-200 disabled:opacity-60"
+          >
+            <option value="">Lead (kein Kunde)</option>
+            {kunden.map((k) => (
+              <option key={k.id} value={k.id}>Kunde: {k.name}</option>
+            ))}
+          </select>
+          <p className="mt-2 text-[12px] text-gray-500">Von Hand gesetzt bleibt es so – die automatische Zuordnung überschreibt das nicht.</p>
+        </section>
       )}
 
       {/* CRM-Daten */}

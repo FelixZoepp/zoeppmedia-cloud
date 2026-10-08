@@ -82,7 +82,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const res = NextResponse.json(rows.map((r) => ({ ...r, last_message: last.get(r.id) ?? null })));
+  // Sales-Inbox: Kundenname für das Badge „Kunde: …“
+  const kundenNamen = new Map<string, string>();
+  if (agencyId === SALES_AGENCY_ID) {
+    const ids = [...new Set(rows.map((r) => (r.candidate as { kunde_agency_id?: string | null } | null)?.kunde_agency_id).filter((x): x is string => !!x))];
+    if (ids.length) {
+      const { data: ags } = await svc.from('agencies').select('id, name').in('id', ids);
+      for (const a of (ags ?? []) as Array<{ id: string; name: string }>) kundenNamen.set(a.id, a.name);
+    }
+  }
+
+  const res = NextResponse.json(
+    rows.map((r) => {
+      const kundeId = (r.candidate as { kunde_agency_id?: string | null } | null)?.kunde_agency_id ?? null;
+      return { ...r, last_message: last.get(r.id) ?? null, kunde_name: kundeId ? kundenNamen.get(kundeId) ?? 'Kunde' : null };
+    }),
+  );
   // Sales-Inbox (interne Agentur) zeigt Leads statt Bewerber
   res.headers.set('x-inbox-kind', agencyId === SALES_AGENCY_ID ? 'sales' : 'recruiting');
   return res;

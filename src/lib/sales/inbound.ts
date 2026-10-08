@@ -86,6 +86,11 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
   if (!prospect) {
     // Unbekannte Nummer → als neuen Lead anlegen (landet in der Sales-Inbox) und Bescheid geben
     prospect = await createContactFromWhatsApp(svc, agencyId, senderPhone, profileName);
+    // Gehört die Nummer zu einem Kunden? → direkt im Tab „Kunden“ einsortieren
+    if (prospect) {
+      const { ordneKundeZu } = await import('@/lib/fulfillment/kunden-kontakt');
+      await ordneKundeZu(svc, prospect.id, senderPhone).catch((err) => console.error('[sales-inbound] Kunden-Zuordnung', err));
+    }
     await notifySales(svc, {
       emoji: '🆕',
       title: `Neuer WhatsApp-Kontakt${profileName ? `: ${profileName}` : ''}`,

@@ -42,8 +42,17 @@ export async function GET(
     const { data: tmpls } = await svc.from('whatsapp_templates').select('name, body').eq('agency_id', agencyId);
     templateBodies = new Map(((tmpls ?? []) as Array<{ name: string; body: string }>).map((t) => [t.name, t.body]));
   }
+  // Medien (eingehend + ausgehend liegen im selben Bucket) als kurzlebige Links für die Anzeige
+  const medienUrls = new Map<string, string>();
+  const pfade = rows.map((m) => m.media_path as string | null).filter((p): p is string => !!p);
+  if (pfade.length) {
+    const { data: signiert } = await svc.storage.from('whatsapp-media').createSignedUrls(pfade, 3600);
+    for (const s of signiert ?? []) if (s.path && s.signedUrl) medienUrls.set(s.path, s.signedUrl);
+  }
+
   const view = rows.map((m) => ({
     ...m,
+    media_url: m.media_path ? medienUrls.get(m.media_path as string) ?? null : null,
     body: m.type === 'template' ? displayTemplateBody(m.body, templateBodies) : m.body,
     vorlage: m.type === 'template',
     fehler_text: friendlyWhatsAppError(m.error_code),

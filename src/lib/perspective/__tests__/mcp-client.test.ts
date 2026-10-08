@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createFakeDb } from '@/lib/fulfillment/__tests__/fake-db';
 import { PerspectiveMcp, PerspectiveToolFehler, feld, leseRpcAntwort, toolInhalt } from '../mcp-client';
 
 function antwort(body: string, headers: Record<string, string> = {}, status = 200) {
@@ -50,10 +51,28 @@ describe('PerspectiveMcp', () => {
     await expect(mcp.tool('list_funnels', {})).rejects.toThrow(/HTTP 401/);
   });
 
-  it('ausEnv ohne Key wirft', () => {
+  it('sendet OAuth-Token als Bearer statt API-Key', async () => {
+    const headers: Array<Record<string, string>> = [];
+    const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      headers.push(init.headers as Record<string, string>);
+      if (body.method === 'notifications/initialized') return antwort('', {}, 202);
+      return antwort(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: {} }), { 'content-type': 'application/json' });
+    });
+    const mcp = new PerspectiveMcp({ typ: 'bearer', token: 'tok-1' }, 'https://x/mcp', fetchFn as unknown as typeof fetch);
+    await mcp.tool('list_funnels', {});
+    expect(headers[0].authorization).toBe('Bearer tok-1');
+    expect(headers[0]['x-perspective-api-key']).toBeUndefined();
+  });
+
+  it('ausVerbindung: OAuth bevorzugt, ohne Verbindung und Key Fehler', async () => {
     const alt = process.env.PERSPECTIVE_API_KEY;
     delete process.env.PERSPECTIVE_API_KEY;
-    expect(() => PerspectiveMcp.ausEnv()).toThrow(/PERSPECTIVE_API_KEY/);
+    const { client } = createFakeDb({ perspective_verbindung: [{ id: 1, status: 'getrennt', lock_bis: new Date(0).toISOString() }] });
+    await expect(PerspectiveMcp.ausVerbindung(client)).rejects.toThrow(/nicht verbunden/);
+    process.env.PERSPECTIVE_API_KEY = 'key-x';
+    await expect(PerspectiveMcp.ausVerbindung(client)).resolves.toBeInstanceOf(PerspectiveMcp);
     if (alt) process.env.PERSPECTIVE_API_KEY = alt;
+    else delete process.env.PERSPECTIVE_API_KEY;
   });
 });

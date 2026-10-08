@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { istPerspectiveVerbunden } from '@/lib/perspective/oauth';
 import { AKTIVE_BAU_STATUS, baueFunnelBisFertig, starteFunnelBau, treibeFunnelBauVoran } from '@/lib/perspective/funnel-bau';
 
 export const maxDuration = 300;
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     await treibeFunnelBauVoran(createAdminClient(), bau.id);
     bau = await letzterBau(id);
   }
-  return NextResponse.json({ bau, konfiguriert: !!process.env.PERSPECTIVE_API_KEY });
+  return NextResponse.json({ bau, konfiguriert: await istPerspectiveVerbunden(createAdminClient()) });
 }
 
 /** aktion: 'start' (Standard) | 'veroeffentlichen' | 'neu_versuchen' */
