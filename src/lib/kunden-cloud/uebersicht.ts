@@ -29,6 +29,8 @@ export interface KundeArbeit {
   aeltesterOhneKontakt: string | null;
   /** Dringlichkeit zum Sortieren */
   prio: number;
+  /** Garantie-Ampel (täglich berechnet), null = kein Garantieziel */
+  garantie: { ampel: string; ist: number; ziel: number } | null;
 }
 
 type Kandidat = {
@@ -43,7 +45,10 @@ type Kandidat = {
 };
 
 export function berechneArbeit(
-  agencies: Array<{ id: string; name: string; slug?: string | null; settings: unknown; fulfillment_phase: string | null; pausiert_grund: string | null }>,
+  agencies: Array<{
+    id: string; name: string; slug?: string | null; settings: unknown; fulfillment_phase: string | null; pausiert_grund: string | null;
+    garantie_ampel?: string | null; garantie_ist?: number | null; garantie_ziel_starter?: number | null;
+  }>,
   kandidaten: Kandidat[],
   stageTyp: Map<string, string | null>,
   ungelesen: Map<string, number>,
@@ -78,6 +83,9 @@ export function berechneArbeit(
         aeltesterOhneKontakt: aeltester,
         // Ohne Kontakt wiegt am schwersten (Speed-to-Lead), lange Wartezeit zusätzlich
         prio: ohne.length * 3 + offenNachrichten * 2 + anrufe * 2 + eingang.length + Math.min(48, wartetStunden) / 12,
+        garantie: a.garantie_ziel_starter && a.garantie_ampel
+          ? { ampel: a.garantie_ampel, ist: a.garantie_ist ?? 0, ziel: a.garantie_ziel_starter }
+          : null,
       };
     })
     // Pausierte Kunden nach hinten, sonst nach Dringlichkeit
@@ -88,7 +96,7 @@ export async function ladeArbeit(svc: SupabaseClient, jetzt: Date = new Date()):
   const [{ data: ags }, { data: stages }, { data: convs }] = await Promise.all([
     svc
       .from('agencies')
-      .select('id, name, slug, settings, fulfillment_phase, pausiert_grund, bausteine')
+      .select('id, name, slug, settings, fulfillment_phase, pausiert_grund, bausteine, garantie_ampel, garantie_ist, garantie_ziel_starter')
       .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
       .order('name'),
     svc.from('pipeline_stages').select('id, stage_type'),

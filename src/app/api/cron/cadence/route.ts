@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/create';
+import { automatikAgencyIds } from '@/lib/fulfillment/automatik';
 
 /**
+ * Cadence cron job — laut vercel.json einmal täglich (altes Verhalten, unverändert).
+ * Automatik-Kunden (agencies.automatik) laufen stattdessen alle 15 Min. über /api/cron/tick
+ * (runCadenceIfDue) und werden hier ausgeschlossen – keine doppelten Aufgaben.
+ *
  * Cadence cron job — runs every 15 minutes.
  * Finds candidates with active cadence whose next attempt is due,
  * creates internal tasks, and sends notifications.
@@ -21,13 +26,16 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const now = new Date().toISOString();
 
-  // Find candidates with active cadence whose next attempt is due
+  // Find candidates with active cadence whose next attempt is due (ohne Automatik-Kunden)
+  const automatikIds = await automatikAgencyIds(supabase);
   const { data: dueCandidates, error } = await supabase
     .from('candidates')
     .select('id, name, agency_id, cadence_attempt, cadence_next_window')
     .eq('cadence_active', true)
     .not('cadence_next_at', 'is', null)
-    .lte('cadence_next_at', now);
+    .lte('cadence_next_at', now)
+    // Platzhalter-UUID, wenn es keine Automatik-Kunden gibt (leere IN-Liste ist kein gültiger Filter)
+    .not('agency_id', 'in', `(${(automatikIds.length ? automatikIds : ['00000000-0000-0000-0000-000000000000']).join(',')})`);
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

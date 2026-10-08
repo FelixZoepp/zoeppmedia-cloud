@@ -4,9 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/admin';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
-import { startPhase, setStepStatus } from '@/lib/fulfillment/engine';
-import { bausteineBereinigen, paketVorlage } from '@/lib/fulfillment/pakete';
+import { startPhase } from '@/lib/fulfillment/engine';
+import { bausteineBereinigen, paketVorlage, bausteinLabel } from '@/lib/fulfillment/pakete';
 import { neueAgenturKennungen } from '@/lib/agencies/kennungen';
+import { neuerVertragToken } from '@/lib/vertrag/bestaetigen';
+import type { VertragDaten } from '@/lib/vertrag/daten';
 
 /** Kalendermonate addieren (YYYY-MM-DD); am Monatsende auf den letzten Tag des Zielmonats begrenzt. */
 function plusKalendermonate(datum: string, monate: number): string {
@@ -44,6 +46,11 @@ interface AfterCloseBody {
   // Zusagen
   zusagen_closer?: string;
   sonderfaelle?: string;
+  // Ablauf
+  /** einmaliger Schlüssel je Formular – erneutes Absenden legt nichts doppelt an */
+  abschluss_key?: string;
+  /** Willkommens-Mail mit Link zur Vertragsbestätigung an den Kunden (Standard: ja) */
+  willkommensmail?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -71,6 +78,13 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
+
+  // Doppelt abgeschickt (Doppelklick, Netzwerk-Retry) → den schon angelegten Kunden zurückgeben
+  const abschlussKey = typeof body.abschluss_key === 'string' && body.abschluss_key.length >= 8 ? body.abschluss_key : null;
+  if (abschlussKey) {
+    const { data: schon } = await admin.from('agencies').select('id, name').eq('abschluss_key', abschlussKey).maybeSingle();
+    if (schon) return NextResponse.json({ agency: schon, invite_url: null, doppelt: true, hinweise: ['Dieser Abschluss wurde bereits angelegt.'] });
+  }
 
   // Get the current user for activity logging
   const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -102,11 +116,19 @@ export async function POST(request: Request) {
       garantie_ende: guaranteeEnd,
       zusagen_closer: body.zusagen_closer || null,
       sonderfaelle: body.sonderfaelle || null,
+      garantie_ziel_starter: body.anzahl_starter ?? null,
+      abschluss_key: abschlussKey,
       onboarding_completed: false,
+      // Neue Fulfillment-Strecke (Vertrag, Setup, Meta, Funnel, Umfragen …) nur für neue Kunden
+      automatik: true,
     })
     .select()
     .single();
 
+  if (agencyError?.code === '23505' && abschlussKey) {
+    const { data: schon } = await admin.from('agencies').select('id, name').eq('abschluss_key', abschlussKey).maybeSingle();
+    if (schon) return NextResponse.json({ agency: schon, invite_url: null, doppelt: true, hinweise: ['Dieser Abschluss wurde bereits angelegt.'] });
+  }
   if (agencyError || !agency) {
     return NextResponse.json(
       { error: 'Agentur konnte nicht erstellt werden.', details: agencyError?.message },
@@ -144,13 +166,12 @@ export async function POST(request: Request) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const inviteUrl = invite ? `${baseUrl}/register/${invite.token}` : null;
+    const hinweise: string[] = [];
 
-    // --- 4a. Fulfillment v2: Kunde startet in der Phase "Zahlung", Vertrag ist unterschrieben ---
+    // --- 4a. Fulfillment v2: Kunde startet in der Phase "Zahlung".
+    // "Vertrag unterschrieben" hakt erst die Vertragsbestätigung des Kunden in der Cloud ab.
     try {
       await startPhase(admin, agencyId, 'zahlung');
-      const { data: vertrag } = await admin
-        .from('client_steps').select('id').eq('agency_id', agencyId).eq('step_key', 'z_vertrag').maybeSingle();
-      if (vertrag) await setStepStatus(admin, (vertrag as { id: string }).id, 'erledigt', { kommentar: 'Abschluss erfasst' });
     } catch (err) {
       console.error('[after-close] Fulfillment-Start fehlgeschlagen:', err);
     }
@@ -201,18 +222,46 @@ export async function POST(request: Request) {
       });
     }
 
-    // --- 4c. Create Lexware contact ---
-    let lexContactId: string | null = null;
-    try {
-      const { createContact } = await import('@/lib/billing/lexoffice');
-      lexContactId = await createContact(admin, agency);
-      if (lexContactId) {
-        await admin.from('agencies').update({ lex_contact_id: lexContactId }).eq('id', agencyId);
-      }
-    } catch { /* Lexware optional — don't block */ }
+    // --- 4c. Vertrag zur Bestätigung durch den Kunden (ersetzt Adobe Sign) ---
+    // Die Setup-Rechnung schreibt die Buchhaltung danach von Hand in Lexware; die Cloud erkennt Rechnung und Zahlung selbst.
+    const vertragDaten: VertragDaten = {
+      firma: body.firma,
+      anschrift: body.anschrift || null,
+      ansprechpartner: body.ansprechpartner,
+      email: body.email,
+      paket: paketVorlage(body.paket)?.name ?? (paketDef?.name as string | undefined) ?? body.paket,
+      leistungen: bausteine.map(bausteinLabel),
+      setup_netto: Number(setupNetto) || 0,
+      monat_netto: Number(retainerNetto) || 0,
+      laufzeit_monate: laufzeit,
+      start_datum: guaranteeStart,
+      garantie_ziel_starter: body.anzahl_starter ?? null,
+      ust_satz: 19,
+    };
+    const vertragToken = neuerVertragToken();
+    const { error: vertragErr } = await admin
+      .from('vertraege')
+      .insert({ agency_id: agencyId, token: vertragToken, daten: vertragDaten });
+    if (vertragErr) throw new Error(`Vertrag konnte nicht angelegt werden: ${vertragErr.message}`);
+    const vertragUrl = `${baseUrl}/vertrag/${vertragToken}`;
 
-    // --- 4d. Create Stripe customer + checkout link ---
-    try {
+    // --- 4d. Willkommens-Mail mit Link zur Vertragsbestätigung (noch ohne Rechnung) ---
+    let willkommenGesendet = false;
+    if (body.willkommensmail !== false && body.email) {
+      try {
+        const { sendVertragLink } = await import('@/lib/email/resend');
+        await sendVertragLink(body.email, body.ansprechpartner, body.firma, vertragUrl);
+        willkommenGesendet = true;
+      } catch (err) {
+        hinweise.push(`Willkommens-Mail konnte nicht verschickt werden (${err instanceof Error ? err.message : 'unbekannt'}). Bitte den Vertragslink selbst schicken.`);
+      }
+    } else {
+      hinweise.push('Willkommens-Mail wurde nicht verschickt – bitte den Vertragslink selbst an den Kunden schicken.');
+    }
+
+    // --- 4e. Create Stripe customer + checkout link ---
+    // Aktuell zahlen Kunden per Überweisung (Lexware/Qonto) – Stripe nur bei ausdrücklicher Aktivierung
+    if (process.env.STRIPE_CHECKOUT_AKTIV === 'true') try {
       const { createCustomer, createCheckoutSession } = await import('@/lib/billing/stripe');
       const stripeCustomerId = await createCustomer(admin, {
         name: body.firma,
@@ -260,6 +309,7 @@ export async function POST(request: Request) {
         paket: body.paket,
         bausteine,
         mrr: body.mrr,
+        willkommensmail: willkommenGesendet,
       },
     });
 
@@ -267,8 +317,10 @@ export async function POST(request: Request) {
       agency,
       invite_url: inviteUrl,
       billing_plan_id: billingPlanId,
-      lex_contact_id: lexContactId,
       checkout_url: checkoutUrl,
+      vertrag_url: vertragUrl,
+      willkommensmail: willkommenGesendet,
+      hinweise,
     });
   } catch (err: unknown) {
     // Etwas nach dem Anlegen ist schiefgelaufen → als Blocker am Kunden sichtbar machen

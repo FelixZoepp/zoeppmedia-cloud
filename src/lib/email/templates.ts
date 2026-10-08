@@ -172,3 +172,62 @@ export function surveyNotificationTemplate(name: string, surveyTitle: string, po
   </div>
 </body></html>`;
 }
+
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function rahmen(inhalt: string): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">
+  <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="padding:32px 40px 24px;text-align:center;">
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+    </div>
+    <div style="padding:0 40px 32px;">${inhalt}
+    </div>
+  </div>
+</body></html>`;
+}
+
+const button = (url: string, label: string) =>
+  `<a href="${esc(url)}" style="display:inline-block;padding:14px 32px;background:#E0354B;color:#fff;text-decoration:none;border-radius:12px;font-size:15px;font-weight:600;">${label}</a>`;
+
+/** Nach dem Abschluss: Willkommen + Link zur Vertragsbestätigung */
+export function vertragLinkTemplate(p: { name: string; firma: string; vertragUrl: string }): string {
+  return rahmen(`
+      <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Willkommen, ${esc(p.name)}!</h1>
+      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 16px;">
+        Schön, dass ${esc(p.firma)} mit uns startet. Als Erstes bestätigst du bitte kurz die Eckdaten unserer Zusammenarbeit –
+        das dauert eine Minute. Danach legst du deinen Zugang zur Zoepp Media Cloud an.
+      </p>
+      ${button(p.vertragUrl, 'Vertrag ansehen & bestätigen')}`);
+}
+
+/** Vertrag bestätigt: Bestätigung (PDF im Anhang) + nächster Schritt */
+export function vertragBestaetigtTemplate(p: { name: string; firma: string; weiterUrl: string | null }): string {
+  return rahmen(`
+      <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Vertrag bestätigt</h1>
+      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 16px;">
+        Hallo ${esc(p.name)}, danke – die Zusammenarbeit mit ${esc(p.firma)} ist bestätigt. Die Bestätigung findest du als PDF im Anhang.
+      </p>
+      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 24px;">
+        Die Rechnung für den Start bekommst du in Kürze von uns. Sobald die Zahlung eingegangen ist, startet euer Onboarding automatisch.
+      </p>
+      ${p.weiterUrl ? button(p.weiterUrl, 'Zugang zur Cloud anlegen') : ''}`);
+}
+
+/** Zahlung in Lexware erkannt → Onboarding startet */
+export function zahlungEingegangenTemplate(p: { name: string; url: string; neuerZugang: boolean }): string {
+  return rahmen(`
+      <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Zahlung eingegangen – jetzt geht's los!</h1>
+      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 16px;">
+        Hallo ${esc(p.name)}, danke für deine Zahlung. Euer Onboarding ist ab sofort freigeschaltet.
+      </p>
+      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 24px;">
+        In der Cloud siehst du Schritt für Schritt, was wir von dir brauchen – vom Kick-off bis zu den Zugängen.
+        Je schneller die Schritte erledigt sind, desto schneller läuft eure Kampagne.
+      </p>
+      ${button(p.url, p.neuerZugang ? 'Zugang anlegen & starten' : 'Zu deinen nächsten Schritten')}`);
+}

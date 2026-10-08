@@ -47,6 +47,9 @@ import { processSalesClickCheck } from '@/lib/sales/tracking';
 import { todayBerlin } from '@/lib/sales/replies';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { QuietHoursError, nextAllowedTime } from '@/lib/whatsapp/window';
+import { pruefeSetupZahlungen } from '@/lib/vertrag/zahlung';
+import { runCadenceIfDue } from '@/lib/cadence/run';
+import { treibeAlleFunnelBautenVoran } from '@/lib/perspective/funnel-bau';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
 export const maxDuration = 60;
@@ -305,9 +308,57 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // 3. Setup-Rechnungen neuer Kunden (Vertrag in der Cloud bestätigt): bezahlt? → Onboarding starten (intern auf 15 Min. gedrosselt)
+  let zahlungen: Awaited<ReturnType<typeof pruefeSetupZahlungen>> | null = null;
+  if (Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 10_000) {
+    try {
+      zahlungen = await pruefeSetupZahlungen(svc);
+    } catch (err) {
+      console.error('[tick] Zahlungsprüfung fehlgeschlagen:', err);
+    }
+  }
+
+  // 4. Kadenz (Anruf-Aufgaben) – vercel.json läuft nur täglich, hier intern auf 15 Min. gedrosselt
+  let kadenz: Awaited<ReturnType<typeof runCadenceIfDue>> | null = null;
+  if (Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 10_000) {
+    try {
+      kadenz = await runCadenceIfDue(svc);
+    } catch (err) {
+      console.error('[tick] Kadenz fehlgeschlagen:', err);
+    }
+  }
+
+  // 5. Laufende Funnel-Bauten in Perspective weitertreiben (ohne PERSPECTIVE_API_KEY sofort 0)
+  let funnelBauten = 0;
+  if (Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 10_000) {
+    try {
+      funnelBauten = await treibeAlleFunnelBautenVoran(svc, { max: 3 });
+    } catch (err) {
+      console.error('[tick] Funnel-Bau fehlgeschlagen:', err);
+    }
+  }
+
+  // 6. Meta: Zugänge prüfen + Kampagnen pausiert anlegen/Autostart – alle 15 Min. (Tick läuft minütlich)
+  let meta: { zugaenge: unknown; kampagnen: unknown } | null = null;
+  if (new Date().getMinutes() % 15 === 0 && Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 15_000) {
+    try {
+      const [{ metaZugaengeLauf }, { metaKampagnenLauf }] = await Promise.all([
+        import('@/lib/meta/zugaenge'),
+        import('@/lib/meta/kampagne'),
+      ]);
+      meta = { zugaenge: await metaZugaengeLauf(svc), kampagnen: await metaKampagnenLauf(svc) };
+    } catch (err) {
+      console.error('[tick] Meta-Lauf fehlgeschlagen:', err);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     events: { processed: eventsProcessed, failed: eventsFailed },
     jobs: { processed: jobsProcessed, failed: jobsFailed },
+    zahlungen,
+    kadenz,
+    funnelBauten,
+    meta,
   });
 }

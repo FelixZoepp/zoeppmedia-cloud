@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AD_STAGES, AD_TYPEN, moveAd, type AdStage } from '@/lib/ads/ads';
 import { darfZumKunden, freigabeStatus, versionsKey } from '@/lib/ads/ki-pruefung';
+import { isSignalSatisfied, signalSafe } from '@/lib/fulfillment/engine';
 
 const EDITABLE = ['titel', 'idee', 'typ', 'assignee_id', 'faellig_am', 'material_urls', 'asset_url', 'asset_path'] as const;
 
@@ -20,6 +21,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (Object.keys(patch).length) {
     patch.updated_at = new Date().toISOString();
     await svc.from('ad_items').update(patch).eq('id', id);
+    // Eigene Grafik hochgeladen/verlinkt → s_grafiken ggf. abhaken
+    if ('asset_path' in patch || 'asset_url' in patch) {
+      const { data: cur } = await svc.from('ad_items').select('agency_id').eq('id', id).maybeSingle();
+      const agencyId = (cur as { agency_id: string } | null)?.agency_id;
+      if (agencyId && (await isSignalSatisfied(svc, agencyId, 'grafiken_fertig').catch(() => false))) await signalSafe(svc, agencyId, 'grafiken_fertig');
+    }
   }
 
   if (typeof body.stage === 'string') {

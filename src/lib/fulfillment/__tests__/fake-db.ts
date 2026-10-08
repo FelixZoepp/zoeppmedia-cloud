@@ -1,6 +1,6 @@
 /**
  * Minimaler In-Memory-Ersatz für den Supabase-Client — genug für die Fulfillment-Logik:
- * select/eq/neq/in/not(in)/is/order/limit/maybeSingle/single, insert/update/upsert (onConflict, ignoreDuplicates).
+ * select (auch count/head)/eq/neq/in/not(in)/is/like/order/limit/maybeSingle/single, insert/update/upsert (onConflict, ignoreDuplicates).
  */
 
 type Row = Record<string, unknown>;
@@ -21,6 +21,7 @@ export function createFakeDb(initial: Record<string, Row[]> = {}) {
     let upsertOpts: { onConflict?: string; ignoreDuplicates?: boolean } = {};
     let order: { col: string; asc: boolean } | null = null;
     let limit: number | null = null;
+    let head = false;
 
     const run = (): { data: unknown; error: null } => {
       const rows = t(table);
@@ -56,11 +57,12 @@ export function createFakeDb(initial: Record<string, Row[]> = {}) {
         matched = [...matched].sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : 1) * (asc ? 1 : -1));
       }
       if (limit !== null) matched = matched.slice(0, limit);
-      return { data: matched.map((r) => ({ ...r })), error: null };
+      const count = matched.length;
+      return { data: head ? null : matched.map((r) => ({ ...r })), error: null, count } as { data: unknown; error: null };
     };
 
     const chain = {
-      select: () => chain,
+      select: (_cols?: string, o?: { count?: string; head?: boolean }) => ((head = head || !!o?.head), chain),
       eq: (c: string, v: unknown) => (filters.push((r) => r[c] === v), chain),
       neq: (c: string, v: unknown) => (filters.push((r) => r[c] !== v), chain),
       in: (c: string, v: unknown[]) => (filters.push((r) => v.includes(r[c])), chain),
@@ -68,6 +70,11 @@ export function createFakeDb(initial: Record<string, Row[]> = {}) {
       gte: (c: string, v: string) => (filters.push((r) => String(r[c]) >= v), chain),
       lte: (c: string, v: string) => (filters.push((r) => String(r[c]) <= v), chain),
       lt: (c: string, v: string) => (filters.push((r) => String(r[c]) < v), chain),
+      like: (c: string, muster: string) => {
+        const re = new RegExp(`^${muster.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*')}$`);
+        filters.push((r) => re.test(String(r[c] ?? '')));
+        return chain;
+      },
       not: (c: string, op: string, v: unknown) => {
         if (op === 'in') {
           const list = String(v).replace(/[()]/g, '').split(',');

@@ -31,6 +31,7 @@ export type AutoSignal =
   | 'werbekonto_verbunden'
   | 'testimonial_gebucht'
   | 'ad_ideen_angelegt'
+  | 'grafiken_fertig'
   | 'ads_freigegeben';
 
 export interface StepDef {
@@ -159,7 +160,11 @@ export const STEPS: StepDef[] = [
     beschreibung: 'Im Ads-Board pro Idee eine Karte anlegen. Video-Skripte nur, wenn der Kunde Videos macht – sonst Grafik-Ideen.',
     wer: 'zoepp', funktion: 'media_buyer', frist_tage: 2, auto: 'ad_ideen_angelegt', nur: ['meta'],
   },
-  { key: 's_grafiken', phase: 'setup', titel: 'Grafiken gebaut', beschreibung: '3–5 Bild-Ads.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 3, nur: ['meta'] },
+  {
+    key: 's_grafiken', phase: 'setup', titel: 'Grafiken gebaut',
+    beschreibung: '3–5 Bild-Ads. Die Cloud erzeugt zu jedem Ad-Konzept KI-Bilder und hakt den Schritt selbst ab, sobald jede Grafik-Ad ein Bild hat – eigene Grafiken im Ads-Board hochladen geht weiterhin.',
+    wer: 'zoepp', funktion: 'media_buyer', frist_tage: 3, auto: 'grafiken_fertig', nur: ['meta'],
+  },
   { key: 's_funnel', phase: 'setup', titel: 'Funnel aufgebaut', beschreibung: 'Perspective-Template, Branding, Texte, Formular, Danke-Seite.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, nur: ['meta'] },
   { key: 's_funnel_tracking', phase: 'setup', titel: 'Funnel-Domain & Pixel eingerichtet', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4, nur: ['meta'] },
   {

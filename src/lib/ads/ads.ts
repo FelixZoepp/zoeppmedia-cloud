@@ -10,6 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
 import { isSignalSatisfied, signalSafe } from '@/lib/fulfillment/engine';
+import { istAutomatikKunde } from '@/lib/fulfillment/automatik';
 
 import { AD_ASSET_BUCKET, type AdStage, type AdItem } from './constants';
 
@@ -90,6 +91,20 @@ export async function customerDecision(
   // Letzte offene Freigabe erteilt → Fulfillment-Schritt „Ads & Texte freigegeben“ abhaken
   if (aktion === 'freigeben' && (await isSignalSatisfied(svc, agencyId, 'ads_freigegeben').catch(() => false))) {
     await signalSafe(svc, agencyId, 'ads_freigegeben');
+    // Funnel mit den freigegebenen Texten bauen; /api/cron/tick treibt den Bau weiter
+    // Nur Automatik-Kunden ohne vorhandenen Funnel (Bestandskunden mit Hand-Funnel nicht doppeln)
+    const automatik = process.env.PERSPECTIVE_API_KEY ? await istAutomatikKunde(svc, agencyId) : false;
+    const { count: funnelAnzahl } = automatik
+      ? await svc.from('perspective_funnels').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId)
+      : { count: null };
+    if (automatik && (funnelAnzahl ?? 0) === 0) {
+      try {
+        const { starteFunnelBau } = await import('@/lib/perspective/funnel-bau');
+        await starteFunnelBau(svc, agencyId);
+      } catch (err) {
+        console.error('[ads] Funnel-Bau nach Freigabe nicht gestartet', agencyId, err);
+      }
+    }
   }
   return ergebnis;
 }

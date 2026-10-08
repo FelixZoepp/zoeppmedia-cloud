@@ -12,6 +12,10 @@ function isPublicPath(pathname: string) {
     pathname.startsWith('/video/') ||
     pathname.startsWith('/termin/') ||
     pathname.startsWith('/gespraech/') ||
+    // Zufriedenheits-Umfrage über persönlichen Link (ohne Login)
+    pathname.startsWith('/umfrage/') ||
+    // Vertragsbestätigung über persönlichen Link (vor der Registrierung)
+    pathname.startsWith('/vertrag/') ||
     pathname === '/apply' || pathname.startsWith('/apply/') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/register-employee') ||

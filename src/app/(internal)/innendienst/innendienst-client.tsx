@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowRight, Inbox, Link2, MessageCircle, PhoneCall, Refr
 import { toast } from 'sonner';
 import { Avatar, Button, Card, Input, PageHeader, SegmentedControl, StatCard } from '@/components/ui';
 import type { KundeArbeit } from '@/lib/kunden-cloud/uebersicht';
+import { GarantieBalken } from '@/components/garantie/garantie-balken';
 
 const PHASE: Record<string, string> = {
   zahlung: 'Zahlung',
@@ -190,6 +191,12 @@ function KundeKarte({ k, index, jetzt }: { k: KundeArbeit; index: number; jetzt:
           'Nichts offen'
         ) : null}
       </p>
+
+      {k.garantie && (
+        <div className="mt-2">
+          <GarantieBalken ampel={k.garantie.ampel} ist={k.garantie.ist} ziel={k.garantie.ziel} kompakt />
+        </div>
+      )}
 
       <div className="mt-auto grid grid-cols-[1fr_auto] gap-2 pt-4">
         <a

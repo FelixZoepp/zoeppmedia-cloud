@@ -1,9 +1,14 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { bereinigeOnboardingBody, darfOnboardingSchreiben } from '@/lib/onboarding/body';
 import { logActivity } from '@/lib/activity/log';
 import { signalSafe } from '@/lib/fulfillment/engine';
+import { richteSetupEin } from '@/lib/fulfillment/auto-setup';
+import { istAutomatikKunde } from '@/lib/fulfillment/automatik';
+
+// Das automatische Setup (inkl. KI-Generator) läuft nach der Antwort weiter
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const supabase = await createServerClient();
@@ -25,11 +30,13 @@ export async function POST(req: Request) {
   // Check if a draft already exists — update it instead of inserting
   const { data: existing } = await admin
     .from('onboarding_submissions')
-    .select('id')
+    .select('id, status')
     .eq('agency_id', profile.agency_id)
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
+  // Erneutes Absenden eines schon abgeschlossenen Onboardings löst kein neues Setup aus
+  const warSchonAbgeschlossen = (existing as { status?: string } | null)?.status === 'completed';
 
   let data;
   let error;
@@ -84,6 +91,21 @@ export async function POST(req: Request) {
     action: 'Onboarding abgeschlossen',
     action_type: 'onboarding_complete',
   });
+
+  // Setup baut sich selbst: Stelle, Bot, Terminzeiten, KI-Generator (idempotent, im Hintergrund)
+  // – nur für Automatik-Kunden (neue Fulfillment-Strecke), Bestandskunden unverändert
+  if (!warSchonAbgeschlossen) {
+    const agencyId = profile.agency_id as string;
+    after(async () => {
+      try {
+        const svc = createAdminClient();
+        if (!(await istAutomatikKunde(svc, agencyId))) return;
+        await richteSetupEin(svc, agencyId);
+      } catch (err) {
+        console.error('[onboarding] Automatisches Setup fehlgeschlagen', agencyId, err);
+      }
+    });
+  }
 
   return NextResponse.json(data);
 }

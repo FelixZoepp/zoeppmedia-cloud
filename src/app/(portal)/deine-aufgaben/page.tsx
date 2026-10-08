@@ -95,10 +95,21 @@ interface FreigabeAd {
   titel: string;
   idee: string | null;
   typ: string;
+  asset_path: string | null;
   vorschau_url: string | null;
+  /** KI-Bildvarianten zur Auswahl */
+  varianten?: Array<{ pfad: string; format: string; vorschau_url: string | null }>;
 }
 
-function FreigabeCard({ ad, onDecide }: { ad: FreigabeAd; onDecide: (aktion: 'freigeben' | 'aendern', kommentar?: string) => Promise<void> }) {
+function FreigabeCard({
+  ad,
+  onDecide,
+  onWaehle,
+}: {
+  ad: FreigabeAd;
+  onDecide: (aktion: 'freigeben' | 'aendern', kommentar?: string) => Promise<void>;
+  onWaehle: (pfad: string) => Promise<void>;
+}) {
   const [aendern, setAendern] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -117,6 +128,35 @@ function FreigabeCard({ ad, onDecide }: { ad: FreigabeAd; onDecide: (aktion: 'fr
       {ad.vorschau_url && (
         <div className="mt-3">
           <AssetPreview url={ad.vorschau_url} titel={ad.titel} />
+        </div>
+      )}
+      {(ad.varianten?.length ?? 0) > 1 && (
+        <div className="mt-3">
+          <p className="text-xs text-gray-500 mb-1.5">Welches Bild gefällt dir am besten?</p>
+          <div className="flex gap-2 flex-wrap">
+            {ad.varianten!.map((v) =>
+              v.vorschau_url ? (
+                <button
+                  key={v.pfad}
+                  disabled={busy}
+                  onClick={async () => {
+                    if (v.pfad === ad.asset_path) return;
+                    setBusy(true);
+                    try {
+                      await onWaehle(v.pfad);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                  title={v.format}
+                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${v.pfad === ad.asset_path ? 'border-green-600' : 'border-transparent hover:border-gray-300'}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- signierte Storage-URL */}
+                  <img src={v.vorschau_url} alt={v.format} className="w-full h-full object-cover" />
+                </button>
+              ) : null,
+            )}
+          </div>
         </div>
       )}
       {aendern ? (
@@ -224,6 +264,18 @@ export default function DeineAufgabenPage() {
                     return;
                   }
                   toast.success(aktion === 'freigeben' ? 'Danke, freigegeben!' : 'Danke, wir passen das an.');
+                  await load();
+                }}
+                onWaehle={async (pfad) => {
+                  const res = await fetch(`/api/deine-freigaben/${ad.id}/bild`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pfad }),
+                  });
+                  if (!res.ok) {
+                    toast.error((await res.json()).error ?? 'Konnte nicht gespeichert werden');
+                    return;
+                  }
                   await load();
                 }}
               />

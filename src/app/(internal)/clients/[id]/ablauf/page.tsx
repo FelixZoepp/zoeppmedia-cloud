@@ -7,6 +7,10 @@ import { ArrowLeft, PauseCircle, Flag } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { StepRow } from '@/components/fulfillment/step-row';
+import { MetaAutomatikKarte } from '@/components/fulfillment/meta-automatik-karte';
+import { FunnelAutoBau } from '@/components/fulfillment/funnel-auto-bau';
+import { SetupRechnungKarte } from '@/components/fulfillment/setup-rechnung-karte';
+import { AutomatikSchalter } from '@/components/fulfillment/automatik-schalter';
 import { phaseLabel, type Phase } from '@/lib/fulfillment/catalog';
 import type { StepView } from '@/lib/fulfillment/views';
 
@@ -158,6 +162,16 @@ export default function AblaufPage({ params }: { params: Promise<{ id: string }>
         <Card padding="none" className="p-4 mb-4 bg-gray-50 text-sm text-gray-700 flex items-center gap-2">
           <PauseCircle className="w-4 h-4" /> Blockiert: {data.agency.pausiert_grund}
         </Card>
+      )}
+
+      <AutomatikSchalter agencyId={id} onGeaendert={() => void load()} />
+
+      <SetupRechnungKarte agencyId={id} onGeaendert={() => void load()} />
+
+      <FunnelAutoBau agencyId={id} />
+
+      {(data.phase === 'onboarding' || data.phase === 'setup' || data.phase === 'continuity') && (
+        <MetaAutomatikKarte agencyId={id} onChanged={load} />
       )}
 
       <Verzoegerungen

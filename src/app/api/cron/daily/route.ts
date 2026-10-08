@@ -31,13 +31,12 @@ async function runDailyJobs() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
   const currentMonth = now.toISOString().slice(0, 7);
 
-  // Einmal vorab statt pro Agentur: Umfrage-Vorlagen und Kunden-Inhaber
-  const [{ data: surveyTemplates }, { data: ownerRows }] = await Promise.all([
-    supabase.from('survey_templates').select('id, title').in('title', ['Onboarding-Feedback', 'Kundenzufriedenheit', 'Gesamtbewertung']),
-    supabase.from('users').select('agency_id, email, name').eq('role', 'agency_owner').not('agency_id', 'is', null),
-  ]);
-  const templateId = (title: string): string | null =>
-    ((surveyTemplates ?? []) as Array<{ id: string; title: string }>).find((t) => t.title === title)?.id ?? null;
+  // Einmal vorab statt pro Agentur: Kunden-Inhaber
+  const { data: ownerRows } = await supabase
+    .from('users')
+    .select('agency_id, email, name')
+    .eq('role', 'agency_owner')
+    .not('agency_id', 'is', null);
   const ownerByAgency = new Map<string, { email: string; name: string }>();
   for (const o of (ownerRows ?? []) as Array<{ agency_id: string; email: string; name: string }>) {
     if (!ownerByAgency.has(o.agency_id)) ownerByAgency.set(o.agency_id, { email: o.email, name: o.name });
@@ -100,77 +99,7 @@ async function runDailyJobs() {
         }
       }
 
-      // 3. Survey Milestones
-      const { data: existingSchedules } = await supabase
-        .from('survey_schedule')
-        .select('trigger_key')
-        .eq('agency_id', agency.id);
-      const existingKeys = new Set((existingSchedules || []).map(e => e.trigger_key));
-
-      const agencyAge = now.getTime() - new Date(agency.created_at).getTime();
-
-      // Post-onboarding survey
-      const onboardingTemplate = templateId('Onboarding-Feedback');
-      if (agency.onboarding_completed && !existingKeys.has('post_onboarding')) {
-        if (onboardingTemplate) {
-          await supabase.from('survey_schedule').insert({
-            agency_id: agency.id,
-            trigger_key: 'post_onboarding',
-            template_id: onboardingTemplate,
-            scheduled_at: now.toISOString(),
-          });
-          surveysScheduled++;
-        }
-      }
-
-      // Bi-weekly survey (every 2 weeks after onboarding, not monthly)
-      if (agency.onboarding_completed && agencyAge > 14 * 86400000) {
-        // Calculate which 2-week period we're in
-        const weeksActive = Math.floor(agencyAge / (7 * 86400000));
-        const biweeklyPeriod = Math.floor(weeksActive / 2);
-        const biweeklyKey = `biweekly_${biweeklyPeriod}`;
-
-        const zufriedenheitTemplate = templateId('Kundenzufriedenheit');
-        if (!existingKeys.has(biweeklyKey)) {
-          if (zufriedenheitTemplate) {
-            await supabase.from('survey_schedule').insert({
-              agency_id: agency.id,
-              trigger_key: biweeklyKey,
-              template_id: zufriedenheitTemplate,
-              scheduled_at: now.toISOString(),
-            });
-
-            // Send email notification
-            const owner = ownerByAgency.get(agency.id);
-
-            if (owner) {
-              try {
-                const { sendSurveyNotification } = await import('@/lib/email/resend');
-                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
-                await sendSurveyNotification(owner.email, owner.name, 'Kundenzufriedenheit', `${appUrl}/reports`);
-              } catch { /* silent */ }
-            }
-
-            surveysScheduled++;
-          }
-        }
-      }
-
-      // Quarterly survey (> 90 days active)
-      const quarter = Math.floor(now.getMonth() / 3);
-      const quarterKey = `quarterly_${now.getFullYear()}_Q${quarter + 1}`;
-      const gesamtTemplate = templateId('Gesamtbewertung');
-      if (agencyAge > 90 * 86400000 && !existingKeys.has(quarterKey)) {
-        if (gesamtTemplate) {
-          await supabase.from('survey_schedule').insert({
-            agency_id: agency.id,
-            trigger_key: quarterKey,
-            template_id: gesamtTemplate,
-            scheduled_at: now.toISOString(),
-          });
-          surveysScheduled++;
-        }
-      }
+      // 3. Umfragen: Planung und Versand laufen gesammelt nach der Schleife (planeUmfragen/versendeUmfragen)
 
       // 4. Backup Ad Account Task (30+ days after onboarding)
       if (agency.onboarding_completed && new Date(agency.created_at) < thirtyDaysAgo) {
@@ -434,6 +363,28 @@ async function runDailyJobs() {
     results.usage_aggregation = { error: String(e) };
   }
 
+  // Zufriedenheits-Umfragen: fällige einplanen und mit persönlichem Link (ohne Login) verschicken.
+  // Nur Zeitpunkte ab dem Stichtag – verpasste Umfragen von Bestandskunden werden nicht nachgeholt.
+  // Nur Automatik-Kunden (neue Fulfillment-Strecke) – Bestandskunden bekommen nichts automatisch
+  try {
+    const { planeUmfragen, versendeUmfragen } = await import('@/lib/surveys/versand');
+    const { automatikAgencyIds } = await import('@/lib/fulfillment/automatik');
+    const automatik = new Set(await automatikAgencyIds(supabase));
+    surveysScheduled = await planeUmfragen(
+      supabase,
+      (agencies ?? []).filter((a) => !HIDDEN_AGENCY_IDS.includes(a.id) && automatik.has(a.id)),
+      now,
+    );
+    results.surveys_sent = await versendeUmfragen(
+      supabase,
+      new Map([...ownerByAgency].filter(([agencyId]) => automatik.has(agencyId))),
+      now,
+    );
+  } catch (err) {
+    console.error('[cron-daily] Umfragen fehlgeschlagen', err);
+    results.surveys = { error: String(err) };
+  }
+
   // Phase 7: DSGVO-Retention — Anonymisierung abgelaufener Kandidaten (best effort)
   try {
     const { runRetention } = await import('@/lib/dsgvo/retention');
@@ -442,6 +393,9 @@ async function runDailyJobs() {
     console.error('[cron-daily] retention failed', err);
     results.retention = { error: String(err) };
   }
+
+  // Garantie-Ampel + Verlängerungs-Aufgaben (best effort)
+  try { results.garantie = await (await import('@/lib/garantie/check')).runGarantieUndVerlaengerung(supabase); } catch (err) { console.error('[cron-daily] garantie failed', err); results.garantie = { error: String(err) }; }
 
   return {
     ok: true,

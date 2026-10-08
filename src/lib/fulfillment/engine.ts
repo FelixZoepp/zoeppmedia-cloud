@@ -301,6 +301,11 @@ export async function isSignalSatisfied(svc: SupabaseClient, agencyId: string, s
       const { data } = await svc.from('ad_items').select('id').eq('agency_id', agencyId).limit(1).maybeSingle();
       return !!data;
     }
+    case 'grafiken_fertig': {
+      const { data } = await svc.from('ad_items').select('stage, asset_path, asset_url').eq('agency_id', agencyId).eq('typ', 'grafik');
+      const ads = ((data ?? []) as Array<{ stage: string; asset_path: string | null; asset_url: string | null }>).filter((a) => a.stage !== 'verworfen');
+      return ads.length > 0 && ads.every((a) => !!(a.asset_path || a.asset_url));
+    }
     case 'ads_freigegeben': {
       // Alles freigegeben: nichts mehr in Arbeit oder beim Kunden, mindestens eine Ad/Anzeige bereit oder live
       const [{ data: offen }, { data: fertig }] = await Promise.all([

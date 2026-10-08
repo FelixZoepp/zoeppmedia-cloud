@@ -31,9 +31,35 @@ async function metaFetch(
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(`Meta API: ${data.error.message}`);
+  if (data.error) throw new MetaApiError(data.error);
   return data;
 }
+
+/** Fehler von Meta – `meldung` ist der für Menschen gedachte Text (error_user_msg), falls vorhanden */
+export class MetaApiError extends Error {
+  code: number | null;
+  meldung: string;
+  constructor(err: { message?: string; code?: number; error_user_title?: string; error_user_msg?: string }) {
+    const meldung = [err.error_user_title, err.error_user_msg].filter(Boolean).join(': ') || err.message || 'Unbekannter Fehler';
+    super(`Meta API: ${meldung}`);
+    this.code = err.code ?? null;
+    this.meldung = meldung;
+  }
+}
+
+/** Generischer Graph-Aufruf (GET mit params, POST mit JSON-Body) für Zugangsprüfung und Kampagnen-Anlage */
+export async function metaRequest<T = Record<string, unknown>>(
+  path: string,
+  opts: { method?: 'GET' | 'POST'; params?: Record<string, string>; body?: Record<string, unknown> } = {},
+): Promise<T> {
+  return metaFetch(path, {
+    method: opts.method ?? 'GET',
+    params: opts.params,
+    ...(opts.body ? { body: JSON.stringify(opts.body) } : {}),
+  }) as Promise<T>;
+}
+
+export const META_ACT = (adAccountId: string) => `/act_${normalizeAdAccountId(adAccountId)}`;
 
 export interface AdCreativeInput {
   name: string;

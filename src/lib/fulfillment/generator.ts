@@ -2,7 +2,7 @@
  * Fulfillment-Generator: ein Klick erzeugt aus dem Kunden-Briefing alles, was das Team sonst
  * von Hand schreibt – passend zu den gebuchten Leistungen:
  *
- *   Funnel + Meta:  Ad-Konzepte (Winkel, Texte, Grafik-Briefing) → Ads-Board „Idee“
+ *   Funnel + Meta:  Ad-Konzepte (Winkel, Texte, Grafik-Briefing) → Ads-Board „Idee“ → KI-Grafiken (lib/ads/bilder)
  *                   Video-Ad-Skripte mit Drehanleitung           → Ads-Board „Material“
  *                   Webseiten-Video-Skript, Funnel-Texte + Perspective-Prompt → fulfillment_inhalte
  *   Indeed:         Indeed-Anzeige                                → Ads-Board (Typ „indeed“)
@@ -19,6 +19,8 @@ import { briefingText, generiereIndeedAnzeige, ladeBriefing, type Briefing } fro
 import { speichereIndeedAnzeige } from '@/lib/indeed/speichern';
 import { signalSafe } from './engine';
 import { bausteineVon, type Baustein } from './pakete';
+import { erzeugeBilderFuerAgentur } from '@/lib/ads/bilder';
+import { istAutomatikKunde } from '@/lib/fulfillment/automatik';
 
 export const GEN_MODELL = 'claude-opus-5-5';
 
@@ -247,6 +249,7 @@ export async function fuehreGenerierungAus(
     }
   };
 
+  const bilder: Promise<void>[] = [];
   const arbeiten: Record<TeilKey, () => Promise<void>> = {
     ads: async () => {
       const r = await frage(AdKonzepteSchema, `${ctx}\n\n${AUFTRAG.ads}`);
@@ -259,8 +262,19 @@ export async function fuehreGenerierungAus(
         stage: 'idee',
         assignee_id: userId,
       }));
-      const { error } = await svc.from('ad_items').insert(rows);
+      const { data: neu, error } = await svc.from('ad_items').insert(rows).select('id');
       if (error) throw new Error(error.message);
+      // KI-Grafiken parallel zu den übrigen Teilen erzeugen (am Ende abgewartet) – automatisch nur
+      // bei Automatik-Kunden; sonst per Knopf „KI-Bilder erzeugen“ im Ads-Board
+      const adIds = ((neu ?? []) as Array<{ id: string }>).map((r) => r.id);
+      if (adIds.length && (await istAutomatikKunde(svc, agencyId))) {
+        bilder.push(
+          erzeugeBilderFuerAgentur(svc, agencyId, { adIds }).then(
+            () => undefined,
+            (err) => console.error('[generator] KI-Grafiken:', err),
+          ),
+        );
+      }
     },
     videos: async () => {
       const r = await frage(VideoSkripteSchema, `${ctx}\n\n${AUFTRAG.videos}`);
@@ -295,6 +309,7 @@ export async function fuehreGenerierungAus(
 
   const ergebnisse = await Promise.all(teile.map((t) => lauf(t, arbeiten[t])));
   await schreiben;
+  await Promise.all(bilder);
   if (teile.includes('ads') || teile.includes('videos')) await signalSafe(svc, agencyId, 'ad_ideen_angelegt');
 
   await svc

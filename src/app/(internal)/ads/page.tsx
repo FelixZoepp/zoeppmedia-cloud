@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { AssetPreview, isLinkErlaubt } from '@/components/ads/asset-preview';
 import { AD_STAGES, AD_TYPEN, AD_ASSET_BUCKET, type AdItem, type AdStage } from '@/lib/ads/constants';
 import { KiPruefungAnzeige, videoStandbilder } from '@/components/ads/ki-pruefung-anzeige';
+import { KiBilder } from '@/components/ads/ki-bilder';
 import type { FreigabeStatus, KiPruefung } from '@/lib/ads/ki-pruefung';
 
 type AdRow = AdItem & {
@@ -166,6 +167,8 @@ function AdDetail({
             <input type="file" className="hidden" accept="image/*,video/*" disabled={uploading} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
           </label>
         </div>
+
+        {ad.typ === 'grafik' && <KiBilder adId={ad.id} onGeaendert={() => onSave({})} />}
 
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">

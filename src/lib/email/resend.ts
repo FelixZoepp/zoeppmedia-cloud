@@ -6,6 +6,9 @@ import {
   surveyNotificationTemplate,
   appointmentConfirmationTemplate,
   appointmentUpdateTemplate,
+  vertragLinkTemplate,
+  vertragBestaetigtTemplate,
+  zahlungEingegangenTemplate,
 } from './templates';
 import { reportTemplate } from './report-template';
 
@@ -199,4 +202,49 @@ export async function sendMahnMail(to: string, betreff: string, text: string, re
     text,
     html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap">${escaped}</div>`,
   });
+}
+
+/** Nach dem Abschluss: Willkommen + Link zur Vertragsbestätigung. Wirft bei Versandfehler. */
+export async function sendVertragLink(to: string, name: string, firma: string, vertragUrl: string) {
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to,
+    replyTo: 'assistenz@zoeppmedia.de',
+    subject: `Willkommen bei Zoepp Media – bitte Vertrag bestätigen`,
+    html: vertragLinkTemplate({ name, firma, vertragUrl }),
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Vertragsbestätigung mit PDF an den Kunden, intern in Kopie (BCC). Wirft bei Versandfehler. */
+export async function sendVertragBestaetigt(p: {
+  to: string;
+  bcc: string[];
+  name: string;
+  firma: string;
+  weiterUrl: string | null;
+  pdf: Uint8Array;
+}) {
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to: p.to,
+    ...(p.bcc.length ? { bcc: p.bcc } : {}),
+    replyTo: 'assistenz@zoeppmedia.de',
+    subject: `Vertragsbestätigung – ${p.firma}`,
+    html: vertragBestaetigtTemplate(p),
+    attachments: [{ filename: `Vertragsbestaetigung-${p.firma.replace(/[^\w.-]+/g, '_')}.pdf`, content: Buffer.from(p.pdf) }],
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Zahlung erkannt → Onboarding startet. Wirft bei Versandfehler. */
+export async function sendZahlungEingegangen(to: string, name: string, url: string, neuerZugang: boolean) {
+  const { error } = await getResend().emails.send({
+    from: FROM,
+    to,
+    replyTo: 'assistenz@zoeppmedia.de',
+    subject: "Zahlung eingegangen – euer Onboarding startet",
+    html: zahlungEingegangenTemplate({ name, url, neuerZugang }),
+  });
+  if (error) throw new Error(error.message);
 }

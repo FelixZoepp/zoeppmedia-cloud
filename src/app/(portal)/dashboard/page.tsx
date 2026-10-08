@@ -28,6 +28,12 @@ export default async function DashboardPage() {
       .eq('agency_id', agencyId)
       .is('completed_at', null),
   ]);
+  const { data: g } = await createAdminClient()
+    .from('agencies')
+    .select('garantie_ampel, garantie_ist, garantie_ziel_starter')
+    .eq('id', agencyId)
+    .maybeSingle();
+  const gz = g as { garantie_ampel: string | null; garantie_ist: number | null; garantie_ziel_starter: number | null } | null;
 
   return (
     <DashboardView
@@ -35,6 +41,7 @@ export default async function DashboardPage() {
       agencyId={agencyId}
       agencyName={user.name}
       pendingSurveys={pendingSurveys ?? 0}
+      garantie={gz?.garantie_ziel_starter && gz.garantie_ampel ? { ampel: gz.garantie_ampel, ist: gz.garantie_ist ?? 0, ziel: gz.garantie_ziel_starter } : null}
       kennzahlen={
         roi && {
           ...roi.termine,

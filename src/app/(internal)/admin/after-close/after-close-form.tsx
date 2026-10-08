@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { Rocket, CheckCircle2, ExternalLink, AlertTriangle, Check } from 'lucide-react';
 import { BAUSTEINE, PAKET_VORLAGEN, paketVorlage, type Baustein } from '@/lib/fulfillment/pakete';
+import { ersteRechnungPosition } from '@/lib/billing/setup-position';
 
 interface FormData {
   // Kunde
@@ -37,12 +38,20 @@ interface FormData {
   // Zusagen
   zusagen_closer: string;
   sonderfaelle: string;
+  // Ablauf
+  willkommensmail: boolean;
 }
 
 interface SuccessResult {
   agency: { id: string; name: string };
   invite_url: string | null;
+  vertrag_url?: string | null;
+  willkommensmail?: boolean;
+  doppelt?: boolean;
+  hinweise?: string[];
 }
+
+const euro = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
 const initialForm: FormData = {
   firma: '',
@@ -67,6 +76,7 @@ const initialForm: FormData = {
   anzahl_starter: '',
   zusagen_closer: '',
   sonderfaelle: '',
+  willkommensmail: true,
 };
 
 const paketOptions = PAKET_VORLAGEN.map((p) => ({
@@ -105,6 +115,15 @@ export function AfterCloseForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<SuccessResult | null>(null);
+  // Ein Schlüssel je Formular: Doppelklick oder Netzwerk-Retry legen den Kunden nicht doppelt an
+  const [abschlussKey, setAbschlussKey] = useState(() => crypto.randomUUID());
+
+  const position = ersteRechnungPosition({
+    setup_betrag: form.setup_betrag ? parseFloat(form.setup_betrag) : 0,
+    mrr: form.mrr ? parseFloat(form.mrr) : 0,
+    paket_name: paketVorlage(form.paket)?.name ?? form.paket,
+    start_datum: form.start_datum || new Date().toISOString().slice(0, 10),
+  });
 
   function update(field: keyof FormData) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -164,6 +183,8 @@ export function AfterCloseForm() {
       anzahl_starter: form.anzahl_starter ? parseInt(form.anzahl_starter, 10) : undefined,
       zusagen_closer: form.zusagen_closer.trim(),
       sonderfaelle: form.sonderfaelle.trim() || undefined,
+      abschluss_key: abschlussKey,
+      willkommensmail: form.willkommensmail,
     };
 
     try {
@@ -207,6 +228,39 @@ export function AfterCloseForm() {
             </div>
           </div>
 
+          {result.doppelt ? (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+              Dieser Abschluss war schon angelegt – es wurde nichts doppelt erstellt.
+            </div>
+          ) : (
+            <ul className="space-y-1.5 text-sm text-gray-700">
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-600" /> Kunde, Fulfillment-Schritte und Abrechnungsplan angelegt
+              </li>
+              {result.willkommensmail && (
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600" /> Willkommens-Mail mit Link zur Vertragsbestätigung verschickt
+                </li>
+              )}
+              <li className="flex items-start gap-2 text-gray-500">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                Nach der Bestätigung: PDF an Kunde und Team, Aufgabe „Setup-Rechnung in Lexware stellen“ an die Buchhaltung.
+                Sobald Lexware die Zahlung führt, startet das Onboarding automatisch.
+              </li>
+            </ul>
+          )}
+
+          {!!result.hinweise?.length && (
+            <div className="space-y-2">
+              {result.hinweise.map((h) => (
+                <div key={h} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  {h}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
             Der Kunde steht jetzt in der Phase „Zahlungsabwicklung“ – alle Schritte nach gebuchten Leistungen sind angelegt.{' '}
             <a href={`/clients/${result.agency.id}`} className="font-semibold text-red-700 underline underline-offset-2">
@@ -214,10 +268,10 @@ export function AfterCloseForm() {
             </a>
           </div>
 
-          {result.invite_url && (
+          {result.vertrag_url && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm font-semibold text-blue-900 mb-1">Einladungslink</p>
-              <p className="text-sm text-blue-700 break-all font-mono">{result.invite_url}</p>
+              <p className="text-sm font-semibold text-blue-900 mb-1">Link zur Vertragsbestätigung</p>
+              <p className="text-sm text-blue-700 break-all font-mono">{result.vertrag_url}</p>
             </div>
           )}
 
@@ -234,6 +288,7 @@ export function AfterCloseForm() {
               onClick={() => {
                 setResult(null);
                 setForm(initialForm);
+                setAbschlussKey(crypto.randomUUID());
               }}
             >
               Weiteren Kunden anlegen
@@ -528,6 +583,50 @@ export function AfterCloseForm() {
                 placeholder="z.B. 30 Tage Geld-zurück, erster Monat 50% Rabatt..."
               />
             </div>
+          </div>
+        </Card>
+
+        {/* Section 5: Start */}
+        <Card padding="md">
+          <SectionTitle>Vertrag &amp; Start</SectionTitle>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Der Kunde bekommt einen Link, prüft die Eckdaten und bestätigt den Vertrag in der Cloud. Danach geht die
+              Bestätigung als PDF an ihn und an uns, und die Buchhaltung bekommt die Aufgabe, die erste Rechnung in Lexware zu stellen.
+            </p>
+            {position ? (
+              <div className="rounded-lg border border-gray-200">
+                <div className="flex items-start justify-between gap-4 p-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-gray-900">{position.bezeichnung}</p>
+                    <p className="text-xs text-gray-500">
+                      Erste Rechnung · {position.typ === 'setup' ? 'Einrichtungsgebühr' : 'keine Einrichtungsgebühr – erster Monat'} · stellt die Buchhaltung nach der Bestätigung
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{euro(position.betrag_brutto)}</p>
+                    <p className="text-xs text-gray-500">
+                      {euro(position.betrag_netto)} netto + {euro(position.ust_betrag)} USt.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Trag Setup-Betrag oder Retainer ein, dann siehst du hier die erste Rechnung.</p>
+            )}
+
+            <label className="flex items-start gap-2.5 text-sm text-gray-800">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-red-700"
+                checked={form.willkommensmail}
+                onChange={(e) => setForm((prev) => ({ ...prev, willkommensmail: e.target.checked }))}
+              />
+              <span>
+                <span className="font-semibold">Willkommens-Mail mit Vertragslink an den Kunden schicken</span>
+                <span className="block text-xs text-gray-500">Ohne Häkchen bekommst du den Link nach dem Anlegen zum Selbstverschicken.</span>
+              </span>
+            </label>
           </div>
         </Card>
 

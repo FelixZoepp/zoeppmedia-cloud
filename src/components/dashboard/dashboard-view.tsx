@@ -10,6 +10,7 @@ import { MasterclassProgress } from './masterclass-progress';
 import { KundenKennzahlen, type KundenKennzahlenDaten } from './kunden-kennzahlen';
 import { Wochenstand } from './wochenstand';
 import { Fahrplan } from './fahrplan';
+import { GarantieBalken } from '@/components/garantie/garantie-balken';
 import { Avatar, Badge, CountUp, SplitText, StatCard } from '@/components/ui';
 
 // recharts nur bei Bedarf laden, damit die Startseite des Kundenportals schlank bleibt
@@ -89,9 +90,11 @@ interface DashboardViewProps {
   pendingSurveys?: number;
   /** Termine, Einstellungen, Umsatz der Neuen und ROI auf einen Blick */
   kennzahlen?: KundenKennzahlenDaten | null;
+  /** Garantieziel-Fortschritt (null = kein Ziel hinterlegt) */
+  garantie?: { ampel: string; ist: number; ziel: number } | null;
 }
 
-export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null }: DashboardViewProps) {
+export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null, garantie = null }: DashboardViewProps) {
   const now = new Date();
   const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' });
   const kw = getISOWeek(now);
@@ -131,6 +134,13 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, 
         <SplitText as="h1" text="Dashboard" className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
         <p className="fx-fade mt-2 text-[15px] text-gray-600">Dein Recruiting bei {agencyName} – alles an einem ruhigen Ort.</p>
       </div>
+
+      {/* ── Garantieziel ─────────────────────────────────── */}
+      {garantie && (
+        <div className="rounded-[20px] bg-card p-5 shadow-[inset_0_0_0_1px_var(--hair)]">
+          <GarantieBalken ampel={garantie.ampel} ist={garantie.ist} ziel={garantie.ziel} />
+        </div>
+      )}
 
       {/* ── Fahrplan bis zum Kampagnenstart (nur vor dem Start) ── */}
       <Fahrplan />
