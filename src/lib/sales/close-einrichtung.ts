@@ -187,6 +187,11 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'slack_diagnose', wert: JSON.stringify(await slackDiagnose()), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    if (name.startsWith('smartview_loeschen:')) {
+      const { loescheSmartView } = await import('./close-smartviews');
+      await loescheSmartView(name.slice('smartview_loeschen:'.length));
+      continue;
+    }
     if (name === 'umfrage_vorlagen') {
       const { reicheSalesVorlageEin } = await import('./vorlagen');
       const erg: Record<string, unknown> = {};

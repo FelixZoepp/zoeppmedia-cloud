@@ -192,21 +192,36 @@ export async function passeSmartViewsAn(svc: SupabaseClient): Promise<Record<str
     alle.push(...page.data);
     if (!page.has_more) break;
   }
+  // Einmal angelegte Views über ihre ID wiederfinden – auch wenn sie in Close umbenannt wurden
+  const { data: gemerkt } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_smartview_ids').maybeSingle();
+  const ids: Record<string, string> = (gemerkt as { wert: string } | null)?.wert ? JSON.parse((gemerkt as { wert: string }).wert) : {};
   const ergebnis: Record<string, string> = {};
   for (const v of smartViews(feldId, kunden)) {
+    const bekannteId = v.id ?? ids[v.name];
     const ziel =
-      (v.id ? alle.find((a) => a.id === v.id) : undefined) ??
+      (bekannteId ? alle.find((a) => a.id === bekannteId) : undefined) ??
       alle.find((a) => a.name.trim() === v.name) ??
       alle.find((a) => UMBENENNEN[a.name.trim()] === v.name);
     if (ziel) {
-      await close(`/saved_search/${ziel.id}/`, { method: 'PUT', body: JSON.stringify({ name: v.name, s_query: v.s_query }) });
+      // Namen, die in Close geändert wurden, bleiben erhalten – nur der Filter wird aktualisiert
+      const body = bekannteId && ziel.name.trim() !== v.name ? { s_query: v.s_query } : { name: v.name, s_query: v.s_query };
+      await close(`/saved_search/${ziel.id}/`, { method: 'PUT', body: JSON.stringify(body) });
+      ids[v.name] = ziel.id;
       ergebnis[v.name] = `angepasst (${ziel.id})`;
     } else {
       const neu = await close<{ id: string }>(`/saved_search/`, { method: 'POST', body: JSON.stringify({ name: v.name, type: 'lead', s_query: v.s_query, is_shared: true }) });
+      ids[v.name] = neu.id;
       ergebnis[v.name] = `neu (${neu.id})`;
     }
   }
+  await svc.from('system_einstellungen').upsert({ key: 'close_smartview_ids', wert: JSON.stringify(ids), updated_at: new Date().toISOString() }, { onConflict: 'key' });
   return ergebnis;
+}
+
+/** Einzelne Smart View löschen (z. B. Duplikat) */
+export async function loescheSmartView(id: string): Promise<void> {
+  if (!/^save_[A-Za-z0-9]+$/.test(id)) throw new Error(`Ungültige Smart-View-ID ${id}`);
+  await close(`/saved_search/${id}/`, { method: 'DELETE' });
 }
 
 /** Controlling-Views löschen (ersetzt durch Tagesbericht/Abendbericht der Cloud; Kunden stehen in „💎 Kunden“). */
