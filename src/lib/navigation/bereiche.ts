@@ -64,6 +64,7 @@ export const ADMIN_BEREICHE: Bereich[] = [
       { label: 'Übersicht & Freigaben', href: '/admin/buchhaltung' },
       { label: 'Rechnungen & Mahnwesen', href: '/buchhaltung' },
       { label: 'Kunden & MRR', href: '/admin/finanzen/kunden' },
+      { label: 'Umsatz-Analyse', href: '/admin/umsatz' },
     ],
   },
   {
