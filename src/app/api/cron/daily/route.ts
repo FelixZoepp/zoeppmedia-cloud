@@ -337,11 +337,7 @@ async function runDailyJobs() {
     console.error('[cron/daily] Mahnwesen-Abgleich fehlgeschlagen:', err);
   }
 
-  // 15. Slack Daily Reports (Marketing + Sales)
-  try {
-    const { sendDailySlackReports } = await import('@/lib/slack/daily-reports');
-    await sendDailySlackReports(supabase);
-  } catch { /* silent */ }
+  // 15. Slack-Berichte Marketing + Sales: siehe Abendbericht (20 Uhr, src/lib/berichte/abendbericht.ts) im Minuten-Tick
 
   // 16. Eingangs-Monitoring: Feed-Abrufe ohne Bewerbungen + Fehlerquote (Phase 5 Task 8)
   let ingestFeedAlerts = 0;

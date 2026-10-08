@@ -159,6 +159,14 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. scheduled_jobs abarbeiten
+  // Abendbericht (20 Uhr Berlin, einmal pro Tag) einplanen – läuft dann als normaler Job
+  try {
+    const { planeAbendbericht } = await import('@/lib/berichte/abendbericht');
+    await planeAbendbericht(svc);
+  } catch (err) {
+    console.error('[tick] Abendbericht nicht geplant:', err);
+  }
+
   const { data: jobs } = await svc.rpc('claim_due_jobs', { batch_size: 100 });
 
   for (const job of jobs || []) {
@@ -249,6 +257,11 @@ export async function GET(request: NextRequest) {
         case 'sales.eintragung_check': {
           const { pruefeEintragung } = await import('@/lib/sales/eintragungen');
           await pruefeEintragung(svc, payload as unknown as { lead_id: string }, todayBerlin());
+          break;
+        }
+        case 'berichte.abend': {
+          const { sendeAbendbericht } = await import('@/lib/berichte/abendbericht');
+          await sendeAbendbericht(svc, (payload as { tag: string }).tag);
           break;
         }
         case 'sales.close_buchung': {

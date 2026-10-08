@@ -9,7 +9,7 @@ const LEADQUELLE_FIELD = 'custom.cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8'
 const UTM_SOURCE_FIELD = 'custom.cf_HDeEGCeYwUNaYFw1HEYlndsGXBJ8fqcssd1shBPy8xJ';
 const META_BASE = 'https://graph.facebook.com/v21.0';
 // Kampagnen anderer Produkte ausblenden (wie im Marketing-Report)
-const META_FILTER = JSON.stringify([{ field: 'campaign.name', operator: 'NOT_CONTAIN', value: 'KI Outreach Vorlage' }]);
+export const META_FILTER = JSON.stringify([{ field: 'campaign.name', operator: 'NOT_CONTAIN', value: 'KI Outreach Vorlage' }]);
 
 function closeHeaders(): HeadersInit {
   const key = process.env.CLOSE_API_KEY ?? '';
