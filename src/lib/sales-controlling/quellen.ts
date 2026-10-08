@@ -177,3 +177,23 @@ export async function ladeMetaMonate(von: string, bis: string): Promise<Map<stri
   const rows = await metaInsights({ time_range: JSON.stringify({ since: von, until: bis }), time_increment: 'monthly' });
   return new Map(rows.map((r) => [String(r.date_start).slice(0, 7), { spend: Number(r.spend ?? 0), leads: metaLeads(r) }]));
 }
+
+/** Gesprächsprotokolle (Close Custom Activities) ab Datum – alle vier Protokoll-Typen */
+export async function ladeProtokolle(ab: string, typen: string[]): Promise<Array<{ typ: string; lead_id: string | null; user_id: string | null; date: string; felder: Record<string, string | null> }>> {
+  const listen = await Promise.all(
+    typen.map((typ) =>
+      closeAll<Record<string, unknown> & { lead_id?: string | null; user_id?: string | null; activity_at?: string | null; date_created: string }>(
+        `/activity/custom/?custom_activity_type_id=${typ}&date_created__gte=${encodeURIComponent(ab)}`,
+        10000,
+      ).then((rows) => rows.map((r) => ({ typ, r }))),
+    ),
+  );
+  return listen.flat().map(({ typ, r }) => {
+    const felder: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(r)) {
+      if (!k.startsWith('custom.')) continue;
+      felder[k.slice(7)] = typeof v === 'string' ? v : v == null ? null : Array.isArray(v) ? v.join(', ') : String(v);
+    }
+    return { typ, lead_id: r.lead_id ?? null, user_id: r.user_id ?? null, date: r.activity_at ?? r.date_created, felder };
+  });
+}

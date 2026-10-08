@@ -10,6 +10,7 @@ import type { SalesDetails } from '@/lib/sales-controlling/detail';
 import { WhatsAppBereich } from './whatsapp-bereich';
 import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche';
 import { AuslastungBereich } from './auslastung-bereich';
+import { TagesberichtBereich } from './tagesbericht-bereich';
 import type { Auslastung } from '@/lib/sales-controlling/auslastung';
 
 type Daten = SalesControlling & { metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
@@ -178,6 +179,7 @@ export function VertriebClient() {
           <SegmentedControl
             items={[
               { value: 'gesamt', label: 'Gesamt' },
+              { value: 'tagesbericht', label: 'Tagesbericht' },
               { value: 'marketing', label: 'Marketing' },
               { value: 'sales', label: 'Sales & Shows' },
               { value: 'team', label: 'Team & Auslastung' },
@@ -256,6 +258,8 @@ export function VertriebClient() {
           {ansicht === 'followups' && <FollowupBereich f={d.details.followups} verbunden={d.aufgabenVerbunden} />}
 
           {ansicht === 'gespraeche' && <GespraecheBereich />}
+
+          {ansicht === 'tagesbericht' && <TagesberichtBereich />}
 
           <p className="px-1 text-[12px] text-gray-500">
             Quellen: Close (Pipeline „D2D Sales“, Statuswechsel) und Meta Ads{d.metaVerbunden ? '' : ' (nicht verbunden)'}. Auftragsvolumen = Wert gewonnener Deals, gezählt am Abschlussdatum
