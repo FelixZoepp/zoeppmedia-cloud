@@ -86,7 +86,7 @@ interface CloseFeld {
 }
 
 /** Felder eines Protokoll-Typs einrichten. Gibt key → Feld-ID zurück. */
-export async function richteProtokollFelderEin(typId: string, soll: FeldSoll[]): Promise<{ ids: Record<string, string>; angelegt: string[]; angepasst: string[] }> {
+export async function richteProtokollFelderEin(typId: string, soll: FeldSoll[]): Promise<{ ids: Record<string, string>; angelegt: string[]; angepasst: string[]; sortiert: boolean }> {
   const alle = await close<{ data: CloseFeld[] }>(`/custom_field/activity/?_limit=500`);
   const vorhanden = alle.data.filter((f) => f.custom_activity_type_id === typId);
   const ids: Record<string, string> = {};
@@ -116,7 +116,17 @@ export async function richteProtokollFelderEin(typId: string, soll: FeldSoll[]):
     ids[f.key] = neu.id;
     angelegt.push(f.name);
   }
-  return { ids, angelegt, angepasst };
+  // Reihenfolge wie im Skript: Soll-Felder zuerst, übrige (alte) Felder dahinter
+  const übrige = vorhanden.map((v) => v.id).filter((id) => !Object.values(ids).includes(id));
+  const reihenfolge = [...soll.map((f) => ids[f.key]), ...übrige];
+  let sortiert = false;
+  try {
+    await close(`/custom_activity/${typId}/`, { method: 'PUT', body: JSON.stringify({ field_order: reihenfolge }) });
+    sortiert = true;
+  } catch (err) {
+    console.error('[close-einrichtung] Reihenfolge nicht gesetzt:', err);
+  }
+  return { ids, angelegt, angepasst, sortiert };
 }
 
 /** Job close.einrichtung */
