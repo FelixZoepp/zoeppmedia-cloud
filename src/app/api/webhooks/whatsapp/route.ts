@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
 
   // Events synchron einreihen, danach 200 zurückgeben (kein Business-Processing hier)
   // Wir parsen und schreiben in die Queue, aber kehren in <2s zurück.
+  let failed = false;
   try {
     const body = JSON.parse(rawBody);
     const supabase = createAdminClient();
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
             .eq('phone_number_id', phoneNumberId)
             .maybeSingle();
           if (lookupError) {
-            console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', lookupError.message);
+            console.warn('WhatsApp-Webhook: Konto-Lookup fehlgeschlagen', lookupError.message);
+            failed = true;
           }
           agencyId = waAccount?.agency_id || null;
         }
@@ -82,8 +84,9 @@ export async function POST(request: NextRequest) {
             payload: { type: 'whatsapp.inbound', phone_number_id: phoneNumberId, message: msg, contacts: value.contacts },
             status: 'pending',
           });
-          if (error) {
+          if (error && error.code !== '23505') {
             console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', error.message);
+            failed = true;
           }
         }
 
@@ -97,8 +100,9 @@ export async function POST(request: NextRequest) {
             payload: { type: 'whatsapp.status', phone_number_id: phoneNumberId, status },
             status: 'pending',
           });
-          if (error) {
+          if (error && error.code !== '23505') {
             console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', error.message);
+            failed = true;
           }
         }
       }
@@ -115,14 +119,21 @@ export async function POST(request: NextRequest) {
           payload: { type: 'whatsapp.template_status', ...tc.value },
           status: 'pending',
         });
-        if (error) {
+        if (error && error.code !== '23505') {
           console.warn('WhatsApp-Webhook: Insert fehlgeschlagen', error.message);
+          failed = true;
         }
       }
     }
   } catch (err) {
     console.error('WhatsApp-Webhook: Verarbeitung fehlgeschlagen', err);
+    failed = true;
   }
 
+  // Bei Speicherfehlern 500 → Meta stellt erneut zu. Doppelte Zustellungen fängt
+  // uq_events_inbox_source_ext ab (23505 oben = schon gespeichert).
+  if (failed) {
+    return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
+  }
   return NextResponse.json({ success: true });
 }

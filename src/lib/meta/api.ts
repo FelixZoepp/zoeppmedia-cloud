@@ -7,6 +7,11 @@ function getAccessToken(): string {
   return token;
 }
 
+/** Werbekonto-ID ohne „act_“-Präfix – Nutzer tragen sie oft mit Präfix ein */
+export function normalizeAdAccountId(id: string): string {
+  return id.trim().replace(/^act_/i, '');
+}
+
 async function metaFetch(
   path: string,
   options?: RequestInit & { params?: Record<string, string> }
@@ -43,7 +48,7 @@ export interface AdCreativeInput {
 }
 
 export async function uploadImage(adAccountId: string, imageUrl: string): Promise<string> {
-  const data = await metaFetch(`/act_${adAccountId}/adimages`, {
+  const data = await metaFetch(`/act_${normalizeAdAccountId(adAccountId)}/adimages`, {
     method: 'POST',
     body: JSON.stringify({ url: imageUrl }),
   });
@@ -69,7 +74,7 @@ export async function createAdCreative(
     },
   };
 
-  const data = await metaFetch(`/act_${adAccountId}/adcreatives`, {
+  const data = await metaFetch(`/act_${normalizeAdAccountId(adAccountId)}/adcreatives`, {
     method: 'POST',
     body: JSON.stringify({
       name: input.name,
@@ -85,7 +90,7 @@ export async function createAd(
   creativeId: string,
   name: string
 ): Promise<string> {
-  const data = await metaFetch(`/act_${adAccountId}/ads`, {
+  const data = await metaFetch(`/act_${normalizeAdAccountId(adAccountId)}/ads`, {
     method: 'POST',
     body: JSON.stringify({
       name,
@@ -119,16 +124,28 @@ export async function fetchInsights(
   since: string,
   until: string
 ): Promise<InsightRow[]> {
-  const data = await metaFetch(`/act_${adAccountId}/insights`, {
+  const first = await metaFetch(`/act_${normalizeAdAccountId(adAccountId)}/insights`, {
     params: {
       fields: 'spend,impressions,clicks,actions',
       time_range: JSON.stringify({ since, until }),
       time_increment: '1',
       level: 'account',
+      limit: '500',
     },
   });
 
-  return ((data.data as Record<string, unknown>[]) || []).map((row) => {
+  // Meta liefert seitenweise – allen paging.next-Links folgen
+  const rows: Record<string, unknown>[] = [...((first.data as Record<string, unknown>[]) || [])];
+  let next: string | undefined = first.paging?.next;
+  for (let page = 0; next && page < 50; page++) {
+    const res = await fetch(next);
+    const data = await res.json();
+    if (data.error) throw new Error(`Meta API: ${data.error.message}`);
+    rows.push(...((data.data as Record<string, unknown>[]) || []));
+    next = data.paging?.next;
+  }
+
+  return rows.map((row) => {
     const actions = (row.actions as { action_type: string; value: string }[]) || [];
     const leadAction = actions.find((a) => a.action_type === 'lead');
     const leads = leadAction ? parseInt(leadAction.value, 10) : 0;

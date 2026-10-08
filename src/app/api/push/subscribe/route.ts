@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { istErlaubterPushEndpoint } from '@/lib/security/ssrf';
 
 /** Speichert eine Web-Push-Subscription für den eingeloggten User. */
 export async function POST(request: NextRequest) {
@@ -14,6 +15,10 @@ export async function POST(request: NextRequest) {
 
   if (!endpoint || !p256dh || !auth) {
     return NextResponse.json({ error: 'Ungültige Subscription' }, { status: 400 });
+  }
+  // Nur bekannte Push-Dienste – sonst schickt der Server Benachrichtigungen an beliebige (interne) URLs
+  if (!istErlaubterPushEndpoint(endpoint)) {
+    return NextResponse.json({ error: 'Unbekannter Push-Dienst' }, { status: 400 });
   }
 
   const admin = createAdminClient();

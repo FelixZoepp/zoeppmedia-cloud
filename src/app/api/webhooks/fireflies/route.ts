@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { verarbeiteGespraech } from '@/lib/gespraeche/analyse';
 import { signaturOk } from '@/lib/gespraeche/signatur';
 import { leadAusRef } from '@/lib/gespraeche/close-anrufe';
+import { secretFehlt } from '@/lib/security/webhook-secret';
 
 // Transkript laden + KI-Analyse + Close-Notiz laufen nach der Antwort weiter
 export const maxDuration = 300;
@@ -14,7 +15,8 @@ export const maxDuration = 300;
 export async function POST(req: NextRequest) {
   const roh = await req.text();
   const secret = process.env.FIREFLIES_WEBHOOK_SECRET;
-  if (secret && !signaturOk(roh, req.headers.get('x-hub-signature'), secret)) {
+  if (!secret) return secretFehlt('FIREFLIES_WEBHOOK_SECRET');
+  if (!signaturOk(roh, req.headers.get('x-hub-signature'), secret)) {
     return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 401 });
   }
   let body: Record<string, unknown> = {};

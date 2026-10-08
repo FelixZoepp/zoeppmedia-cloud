@@ -32,6 +32,21 @@ async function getEffectiveKpis(supabase: SupabaseClient, agencyId: string): Pro
   return result;
 }
 
+/** Alle Zeilen seitenweise laden (PostgREST liefert höchstens 1000 je Abfrage). */
+async function alleSeiten<T>(
+  abfrage: (von: number, bis: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+  const seite = 1000;
+  const alle: T[] = [];
+  for (let von = 0; von < 50_000; von += seite) {
+    const { data, error } = await abfrage(von, von + seite - 1);
+    if (error) throw new Error(error.message);
+    alle.push(...((data ?? []) as T[]));
+    if (!data || data.length < seite) break;
+  }
+  return alle;
+}
+
 const sevenDaysAgo = () => new Date(Date.now() - 7 * 86400000).toISOString();
 const twoDaysAgo = () => new Date(Date.now() - 2 * 86400000).toISOString();
 const threeDaysAgo = () => new Date(Date.now() - 3 * 86400000).toISOString();
@@ -124,13 +139,41 @@ const problemChecks: ProblemCheck[] = [
     kpiKey: 'max_phase_days',
     severity: 'warning',
     check: async (supabase, agencyId, target) => {
+      // candidate_stages ist ein Verlauf: entscheidend ist nur die letzte Phase je Kandidat.
+      // Hängend = aktiver Kandidat (nicht gelöscht, nicht in Endphase), der seit target Tagen nicht bewegt wurde.
+      if (target <= 0) return { triggered: false, currentValue: 0 };
       const cutoff = new Date(Date.now() - target * 86400000).toISOString();
-      const { data: stalled } = await supabase
-        .from('candidate_stages')
-        .select('candidate_id, changed_at, candidates!inner(agency_id)')
-        .eq('candidates.agency_id', agencyId)
-        .lt('changed_at', cutoff);
-      const stalledCount = new Set((stalled || []).map((s) => s.candidate_id)).size;
+
+      const { data: endStages } = await supabase
+        .from('pipeline_stages')
+        .select('id')
+        .in('stage_type', ['hired', 'rejected']);
+      const endStageIds = new Set(((endStages ?? []) as Array<{ id: string }>).map((s) => s.id));
+
+      const aktive = await alleSeiten<{ id: string; current_stage_id: string }>((von, bis) =>
+        supabase
+          .from('candidates')
+          .select('id, current_stage_id')
+          .eq('agency_id', agencyId)
+          .is('deleted_at', null)
+          .lt('created_at', cutoff)
+          .order('id')
+          .range(von, bis)
+      );
+      const kandidaten = aktive.filter((c) => !endStageIds.has(c.current_stage_id));
+      if (kandidaten.length === 0) return { triggered: false, currentValue: 0 };
+
+      const bewegt = await alleSeiten<{ candidate_id: string }>((von, bis) =>
+        supabase
+          .from('candidate_stages')
+          .select('candidate_id, candidates!inner(agency_id)')
+          .eq('candidates.agency_id', agencyId)
+          .gte('changed_at', cutoff)
+          .order('id')
+          .range(von, bis)
+      );
+      const kuerzlichBewegt = new Set(bewegt.map((s) => s.candidate_id));
+      const stalledCount = kandidaten.filter((c) => !kuerzlichBewegt.has(c.id)).length;
       return { triggered: stalledCount > 0, currentValue: stalledCount };
     },
   },
@@ -214,11 +257,22 @@ export async function detectProblemsForAgency(
   let detected = 0;
   let resolved = 0;
 
-  for (const check of problemChecks) {
-    const kpi = kpis.get(check.kpiKey);
-    const target = kpi?.value ?? 0;
-    const result = await check.check(supabase, agencyId, target);
+  // Checks sind unabhängig voneinander – parallel ausführen, danach der Reihe nach verbuchen
+  const ergebnisse = await Promise.all(
+    problemChecks.map(async (check) => {
+      const target = kpis.get(check.kpiKey)?.value ?? 0;
+      try {
+        return { check, target, result: await check.check(supabase, agencyId, target) };
+      } catch (err) {
+        console.error(`[problems] Check ${check.key} fehlgeschlagen:`, err);
+        return null;
+      }
+    })
+  );
 
+  for (const eintrag of ergebnisse) {
+    if (!eintrag) continue;
+    const { check, target, result } = eintrag;
     const { data: existing } = await supabase
       .from('agency_problems')
       .select('id')

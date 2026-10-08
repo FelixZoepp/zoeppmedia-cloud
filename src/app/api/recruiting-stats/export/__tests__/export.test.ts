@@ -44,7 +44,7 @@ function buildMinimalMockClient() {
     select: () => ({
       eq: () => ({
         gte: () => ({ lte: () => ({ then: (r: (v: unknown) => unknown) => Promise.resolve({ data, error: null }).then(r) }) }),
-        in:  () => Promise.resolve({ data, error: null }),
+        in:  () => ({ order: () => ({ range: () => Promise.resolve({ data, error: null }) }) }),
         then: (r: (v: unknown) => unknown) => Promise.resolve({ data, error: null }).then(r),
       }),
       in: () => Promise.resolve({ data, error: null }),
@@ -84,6 +84,8 @@ function buildMinimalMockClient() {
         inner['gte'] = () => inner;
         inner['lte'] = () => inner;
         inner['eq']  = () => inner;
+        inner['order'] = () => inner;
+        inner['range'] = () => inner;
         inner['then'] = (r: (v: unknown) => unknown) =>
           Promise.resolve({ data: rows, error: null }).then(r);
         return { select: () => ({ eq: () => inner }) };

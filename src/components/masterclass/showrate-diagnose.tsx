@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ShieldAlert, Sparkles, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface DiagnosticCard {

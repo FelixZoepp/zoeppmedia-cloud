@@ -61,8 +61,10 @@ export async function GET(
     // Generate signed URLs for each document
     docs = await Promise.all(
       (data ?? []).map(async (doc) => {
+        // Indeed-Apply legt Lebensläufe in recruiting-documents ab (Pfad <agency>/resumes/indeed-…)
+        const bucket = doc.storage_path.includes('/resumes/indeed-') ? 'recruiting-documents' : 'candidate-resumes';
         const { data: signed } = await supabase.storage
-          .from('candidate-resumes')
+          .from(bucket)
           .createSignedUrl(doc.storage_path, 3600);
         return { ...doc, signed_url: signed?.signedUrl ?? null };
       })

@@ -16,6 +16,7 @@ import { createNotificationForAgency } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { handoverToHuman } from '@/lib/bot/handover';
 import type { BotConfig, BotQuestion, BotMeta } from '@/lib/types/database';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 // ---------------------------------------------------------------------------
 // Öffentliche API
@@ -52,10 +53,11 @@ export async function processBotTurn(
     .select('id, direction, body, created_at')
     .eq('conversation_id', conversationId)
     .eq('agency_id', agencyId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(30);
 
-  const msgList = (messages ?? []) as Array<{ id: string; direction: 'in' | 'out'; body: string; created_at: string }>;
+  // Absteigend geladen (sonst wären es die ältesten 30), für den Verlauf wieder chronologisch
+  const msgList = ((messages ?? []) as Array<{ id: string; direction: 'in' | 'out'; body: string; created_at: string }>).reverse();
 
   // Neue Inbound = alle 'in'-Nachrichten nach der letzten 'out'-Nachricht
   let lastOutIdx = -1;
@@ -601,14 +603,14 @@ export async function processBotTurn(
         }
 
         // invite_followup +24h
-        await svc.from('scheduled_jobs').upsert({
+        await insertDeduped(svc, 'scheduled_jobs', {
           agency_id: agencyId,
           run_at: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
           type: 'appointment.invite_followup',
           payload: { appointment_id: appointmentId },
           status: 'pending',
           dedupe_key: `appt.invite_followup:${appointmentId}`,
-        }, { onConflict: 'dedupe_key', ignoreDuplicates: true });
+        });
       } catch (e) {
         // Termineinladung ist best effort — Bot-Abschluss bleibt intakt
         console.error('Termineinladung fehlgeschlagen', e);

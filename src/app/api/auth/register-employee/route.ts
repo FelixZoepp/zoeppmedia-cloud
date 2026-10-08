@@ -4,9 +4,9 @@ import { sendWelcomeEmail } from '@/lib/email/resend';
 import { reassignOpenStepsToFunktion } from '@/lib/fulfillment/engine';
 
 export async function POST(request: NextRequest) {
-  const { token, name, email, password, position, phone } = await request.json();
+  const { token, name, email: emailEingabe, password, position, phone } = await request.json();
 
-  if (!token || !name || !email || !password) {
+  if (!token || !name || !emailEingabe || !password) {
     return NextResponse.json({ error: 'Alle Pflichtfelder sind erforderlich.' }, { status: 400 });
   }
 
@@ -35,6 +35,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Dieser Einladungslink ist abgelaufen.' }, { status: 400 });
   }
 
+  // Registriert wird nur die eingeladene Adresse (weitergeleitete Links reichen nicht für ein fremdes Konto)
+  const email = String(invite.email).trim().toLowerCase();
+  if (String(emailEingabe).trim().toLowerCase() !== email) {
+    return NextResponse.json({ error: 'Bitte die E-Mail-Adresse verwenden, an die die Einladung ging.' }, { status: 400 });
+  }
+
+  // Einladung atomar einlösen: nur eine von mehreren parallelen Anfragen bekommt die Zeile
+  const { data: eingeloest } = await supabase
+    .from('employee_invites')
+    .update({ redeemed: true })
+    .eq('id', invite.id)
+    .or('redeemed.is.null,redeemed.eq.false')
+    .select('id');
+  if (!eingeloest?.length) {
+    return NextResponse.json({ error: 'Dieser Einladungslink wurde bereits verwendet.' }, { status: 400 });
+  }
+  const freigeben = () => supabase.from('employee_invites').update({ redeemed: false }).eq('id', invite.id);
+
   // Create Supabase Auth user
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email,
@@ -43,6 +61,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (authError) {
+    await freigeben();
     return NextResponse.json({ error: 'Registrierung fehlgeschlagen: ' + authError.message }, { status: 400 });
   }
 
@@ -60,6 +79,7 @@ export async function POST(request: NextRequest) {
 
   if (userError) {
     await supabase.auth.admin.deleteUser(authData.user.id);
+    await freigeben();
     return NextResponse.json({ error: 'Benutzer konnte nicht erstellt werden.' }, { status: 500 });
   }
 
@@ -77,11 +97,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Mark invite as redeemed
-  await supabase
-    .from('employee_invites')
-    .update({ redeemed: true })
-    .eq('id', invite.id);
 
   const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`;
   try {

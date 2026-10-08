@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { MIN_DAUER_MINUTEN, MAX_DAUER_MINUTEN } from '@/lib/appointments/freie-slots';
 
 export async function GET(
   _request: Request,
@@ -57,6 +58,20 @@ export async function PUT(
   const svc = createAdminClient();
 
   // Regeln ersetzen (Delete + Insert)
+  // Dauer 0 würde die Slot-Berechnung endlos laufen lassen – vor jedem Schreibvorgang prüfen
+  if (body.appointment_duration_minutes !== undefined) {
+    const dauer = Number(body.appointment_duration_minutes);
+    if (!Number.isInteger(dauer) || dauer < MIN_DAUER_MINUTEN || dauer > MAX_DAUER_MINUTEN) {
+      return NextResponse.json({ error: `Termindauer muss zwischen ${MIN_DAUER_MINUTEN} und ${MAX_DAUER_MINUTEN} Minuten liegen` }, { status: 400 });
+    }
+  }
+  if (body.appointment_buffer_minutes !== undefined) {
+    const puffer = Number(body.appointment_buffer_minutes);
+    if (!Number.isInteger(puffer) || puffer < 0 || puffer > 240) {
+      return NextResponse.json({ error: 'Puffer muss zwischen 0 und 240 Minuten liegen' }, { status: 400 });
+    }
+  }
+
   const rules = body.rules as Array<{ weekday: number; start_time: string; end_time: string }> | undefined;
   if (rules !== undefined) {
     // Validierung
@@ -94,8 +109,8 @@ export async function PUT(
   const jobUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.appointment_type !== undefined) jobUpdate.appointment_type = body.appointment_type;
   if (body.appointment_location !== undefined) jobUpdate.appointment_location = body.appointment_location;
-  if (body.appointment_duration_minutes !== undefined) jobUpdate.appointment_duration_minutes = body.appointment_duration_minutes;
-  if (body.appointment_buffer_minutes !== undefined) jobUpdate.appointment_buffer_minutes = body.appointment_buffer_minutes;
+  if (body.appointment_duration_minutes !== undefined) jobUpdate.appointment_duration_minutes = Number(body.appointment_duration_minutes);
+  if (body.appointment_buffer_minutes !== undefined) jobUpdate.appointment_buffer_minutes = Number(body.appointment_buffer_minutes);
 
   await svc
     .from('jobs')

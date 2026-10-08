@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { bereinigeOnboardingBody, darfOnboardingSchreiben } from '@/lib/onboarding/body';
 
 // Save onboarding draft — upserts without setting onboarding_completed
 export async function POST(req: Request) {
@@ -9,13 +10,14 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('agency_id')
+    .select('agency_id, role')
     .eq('id', user.id)
     .single();
 
   if (!profile?.agency_id) return NextResponse.json({ error: 'No agency' }, { status: 400 });
+  if (!darfOnboardingSchreiben(profile.role)) return NextResponse.json({ error: 'Nicht berechtigt' }, { status: 403 });
 
-  const body = await req.json();
+  const body = bereinigeOnboardingBody(await req.json());
 
   // Check if draft already exists
   const { data: existing } = await supabase
@@ -31,14 +33,15 @@ export async function POST(req: Request) {
     const { error } = await supabase
       .from('onboarding_submissions')
       .update({ ...body, status: 'in_progress', updated_at: new Date().toISOString() })
-      .eq('id', existing.id);
+      .eq('id', existing.id)
+      .eq('agency_id', profile.agency_id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   } else {
     // Create new draft
     const { error } = await supabase
       .from('onboarding_submissions')
-      .insert({ agency_id: profile.agency_id, status: 'in_progress', ...body });
+      .insert({ ...body, agency_id: profile.agency_id, status: 'in_progress' });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }

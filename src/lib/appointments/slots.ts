@@ -32,6 +32,8 @@ export function computeSlots(input: SlotInput): Slot[] {
 
   // Leere Regeln → keine Slots möglich
   if (rules.length === 0) return [];
+  // Dauer 0 oder ungültig würde den Cursor nie weiterschieben (Endlosschleife)
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return [];
 
   const slots: Slot[] = [];
   const now = new Date();

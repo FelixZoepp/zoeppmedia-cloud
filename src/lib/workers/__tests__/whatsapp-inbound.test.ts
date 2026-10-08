@@ -87,7 +87,15 @@ function makeSvc(overrides: Record<string, unknown> = {}) {
       insertChain[m] = vi.fn(() => insertChain);
     }
     (insertChain.single as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
-    (chain.insert as ReturnType<typeof vi.fn>).mockReturnValue(insertChain);
+    (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((...args: unknown[]) => {
+      // scheduled_jobs werden per insertDeduped einzeln eingefügt — mitschreiben wie upserts
+      upsertCalls.push({
+        table,
+        row: args[0] as Record<string, unknown>,
+        options: args[1] as Record<string, unknown> | undefined,
+      });
+      return insertChain;
+    });
 
     return chain;
   });
@@ -286,7 +294,8 @@ describe('processInbound', () => {
     expect(winexp).toBeDefined();
     expect(String(winexp!.row.dedupe_key)).toMatch(/^winexp:conv-1:/);
     expect(winexp!.row.agency_id).toBe('agency-1');
-    expect(winexp!.options).toEqual({ onConflict: 'dedupe_key', ignoreDuplicates: true });
+    // Einzel-Insert, Duplikate laufen als 23505 auf (partieller Dedupe-Index)
+    expect(winexp!.options).toBeUndefined();
   });
 
   it('Abmeldebestätigung enthält echte Umlaute', async () => {

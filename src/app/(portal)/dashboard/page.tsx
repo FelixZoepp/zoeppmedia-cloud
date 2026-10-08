@@ -15,20 +15,19 @@ export default async function DashboardPage() {
   const agencyId = await getEffectiveAgencyId();
   if (!agencyId) redirect(isInternal(user.role) ? '/innendienst' : '/login');
 
-  const [data, supabase, roi] = await Promise.all([
+  const supabase = await createServerClient();
+  const [data, roi, { count: pendingSurveys }] = await Promise.all([
     getDashboardData(agencyId),
-    createServerClient(),
     ladeRoiUebersicht(createAdminClient(), agencyId).catch((err) => {
       console.error('[dashboard] Kennzahlen', err);
       return null;
     }),
+    supabase
+      .from('survey_schedule')
+      .select('*', { count: 'exact', head: true })
+      .eq('agency_id', agencyId)
+      .is('completed_at', null),
   ]);
-
-  const { count: pendingSurveys } = await supabase
-    .from('survey_schedule')
-    .select('*', { count: 'exact', head: true })
-    .eq('agency_id', agencyId)
-    .is('completed_at', null);
 
   return (
     <DashboardView

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
+import { canWriteRole } from '@/lib/recruiting/scope';
 
 /**
  * POST /api/tasks/complete
@@ -36,9 +37,13 @@ const SOURCE_UPDATES: Record<
   callback: { table: 'call_logs', update: () => ({ next_contact_date: null }) },
 };
 
+/** Aufgabenquellen, die Kunden-Nutzer selbst erledigen dürfen */
+const KUNDEN_QUELLEN = new Set(['client', 'customer', 'callback']);
+
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
 
   const body = await request.json();
   const { task_id, task_source } = body as { task_id?: string; task_source?: string };
@@ -48,6 +53,11 @@ export async function POST(request: NextRequest) {
       { error: 'task_id (UUID) und gültige task_source sind erforderlich' },
       { status: 400 }
     );
+  }
+
+  // Kunden dürfen nur ihre eigenen Aufgaben abhaken, keine internen (Team-/SLA-Aufgaben)
+  if (!isInternal(user.role) && !KUNDEN_QUELLEN.has(task_source)) {
+    return NextResponse.json({ error: 'Nicht berechtigt' }, { status: 403 });
   }
 
   const { table, update } = SOURCE_UPDATES[task_source];

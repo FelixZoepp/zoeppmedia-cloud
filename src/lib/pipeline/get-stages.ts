@@ -6,6 +6,12 @@ export interface PipelineStage {
   sort_order: number;
   color: string;
   agency_id: string | null;
+  stage_type?: string | null;
+}
+
+/** Phase „Eingestellt“: über stage_type, bei Altdaten ohne Typ über den Namen */
+export function istEingestelltStage(s: { name: string; stage_type?: string | null }): boolean {
+  return s.stage_type === 'hired' || /^eingestellt/i.test(s.name);
 }
 
 /**

@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
 import type { ProjectTask, ProjectTaskStatus, TaskCheckitem } from '@/lib/types/database';
@@ -187,7 +186,7 @@ interface AufgabenClientProps {
   userId: string;
 }
 
-export function AufgabenClient({ userRole, userId }: AufgabenClientProps) {
+export function AufgabenClient({ userRole }: AufgabenClientProps) {
   const [tasks, setTasks] = useState<ProjectTaskWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('alle');

@@ -1,4 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { mitFrischenAufnahmeLinks } from '@/lib/recordings/pfad';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -89,7 +91,8 @@ export async function GET(
     notes: notes || [],
     stages: stages || [],
     callLogs: callLogs || [],
-    recordings: recordings || [],
+    // Zeilen sind per RLS gefiltert; Links werden frisch signiert (gespeichert ist nur der Pfad)
+    recordings: await mitFrischenAufnahmeLinks(createAdminClient(), recordings || []),
     calendlyEvents: calendlyEvents || [],
     timeline: timeline || [],
     currentStage,

@@ -30,7 +30,7 @@ export async function sendPreDebitNotification(
       year: 'numeric',
     }).format(new Date(params.einzugsdatum));
 
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: FROM,
       to: params.agency_email,
       subject: `Vorabankündigung: Einzug am ${datumFormatiert} — ${params.invoice_number}`,
@@ -76,6 +76,12 @@ export async function sendPreDebitNotification(
       `,
     });
 
+    // Resend wirft nicht, sondern liefert { error } – ohne Zustellung nicht als benachrichtigt markieren
+    if (sendError) {
+      console.error('[billing] Vorabankündigung nicht versendet:', params.billing_run_id, sendError);
+      return false;
+    }
+
     // Mark as notified
     await supabase
       .from('billing_runs')
@@ -115,13 +121,15 @@ export async function checkPreDebitNotifications(supabase: SupabaseClient): Prom
     // Check if this run's period matches tomorrow's month
     // and if the faelligkeitstag is tomorrow
     const tomorrowDay = tomorrow.getDate();
+    // Fälligkeitstag 29–31 fällt in kürzeren Monaten auf den Monatsletzten
+    const letzterTag = new Date(tomorrow.getFullYear(), tomorrow.getMonth() + 1, 0).getDate();
     const { data: plan } = await supabase
       .from('billing_plans')
       .select('faelligkeitstag')
       .eq('id', run.plan_id)
       .single();
 
-    if (plan && plan.faelligkeitstag === tomorrowDay) {
+    if (plan && Math.min(Number(plan.faelligkeitstag), letzterTag) === tomorrowDay) {
       const success = await sendPreDebitNotification(supabase, {
         agency_email: agency.email,
         agency_contact_name: agency.contact_name || agency.name,

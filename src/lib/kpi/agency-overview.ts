@@ -7,6 +7,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { shouldAlertErrorRate } from '@/lib/monitoring/ingest-monitor';
+import { fetchAll, fetchAllIn, mapLimit } from '@/lib/supabase/fetch-all';
 
 // ---------------------------------------------------------------------------
 // Interfaces (buchstabengetreu lt. Task-7-Brief)
@@ -120,33 +121,77 @@ export async function getAgencyOverview(
   const vor30Tagen = new Date(jetzt.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const vor24h     = new Date(jetzt.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const ergebnisse: AgencyOverviewRow[] = [];
-
-  for (const agency of agencies ?? []) {
+  // Agenturen parallel (begrenzt), je Agentur die unabhängigen Abfragen gleichzeitig
+  const ladeAgentur = async (agency: { id: unknown; name: unknown }): Promise<AgencyOverviewRow> => {
     const id = agency.id as string;
 
-    // -----------------------------------------------------------------------
-    // Jobs
-    // -----------------------------------------------------------------------
-    const { data: jobsRaw } = await svc
-      .from('jobs')
-      .select('id, status')
-      .eq('agency_id', id);
+    const [
+      { data: jobsRaw },
+      apps30,
+      termineRaw,
+      { data: waAccount },
+      { data: rejectedTemplatesRaw },
+      ingestAll,
+      { data: deadJobsRaw },
+      { data: usageRaw },
+    ] = await Promise.all([
+      svc.from('jobs').select('id, status').eq('agency_id', id),
+      // Bewerbungen (30 Tage) – seitenweise, sonst kappt Supabase bei 1000
+      fetchAll<{ id: string; job_id: string; score_label: string | null; applied_at: string }>((rFrom, rTo) =>
+        svc
+          .from('applications')
+          .select('id, job_id, score_label, applied_at')
+          .eq('agency_id', id)
+          .gte('applied_at', vor30Tagen)
+          .order('id')
+          .range(rFrom, rTo),
+      ),
+      fetchAll<{ application_id: string; status: string }>((rFrom, rTo) =>
+        svc
+          .from('appointments')
+          .select('application_id, status')
+          .eq('agency_id', id)
+          .gte('created_at', vor30Tagen)
+          .order('id')
+          .range(rFrom, rTo),
+      ),
+      svc
+        .from('whatsapp_accounts')
+        .select('status, quality_rating, messaging_limit')
+        .eq('agency_id', id)
+        .maybeSingle(),
+      svc
+        .from('whatsapp_templates')
+        .select('id')
+        .eq('agency_id', id)
+        .in('status', ['rejected', 'paused']),
+      fetchAll<{ status: string }>((rFrom, rTo) =>
+        svc
+          .from('events_inbox')
+          .select('status')
+          .eq('agency_id', id)
+          .in('source', ['indeed', 'meta', 'generic'])
+          .gte('received_at', vor24h)
+          .order('id')
+          .range(rFrom, rTo),
+      ),
+      svc
+        .from('scheduled_jobs')
+        .select('id')
+        .eq('agency_id', id)
+        .eq('status', 'dead'),
+      svc
+        .from('usage_daily')
+        .select(
+          'messages_out, messages_in, templates_by_category, ai_input_tokens, ai_output_tokens, ai_cost_usd',
+        )
+        .eq('agency_id', id)
+        .gte('day', monthStart),
+    ]);
 
     const jobs = jobsRaw ?? [];
     const aktiveJobs = jobs.filter((j) => j.status === 'active');
     const aktiveJobIds = new Set(aktiveJobs.map((j) => j.id as string));
-
-    // -----------------------------------------------------------------------
-    // Bewerbungen (30 Tage)
-    // -----------------------------------------------------------------------
-    const { data: apps30Raw } = await svc
-      .from('applications')
-      .select('id, job_id, score_label, applied_at')
-      .eq('agency_id', id)
-      .gte('applied_at', vor30Tagen);
-
-    const apps30 = apps30Raw ?? [];
 
     // Bewerbungen der letzten 7 Tage (aus apps30 herausfiltern)
     const apps7Count = apps30.filter(
@@ -164,13 +209,17 @@ export async function getAgencyOverview(
     let letzteAktivitaet: string | null = null;
 
     if (app30Ids.length > 0) {
-      const { data: convsRaw } = await svc
-        .from('conversations')
-        .select('id, application_id, last_message_at')
-        .eq('agency_id', id)
-        .in('application_id', app30Ids);
-
-      const convs = convsRaw ?? [];
+      const convs = await fetchAllIn<string, { id: string; application_id: string; last_message_at: string | null }>(
+        app30Ids,
+        (chunk, rFrom, rTo) =>
+          svc
+            .from('conversations')
+            .select('id, application_id, last_message_at')
+            .eq('agency_id', id)
+            .in('application_id', chunk)
+            .order('id')
+            .range(rFrom, rTo),
+      );
       const convIds = convs.map((c) => c.id as string);
 
       // Letzte Aktivität: Maximum aus last_message_at und applied_at
@@ -181,13 +230,17 @@ export async function getAgencyOverview(
       letzteAktivitaet = alleZeiten.length > 0 ? alleZeiten.sort().at(-1) ?? null : null;
 
       if (convIds.length > 0) {
-        const { data: msgsRaw } = await svc
-          .from('messages')
-          .select('conversation_id, direction, created_at')
-          .eq('agency_id', id)
-          .in('conversation_id', convIds);
-
-        const msgs = msgsRaw ?? [];
+        const msgs = await fetchAllIn<string, { conversation_id: string; direction: string; created_at: string }>(
+          convIds,
+          (chunk, rFrom, rTo) =>
+            svc
+              .from('messages')
+              .select('conversation_id, direction, created_at')
+              .eq('agency_id', id)
+              .in('conversation_id', chunk)
+              .order('id')
+              .range(rFrom, rTo),
+        );
 
         // Mapping conversation_id → application_id
         const convToApp = new Map<string, string>();
@@ -227,12 +280,6 @@ export async function getAgencyOverview(
     // -----------------------------------------------------------------------
     // Termine (30 Tage)
     // -----------------------------------------------------------------------
-    const { data: termineRaw } = await svc
-      .from('appointments')
-      .select('application_id, status')
-      .eq('agency_id', id)
-      .gte('created_at', vor30Tagen);
-
     const GEBUCHTE_STATUS = new Set(['booked', 'confirmed', 'done', 'no_show']);
     const termine30 = new Set(
       (termineRaw ?? [])
@@ -243,32 +290,12 @@ export async function getAgencyOverview(
     // -----------------------------------------------------------------------
     // WhatsApp-Account
     // -----------------------------------------------------------------------
-    const { data: waAccount } = await svc
-      .from('whatsapp_accounts')
-      .select('status, quality_rating, messaging_limit')
-      .eq('agency_id', id)
-      .maybeSingle();
-
     // Anzahl abgelehnter / pausierter Templates
-    const { data: rejectedTemplatesRaw } = await svc
-      .from('whatsapp_templates')
-      .select('id')
-      .eq('agency_id', id)
-      .in('status', ['rejected', 'paused']);
-
     const rejectedTemplatesCount = (rejectedTemplatesRaw ?? []).length;
 
     // -----------------------------------------------------------------------
     // Ingest-Events (24 h) — Fehlerquote
     // -----------------------------------------------------------------------
-    const { data: ingestAllRaw } = await svc
-      .from('events_inbox')
-      .select('status')
-      .eq('agency_id', id)
-      .in('source', ['indeed', 'meta', 'generic'])
-      .gte('received_at', vor24h);
-
-    const ingestAll    = ingestAllRaw ?? [];
     const ingestTotal  = ingestAll.length;
     const ingestFailed = ingestAll.filter(
       (e) => e.status === 'failed' || e.status === 'dead',
@@ -277,29 +304,15 @@ export async function getAgencyOverview(
     // -----------------------------------------------------------------------
     // Scheduled Jobs mit status='dead'
     // -----------------------------------------------------------------------
-    const { data: deadJobsRaw } = await svc
-      .from('scheduled_jobs')
-      .select('id')
-      .eq('agency_id', id)
-      .eq('status', 'dead');
-
     const deadJobsCount = (deadJobsRaw ?? []).length;
 
     // -----------------------------------------------------------------------
     // Verbrauch (usage_daily dieses Monats)
     // -----------------------------------------------------------------------
-    const { data: usageRaw } = await svc
-      .from('usage_daily')
-      .select(
-        'messages_out, messages_in, templates_by_category, ai_input_tokens, ai_output_tokens, ai_cost_usd',
-      )
-      .eq('agency_id', id)
-      .gte('day', monthStart);
-
     const usage = usageRaw ?? [];
 
     let messagesOut        = 0;
-    let templatesByCategory: Record<string, number> = {};
+    const templatesByCategory: Record<string, number> = {};
     let aiInputTokens      = 0;
     let aiOutputTokens     = 0;
     let aiCostUsd          = 0;
@@ -386,7 +399,7 @@ export async function getAgencyOverview(
     // -----------------------------------------------------------------------
     // Ergebnis zusammenstellen
     // -----------------------------------------------------------------------
-    ergebnisse.push({
+    return {
       agencyId: id,
       name: agency.name as string,
       activeJobs: aktiveJobs.length,
@@ -412,8 +425,8 @@ export async function getAgencyOverview(
         aiOutputTokens,
         aiCostUsd,
       },
-    });
-  }
+    };
+  };
 
-  return ergebnisse;
+  return mapLimit(agencies ?? [], 4, ladeAgentur);
 }

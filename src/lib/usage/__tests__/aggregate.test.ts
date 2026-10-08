@@ -32,7 +32,7 @@ describe('aggregateUsageForDay', () => {
       const chain = {
         eq: (_col: string, _val: string) => ({
           gte: (_c: string, _v: string) => ({
-            lte: (_c2: string, _v2: string) => {
+            lte: (_c2: string, _v2: string) => ({ order: () => ({ range: () => {
               if (table === 'messages') {
                 return {
                   data: [
@@ -50,7 +50,7 @@ describe('aggregateUsageForDay', () => {
                 };
               }
               return { data: [], error: null };
-            },
+            } }) }),
           }),
         }),
       };
@@ -98,8 +98,7 @@ describe('aggregateUsageForDay', () => {
         eq: (_col: string, _val: string) => ({
           gte: (_c: string, _v: string) => ({
             lte: (_c2: string, _v2: string) => ({
-              data: [],
-              error: null,
+              order: () => ({ range: () => ({ data: [], error: null }) }),
             }),
           }),
         }),
@@ -136,5 +135,26 @@ describe('aggregateUsageForDay', () => {
     expect(row.ai_input_tokens).toBe(0);
     expect(row.ai_output_tokens).toBe(0);
     expect(row.ai_cost_usd).toBe(0);
+  });
+
+  it('überschreibt bei Lesefehler den Tageswert nicht', async () => {
+    const state: { usage_daily: unknown[] } = { usage_daily: [] };
+    const fehler = { order: () => ({ range: () => ({ data: null, error: { message: 'timeout' } }) }) };
+    const mockSvc = {
+      from: (table: string) => ({
+        select: () =>
+          table === 'agencies'
+            ? { data: [{ id: 'agency-3' }], error: null }
+            : { eq: () => ({ gte: () => ({ lte: () => fehler }) }) },
+        upsert: (payload: unknown) => {
+          state.usage_daily.push(payload);
+          return { error: null };
+        },
+      }),
+    } as unknown as import('@supabase/supabase-js').SupabaseClient;
+
+    const result = await aggregateUsageForDay(mockSvc, '2026-09-20');
+    expect(result.upserts).toBe(0);
+    expect(state.usage_daily).toHaveLength(0);
   });
 });

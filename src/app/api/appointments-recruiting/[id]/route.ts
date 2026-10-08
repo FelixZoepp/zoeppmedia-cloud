@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { cancelAppointment, createProposedAppointment } from '@/lib/appointments/lifecycle';
 import { fireEvent } from '@/lib/automations/fire';
 import { logActivity } from '@/lib/activity/log';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 const VALID_STATUSES = new Set(['done', 'no_show', 'cancelled']);
 
@@ -84,17 +85,14 @@ export async function PATCH(
       });
 
       // no_show_followup +1h planen mit neuem Token
-      await svc.from('scheduled_jobs').upsert(
-        {
+      await insertDeduped(svc, 'scheduled_jobs', {
           agency_id: agencyId,
           run_at: new Date(Date.now() + 60 * 60_000).toISOString(),
           type: 'appointment.no_show_followup',
           payload: { appointment_id: newApptId, booking_token: newToken },
           status: 'pending',
           dedupe_key: `appt.no_show_followup:${appointmentId}`,
-        },
-        { onConflict: 'dedupe_key', ignoreDuplicates: true },
-      );
+        });
 
       await fireEvent('appointment.no_show', agencyId, {
         candidate_id: application?.candidate_id,

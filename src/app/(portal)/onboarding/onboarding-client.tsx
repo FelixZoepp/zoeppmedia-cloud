@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -165,7 +164,6 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
   const mitIndeed = bausteine.includes('indeed');
   const zugangTitel = mitMeta && mitIndeed ? 'Meta & Indeed Zugang' : mitMeta ? 'Meta Zugang' : 'Indeed Zugang';
   const schritte = steps.map((s) => (s.id === 5 ? { ...s, title: zugangTitel } : s));
-  const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -196,13 +194,13 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
     }).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fire step 1 start on mount
+  // Fire step 1 start on mount (im Effekt, damit es nicht schon beim Server-Render läuft)
   const hasTrackedMount = useRef(false);
-  if (!hasTrackedMount.current) {
+  useEffect(() => {
+    if (hasTrackedMount.current) return;
     hasTrackedMount.current = true;
-    // defer so it runs after hydration
-    setTimeout(() => trackStepStart(1), 0);
-  }
+    trackStepStart(1);
+  }, [trackStepStart]);
 
   const trackStepComplete = useCallback((stepNum: number) => {
     const now = new Date().toISOString();
@@ -753,7 +751,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
                 <GuideStep
                   stepNum={2}
                   title="Unternehmenseinstellungen öffnen"
-                  description={<>Klicke links unten auf <span className="font-medium text-gray-800">„Unternehmenseinstellungen"</span> (Zahnrad-Symbol).</>}
+                  description={<>Klicke links unten auf <span className="font-medium text-gray-800">„Unternehmenseinstellungen“</span> (Zahnrad-Symbol).</>}
                   Icon={Settings}
                   visualLabel="Zahnrad-Symbol in der linken Sidebar"
                   checked={form.meta_access_steps.partner_added}
@@ -765,7 +763,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
                   title="Partner hinzufügen"
                   description={
                     <div className="space-y-2">
-                      <p>Gehe zu <span className="font-medium text-gray-800">„Partner"</span> → Klicke <span className="font-medium text-gray-800">„Hinzufügen"</span> → Gib unsere Business-ID ein:</p>
+                      <p>Gehe zu <span className="font-medium text-gray-800">„Partner“</span> → Klicke <span className="font-medium text-gray-800">„Hinzufügen“</span> → Gib unsere Business-ID ein:</p>
                       <div className="flex items-center gap-2 mt-2">
                         <code className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm font-mono border border-gray-200 select-all">
                           175192705159272
@@ -783,7 +781,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
                 <GuideStep
                   stepNum={4}
                   title="Werbekonto freigeben"
-                  description={<>Wähle dein Werbekonto aus → Berechtigung: <span className="font-medium text-gray-800">„Anzeigen verwalten"</span> aktivieren.</>}
+                  description={<>Wähle dein Werbekonto aus → Berechtigung: <span className="font-medium text-gray-800">„Anzeigen verwalten“</span> aktivieren.</>}
                   Icon={CreditCard}
                   visualLabel="Werbekonto auswählen und Berechtigung setzen"
                   checked={form.meta_access_steps.pixel_shared}
@@ -793,7 +791,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
                 <GuideStep
                   stepNum={5}
                   title="Pixel teilen (optional)"
-                  description={<>Falls vorhanden: Gehe zu <span className="font-medium text-gray-800">„Datenquellen"</span> → Pixel auswählen → mit uns teilen.</>}
+                  description={<>Falls vorhanden: Gehe zu <span className="font-medium text-gray-800">„Datenquellen“</span> → Pixel auswählen → mit uns teilen.</>}
                   Icon={Code}
                   visualLabel="Datenquellen → Pixel-Bereich"
                   checked={form.meta_access_steps.page_shared}
@@ -803,7 +801,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
                 <GuideStep
                   stepNum={6}
                   title="Facebook-Seite freigeben"
-                  description={<>Gehe zu <span className="font-medium text-gray-800">„Seiten"</span> → Wähle deine Seite → Berechtigung: <span className="font-medium text-gray-800">„Inhalte erstellen"</span>.</>}
+                  description={<>Gehe zu <span className="font-medium text-gray-800">„Seiten“</span> → Wähle deine Seite → Berechtigung: <span className="font-medium text-gray-800">„Inhalte erstellen“</span>.</>}
                   Icon={FileText}
                   visualLabel="Seiten-Bereich → Seite auswählen"
                   checked={form.meta_access_steps.indeed_forwarding}

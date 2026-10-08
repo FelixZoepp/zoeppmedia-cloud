@@ -46,6 +46,7 @@ import { processSalesFollowup, type FollowupJobPayload } from '@/lib/sales/follo
 import { processSalesClickCheck } from '@/lib/sales/tracking';
 import { todayBerlin } from '@/lib/sales/replies';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
+import { QuietHoursError, nextAllowedTime } from '@/lib/whatsapp/window';
 
 // M1: Vercel Fluid Compute — maximal 60 Sekunden Laufzeit
 export const maxDuration = 60;
@@ -259,6 +260,21 @@ export async function GET(request: NextRequest) {
       jobsProcessed++;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      // Ruhezeit ist kein Fehler: auf den nächsten erlaubten Zeitpunkt verschieben, Versuch nicht zählen
+      if (err instanceof QuietHoursError) {
+        const { data: agency } = await svc.from('agencies').select('timezone').eq('id', job.agency_id).maybeSingle();
+        const timezone = (agency as { timezone?: string } | null)?.timezone || 'Europe/Berlin';
+        await svc.from('scheduled_jobs')
+          .update({
+            status: 'pending',
+            run_at: nextAllowedTime(new Date(), timezone).toISOString(),
+            attempts: Math.max(0, job.attempts - 1),
+            last_error: errorMsg,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', job.id);
+        continue;
+      }
       if (isDeadLetter(job.attempts)) {
         await svc.from('scheduled_jobs')
           .update({ status: 'dead', last_error: errorMsg, updated_at: new Date().toISOString() })

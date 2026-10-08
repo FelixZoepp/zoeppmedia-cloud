@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { sendInviteEmail } from '@/lib/email/resend';
 import { logActivity } from '@/lib/activity/log';
 import { startPhase } from '@/lib/fulfillment/engine';
+import { neueAgenturKennungen } from '@/lib/agencies/kennungen';
 
 export async function GET() {
   const supabase = await createServerClient();
@@ -14,26 +15,30 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const { data: agencies } = await admin
-    .from('agencies')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const [{ data: agencies }, { data: logins }] = await Promise.all([
+    admin
+      .from('agencies')
+      .select('*')
+      .order('created_at', { ascending: false }),
+    // Get last login per agency
+    admin
+      .from('users')
+      .select('agency_id, last_login')
+      .not('agency_id', 'is', null)
+      .not('last_login', 'is', null)
+      .order('last_login', { ascending: false }),
+  ]);
 
-  // Get candidate counts per agency
-  const { data: counts } = await admin
-    .from('candidates')
-    .select('agency_id');
-
+  // Bewerberzahl je Agentur per Count – alle Zeilen laden scheitert ab 1000 an max_rows
+  const counts = await Promise.all(
+    (agencies ?? []).map((a) =>
+      admin.from('candidates').select('id', { count: 'exact', head: true }).eq('agency_id', a.id),
+    ),
+  );
   const countMap: Record<string, number> = {};
-  counts?.forEach((c) => {
-    countMap[c.agency_id] = (countMap[c.agency_id] || 0) + 1;
+  (agencies ?? []).forEach((a, i) => {
+    countMap[a.id] = counts[i].count ?? 0;
   });
-
-  // Get last login per agency
-  const { data: logins } = await admin
-    .from('users')
-    .select('agency_id, last_login')
-    .order('last_login', { ascending: false });
 
   const loginMap: Record<string, string | null> = {};
   logins?.forEach((u) => {
@@ -68,7 +73,7 @@ export async function POST(request: Request) {
   // Create agency
   const { data: agency, error: agencyError } = await admin
     .from('agencies')
-    .insert({ name, contact_name, email, phone: phone || null })
+    .insert({ name, contact_name, email, phone: phone || null, ...(await neueAgenturKennungen(admin, name)) })
     .select()
     .single();
 

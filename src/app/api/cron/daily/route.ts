@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { detectProblemsForAgency } from '@/lib/problems/detect';
+import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 
 // Vercel Cron: GET /api/cron/daily at 08:00 UTC daily
+
+/** Onboarding-Erinnerung an diesen Tagen nach Anlage der Agentur (je Stufe genau eine Mail) */
+const ONBOARDING_ERINNERUNG_TAGE = [2, 5, 10];
 
 async function runDailyJobs() {
   const supabase = createAdminClient();
 
   const { data: agencies, error } = await supabase
     .from('agencies')
-    .select('id, name, onboarding_completed, created_at, meta_ad_account_id');
+    .select('id, name, onboarding_completed, created_at, meta_ad_account_id, settings');
 
   if (error) {
     return { ok: false, error: error.message };
@@ -26,6 +30,18 @@ async function runDailyJobs() {
   const cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
   const currentMonth = now.toISOString().slice(0, 7);
+
+  // Einmal vorab statt pro Agentur: Umfrage-Vorlagen und Kunden-Inhaber
+  const [{ data: surveyTemplates }, { data: ownerRows }] = await Promise.all([
+    supabase.from('survey_templates').select('id, title').in('title', ['Onboarding-Feedback', 'Kundenzufriedenheit', 'Gesamtbewertung']),
+    supabase.from('users').select('agency_id, email, name').eq('role', 'agency_owner').not('agency_id', 'is', null),
+  ]);
+  const templateId = (title: string): string | null =>
+    ((surveyTemplates ?? []) as Array<{ id: string; title: string }>).find((t) => t.title === title)?.id ?? null;
+  const ownerByAgency = new Map<string, { email: string; name: string }>();
+  for (const o of (ownerRows ?? []) as Array<{ agency_id: string; email: string; name: string }>) {
+    if (!ownerByAgency.has(o.agency_id)) ownerByAgency.set(o.agency_id, { email: o.email, name: o.name });
+  }
 
   for (const agency of agencies ?? []) {
     try {
@@ -56,16 +72,10 @@ async function runDailyJobs() {
           recurringCreated++;
         }
 
-        // Reels monthly
-        const { data: agencyRow } = await supabase
-          .from('agencies')
-          .select('settings')
-          .eq('id', agency.id)
-          .single();
-        // Reels pro Monat liegen in agencies.settings
-        const agencyData = agencyRow
-          ? { reels_per_month: Number(((agencyRow as { settings?: { reels_per_month?: number } }).settings ?? {}).reels_per_month) || 0 }
-          : null;
+        // Reels monthly – Reels pro Monat liegen in agencies.settings
+        const agencyData = {
+          reels_per_month: Number(((agency as { settings?: { reels_per_month?: number } | null }).settings ?? {}).reels_per_month) || 0,
+        };
 
         if (agencyData && agencyData.reels_per_month > 0) {
           const { data: lastReels } = await supabase
@@ -100,17 +110,13 @@ async function runDailyJobs() {
       const agencyAge = now.getTime() - new Date(agency.created_at).getTime();
 
       // Post-onboarding survey
+      const onboardingTemplate = templateId('Onboarding-Feedback');
       if (agency.onboarding_completed && !existingKeys.has('post_onboarding')) {
-        const { data: templates } = await supabase
-          .from('survey_templates')
-          .select('id')
-          .eq('title', 'Onboarding-Feedback')
-          .limit(1);
-        if (templates?.[0]) {
+        if (onboardingTemplate) {
           await supabase.from('survey_schedule').insert({
             agency_id: agency.id,
             trigger_key: 'post_onboarding',
-            template_id: templates[0].id,
+            template_id: onboardingTemplate,
             scheduled_at: now.toISOString(),
           });
           surveysScheduled++;
@@ -124,28 +130,18 @@ async function runDailyJobs() {
         const biweeklyPeriod = Math.floor(weeksActive / 2);
         const biweeklyKey = `biweekly_${biweeklyPeriod}`;
 
+        const zufriedenheitTemplate = templateId('Kundenzufriedenheit');
         if (!existingKeys.has(biweeklyKey)) {
-          const { data: templates } = await supabase
-            .from('survey_templates')
-            .select('id')
-            .eq('title', 'Kundenzufriedenheit')
-            .limit(1);
-          if (templates?.[0]) {
+          if (zufriedenheitTemplate) {
             await supabase.from('survey_schedule').insert({
               agency_id: agency.id,
               trigger_key: biweeklyKey,
-              template_id: templates[0].id,
+              template_id: zufriedenheitTemplate,
               scheduled_at: now.toISOString(),
             });
 
             // Send email notification
-            const { data: owner } = await supabase
-              .from('users')
-              .select('email, name')
-              .eq('agency_id', agency.id)
-              .eq('role', 'agency_owner')
-              .limit(1)
-              .single();
+            const owner = ownerByAgency.get(agency.id);
 
             if (owner) {
               try {
@@ -163,17 +159,13 @@ async function runDailyJobs() {
       // Quarterly survey (> 90 days active)
       const quarter = Math.floor(now.getMonth() / 3);
       const quarterKey = `quarterly_${now.getFullYear()}_Q${quarter + 1}`;
+      const gesamtTemplate = templateId('Gesamtbewertung');
       if (agencyAge > 90 * 86400000 && !existingKeys.has(quarterKey)) {
-        const { data: templates } = await supabase
-          .from('survey_templates')
-          .select('id')
-          .eq('title', 'Gesamtbewertung')
-          .limit(1);
-        if (templates?.[0]) {
+        if (gesamtTemplate) {
           await supabase.from('survey_schedule').insert({
             agency_id: agency.id,
             trigger_key: quarterKey,
-            template_id: templates[0].id,
+            template_id: gesamtTemplate,
             scheduled_at: now.toISOString(),
           });
           surveysScheduled++;
@@ -207,32 +199,37 @@ async function runDailyJobs() {
     }
   }
 
-  // 5. Onboarding Reminders (48h without completing)
+  // 5. Onboarding-Erinnerungen: höchstens drei (Tag 2, 5, 10 nach Anlage), jede genau einmal
   const { data: pendingAgencies } = await supabase
     .from('agencies')
-    .select('id')
+    .select('id, created_at, onboarding_erinnerungen')
     .eq('onboarding_completed', false)
-    .lt('created_at', cutoff48h);
+    .lt('created_at', cutoff48h)
+    .lt('onboarding_erinnerungen', ONBOARDING_ERINNERUNG_TAGE.length)
+    .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`);
 
   if (pendingAgencies?.length) {
     const { sendOnboardingReminder } = await import('@/lib/email/resend');
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
 
-    for (const agency of pendingAgencies) {
-      const { data: owner } = await supabase
-        .from('users')
-        .select('email, name')
-        .eq('agency_id', agency.id)
-        .eq('role', 'agency_owner')
-        .limit(1)
-        .single();
+    for (const agency of pendingAgencies as Array<{ id: string; created_at: string; onboarding_erinnerungen: number | null }>) {
+      const tage = Math.floor((now.getTime() - new Date(agency.created_at).getTime()) / 86400000);
+      const faellig = ONBOARDING_ERINNERUNG_TAGE.filter((t) => tage >= t).length;
+      const bisher = agency.onboarding_erinnerungen ?? 0;
+      if (faellig <= bisher) continue;
 
+      const owner = ownerByAgency.get(agency.id);
       if (owner) {
         try {
           await sendOnboardingReminder(owner.email, owner.name, `${appUrl}/onboarding`);
           remindersS++;
         } catch { /* silent */ }
       }
+      // Auch ohne Inhaber vermerken, sonst wird die Stufe jeden Tag neu geprüft
+      await supabase
+        .from('agencies')
+        .update({ onboarding_erinnerungen: faellig, onboarding_erinnert_am: now.toISOString() })
+        .eq('id', agency.id);
     }
   }
 
@@ -321,7 +318,15 @@ async function runDailyJobs() {
   if (process.env.FIREFLIES_API_KEY && process.env.CLOSE_API_KEY) {
     try {
       const { ladeAnrufe, schickeAnruf } = await import('@/lib/gespraeche/close-anrufe');
-      for (const c of (await ladeAnrufe(new Date(Date.now() - 2 * 864e5))).slice(0, 20)) await schickeAnruf(supabase, c);
+      // Bereits hochgeladene vor dem Limit aussortieren, sonst blockieren sie die 20 Plätze
+      const anrufe = await ladeAnrufe(new Date(Date.now() - 2 * 864e5));
+      const { data: hoch } = await supabase
+        .from('close_anruf_uploads')
+        .select('call_id')
+        .eq('status', 'hochgeladen')
+        .in('call_id', anrufe.map((c) => c.id));
+      const erledigt = new Set(((hoch ?? []) as Array<{ call_id: string }>).map((x) => x.call_id));
+      for (const c of anrufe.filter((x) => !erledigt.has(x.id)).slice(0, 20)) await schickeAnruf(supabase, c);
     } catch (err) {
       console.error('[cron] Close-Anrufe an Fireflies fehlgeschlagen:', err);
     }

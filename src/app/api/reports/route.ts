@@ -1,25 +1,20 @@
 import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
+import { getStagesForAgency, istEingestelltStage } from '@/lib/pipeline/get-stages';
+import { berlinMonatsStart, berlinWochenStart } from '@/lib/zeit/berlin';
 
 function getDateRange(period: string): { since: Date | null; until: Date } {
   const now = new Date();
   switch (period) {
-    case 'this_week': {
-      const d = new Date(now);
-      d.setDate(d.getDate() - d.getDay() + 1); // Monday
-      d.setHours(0, 0, 0, 0);
-      return { since: d, until: now };
-    }
-    case 'this_month': {
-      const d = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { since: d, until: now };
-    }
-    case 'last_month': {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-      return { since: start, until: end };
-    }
+    // Kalendergrenzen in Berliner Zeit (Montag als Wochenbeginn, auch sonntags)
+    case 'this_week':
+      return { since: berlinWochenStart(now), until: now };
+    case 'this_month':
+      return { since: berlinMonatsStart(now), until: now };
+    case 'last_month':
+      return { since: berlinMonatsStart(now, -1), until: new Date(berlinMonatsStart(now).getTime() - 1) };
     default:
       return { since: null, until: now };
   }
@@ -41,21 +36,19 @@ export async function GET(request: Request) {
 
   const { since, until } = getDateRange(period);
 
-  // --- Candidates query with period filter ---
-  let candidateQuery = supabase
-    .from('candidates')
-    .select('id, source, current_stage_id, created_at')
-    .eq('agency_id', agencyId);
-  if (since) candidateQuery = candidateQuery.gte('created_at', since.toISOString());
-  if (period !== 'all') candidateQuery = candidateQuery.lte('created_at', until.toISOString());
+  // --- Candidates query with period filter (seitenweise, Supabase kappt sonst bei 1000) ---
+  const candidates = await fetchAll<{ id: string; source: string | null; current_stage_id: string | null; created_at: string }>((rFrom, rTo) => {
+    let q = supabase
+      .from('candidates')
+      .select('id, source, current_stage_id, created_at')
+      .eq('agency_id', agencyId);
+    if (since) q = q.gte('created_at', since.toISOString());
+    if (period !== 'all') q = q.lte('created_at', until.toISOString());
+    return q.order('id').range(rFrom, rTo);
+  });
 
-  const { data: candidates } = await candidateQuery;
-
-  // Get pipeline stages (not filtered by period)
-  const { data: stages } = await supabase
-    .from('pipeline_stages')
-    .select('id, name, sort_order, color')
-    .order('sort_order');
+  // Pipeline der Agentur (eigene Phasen oder globale Standardphasen), nicht nach Zeitraum gefiltert
+  const stages = (await getStagesForAgency(supabase, agencyId)).map(({ id, name, sort_order, color, stage_type }) => ({ id, name, sort_order, color, stage_type }));
 
   // Build funnel data
   const funnel = (stages || []).map((stage) => ({
@@ -80,19 +73,20 @@ export async function GET(request: Request) {
   const last7 = (candidates || []).filter((c) => new Date(c.created_at) >= sevenDaysAgo).length;
 
   // Find "Eingestellt" stage
-  const hiredStage = (stages || []).find((s) => s.name === 'Eingestellt');
-  const hired = hiredStage ? funnel.find((f) => f.id === hiredStage.id)?.count || 0 : 0;
+  const hiredIds = new Set(stages.filter(istEingestelltStage).map((s) => s.id));
+  const hired = funnel.filter((f) => hiredIds.has(f.id)).reduce((sum, f) => sum + f.count, 0);
   const hireRate = total > 0 ? Math.round((hired / total) * 100) : 0;
 
   // --- Call KPIs ---
-  let callQuery = supabase
-    .from('call_logs')
-    .select('id, result, candidate_id, created_at')
-    .eq('agency_id', agencyId);
-  if (since) callQuery = callQuery.gte('created_at', since.toISOString());
-  if (period !== 'all') callQuery = callQuery.lte('created_at', until.toISOString());
-
-  const { data: calls } = await callQuery;
+  const calls = await fetchAll<{ id: string; result: string | null; candidate_id: string; created_at: string }>((rFrom, rTo) => {
+    let q = supabase
+      .from('call_logs')
+      .select('id, result, candidate_id, created_at')
+      .eq('agency_id', agencyId);
+    if (since) q = q.gte('created_at', since.toISOString());
+    if (period !== 'all') q = q.lte('created_at', until.toISOString());
+    return q.order('id').range(rFrom, rTo);
+  });
 
   const totalCalls = calls?.length || 0;
   const reached = calls?.filter((c) => c.result !== 'nicht_erreicht').length || 0;

@@ -5,6 +5,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 export async function armBotTimers(
   svc: SupabaseClient,
@@ -17,8 +18,7 @@ export async function armBotTimers(
 
   const payload = { conversation_id: conversationId, bot_step: botStep };
 
-  await svc.from('scheduled_jobs').upsert(
-    [
+  await insertDeduped(svc, 'scheduled_jobs', [
       {
         agency_id: agencyId,
         run_at: nudgeRunAt,
@@ -35,9 +35,7 @@ export async function armBotTimers(
         status: 'pending',
         dedupe_key: `bot.timeout:${conversationId}:${botStep}`,
       },
-    ],
-    { onConflict: 'dedupe_key', ignoreDuplicates: true }
-  );
+    ]);
 }
 
 export async function cancelBotTimers(
@@ -70,15 +68,12 @@ export async function armBotTimersV2(
     { type: 'bot.close', runAt: 48 * 60 * 60_000, dedupe: `bot.close:${conversationId}:${botStep}` },
   ];
 
-  await svc.from('scheduled_jobs').upsert(
-    jobs.map(j => ({
+  await insertDeduped(svc, 'scheduled_jobs', jobs.map(j => ({
       agency_id: agencyId,
       run_at: new Date(Date.now() + j.runAt).toISOString(),
       type: j.type,
       payload,
       status: 'pending' as const,
       dedupe_key: j.dedupe,
-    })),
-    { onConflict: 'dedupe_key', ignoreDuplicates: true },
-  );
+    })));
 }

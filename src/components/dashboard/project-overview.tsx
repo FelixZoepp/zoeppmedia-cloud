@@ -64,7 +64,7 @@ function formatFristRelative(dateStr: string | null): { text: string; isOverdue:
   return { text: `In ${days} Tagen fällig`, isOverdue: false };
 }
 
-export function ProjectOverview({ agencyId }: { agencyId: string }) {
+export function ProjectOverview({}: { agencyId: string }) {
   const [agency, setAgency] = useState<AgencyData | null>(null);
   const [tasks, setTasks] = useState<TaskData[]>([]);
   const [loading, setLoading] = useState(true);

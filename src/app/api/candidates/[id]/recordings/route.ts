@@ -4,6 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { transcribeAudio } from '@/lib/recordings/transcribe';
 import { analyzeCallRecording } from '@/lib/recordings/analyze';
 import { logActivity } from '@/lib/activity/log';
+import { getCurrentUser } from '@/lib/auth';
+import { canWriteRole } from '@/lib/recruiting/scope';
+import { AUFNAHME_BUCKET, mitFrischenAufnahmeLinks } from '@/lib/recordings/pfad';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +21,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  // Gespeichert ist nur der Pfad (bzw. bei alten Zeilen eine abgelaufene URL) – Link frisch signieren
+  return NextResponse.json(await mitFrischenAufnahmeLinks(createAdminClient(), data ?? []));
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +30,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const profil = await getCurrentUser();
+  if (!profil || !canWriteRole(profil.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
@@ -55,18 +61,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const storagePath = `${candidate.agency_id}/${Date.now()}-${safeName}`;
 
   const { error: uploadError } = await admin.storage
-    .from('call-recordings')
+    .from(AUFNAHME_BUCKET)
     .upload(storagePath, buffer, { contentType: file.type });
 
   if (uploadError) {
     return NextResponse.json({ error: `Upload failed: ${uploadError.message}` }, { status: 500 });
   }
-
-  const { data: urlData } = await admin.storage
-    .from('call-recordings')
-    .createSignedUrl(storagePath, 3600);
-
-  const fileUrl = urlData?.signedUrl || '';
 
   // 2. Create recording record (pending transcription)
   const { data: recording, error: insertError } = await admin
@@ -76,7 +76,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       agency_id: candidate.agency_id,
       uploaded_by: user.id,
       recording_type: recordingType,
-      file_url: fileUrl,
+      // Nur den Pfad speichern: eine Signed URL wäre nach einer Stunde ungültig
+      file_url: storagePath,
       file_name: file.name,
       file_size_bytes: file.size,
       transcript_status: 'processing',
@@ -101,7 +102,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     metadata: { recording_type: recordingType, file_name: file.name, file_size_bytes: file.size },
   });
 
-  return NextResponse.json(recording, { status: 201 });
+  const [mitLink] = await mitFrischenAufnahmeLinks(admin, [recording]);
+  return NextResponse.json(mitLink, { status: 201 });
 }
 
 async function processRecording(

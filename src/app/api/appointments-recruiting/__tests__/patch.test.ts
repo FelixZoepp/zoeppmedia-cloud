@@ -219,7 +219,7 @@ describe('PATCH /api/appointments-recruiting/[id]', () => {
         }
         if (table === 'scheduled_jobs') {
           return {
-            upsert: (payload: unknown) => {
+            insert: (payload: unknown) => {
               upsertPayload = payload;
               return Promise.resolve({ data: null, error: null });
             },

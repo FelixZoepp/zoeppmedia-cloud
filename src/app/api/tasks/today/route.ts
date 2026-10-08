@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { berlinTag } from '@/lib/zeit/berlin';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -10,7 +11,8 @@ export async function GET() {
 
   const supabase = await createServerClient();
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  // „Heute“ nach Berliner Kalendertag, nicht UTC
+  const todayStr = berlinTag(now);
   const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
 
   const internal = isInternal(user.role);

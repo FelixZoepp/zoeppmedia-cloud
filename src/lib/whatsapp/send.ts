@@ -7,7 +7,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { checkPreflight } from './window';
+import { checkPreflight, QuietHoursError } from './window';
 import { getProvider, type SendMessagePayload } from './provider';
 import { decryptSecret } from '@/lib/crypto';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
@@ -86,6 +86,7 @@ export async function sendWhatsAppMessage(
 
   if (!preflight.ok) {
     // C1: Preflight-Ablehnung als Error werfen mit dem reason als Nachricht
+    if (preflight.quietHours) throw new QuietHoursError(preflight.reason ?? 'Ruhezeit');
     throw new Error(preflight.reason ?? 'Preflight fehlgeschlagen');
   }
 

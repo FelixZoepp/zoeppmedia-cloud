@@ -2,6 +2,7 @@ import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { transitionCandidate } from '@/lib/recruiting/stage-transition';
 import { NextRequest, NextResponse } from 'next/server';
+import { canWriteRole } from '@/lib/recruiting/scope';
 
 /**
  * POST /api/recruiting/pipeline/[candidateId]/transition
@@ -17,6 +18,7 @@ export async function POST(
 
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
 
   const body = await request.json();
   const { nach_stage, notiz } = body as {

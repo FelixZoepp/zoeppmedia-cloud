@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { NextRequest, NextResponse } from 'next/server';
+import { canWriteRole } from '@/lib/recruiting/scope';
 
 /**
  * GET /api/pipeline-stages?agency_id=xxx
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
+  if (!isInternal(user.role) && user.role !== 'agency_owner') return NextResponse.json({ error: 'Nur für Inhaber' }, { status: 403 });
 
   const body = await request.json();
   const { agency_id, stages } = body as {
@@ -104,6 +107,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
+  if (!isInternal(user.role) && user.role !== 'agency_owner') return NextResponse.json({ error: 'Nur für Inhaber' }, { status: 403 });
 
   const body = await request.json();
   const { id, name, color, sort_order } = body as {

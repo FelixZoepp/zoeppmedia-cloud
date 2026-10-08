@@ -4,7 +4,7 @@
  * und Durchlaufzeiten. Rein (keine I/O) – damit testbar.
  */
 
-import { klassifiziere, STUFEN_LABEL, type CloseStatus, type Opp, type StatusEvent, type Stufe } from './compute';
+import { istClosingGebucht, istClosingGehalten, klassifiziere, STUFEN_LABEL, type CloseStatus, type Opp, type StatusEvent, type Stufe } from './compute';
 
 export interface Anruf {
   lead_id: string | null;
@@ -208,9 +208,9 @@ export function berechneDetails(e: DetailEingaben) {
     const settingGebucht = liste.filter((x) => x.nach === 'setting' && x.von !== 'setting').length;
     const settingNoShow = liste.filter((x) => x.nach === 'setting_noshow' && x.von !== 'setting_noshow').length;
     const settingGehalten = liste.filter((x) => x.von === 'setting' && !['setting', 'setting_noshow', 'andere'].includes(x.nach)).length;
-    const closingGebucht = liste.filter((x) => x.nach === 'closing' && x.von !== 'closing').length;
+    const closingGebucht = liste.filter(istClosingGebucht).length;
     const closingNoShow = liste.filter((x) => x.nach === 'closing_noshow' && x.von !== 'closing_noshow').length;
-    const closingGehalten = liste.filter((x) => x.von === 'closing' && ['closing_followup', 'angebot', 'cc2', 'won', 'lost'].includes(x.nach)).length;
+    const closingGehalten = liste.filter(istClosingGehalten).length;
     const cc2Gebucht = liste.filter((x) => x.nach === 'cc2' && x.von !== 'cc2').length;
     const cc2Gehalten = liste.filter((x) => x.von === 'cc2' && ['closing_followup', 'angebot', 'won', 'lost'].includes(x.nach)).length;
     // No-Show im CC2: zurück in No-Show oder Follow-up ohne Termin wird nicht als Show gewertet

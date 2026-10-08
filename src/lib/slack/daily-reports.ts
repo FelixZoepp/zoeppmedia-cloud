@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { closeAll, type CloseOppRoh } from '@/lib/sales-controlling/quellen';
 
 const SLACK_API = 'https://slack.com/api/chat.postMessage';
 
@@ -155,9 +156,7 @@ export async function sendSalesReport(supabase: SupabaseClient) {
   }
 
   // Fetch all opportunities
-  const oppRes = await fetch(`https://api.close.com/api/v1/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200&_order_by=-date_created`, { headers });
-  const oppData = await oppRes.json();
-  const opps = oppData.data ?? [];
+  const opps = await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${PIPELINE_ID}&_order_by=-date_created`);
 
   // Classify
   let setting = 0, closing = 0, won = 0, lost = 0;
@@ -354,8 +353,7 @@ export async function sendWeeklySalesReport(supabase: SupabaseClient) {
     statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
   }
 
-  const oppRes = await fetch(`https://api.close.com/api/v1/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200`, { headers });
-  const opps = (await oppRes.json()).data ?? [];
+  const opps = await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${PIPELINE_ID}`);
 
   let setting = 0, closing = 0, won = 0, lost = 0, wonValue = 0, openValue = 0;
   const weekWon: string[] = [];
@@ -515,10 +513,10 @@ export async function sendMonthlySalesReport(supabase: SupabaseClient) {
     statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
   }
 
-  const oppRes = await fetch(`https://api.close.com/api/v1/opportunity/?pipeline_id=${PIPELINE_ID}&_limit=200`, { headers });
-  const opps = (await oppRes.json()).data ?? [];
+  const opps = await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${PIPELINE_ID}`);
 
-  let won = 0, wonValue = 0, total = opps.length, setting = 0, closing = 0, lost = 0;
+  const total = opps.length;
+  let won = 0, wonValue = 0, setting = 0, closing = 0, lost = 0;
 
   for (const o of opps) {
     const info = statusMap[o.status_id] ?? { label: '', type: 'active' };

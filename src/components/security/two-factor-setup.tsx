@@ -25,11 +25,6 @@ export function TwoFactorSetup() {
 
   const supabase = createClient();
 
-  useEffect(() => {
-    checkFactors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   async function checkFactors() {
     setState('loading');
     const { data, error } = await supabase.auth.mfa.listFactors();
@@ -46,6 +41,11 @@ export function TwoFactorSetup() {
       setState('inactive');
     }
   }
+
+  useEffect(() => {
+    checkFactors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startEnroll() {
     setState('enrolling');

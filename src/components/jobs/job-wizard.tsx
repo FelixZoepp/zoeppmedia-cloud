@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
-import { Check, Lock, Copy, ExternalLink, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, Lock, Copy, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STEPS = [

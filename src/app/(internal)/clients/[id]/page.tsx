@@ -496,7 +496,7 @@ export default function ClientDetailPage() {
     );
   }
 
-  const { agency, totalCandidates, hired, hireRate, funnel, sourceBreakdown, lastLogin, recentCandidates, upsellSignals, kpis, problems, playbooks } = data;
+  const { agency, totalCandidates, hired, hireRate, funnel, sourceBreakdown, recentCandidates, upsellSignals, kpis, problems, playbooks } = data;
 
   const playbookMap = new Map(playbooks.map((p) => [p.problem_key, p]));
 

@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
+import { closeAll } from '@/lib/sales-controlling/quellen';
 import { NextRequest, NextResponse } from 'next/server';
 
 const META_API_VERSION = 'v21.0';
@@ -89,22 +90,18 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
     }
 
     // Fetch opportunities, filtered by date if provided
-    let oppUrl = `https://api.close.com/api/v1/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_fields=value,status_type,status_id,lead_id,date_created`;
-    if (since) oppUrl += `&date_created__gte=${since}`;
-    if (until) oppUrl += `&date_created__lte=${until}T23:59:59`;
-    const res = await fetch(oppUrl, { headers: closeAuth() });
-    if (!res.ok) return empty;
-    const data = await res.json();
-    const opps: Array<{ value: number; status_type: string; status_id: string; lead_id: string }> =
-      data.data ?? [];
+    let oppPath = `/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=value,status_type,status_id,lead_id,date_created`;
+    if (since) oppPath += `&date_created__gte=${since}`;
+    if (until) oppPath += `&date_created__lte=${until}T23:59:59`;
+    const opps = await closeAll<{ value: number; status_type: string; status_id: string; lead_id: string }>(oppPath);
 
     // Fetch unique leads to check attribution
     const uniqueLeadIds = [...new Set(opps.map((o) => o.lead_id))];
     const metaLeadIds = new Set<string>();
     const leadCreative = new Map<string, string>();
 
-    await Promise.all(
-      uniqueLeadIds.map(async (leadId) => {
+    // In Blöcken, damit Close bei vielen Leads nicht drosselt
+    const ladeLead = async (leadId: string) => {
         try {
           const leadRes = await fetch(
             `https://api.close.com/api/v1/lead/${leadId}/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD},${UTM_MEDIUM_FIELD},${UTM_CONTENT_FIELD}`,
@@ -127,8 +124,10 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
             leadCreative.set(leadId, utmContent);
           }
         } catch { /* skip */ }
-      })
-    );
+    };
+    for (let i = 0; i < uniqueLeadIds.length; i += 10) {
+      await Promise.all(uniqueLeadIds.slice(i, i + 10).map(ladeLead));
+    }
 
     // Classify each opportunity by funnel stage (mutually exclusive)
     let setting = 0, closing = 0, won = 0, lost = 0;

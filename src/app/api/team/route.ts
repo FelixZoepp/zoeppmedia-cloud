@@ -32,19 +32,25 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Load agency assignments for each member
-  const result = [];
-  for (const member of members || []) {
-    const { data: assignments } = await supabaseServer
-      .from('employee_assignments')
-      .select('agency_id, agencies:agency_id(id, name)')
-      .eq('employee_id', member.user_id);
-
-    result.push({
-      ...member,
-      agencies: assignments?.map((a) => a.agencies).filter(Boolean) || [],
-    });
+  // Zuweisungen aller Mitglieder in einer Abfrage laden und zuordnen
+  const userIds = [...new Set((members || []).map((m) => m.user_id).filter(Boolean))];
+  const { data: assignments } = userIds.length
+    ? await supabaseServer
+        .from('employee_assignments')
+        .select('employee_id, agency_id, agencies:agency_id(id, name)')
+        .in('employee_id', userIds)
+    : { data: [] };
+  const proMitglied = new Map<string, unknown[]>();
+  for (const a of assignments ?? []) {
+    if (!a.agencies) continue;
+    const liste = proMitglied.get(a.employee_id) ?? [];
+    liste.push(a.agencies);
+    proMitglied.set(a.employee_id, liste);
   }
+  const result = (members || []).map((member) => ({
+    ...member,
+    agencies: proMitglied.get(member.user_id) ?? [],
+  }));
 
   return NextResponse.json(result);
 }

@@ -97,10 +97,7 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
     for (const item of openItems) {
       if (alreadyRemindedToday(item.erinnert_am)) continue;
 
-      const referenceDate = item.angefragt_am || item.created_at;
-      const days = daysSince(referenceDate);
-
-      if (item.status === 'offen' && days >= 0) {
+      if (item.status === 'offen') {
         // Day 0: Set to angefragt and notify
         await supabase
           .from('access_items')
@@ -122,14 +119,18 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
         continue;
       }
 
-      // For 'angefragt' items, check escalation
+      // For 'angefragt' items: jede Stufe (Tag 1/3/5/7) genau einmal.
+      // erinnert_am[0] ist die Anfrage an Tag 0, jede weitere Stufe hängt einen Eintrag an.
       if (item.status === 'angefragt') {
         const daysSinceAngefragt = daysSince(item.angefragt_am || item.created_at);
+        const stufe = mahnStufe(daysSinceAngefragt);
+        const erledigteStufen = Math.max(0, (item.erinnert_am?.length ?? 0) - 1);
+        if (stufe === 0 || stufe <= erledigteStufen) continue;
 
-        if (daysSinceAngefragt >= 7) {
+        await appendReminder(supabase, item.id, item.erinnert_am);
+
+        if (stufe === 4) {
           // Day 7: Admin escalation — create internal task
-          await appendReminder(supabase, item.id, item.erinnert_am);
-
           await createInternalTask(supabase, agency.id, {
             titel: `Startdatum schriftlich verschieben — ${agency.name}`,
             beschreibung: `Der Zugang "${item.label}" ist seit ${daysSinceAngefragt} Tagen ausstehend. Startdatum schriftlich verschieben und Kunden informieren.`,
@@ -143,10 +144,8 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
             entity_type: 'agency',
             entity_id: agency.id,
           });
-        } else if (daysSinceAngefragt >= 5) {
+        } else if (stufe === 3) {
           // Day 5: Ops escalation — create internal task
-          await appendReminder(supabase, item.id, item.erinnert_am);
-
           await createInternalTask(supabase, agency.id, {
             titel: `Kunden anrufen wegen Zugänge — ${agency.name}`,
             beschreibung: `Der Zugang "${item.label}" ist seit ${daysSinceAngefragt} Tagen ausstehend. Kunden anrufen und Zugang klären.`,
@@ -160,10 +159,8 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
             entity_type: 'agency',
             entity_id: agency.id,
           });
-        } else if (daysSinceAngefragt >= 3) {
+        } else if (stufe === 2) {
           // Day 3: Second reminder with urgency
-          await appendReminder(supabase, item.id, item.erinnert_am);
-
           await createNotificationForAgency(supabase, agency.id, {
             title: 'Erinnerung: Zugang ausstehend',
             body: `Der Zugang "${item.label}" ist noch offen — dies verzögert deinen Starttermin.`,
@@ -171,10 +168,8 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
             entity_type: 'agency',
             entity_id: item.id,
           });
-        } else if (daysSinceAngefragt >= 1) {
+        } else {
           // Day 1: First reminder
-          await appendReminder(supabase, item.id, item.erinnert_am);
-
           await createNotificationForAgency(supabase, agency.id, {
             title: 'Erinnerung: Zugang bereitstellen',
             body: `Bitte stelle den Zugang "${item.label}" bereit, damit wir starten können.`,
@@ -186,6 +181,15 @@ export async function checkAccessReminders(supabase: SupabaseClient) {
       }
     }
   }
+}
+
+/** Mahnstufe nach Tagen seit Anfrage: 1 = Tag 1, 2 = Tag 3, 3 = Tag 5, 4 = Tag 7. */
+export function mahnStufe(tage: number): number {
+  if (tage >= 7) return 4;
+  if (tage >= 5) return 3;
+  if (tage >= 3) return 2;
+  if (tage >= 1) return 1;
+  return 0;
 }
 
 async function appendReminder(
@@ -244,11 +248,21 @@ async function createInternalTask(
 }
 
 async function handleAllAccessFulfilled(supabase: SupabaseClient, agency: Agency) {
+  // Nur einmal je Kunde: der Kunde bleibt in der Phase "onboarding", der Cron läuft täglich.
+  // Ohne diese Prüfung wurde die Garantie jeden Tag auf "heute" verschoben und neu verkündet.
+  const { data: schonGestartet } = await supabase
+    .from('activity_log')
+    .select('id')
+    .eq('agency_id', agency.id)
+    .eq('action_type', 'onboarding_complete')
+    .limit(1);
+  if (schonGestartet && schonGestartet.length > 0) return;
+
   const today = todayStr();
   const laufzeit = agency.laufzeit_monate || 3;
-  const garantieEnde = new Date(
-    new Date(today).getTime() + laufzeit * 30 * 86400000
-  ).toISOString().slice(0, 10);
+  const ende = new Date(`${today}T00:00:00Z`);
+  ende.setUTCMonth(ende.getUTCMonth() + laufzeit);
+  const garantieEnde = ende.toISOString().slice(0, 10);
 
   // Update agency garantie dates
   await supabase

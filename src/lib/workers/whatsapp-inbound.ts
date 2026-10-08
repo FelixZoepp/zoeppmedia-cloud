@@ -11,6 +11,7 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
 import { cancelBotTimers } from '@/lib/bot/timers';
 import { fireEvent } from '@/lib/automations/fire';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 interface InboundPayload {
   type: 'whatsapp.inbound';
@@ -24,6 +25,15 @@ interface InboundPayload {
     image?: { id: string; mime_type: string; caption?: string };
     document?: { id: string; mime_type: string; filename: string; caption?: string };
     audio?: { id: string; mime_type: string };
+    video?: { id: string; mime_type: string; caption?: string };
+    /** Quick-Reply-Button einer Vorlage */
+    button?: { text?: string; payload?: string };
+    /** Antwort auf interaktive Buttons/Listen */
+    interactive?: {
+      type?: string;
+      button_reply?: { id?: string; title?: string };
+      list_reply?: { id?: string; title?: string; description?: string };
+    };
   };
   contacts?: Array<{ profile: { name: string }; wa_id: string }>;
 }
@@ -113,24 +123,27 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   // Fenster und erzeugt einen neuen Job; veraltete Jobs sind No-Ops, weil processWindowExpiry
   // window_expires_at erneut prüft (> now+2h → return).
   const warnAt = new Date(new Date(windowExpires).getTime() - 2 * 60 * 60 * 1000).toISOString();
-  const { error: winexpError } = await svc
-    .from('scheduled_jobs')
-    .upsert(
-      {
+  const { error: winexpError } = await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: effectiveAgencyId,
         run_at: warnAt,
         type: 'window.expiry',
         payload: { conversation_id: conversationId },
         status: 'pending',
         dedupe_key: `winexp:${conversationId}:${windowExpires}`,
-      },
-      { onConflict: 'dedupe_key', ignoreDuplicates: true }
-    );
+      });
   if (winexpError) console.error('window.expiry-Planung fehlgeschlagen', winexpError);
 
   // 4. Message speichern
+  // Button-/Listen-Antworten tragen ihren Text nicht in text.body — sonst kämen sie leer an
+  // (und ein "Stopp" per Quick-Reply würde nicht erkannt).
+  const replyText = msg.button?.text
+    || msg.interactive?.button_reply?.title
+    || msg.interactive?.list_reply?.title
+    || '';
   const bodyText = msg.text?.body
+    || replyText
     || msg.image?.caption || (msg.type === 'image' ? '[Bild]' : '')
+    || msg.video?.caption || (msg.type === 'video' ? '[Video]' : '')
     || msg.document?.caption || (msg.type === 'document' ? '[Dokument]' : '')
     || (msg.type === 'audio' ? '[Sprachnachricht]' : '')
     || '';
@@ -166,7 +179,7 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   }, { application_id: applicationId, conversation_id: conversationId }).catch(() => {});
 
   // 5. STOP-Erkennung
-  if (isStopMessage(msg.text?.body)) {
+  if (isStopMessage(msg.text?.body || replyText)) {
     // C4: Bestätigung ZUERST senden — opt_in ist noch true, Consent-Preflight wird bestanden.
     // Danach erst opt_in=false und Konversation schließen (damit sendWhatsAppMessage nicht
     // wegen fehlendem Consent abgewiesen wird).

@@ -35,3 +35,15 @@ export async function checkRateLimit(
     return true; // fail-open
   }
 }
+
+/**
+ * Client-IP für Rate-Limits. Auf Vercel setzt die Plattform x-real-ip selbst;
+ * x-forwarded-for nur als Rückfall (der erste Eintrag ist dort ebenfalls von Vercel gesetzt).
+ */
+export function clientIp(headers: Headers): string {
+  return (
+    headers.get('x-real-ip')?.trim() ||
+    headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+  );
+}

@@ -25,12 +25,15 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const { data } = await supabase
     .from('users')
-    .select('id, email, name, role, agency_id, avatar_url, funktion')
+    .select('id, email, name, role, agency_id, avatar_url, funktion, aktiv')
     .eq('id', user.id)
     .single();
 
   if (!data) return null;
-  return data as CurrentUser;
+  // Deaktivierte Zugänge (users.aktiv = false) gelten als nicht angemeldet
+  const { aktiv, ...rest } = data as CurrentUser & { aktiv: boolean | null };
+  if (aktiv === false) return null;
+  return rest as CurrentUser;
 });
 
 export function isInternal(role: UserRole): boolean {

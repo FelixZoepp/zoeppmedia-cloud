@@ -20,7 +20,7 @@ interface SlotData {
   end: string;
 }
 
-export function SlotPicker({ token, appointmentType, location, hasBooking, bookedStart, bookedEnd, agencyTimezone }: SlotPickerProps) {
+export function SlotPicker({ token, appointmentType, location, hasBooking, bookedStart, agencyTimezone }: SlotPickerProps) {
   const [slots, setSlots] = useState<SlotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);

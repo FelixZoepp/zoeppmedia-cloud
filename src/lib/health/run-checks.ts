@@ -69,8 +69,18 @@ export async function runChecksForAgency(
     });
     if (insertError) console.error('[health] Ergebnis nicht gespeichert', typ, agencyId, insertError);
 
-    // Notify on fehler
+    // Notify on fehler – nur wenn dazu noch keine offene Aufgabe existiert (Check läuft täglich)
     if (result.ergebnis === 'fehler') {
+      const titel = `Health-Check Fehler: ${typ}`;
+      const { data: offen } = await supabase
+        .from('project_tasks')
+        .select('id')
+        .eq('agency_id', agencyId)
+        .eq('titel', titel)
+        .not('status', 'in', '(erledigt,nicht_noetig)')
+        .limit(1);
+      if (offen && offen.length > 0) continue;
+
       await createNotificationForInternals(supabase, {
         title: `Health-Check Fehler: ${typ} bei ${name}`,
         body: (result.details.hinweis as string) || `${typ}-Check hat einen Fehler ergeben`,
@@ -82,7 +92,7 @@ export async function runChecksForAgency(
       // Create internal task
       await supabase.from('project_tasks').insert({
         agency_id: agencyId,
-        titel: `Health-Check Fehler: ${typ}`,
+        titel,
         beschreibung: (result.details.hinweis as string) || `${typ}-Check hat einen Fehler ergeben. Bitte pruefen.`,
         status: 'offen',
         faellig_am: new Date().toISOString().split('T')[0],

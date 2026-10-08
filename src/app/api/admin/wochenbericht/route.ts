@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
+import { closeAll, type CloseOppRoh } from '@/lib/sales-controlling/quellen';
 
 const META_API_VERSION = 'v21.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -116,7 +117,7 @@ async function fetchCloseDeals(): Promise<CloseDeal[]> {
     validStatusIds.add(s.id);
   }
 
-  const allOppData = await closeGet(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_limit=200&_order_by=date_created`);
+  const allOppData = { data: await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_order_by=date_created`) };
   const allOpps = (allOppData.data ?? []).filter(
     (o: { status_id: string }) => validStatusIds.has(o.status_id)
   );

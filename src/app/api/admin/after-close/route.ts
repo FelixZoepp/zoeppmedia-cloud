@@ -6,6 +6,15 @@ import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { startPhase, setStepStatus } from '@/lib/fulfillment/engine';
 import { bausteineBereinigen, paketVorlage } from '@/lib/fulfillment/pakete';
+import { neueAgenturKennungen } from '@/lib/agencies/kennungen';
+
+/** Kalendermonate addieren (YYYY-MM-DD); am Monatsende auf den letzten Tag des Zielmonats begrenzt. */
+function plusKalendermonate(datum: string, monate: number): string {
+  const [j, m, t] = datum.slice(0, 10).split('-').map(Number);
+  const zielMonat = m - 1 + monate;
+  const letzterTag = new Date(Date.UTC(j, zielMonat + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(j, zielMonat, Math.min(t, letzterTag))).toISOString().slice(0, 10);
+}
 
 interface AfterCloseBody {
   // Kunde
@@ -69,13 +78,12 @@ export async function POST(request: Request) {
   // --- 1. Create agency ---
   const guaranteeStart = body.start_datum || new Date().toISOString().slice(0, 10);
   const guaranteeLaufzeit = body.laufzeit_monate ?? 12;
-  const guaranteeEnd = new Date(
-    new Date(guaranteeStart).getTime() + guaranteeLaufzeit * 30 * 86400000
-  ).toISOString().slice(0, 10);
+  const guaranteeEnd = plusKalendermonate(guaranteeStart, guaranteeLaufzeit);
 
   const { data: agency, error: agencyError } = await admin
     .from('agencies')
     .insert({
+      ...(await neueAgenturKennungen(admin, body.firma)),
       name: body.firma,
       contact_name: body.ansprechpartner,
       email: body.email,

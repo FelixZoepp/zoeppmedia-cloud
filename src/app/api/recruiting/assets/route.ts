@@ -109,8 +109,21 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
 
   if (id) {
-    // Update existing asset
-    const { data: updated, error } = await admin
+    // Eigentümer prüfen: Kunden dürfen nur eigene Assets ändern, globale (agency_id IS NULL) nur intern
+    const { data: existing } = await admin
+      .from('stage_assets')
+      .select('id, agency_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (!existing) {
+      return NextResponse.json({ error: 'Asset nicht gefunden' }, { status: 404 });
+    }
+    if (!isInternal(user.role) && (!user.agency_id || existing.agency_id !== user.agency_id)) {
+      return NextResponse.json({ error: 'Nicht berechtigt' }, { status: 403 });
+    }
+
+    // Update existing asset (nur, wenn sich der Eigentümer seit der Prüfung nicht geändert hat)
+    let update = admin
       .from('stage_assets')
       .update({
         stage_key,
@@ -120,9 +133,9 @@ export async function POST(request: NextRequest) {
         inhalt: inhalt ?? null,
         agency_id: effectiveAgencyId,
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+    update = existing.agency_id ? update.eq('agency_id', existing.agency_id) : update.is('agency_id', null);
+    const { data: updated, error } = await update.select().single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

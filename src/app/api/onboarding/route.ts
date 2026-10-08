@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
+import { bereinigeOnboardingBody, darfOnboardingSchreiben } from '@/lib/onboarding/body';
 import { logActivity } from '@/lib/activity/log';
 import { signalSafe } from '@/lib/fulfillment/engine';
 
@@ -11,13 +12,14 @@ export async function POST(req: Request) {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('agency_id')
+    .select('agency_id, role')
     .eq('id', user.id)
     .single();
 
   if (!profile?.agency_id) return NextResponse.json({ error: 'No agency' }, { status: 400 });
+  if (!darfOnboardingSchreiben(profile.role)) return NextResponse.json({ error: 'Nicht berechtigt' }, { status: 403 });
 
-  const body = await req.json();
+  const body = bereinigeOnboardingBody(await req.json());
   const admin = createAdminClient();
 
   // Check if a draft already exists — update it instead of inserting
@@ -38,6 +40,7 @@ export async function POST(req: Request) {
       .from('onboarding_submissions')
       .update({ ...body, status: 'completed', updated_at: new Date().toISOString() })
       .eq('id', existing.id)
+      .eq('agency_id', profile.agency_id)
       .select()
       .single();
     data = result.data;
@@ -46,7 +49,7 @@ export async function POST(req: Request) {
     // Create new submission
     const result = await admin
       .from('onboarding_submissions')
-      .insert({ agency_id: profile.agency_id, status: 'completed', ...body })
+      .insert({ ...body, agency_id: profile.agency_id, status: 'completed' })
       .select()
       .single();
     data = result.data;

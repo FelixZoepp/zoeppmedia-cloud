@@ -1,3 +1,4 @@
+import { normalizeAdAccountId } from '@/lib/meta/api';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { isInternalUser } from '@/lib/admin';
@@ -86,7 +87,7 @@ export async function PATCH(
   if (body.meta_ad_account_id !== undefined) {
     const { error } = await admin
       .from('agencies')
-      .update({ meta_ad_account_id: body.meta_ad_account_id.trim() || null })
+      .update({ meta_ad_account_id: normalizeAdAccountId(body.meta_ad_account_id) || null })
       .eq('id', agencyId);
     if (error) {
       return NextResponse.json({ error: 'Meta-Konto konnte nicht gespeichert werden' }, { status: 500 });

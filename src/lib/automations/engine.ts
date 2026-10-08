@@ -6,6 +6,8 @@ import {
   NotificationType,
 } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
+import { istOeffentlicheUrl, sichererFetch } from '@/lib/security/ssrf';
 
 // --- Types ---
 
@@ -359,35 +361,15 @@ async function executeCallWebhook(
   const url = params.url as string;
   if (!url) return {};
 
-  // SSRF-Schutz: URL parsen und unzulässige Ziele ablehnen
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error('Ungültige Webhook-URL');
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('Ungültige Webhook-URL');
-  }
-  const h = parsed.hostname;
-  if (
-    h === 'localhost' ||
-    h === '127.0.0.1' ||
-    h === '::1' ||
-    h === '[::1]' ||
-    h === '0.0.0.0' ||
-    h === '169.254.169.254' ||
-    h.startsWith('10.') ||
-    h.startsWith('192.168.') ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(h)
-  ) {
+  // SSRF-Schutz: DNS-Auflösung und jede Weiterleitung werden auf interne Ziele geprüft
+  if (!(await istOeffentlicheUrl(url))) {
     throw new Error('Ungültige Webhook-URL');
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
-    const res = await fetch(url, {
+    const res = await sichererFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -524,17 +506,14 @@ async function executeStartBot(
   if (!ctx.application_id) return;
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const adminSvc = createAdminClient();
-  await adminSvc.from('scheduled_jobs').upsert(
-    {
+  await insertDeduped(adminSvc, 'scheduled_jobs', {
       agency_id: ctx.agency_id,
       run_at: new Date().toISOString(),
       type: 'bot.open',
       payload: { application_id: ctx.application_id },
       status: 'pending',
       dedupe_key: `bot.open:${ctx.application_id}`,
-    },
-    { onConflict: 'dedupe_key', ignoreDuplicates: true },
-  );
+    });
 }
 
 async function executeSendEmail(
@@ -639,6 +618,7 @@ async function runSingleAutomation(
     await supabase.from('automation_runs').insert({
       automation_id: automation.id,
       agency_id: context.agency_id,
+      application_id: context.application_id ?? null,
       candidate_id: context.candidate_id ?? null,
       trigger_data: context.data ?? {},
       actions_executed: [],
@@ -678,6 +658,7 @@ async function runSingleAutomation(
     await supabase.from('automation_runs').insert({
       automation_id: automation.id,
       agency_id: context.agency_id,
+      application_id: context.application_id ?? null,
       candidate_id: context.candidate_id ?? null,
       trigger_data: context.data ?? {},
       actions_executed: [],
@@ -685,6 +666,28 @@ async function runSingleAutomation(
       error_message: 'Conditions not met',
     });
     return;
+  }
+
+  // P4-R9c: Dedupe-Anspruch VOR den Aktionen atomar anlegen — sonst führen zwei gleichzeitige
+  // Events beide alle Aktionen aus und erst das Log wird dedupliziert.
+  const dedupeKey = computeDedupeKey(context, automation.actions);
+  const baseRun = {
+    automation_id: automation.id,
+    agency_id: context.agency_id,
+    application_id: context.application_id ?? null,
+    candidate_id: context.candidate_id ?? null,
+    trigger_data: context.data ?? {},
+  };
+  let claimedRunId: string | null = null;
+  if (dedupeKey) {
+    const { data: claim, error: claimError } = await supabase
+      .from('automation_runs')
+      .insert({ ...baseRun, actions_executed: [], status: 'running', dedupe_key: dedupeKey })
+      .select('id')
+      .single();
+    if (claimError?.code === '23505') return; // läuft bereits / schon gelaufen
+    if (claimError) console.error('automation_runs: Anspruch fehlgeschlagen', claimError);
+    claimedRunId = (claim as { id: string } | null)?.id ?? null;
   }
 
   // Execute actions
@@ -712,20 +715,16 @@ async function runSingleAutomation(
     }
   }
 
-  // P4-R9c: Dedupe-Key berechnen und upsert mit ignoreDuplicates
-  const dedupeKey = computeDedupeKey(context, automation.actions);
-  await supabase.from('automation_runs').upsert(
-    {
-      automation_id: automation.id,
-      agency_id: context.agency_id,
-      application_id: context.application_id ?? null,
-      candidate_id: context.candidate_id ?? null,
-      trigger_data: context.data ?? {},
-      actions_executed: executedActions,
-      status: overallStatus,
-      error_message: overallError ?? null,
-      ...(dedupeKey ? { dedupe_key: dedupeKey } : {}),
-    },
-    { onConflict: 'dedupe_key', ignoreDuplicates: true },
-  );
+  const result = {
+    actions_executed: executedActions,
+    status: overallStatus,
+    error_message: overallError ?? null,
+  };
+  if (claimedRunId) {
+    const { error } = await supabase.from('automation_runs').update(result).eq('id', claimedRunId);
+    if (error) console.error('automation_runs: Ergebnis speichern fehlgeschlagen', error);
+  } else {
+    const { error } = await supabase.from('automation_runs').insert({ ...baseRun, ...result });
+    if (error) console.error('automation_runs: Log speichern fehlgeschlagen', error);
+  }
 }

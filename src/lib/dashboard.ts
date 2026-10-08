@@ -1,4 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { fetchAll } from '@/lib/supabase/fetch-all';
+import { getStagesForAgency, istEingestelltStage } from '@/lib/pipeline/get-stages';
+import { berlinMonatsStart, berlinWochenStart } from '@/lib/zeit/berlin';
 
 export interface DashboardData {
   totalCandidates: number;
@@ -19,19 +22,16 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
   const supabase = await createServerClient();
 
   const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  const startOfPrevWeek = new Date(startOfWeek);
-  startOfPrevWeek.setDate(startOfPrevWeek.getDate() - 7);
-  const endOfPrevWeek = new Date(startOfWeek);
+  // Wochen- und Monatsgrenzen in Berliner Zeit (Montag als Wochenbeginn, auch sonntags)
+  const startOfWeek = berlinWochenStart(now);
+  const startOfPrevWeek = berlinWochenStart(new Date(startOfWeek.getTime() - 3 * 864e5));
+  const endOfPrevWeek = startOfWeek;
 
   const monthDefs = Array.from({ length: 6 }, (_, idx) => {
     const i = 5 - idx;
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const nextMonth = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-    return { start: d, end: nextMonth, label: d.toLocaleDateString('de-DE', { month: 'short' }) };
+    const d = berlinMonatsStart(now, -i);
+    const nextMonth = berlinMonatsStart(now, -i + 1);
+    return { start: d, end: nextMonth, label: d.toLocaleDateString('de-DE', { month: 'short', timeZone: 'Europe/Berlin' }) };
   });
 
   // Phase 1: everything without dependencies, in parallel
@@ -39,11 +39,10 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
     { count: totalCandidates },
     { count: newThisWeek },
     { count: newPrevWeek },
-    { data: hiredStage },
     { count: totalPrevWeekEnd },
     monthCounts,
-    { data: allCandidates },
-    { data: stages },
+    allCandidates,
+    stages,
     { data: recent },
     { data: onboarding },
   ] = await Promise.all([
@@ -52,32 +51,37 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
       .gte('created_at', startOfWeek.toISOString()),
     supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
       .gte('created_at', startOfPrevWeek.toISOString()).lt('created_at', endOfPrevWeek.toISOString()),
-    supabase.from('pipeline_stages').select('id').eq('name', 'Eingestellt').single(),
     supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
       .lt('created_at', endOfPrevWeek.toISOString()),
     Promise.all(monthDefs.map((m) =>
       supabase.from('candidates').select('*', { count: 'exact', head: true }).eq('agency_id', agencyId)
         .gte('created_at', m.start.toISOString()).lt('created_at', m.end.toISOString())
     )),
-    supabase.from('candidates').select('source').eq('agency_id', agencyId),
-    supabase.from('pipeline_stages').select('id, name, color, sort_order').order('sort_order'),
+    // Quellen seitenweise – Supabase liefert sonst höchstens 1000 Zeilen
+    fetchAll<{ source: string }>((rFrom, rTo) =>
+      supabase.from('candidates').select('source').eq('agency_id', agencyId).order('id').range(rFrom, rTo),
+    ),
+    // Effektive Pipeline der Agentur (eigene Phasen, sonst globale)
+    getStagesForAgency(supabase, agencyId),
     supabase.from('candidates').select('id, name, source, created_at').eq('agency_id', agencyId)
       .order('created_at', { ascending: false }).limit(5),
     supabase.from('onboarding_submissions').select('indeed_daily_budget, meta_daily_budget')
       .eq('agency_id', agencyId).order('created_at', { ascending: false }).limit(1).single(),
   ]);
 
-  const hiredStageId = hiredStage?.id;
+  // „Eingestellt“ über stage_type der Agentur-Pipeline statt global per Name
+  const hiredStageIds = stages.filter(istEingestelltStage).map((s) => s.id);
 
-  // Phase 2: queries depending on hiredStageId / stages, in parallel
+  // Phase 2: queries depending on hiredStageIds / stages, in parallel
   const [{ count: hired }, { count: hiredPrevWeekCount }, stageCounts] = await Promise.all([
-    hiredStageId
+    hiredStageIds.length
       ? supabase.from('candidates').select('*', { count: 'exact', head: true })
-          .eq('agency_id', agencyId).eq('current_stage_id', hiredStageId)
+          .eq('agency_id', agencyId).in('current_stage_id', hiredStageIds)
       : Promise.resolve({ count: 0 }),
-    hiredStageId
-      ? supabase.from('candidate_stages').select('*', { count: 'exact', head: true })
-          .eq('stage_id', hiredStageId)
+    hiredStageIds.length
+      ? supabase.from('candidate_stages').select('candidate_id, candidates!inner(agency_id)', { count: 'exact', head: true })
+          .eq('candidates.agency_id', agencyId)
+          .in('stage_id', hiredStageIds)
           .gte('changed_at', startOfPrevWeek.toISOString()).lt('changed_at', endOfPrevWeek.toISOString())
       : Promise.resolve({ count: 0 }),
     Promise.all((stages ?? []).map((stage) =>
@@ -89,7 +93,7 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
   const months = monthDefs.map((m, i) => ({ month: m.label, count: monthCounts[i].count ?? 0 }));
 
   const sourceCounts: Record<string, number> = { meta: 0, indeed: 0, manual: 0 };
-  (allCandidates ?? []).forEach((c) => {
+  allCandidates.forEach((c) => {
     sourceCounts[c.source] = (sourceCounts[c.source] || 0) + 1;
   });
 

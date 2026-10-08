@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { Select } from '@/components/ui/select';
-import { Handshake, TrendingUp, Trophy, XCircle, Target, Clock, UserPlus, RefreshCw } from 'lucide-react';
+import { Handshake, Trophy, Target, Clock, UserPlus, RefreshCw } from 'lucide-react';
 
 const RANGE_OPTIONS = [
   { value: 'all', label: 'Gesamt' },
@@ -81,12 +81,6 @@ function statusBadgeTone(type: string): 'success' | 'accent' | 'neutral' {
   if (type === 'won') return 'success';
   if (type === 'lost') return 'neutral';
   return 'accent';
-}
-
-function statusColor(type: string): string {
-  if (type === 'won') return 'bg-green-500';
-  if (type === 'lost') return 'bg-red-500';
-  return 'bg-blue-500';
 }
 
 const STATUS_COLORS = [

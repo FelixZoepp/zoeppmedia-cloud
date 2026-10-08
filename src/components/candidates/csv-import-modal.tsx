@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import Papa from 'papaparse';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -42,12 +41,14 @@ export function CsvImportModal({ open, onClose, jobId, onImported }: CsvImportMo
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ created: number; duplicates: number; invalid: number } | null>(null);
 
-  function handleFile(file: File) {
-    Papa.parse(file, {
+  async function handleFile(file: File) {
+    // papaparse erst beim Upload laden statt im Bundle der Seite
+    const { default: Papa } = await import('papaparse');
+    Papa.parse<string[]>(file, {
       encoding: 'UTF-8',
       skipEmptyLines: true,
       complete: (results) => {
-        const data = results.data as string[][];
+        const data = results.data;
         if (data.length < 2) { toast.error('CSV muss mindestens eine Kopfzeile und eine Datenzeile haben.'); return; }
         setHeaders(data[0]);
         setRows(data.slice(1));

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dialerScope } from '@/lib/dialer/scope';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+import { fetchAll, fetchAllIn } from '@/lib/supabase/fetch-all';
+import { berlinTag } from '@/lib/zeit/berlin';
 
 // Interne Sales-Agentur (Sales-WhatsApp-Kontakte) sind keine Bewerber
 const NICHT_INTERN = `(${HIDDEN_AGENCY_IDS.join(',')})`;
@@ -37,7 +39,8 @@ export async function GET(req: NextRequest) {
   const ids = scope.agencyIds;
   const now = new Date();
   const nowIso = now.toISOString();
-  const todayStr = nowIso.slice(0, 10);
+  // Fälligkeit nach Berliner Kalendertag (nicht UTC)
+  const todayStr = berlinTag(now);
   const reminderHorizon = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
   let reminderQuery = svc
@@ -63,15 +66,18 @@ export async function GET(req: NextRequest) {
   if (ids) cadenceQuery = cadenceQuery.in('agency_id', ids);
   else cadenceQuery = cadenceQuery.not('agency_id', 'in', NICHT_INTERN);
 
-  let callbacksQuery = svc
-    .from('call_logs')
-    .select('id, candidate_id, agency_id, notes, next_contact_date')
-    .eq('next_step', 'erneut_anrufen')
-    .lte('next_contact_date', todayStr)
-    .order('next_contact_date', { ascending: true })
-    .limit(100);
-  if (ids) callbacksQuery = callbacksQuery.in('agency_id', ids);
-  else callbacksQuery = callbacksQuery.not('agency_id', 'in', NICHT_INTERN);
+  // Alle fälligen Rückruf-Logs (auch überholte) – erst nach dem Filter auf den letzten Log je
+  // Bewerber begrenzen, sonst verdrängen alte Logs die neuen Rückrufe aus der Liste
+  const callbacksLaden = fetchAll<QueueCallback>((rFrom, rTo) => {
+    let q = svc
+      .from('call_logs')
+      .select('id, candidate_id, agency_id, notes, next_contact_date')
+      .eq('next_step', 'erneut_anrufen')
+      .lte('next_contact_date', todayStr);
+    if (ids) q = q.in('agency_id', ids);
+    else q = q.not('agency_id', 'in', NICHT_INTERN);
+    return q.order('next_contact_date', { ascending: true }).order('id').range(rFrom, rTo);
+  }, 1000, 20_000);
 
   // Neue Bewerber ohne ersten Wählversuch – neueste zuerst (Speed-to-Lead)
   let newQuery = svc
@@ -84,30 +90,37 @@ export async function GET(req: NextRequest) {
   if (ids) newQuery = newQuery.in('agency_id', ids);
   else newQuery = newQuery.not('agency_id', 'in', NICHT_INTERN);
 
-  const [reminderResult, cadenceResult, callbacksResult, newResult] = await Promise.all([
+  const [reminderResult, cadenceResult, callbacks, newResult] = await Promise.all([
     reminderQuery,
     cadenceQuery,
-    callbacksQuery,
+    callbacksLaden,
     newQuery,
   ]);
 
-  const callbacks = (callbacksResult.data ?? []) as QueueCallback[];
   const reminders = (reminderResult.data ?? []) as QueueReminder[];
 
   // Rückrufe nur, wenn der Rückruf-Log der jeweils letzte Anruf des Bewerbers ist
   const letzterLog: Record<string, string> = {};
   const callbackIds = [...new Set(callbacks.map((c) => c.candidate_id))];
   if (callbackIds.length) {
-    const { data: logs } = await svc
-      .from('call_logs')
-      .select('id, candidate_id, created_at')
-      .in('candidate_id', callbackIds)
-      .order('created_at', { ascending: false });
-    for (const log of (logs ?? []) as Array<{ id: string; candidate_id: string }>) {
-      if (!letzterLog[log.candidate_id]) letzterLog[log.candidate_id] = log.id;
+    const logs = await fetchAllIn<string, { id: string; candidate_id: string; created_at: string }>(callbackIds, (chunk, rFrom, rTo) =>
+      svc
+        .from('call_logs')
+        .select('id, candidate_id, created_at')
+        .in('candidate_id', chunk)
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(rFrom, rTo),
+    );
+    const neueste: Record<string, string> = {};
+    for (const log of logs) {
+      if (!neueste[log.candidate_id] || log.created_at > neueste[log.candidate_id]) {
+        neueste[log.candidate_id] = log.created_at;
+        letzterLog[log.candidate_id] = log.id;
+      }
     }
   }
-  const offen = offeneRueckrufe(callbacks, letzterLog);
+  const offen = offeneRueckrufe(callbacks, letzterLog).slice(0, 100);
 
   const extraIds = [...new Set([...reminders.map((r) => r.candidate_id), ...offen.map((c) => c.candidate_id)])];
   const kandidaten: Record<string, QueueCandidate> = {};

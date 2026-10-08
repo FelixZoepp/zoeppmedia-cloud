@@ -8,7 +8,6 @@ const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export function ApplyForm({
   agencyId,
-  agencySlug,
   jobId,
   jobTitle,
   privacyUrl,

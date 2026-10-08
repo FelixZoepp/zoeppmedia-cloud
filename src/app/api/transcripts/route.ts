@@ -17,10 +17,13 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const agencyId = searchParams.get('agency_id');
 
+  // Volltexte (komplette Gespräche) nur für die Ansicht eines Kunden laden, nicht für die Gesamtliste
+  const listenSpalten = 'id, agency_id, typ, quelle, datei_url, dauer_sekunden, sprache, status, hochgeladen_von, geprueft_von, geprueft_am, created_at';
   let query = supabase
     .from('transcripts')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select(agencyId ? `${listenSpalten}, volltext` : listenSpalten)
+    .order('created_at', { ascending: false })
+    .limit(agencyId ? 100 : 200);
 
   if (agencyId) {
     query = query.eq('agency_id', agencyId);

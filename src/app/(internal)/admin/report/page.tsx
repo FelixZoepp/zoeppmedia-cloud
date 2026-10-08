@@ -6,10 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { Select } from '@/components/ui/select';
 import {
-  TrendingUp,
-  DollarSign,
-  Users,
-  Target,
   Trophy,
   UserPlus,
   RefreshCw,
@@ -124,23 +120,6 @@ function fmtNum(v: number): string {
 }
 
 // ── KPI Card ────────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, sub, icon, iconBg = 'bg-gray-100', iconColor = 'text-gray-600' }: {
-  label: string; value: string; sub?: string; icon: React.ReactNode; iconBg?: string; iconColor?: string;
-}) {
-  return (
-    <Card padding="md" className="flex items-start gap-4">
-      <div className={`flex-shrink-0 w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center ${iconColor}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums leading-tight">{value}</p>
-        {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
-      </div>
-    </Card>
-  );
-}
 
 // ── Funnel Step ─────────────────────────────────────────────────────────────
 

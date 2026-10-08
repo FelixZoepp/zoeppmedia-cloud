@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { istErlaubterPushEndpoint } from '@/lib/security/ssrf';
 
 export interface PushPayload {
   title: string;
@@ -42,6 +43,8 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
 
   await Promise.all(
     subs.map(async (sub) => {
+      // Altbestand mit fremden Endpoints nicht beliefern
+      if (!istErlaubterPushEndpoint(sub.endpoint)) return;
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },

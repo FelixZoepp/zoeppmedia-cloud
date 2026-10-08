@@ -7,6 +7,7 @@ import { normalizePhoneE164 } from '@/lib/phone';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { CONSENT_VERSION, CONSENT_TEXT } from '@/lib/consent/version';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 export interface IngestInput {
   agencyId: string;
@@ -322,14 +323,14 @@ export async function ingestApplication(
   // Hier ist immer applicationCreated=true (wir sind im Happy-Path hinter der 30-Tage-Prüfung)
   if (newApp?.id && input.consentWhatsapp && phoneE164) {
     try {
-      await svc.from('scheduled_jobs').upsert({
+      await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: input.agencyId,
         run_at: new Date().toISOString(),
         type: 'bot.open',
         payload: { application_id: newApp.id },
         status: 'pending',
         dedupe_key: `bot.open:${newApp.id}`,
-      }, { onConflict: 'dedupe_key', ignoreDuplicates: true });
+      });
     } catch {
       // Best effort — Fehler beim Einreihen dürfen den Ingest nicht blockieren
     }

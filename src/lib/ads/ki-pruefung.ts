@@ -13,6 +13,7 @@ import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { baueBriefing, briefingText } from '@/lib/indeed/anzeige';
 import { AD_ASSET_BUCKET, type AdItem } from './constants';
+import { sichererFetch } from '@/lib/security/ssrf';
 
 export const KI_MODELL = 'claude-opus-5-5';
 
@@ -81,7 +82,8 @@ type Bild = { media_type: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif
 
 async function holeBild(url: string): Promise<Bild | null> {
   try {
-    const res = await fetch(url, { redirect: 'follow' });
+    // URLs stammen (teilweise) aus Nutzereingaben: Ziel und Weiterleitungen gegen interne Netze prüfen
+    const res = await sichererFetch(url);
     if (!res.ok) return null;
     const typ = (res.headers.get('content-type') ?? '').split(';')[0].trim();
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(typ)) return null;

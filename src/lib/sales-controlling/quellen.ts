@@ -22,8 +22,24 @@ async function closeGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Opportunity, wie die Close-API sie liefert (Felder je nach _fields) */
+export interface CloseOppRoh {
+  id: string;
+  lead_id: string;
+  lead_name?: string;
+  status_id: string;
+  status_type?: string;
+  status_label?: string;
+  value?: number;
+  date_created: string;
+  date_updated: string;
+  date_won?: string | null;
+  user_id?: string | null;
+  user_name?: string;
+}
+
 /** Alle Seiten eines Close-Listen-Endpunkts laden */
-async function closeAll<T>(path: string, max = 5000): Promise<T[]> {
+export async function closeAll<T>(path: string, max = 5000): Promise<T[]> {
   const out: T[] = [];
   for (let skip = 0; skip < max; skip += 100) {
     const sep = path.includes('?') ? '&' : '?';
@@ -75,16 +91,25 @@ export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) =
     .map((e) => ({ opportunity_id: e.opportunity_id, old_status_id: e.old_status_id, new_status_id: e.new_status_id, date: e.date_created, user_id: e.user_id }));
   const users = new Map(usersRaw.map((u) => [u.id, [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email || u.id]));
 
-  // Leadquelle nur für die relevanten Deals (Einzelabrufe, max. 150)
-  const leadIds = [...new Set(quellenFür(opps).map((o) => o.lead_id))].slice(0, 150);
-  const quellen = await inBatches(leadIds, 8, async (id) => {
-    try {
-      const lead = await closeGet<Record<string, string | null>>(`/lead/${id}/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD}`);
-      return [id, (lead[LEADQUELLE_FIELD] || lead[UTM_SOURCE_FIELD] || null) as string | null] as const;
-    } catch {
-      return [id, null] as const;
-    }
-  });
+  // Leadquelle für die relevanten Deals: wenige per Einzelabruf, viele über die Lead-Liste
+  const leadIds = [...new Set(quellenFür(opps).map((o) => o.lead_id))];
+  const quelleVon = (lead: Record<string, string | null>) => (lead[LEADQUELLE_FIELD] || lead[UTM_SOURCE_FIELD] || null) as string | null;
+  let quellen: (readonly [string, string | null])[];
+  if (leadIds.length <= 150) {
+    quellen = await inBatches(leadIds, 8, async (id) => {
+      try {
+        const lead = await closeGet<Record<string, string | null>>(`/lead/${id}/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD}`);
+        return [id, quelleVon(lead)] as const;
+      } catch {
+        return [id, null] as const;
+      }
+    });
+  } else {
+    const gesucht = new Set(leadIds);
+    const alle = await closeAll<Record<string, string | null>>(`/lead/?_fields=id,${LEADQUELLE_FIELD},${UTM_SOURCE_FIELD}`, 50000).catch(() => []);
+    const gefunden = new Map(alle.filter((l) => l.id && gesucht.has(l.id)).map((l) => [l.id as string, quelleVon(l)]));
+    quellen = leadIds.map((id) => [id, gefunden.get(id) ?? null] as const);
+  }
 
   return { statuses, opps, events, users, leadQuellen: new Map(quellen) };
 }

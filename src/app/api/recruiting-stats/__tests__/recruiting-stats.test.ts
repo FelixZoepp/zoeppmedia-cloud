@@ -169,6 +169,8 @@ function buildMockClient(opts: {
             const inner: Record<string, unknown> = {};
             inner['gte'] = () => inner;
             inner['lte'] = () => inner;
+            inner['order'] = () => inner;
+            inner['range'] = () => inner;
             inner['eq']  = (c: string, v: unknown) => {
               recordEqCalls.push({ table: 'applications', col: c, val: v });
               return inner;
@@ -194,7 +196,7 @@ function buildMockClient(opts: {
             eq: (col: string, val: unknown) => {
               recordEqCalls.push({ table, col, val });
               return {
-                in: () => Promise.resolve({ data: conversations, error: null }),
+                in: () => ({ order: () => ({ range: () => Promise.resolve({ data: conversations, error: null }) }) }),
               };
             },
             in: () => Promise.resolve({ data: conversations, error: null }),
@@ -208,7 +210,7 @@ function buildMockClient(opts: {
             eq: (col: string, val: unknown) => {
               recordEqCalls.push({ table, col, val });
               return {
-                in: () => Promise.resolve({ data: messages, error: null }),
+                in: () => ({ order: () => ({ range: () => Promise.resolve({ data: messages, error: null }) }) }),
               };
             },
             in: () => Promise.resolve({ data: messages, error: null }),
@@ -222,7 +224,7 @@ function buildMockClient(opts: {
             eq: (col: string, val: unknown) => {
               recordEqCalls.push({ table, col, val });
               return {
-                in: () => Promise.resolve({ data: appointments, error: null }),
+                in: () => ({ order: () => ({ range: () => Promise.resolve({ data: appointments, error: null }) }) }),
               };
             },
             in: () => Promise.resolve({ data: appointments, error: null }),

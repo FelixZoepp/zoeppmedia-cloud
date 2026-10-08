@@ -83,6 +83,14 @@ export function klassifiziere(s: CloseStatus | undefined): Stufe {
 
 const SETTING_GEHALTEN_NACH: Stufe[] = ['setting_followup', 'closing', 'closing_noshow', 'closing_followup', 'angebot', 'cc2', 'won', 'lost'];
 const CLOSING_GEHALTEN_NACH: Stufe[] = ['closing_followup', 'angebot', 'won', 'lost'];
+
+/**
+ * Einheitliche Closing-Definition (auch für detail.ts): CC2 ist der Folgetermin eines bereits
+ * gehaltenen Closings – zählt also weder als neu gebuchtes noch als zweites gehaltenes Closing.
+ */
+export const istClosingGebucht = (x: { von: Stufe | null; nach: Stufe }) => x.nach === 'closing' && x.von !== 'closing';
+export const istClosingGehalten = (x: { von: Stufe | null; nach: Stufe }) =>
+  x.von === 'closing' && (CLOSING_GEHALTEN_NACH.includes(x.nach) || x.nach === 'cc2');
 const OFFEN: Stufe[] = ['setting', 'setting_noshow', 'setting_followup', 'closing', 'closing_noshow', 'closing_followup', 'angebot', 'cc2'];
 const ABSCHLUSSNAH: Stufe[] = ['closing', 'cc2', 'angebot', 'closing_followup'];
 
@@ -172,11 +180,9 @@ function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string):
   const settingGebucht = p.filter((x) => x.nach === 'setting' && x.von !== 'setting').length;
   const settingNoShow = p.filter((x) => x.nach === 'setting_noshow' && x.von !== 'setting_noshow').length;
   const settingGehalten = p.filter((x) => x.von === 'setting' && SETTING_GEHALTEN_NACH.includes(x.nach)).length;
-  const closingGebucht = p.filter((x) => (x.nach === 'closing' || x.nach === 'cc2') && x.von !== x.nach).length;
+  const closingGebucht = p.filter(istClosingGebucht).length;
   const closingNoShow = p.filter((x) => x.nach === 'closing_noshow' && x.von !== 'closing_noshow').length;
-  const closingGehalten = p.filter(
-    (x) => (x.von === 'closing' || x.von === 'cc2') && (CLOSING_GEHALTEN_NACH.includes(x.nach) || (x.von === 'closing' && x.nach === 'cc2')),
-  ).length;
+  const closingGehalten = p.filter(istClosingGehalten).length;
   const angebote = p.filter((x) => x.nach === 'angebot' && x.von !== 'angebot').length;
   const verloren = new Set(p.filter((x) => x.nach === 'lost').map((x) => x.opp)).size;
 
@@ -352,7 +358,9 @@ export function berechneSalesControlling(e: Eingaben) {
     settingShow: q(ref.settingShowQuote, 0.7),
     anfrageZuSetting: q(ref.leadZuSetting, 0.5),
   };
-  const refAnfragen = Math.max(1, ref.neueAnfragen);
+  // Spend und Anfragen über dasselbe Fenster (Meta-Monate ab Vorvormonat)
+  const spendFensterAb = isoTag(monatsStart(jetzt, -2));
+  const refAnfragen = Math.max(1, e.opps.filter((o) => o.date_created >= spendFensterAb).length);
   const kostenProAnfrage = refSpend > 0 ? refSpend / refAnfragen : null;
   const rückwärts = (volumen: number) => {
     const deals = Math.ceil(volumen / schnittDeal);
@@ -437,7 +445,7 @@ export function berechneSalesControlling(e: Eingaben) {
   for (const x of ü.filter((x) => x.date >= e.zeitraum.von && x.date < e.zeitraum.bis)) {
     if (x.von === 'setting' && SETTING_GEHALTEN_NACH.includes(x.nach)) pers(x.user_id).settingGehalten++;
     if (x.nach === 'setting_noshow' && x.von !== 'setting_noshow') pers(x.user_id).settingNoShow++;
-    if ((x.von === 'closing' || x.von === 'cc2') && CLOSING_GEHALTEN_NACH.includes(x.nach)) pers(x.user_id).closingGehalten++;
+    if (istClosingGehalten(x)) pers(x.user_id).closingGehalten++;
     if (x.nach === 'closing_noshow' && x.von !== 'closing_noshow') pers(x.user_id).closingNoShow++;
   }
   const personenListe = [...personen.entries()]

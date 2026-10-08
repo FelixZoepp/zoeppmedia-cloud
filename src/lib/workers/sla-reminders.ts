@@ -8,6 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotification, createNotificationForAgency } from '@/lib/notifications/create';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { logActivity } from '@/lib/activity/log';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 // ---------------------------------------------------------------------------
 // processSlaRecruiter24h — SLA-Warnung nach 24h ohne Reaktion
@@ -313,42 +314,33 @@ export async function scheduleStageReminders(
   requiresDocuments: boolean,
 ): Promise<void> {
   if (stageType === 'qualified') {
-    await svc.from('scheduled_jobs').upsert(
-      {
+    await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: agencyId,
         run_at: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
         type: 'sla.recruiter_24h',
         payload: { application_id: applicationId },
         status: 'pending',
         dedupe_key: `sla24:${applicationId}`,
-      },
-      { onConflict: 'dedupe_key', ignoreDuplicates: true },
-    );
+      });
 
-    await svc.from('scheduled_jobs').upsert(
-      {
+    await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: agencyId,
         run_at: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
         type: 'sla.recruiter_48h',
         payload: { application_id: applicationId },
         status: 'pending',
         dedupe_key: `sla48:${applicationId}`,
-      },
-      { onConflict: 'dedupe_key', ignoreDuplicates: true },
-    );
+      });
   }
 
   if (requiresDocuments) {
-    await svc.from('scheduled_jobs').upsert(
-      {
+    await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: agencyId,
         run_at: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
         type: 'documents.request',
         payload: { application_id: applicationId, stage_id: stageId },
         status: 'pending',
         dedupe_key: `docs:${applicationId}:${stageId}`,
-      },
-      { onConflict: 'dedupe_key', ignoreDuplicates: true },
-    );
+      });
   }
 }

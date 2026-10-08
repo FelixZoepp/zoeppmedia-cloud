@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ProjectTask, ProjectTaskStatus, TaskCheckitem } from '@/lib/types/database';
 import {
-  ArrowLeft, Clock, CheckCircle2, Circle, Loader2,
-  Ban, ShieldCheck, ExternalLink, AlertTriangle,
+  ArrowLeft, Clock, CheckCircle2, 
+  ShieldCheck, ExternalLink, AlertTriangle,
   Link as LinkIcon, Play,
 } from 'lucide-react';
 

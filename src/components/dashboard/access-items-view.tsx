@@ -16,7 +16,7 @@ interface AccessItemData {
   anleitung_url: string | null;
 }
 
-export function AccessItemsView({ agencyId }: { agencyId: string }) {
+export function AccessItemsView({}: { agencyId: string }) {
   const [items, setItems] = useState<AccessItemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);

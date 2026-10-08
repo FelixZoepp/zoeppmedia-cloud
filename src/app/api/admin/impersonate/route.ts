@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import { IMPERSONATION_COOKIE } from '@/lib/recruiting/scope';
 import { darfKundenCloud } from '@/lib/kunden-cloud/zugriff';
+import { sicheresZiel } from '@/lib/kunden-cloud/ziel';
 
 const COOKIE_OPTS = {
   httpOnly: true,
@@ -42,18 +43,24 @@ async function starte(request: NextRequest, userId: string, agencyId: string): P
   return true;
 }
 
-/** 1-Klick-Login als Link: /api/admin/impersonate?agency=<id>&ziel=/candidates */
+/**
+ * 1-Klick-Login als Link: /api/admin/impersonate?agency=<id>&ziel=/candidates
+ * Links von fremden Seiten (Sec-Fetch-Site: cross-site) wechseln den Kunden nicht (CSRF-Schutz).
+ */
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!darfKundenCloud(user)) return NextResponse.redirect(new URL('/login', request.url));
+
+  const fetchSite = request.headers.get('sec-fetch-site');
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
+    return NextResponse.redirect(new URL('/innendienst', request.url));
+  }
 
   const agencyId = request.nextUrl.searchParams.get('agency') ?? '';
   if (!agencyId || !(await starte(request, user!.id, agencyId))) {
     return NextResponse.redirect(new URL('/innendienst', request.url));
   }
-  const ziel = request.nextUrl.searchParams.get('ziel') ?? '/candidates';
-  // nur interne Pfade zulassen
-  return NextResponse.redirect(new URL(ziel.startsWith('/') && !ziel.startsWith('//') ? ziel : '/candidates', request.url));
+  return NextResponse.redirect(sicheresZiel(request.nextUrl.searchParams.get('ziel'), request.url));
 }
 
 export async function POST(request: NextRequest) {

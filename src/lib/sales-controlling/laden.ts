@@ -2,6 +2,7 @@
 import { berechneSalesControlling, type Opp } from '@/lib/sales-controlling/compute';
 import { ladeAnrufe, ladeAufgaben, ladeClose, ladeMetaMonate, ladeMetaZeitraum } from '@/lib/sales-controlling/quellen';
 import { berechneDetails } from '@/lib/sales-controlling/detail';
+import { berlinTag } from '@/lib/zeit/berlin';
 
 
 export const ZIEL = 300_000;
@@ -12,7 +13,9 @@ const monat = (d: Date, delta = 0) => new Date(Date.UTC(d.getUTCFullYear(), d.ge
 export const ZEITRÄUME = ['monat', 'vormonat', 'quartal', 'letztesquartal', '90tage', 'jahr'] as const;
 export type Zeitraum = (typeof ZEITRÄUME)[number];
 
-export function zeitraumFür(z: Zeitraum, jetzt: Date) {
+export function zeitraumFür(z: Zeitraum, echtJetzt: Date) {
+  // Kalendertag/-monat nach Berliner Zeit – zwischen 0 und 2 Uhr wäre es in UTC noch der Vortag
+  const jetzt = new Date(`${berlinTag(echtJetzt)}T12:00:00Z`);
   const morgen = iso(new Date(jetzt.getTime() + TAG));
   switch (z) {
     case 'vormonat': {

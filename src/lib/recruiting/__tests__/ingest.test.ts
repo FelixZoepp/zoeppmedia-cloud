@@ -300,13 +300,13 @@ describe('ingestApplication', () => {
   // -------------------------------------------------------------------------
   it('Phase 3: legt scheduled_job bot.open an wenn applicationCreated + consentWhatsapp + phoneE164', async () => {
     // pipeline_stages already queued in beforeEach
-    // Tracking für scheduled_jobs.upsert — einfacher Intercept ohne Weiterleitung
+    // Tracking für scheduled_jobs.insert — einfacher Intercept ohne Weiterleitung
     const scheduledJobUpserts: Array<Record<string, unknown>> = [];
     const origFrom = client.from.bind(client) as typeof client.from;
     client.from = vi.fn().mockImplementation((table: string) => {
       const chain = origFrom(table);
       if (table === 'scheduled_jobs') {
-        (chain as Record<string, unknown>).upsert = vi.fn().mockImplementation(
+        (chain as Record<string, unknown>).insert = vi.fn().mockImplementation(
           (data: Record<string, unknown>) => {
             scheduledJobUpserts.push(data);
             return Promise.resolve({ data: null, error: null });
@@ -341,7 +341,7 @@ describe('ingestApplication', () => {
     client.from = vi.fn().mockImplementation((table: string) => {
       const chain = origFrom2(table);
       if (table === 'scheduled_jobs') {
-        (chain as Record<string, unknown>).upsert = vi.fn().mockImplementation(
+        (chain as Record<string, unknown>).insert = vi.fn().mockImplementation(
           (data: Record<string, unknown>) => {
             scheduledJobUpserts.push(data);
             return Promise.resolve({ data: null, error: null });
@@ -365,7 +365,7 @@ describe('ingestApplication', () => {
     client.from = vi.fn().mockImplementation((table: string) => {
       const chain = origFrom3(table);
       if (table === 'scheduled_jobs') {
-        (chain as Record<string, unknown>).upsert = vi.fn().mockImplementation(
+        (chain as Record<string, unknown>).insert = vi.fn().mockImplementation(
           (data: Record<string, unknown>) => {
             scheduledJobUpserts.push(data);
             return Promise.resolve({ data: null, error: null });

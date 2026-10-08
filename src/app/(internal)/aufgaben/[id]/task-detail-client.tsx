@@ -9,14 +9,12 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/ui/page-header';
 import type { ProjectTask, ProjectTaskStatus, TaskCheckitem, TaskTemplate, AccessItem, ClientProfile } from '@/lib/types/database';
 import type { UserRole } from '@/lib/auth';
 import {
   ArrowLeft, Clock, CheckCircle2, Circle, Loader2,
   Ban, ShieldCheck, ExternalLink, AlertTriangle,
-  Link as LinkIcon, FileText, Check, X, Play,
-  ChevronRight,
+  Link as LinkIcon, Check, X, Play,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */

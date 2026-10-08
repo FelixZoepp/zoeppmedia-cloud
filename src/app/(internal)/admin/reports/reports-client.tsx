@@ -13,9 +13,7 @@ import {
   Check,
   Send,
   Eye,
-  X,
   Loader2,
-  ChevronDown,
   ChevronUp,
 } from 'lucide-react';
 

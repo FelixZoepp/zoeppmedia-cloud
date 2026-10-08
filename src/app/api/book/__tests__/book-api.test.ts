@@ -39,9 +39,17 @@ vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => mockSvc),
 }));
 
+// Angebotene Slots liegen immer in der Zukunft (die Route lehnt vergangene und nicht angebotene Zeitpunkte ab)
+const { SLOT_1, SLOT_2 } = vi.hoisted(() => {
+  const basis = new Date(Date.now() + 3 * 24 * 60 * 60_000);
+  basis.setUTCHours(8, 0, 0, 0);
+  return { SLOT_1: basis.toISOString(), SLOT_2: new Date(basis.getTime() + 25 * 60 * 60_000).toISOString() };
+});
+
 vi.mock('@/lib/appointments/slots', () => ({
   computeSlots: vi.fn().mockReturnValue([
-    { start: new Date('2026-10-10T08:00:00Z'), end: new Date('2026-10-10T08:30:00Z') },
+    { start: new Date(SLOT_1), end: new Date(new Date(SLOT_1).getTime() + 30 * 60_000) },
+    { start: new Date(SLOT_2), end: new Date(new Date(SLOT_2).getTime() + 30 * 60_000) },
   ]),
 }));
 
@@ -95,10 +103,10 @@ function setupMockSvc(config: {
         const q = makeQuery(apptResult);
         // single() für Token-Lookup
         q.maybeSingle.mockResolvedValue(apptResult);
-        // Für .in().not() Kette (gebuchte Termine)
+        // Für .in().not().gte() Kette (gebuchte, noch nicht vergangene Termine)
         q.in.mockReturnValue({
           ...q,
-          not: vi.fn().mockResolvedValue(bookedResult),
+          not: vi.fn().mockReturnValue({ gte: vi.fn().mockResolvedValue(bookedResult) }),
         });
         return q;
       }
@@ -195,7 +203,7 @@ describe('POST /api/book/[token]', () => {
     setupMockSvc({});
     const { bookAppointment } = await import('@/lib/appointments/lifecycle');
     const { POST } = await import('@/app/api/book/[token]/route');
-    const req = makePostRequest('valid-token', { action: 'book', start: '2026-10-10T08:00:00Z' });
+    const req = makePostRequest('valid-token', { action: 'book', start: SLOT_1 });
     const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -208,7 +216,7 @@ describe('POST /api/book/[token]', () => {
     const { bookAppointment } = await import('@/lib/appointments/lifecycle');
     vi.mocked(bookAppointment).mockRejectedValueOnce(new Error('Slot bereits vergeben'));
     const { POST } = await import('@/app/api/book/[token]/route');
-    const req = makePostRequest('valid-token', { action: 'book', start: '2026-10-10T08:00:00Z' });
+    const req = makePostRequest('valid-token', { action: 'book', start: SLOT_1 });
     const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
     expect(res.status).toBe(409);
     const json = await res.json();
@@ -230,10 +238,10 @@ describe('POST /api/book/[token]', () => {
   });
 
   it('verschiebt Termin mit action reschedule', async () => {
-    setupMockSvc({});
+    setupMockSvc({ appt: { data: makeAppt({ status: 'booked' }), error: null } });
     const { rescheduleAppointment } = await import('@/lib/appointments/lifecycle');
     const { POST } = await import('@/app/api/book/[token]/route');
-    const req = makePostRequest('valid-token', { action: 'reschedule', start: '2026-10-11T09:00:00Z' });
+    const req = makePostRequest('valid-token', { action: 'reschedule', start: SLOT_2 });
     const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -281,7 +289,7 @@ describe('POST /api/book/[token]', () => {
   it('404 wenn Bewerbung nicht gefunden (application null)', async () => {
     setupMockSvc({ application: { data: null, error: null } });
     const { POST } = await import('@/app/api/book/[token]/route');
-    const req = makePostRequest('valid-token', { action: 'book', start: '2026-10-10T08:00:00Z' });
+    const req = makePostRequest('valid-token', { action: 'book', start: SLOT_1 });
     const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
     expect(res.status).toBe(404);
     const json = await res.json();
@@ -310,13 +318,55 @@ describe('POST /api/book/[token]', () => {
   });
 
   it('400 bei fehlendem start für reschedule', async () => {
-    setupMockSvc({});
+    setupMockSvc({ appt: { data: makeAppt({ status: 'booked' }), error: null } });
     const { POST } = await import('@/app/api/book/[token]/route');
     const req = makePostRequest('valid-token', { action: 'reschedule' });
     const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe('Ungültiger Zeitpunkt');
+  });
+
+  // Statusübergänge und Slot-Prüfung
+  it('409 wenn ein bereits gebuchter Termin erneut gebucht werden soll', async () => {
+    setupMockSvc({ appt: { data: makeAppt({ status: 'booked' }), error: null } });
+    const { bookAppointment } = await import('@/lib/appointments/lifecycle');
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'book', start: SLOT_1 });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(409);
+    expect(bookAppointment).not.toHaveBeenCalled();
+  });
+
+  it('409 wenn ein stornierter Termin verschoben werden soll', async () => {
+    setupMockSvc({ appt: { data: makeAppt({ status: 'cancelled' }), error: null } });
+    const { rescheduleAppointment } = await import('@/lib/appointments/lifecycle');
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'reschedule', start: SLOT_2 });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(409);
+    expect(rescheduleAppointment).not.toHaveBeenCalled();
+  });
+
+  it('409 bei einem Zeitpunkt, der kein angebotener Slot ist', async () => {
+    setupMockSvc({});
+    const { bookAppointment } = await import('@/lib/appointments/lifecycle');
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const kein = new Date(new Date(SLOT_1).getTime() + 17 * 60_000).toISOString();
+    const req = makePostRequest('valid-token', { action: 'book', start: kein });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('Dieser Zeitpunkt ist nicht verfügbar');
+    expect(bookAppointment).not.toHaveBeenCalled();
+  });
+
+  it('400 bei einem Zeitpunkt in der Vergangenheit', async () => {
+    setupMockSvc({});
+    const { POST } = await import('@/app/api/book/[token]/route');
+    const req = makePostRequest('valid-token', { action: 'book', start: pastDate() });
+    const res = await POST(req, { params: Promise.resolve({ token: 'valid-token' }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe('Ungültiger Zeitpunkt');
   });
 
   // Fix 4: Storno-Guard

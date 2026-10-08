@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizeLesson } from '@/lib/masterclass/lesson';
+import { normalizeLesson, sanitizeLessonHtml } from '@/lib/masterclass/lesson';
 import { lessonSchemaReady } from '@/lib/masterclass/schema';
 
 /** Admin-Übersicht: alle Module (auch unveröffentlicht) und alle Lektionen inkl. Entwürfe */
@@ -89,6 +89,8 @@ export async function POST(req: Request) {
 
   if (action === 'update_lesson') {
     const { id, ...fields } = payload;
+    // Gleiche HTML-Bereinigung wie im PATCH-Endpoint – sonst landet ungefiltertes HTML im Kundenportal
+    if (typeof fields.content_html === 'string') fields.content_html = sanitizeLessonHtml(fields.content_html);
     const { data, error } = await supabase
       .from('masterclass_lessons')
       .update(fields)

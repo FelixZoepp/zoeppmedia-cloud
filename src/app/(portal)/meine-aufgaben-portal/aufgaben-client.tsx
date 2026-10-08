@@ -128,7 +128,7 @@ interface PortalAufgabenClientProps {
   userId: string;
 }
 
-export function PortalAufgabenClient({ userId }: PortalAufgabenClientProps) {
+export function PortalAufgabenClient({}: PortalAufgabenClientProps) {
   const [tasks, setTasks] = useState<ProjectTaskWithCheckitems[]>([]);
   const [loading, setLoading] = useState(true);
 

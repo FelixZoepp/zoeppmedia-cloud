@@ -3,6 +3,11 @@ import { fireAutomations, evaluateConditionExported } from '../engine';
 
 // --- Mocks ---
 
+// SSRF-Prüfung löst Hosts per DNS auf – im Test ohne Netzwerk auf eine öffentliche IP abbilden
+vi.mock('dns/promises', () => ({
+  lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 }]),
+}));
+
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: vi.fn(() => buildMockSvc({})),
 }));
@@ -22,6 +27,15 @@ vi.mock('@/lib/activity/log', () => ({
 }));
 
 // --- makeSvc helper ---
+
+/** insert()-Ergebnis, das awaitbar ist und .select().single() für den Dedupe-Anspruch kann */
+function withSelect(res: { data: unknown; error: unknown; count?: number | null }) {
+  return Object.assign(Promise.resolve(res), {
+    select: () => ({
+      single: () => Promise.resolve({ data: res.error ? null : { id: 'run-1' }, error: res.error }),
+    }),
+  });
+}
 
 type TableResponses = Record<string, { data: unknown; error: unknown } | null>;
 
@@ -212,7 +226,9 @@ describe('Automations v2 — neue Aktionen', () => {
     );
 
     // Fix 2b: automation_runs muss response_status enthalten
-    const runs = (svc as ReturnType<typeof buildMockSvc>)._inserted['automation_runs'];
+    // Dedupe-Anspruch wird vorab als 'running' angelegt, das Ergebnis danach per update gespeichert
+    const mock = svc as unknown as { _updated: Record<string, unknown[]>; _inserted: Record<string, unknown[]> };
+    const runs = mock._updated['automation_runs'] ?? mock._inserted['automation_runs'];
     expect(runs).toBeDefined();
     expect(runs?.[0]).toMatchObject({
       status: 'success',
@@ -262,7 +278,7 @@ describe('Automations v2 — neue Aktionen', () => {
       const chain: Record<string, unknown> = {};
       const methods = ['select', 'eq', 'insert', 'update', 'upsert', 'delete', 'or', 'single', 'maybeSingle'];
       for (const m of methods) chain[m] = vi.fn(() => chain);
-      (chain.upsert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown, opts: unknown) => {
+      (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown, opts: unknown) => {
         if (!adminInserted[table]) adminInserted[table] = [];
         adminInserted[table].push(data);
         adminUpsertCalls.push({ data, opts });
@@ -281,11 +297,11 @@ describe('Automations v2 — neue Aktionen', () => {
       application_id: applicationId,
     });
 
-    // scheduled_jobs upsert muss aufgerufen worden sein
+    // scheduled_jobs insert muss aufgerufen worden sein (einzeln, Dedupe über 23505)
     expect(adminUpsertCalls.length).toBeGreaterThan(0);
     const call = adminUpsertCalls[0];
     expect((call.data as Record<string, unknown>).dedupe_key).toBe(`bot.open:${applicationId}`);
-    expect(call.opts).toMatchObject({ onConflict: 'dedupe_key', ignoreDuplicates: true });
+    expect(call.opts).toBeUndefined();
 
     // Admin-Client-Mock zurücksetzen
     vi.mocked(createAdminClient).mockReturnValue(buildMockSvc({}));
@@ -417,7 +433,7 @@ function makeSvcForAction(
       const inserted = (svc as unknown as { _inserted: Record<string, unknown[]> })._inserted;
       if (!inserted[table]) inserted[table] = [];
       inserted[table].push(data);
-      return Promise.resolve({ data: [data], error: null });
+      return withSelect({ data: [data], error: null });
     });
 
     (chain.update as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
@@ -518,7 +534,7 @@ function makeSvcWithConversation(
     (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
       if (!_inserted[table]) _inserted[table] = [];
       _inserted[table].push(data);
-      return Promise.resolve({ data: [data], error: null });
+      return withSelect({ data: [data], error: null });
     });
     (chain.upsert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
       if (!_inserted[table]) _inserted[table] = [];
@@ -602,7 +618,7 @@ function makeSvcForActionWithRateLimit(
     (chain.insert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
       if (!_inserted[table]) _inserted[table] = [];
       _inserted[table].push(data);
-      return Promise.resolve({ data: [data], error: null, count: null });
+      return withSelect({ data: [data], error: null, count: null });
     });
     (chain.update as ReturnType<typeof vi.fn>).mockImplementation((data: unknown) => {
       if (!_updated[table]) _updated[table] = [];
@@ -676,13 +692,13 @@ function makeSvcForActionWithDedupeConflict(
         insertCallCount++;
         // Simuliere Unique-Index-Verletzung beim ersten automation_runs Insert (success-path)
         // Rate-Limit-Count-Query gibt 0 zurück (kein Rate-Limit), aber der Insert schlägt fehl
-        return Promise.resolve({
+        return withSelect({
           data: null,
           error: { code: '23505', message: 'duplicate key value violates unique constraint' },
         });
       }
       _inserted[table].push(data);
-      return Promise.resolve({ data: [data], error: null });
+      return withSelect({ data: [data], error: null });
     });
     (chain.upsert as ReturnType<typeof vi.fn>).mockImplementation((data: unknown, opts?: unknown) => {
       if (table === 'automation_runs') {

@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Verzögerte Ausführung ist in der Engine nicht umgesetzt — solche Automationen würden still übersprungen.
+  if (delay_seconds !== undefined && delay_seconds !== null && Number(delay_seconds) !== 0) {
+    return NextResponse.json(
+      { error: 'Verzögerte Automationen werden noch nicht unterstützt (delay_seconds muss 0 sein).' },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await supabase
     .from('automations')
     .insert({
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
       trigger_event,
       conditions: conditions ?? [],
       actions,
-      delay_seconds: delay_seconds ?? 0,
+      delay_seconds: 0,
       active: active ?? false,
       is_system: false,
       created_by: user.id,

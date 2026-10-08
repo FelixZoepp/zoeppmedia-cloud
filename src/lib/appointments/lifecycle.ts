@@ -5,6 +5,7 @@ import { buildAppointmentInvite } from '@/lib/calendar/invite';
 import { sendAgencyCalendarInvite } from '@/lib/email/resend';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
+import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 export async function createProposedAppointment(svc: SupabaseClient, args: {
   agencyId: string; applicationId: string; type: AppointmentType; location: string | null;
@@ -73,14 +74,14 @@ export async function bookAppointment(svc: SupabaseClient, args: {
   ];
 
   for (const r of reminders) {
-    await svc.from('scheduled_jobs').upsert({
+    await insertDeduped(svc, 'scheduled_jobs', {
       agency_id: args.agencyId,
       run_at: r.runAt.toISOString(),
       type: r.type,
       payload: { appointment_id: args.appointmentId },
       status: 'pending',
       dedupe_key: r.dedupe,
-    }, { onConflict: 'dedupe_key', ignoreDuplicates: true });
+    });
   }
 
   // 5. WhatsApp-Bestätigungstemplate senden (best effort)
@@ -235,21 +236,29 @@ export async function cancelAppointment(svc: SupabaseClient, args: {
 export async function rescheduleAppointment(svc: SupabaseClient, args: {
   agencyId: string; oldAppointmentId: string; startsAt: Date; endsAt: Date; bookedVia: string;
 }): Promise<{ newAppointmentId: string }> {
-  // P4-R7: Alt auf cancelled, neuer Datensatz
+  // P4-R7: neuer Datensatz, alter wird erst nach erfolgreicher Buchung storniert –
+  // scheitert die Buchung (z. B. Slot inzwischen vergeben), bleibt der alte Termin bestehen.
   const { data: old } = await svc.from('appointments')
     .select('application_id, type, location')
     .eq('id', args.oldAppointmentId).eq('agency_id', args.agencyId).single();
   if (!old) throw new Error('Termin nicht gefunden');
 
-  await cancelAppointment(svc, { agencyId: args.agencyId, appointmentId: args.oldAppointmentId, reason: 'Verschoben' });
-
   const { appointmentId } = await createProposedAppointment(svc, {
     agencyId: args.agencyId, applicationId: old.application_id, type: old.type, location: old.location,
   });
 
-  await bookAppointment(svc, {
-    agencyId: args.agencyId, appointmentId, startsAt: args.startsAt, endsAt: args.endsAt, bookedVia: args.bookedVia,
-  });
+  try {
+    await bookAppointment(svc, {
+      agencyId: args.agencyId, appointmentId, startsAt: args.startsAt, endsAt: args.endsAt, bookedVia: args.bookedVia,
+    });
+  } catch (err) {
+    // Buchung fehlgeschlagen, bevor Folgeaktionen liefen: verwaisten Vorschlag entfernen
+    await svc.from('appointments').delete()
+      .eq('id', appointmentId).eq('agency_id', args.agencyId).eq('status', 'proposed');
+    throw err;
+  }
+
+  await cancelAppointment(svc, { agencyId: args.agencyId, appointmentId: args.oldAppointmentId, reason: 'Verschoben' });
 
   return { newAppointmentId: appointmentId };
 }

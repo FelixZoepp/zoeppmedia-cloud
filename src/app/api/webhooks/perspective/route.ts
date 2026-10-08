@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { secretFehlt, secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { logActivity } from '@/lib/activity/log';
@@ -12,8 +13,8 @@ import { legeFunnelLeadAn } from '@/lib/perspective/leads';
  * Flache Bodies ({ name, email, phone }) werden weiterhin akzeptiert.
  * Alternativ (Altbestand): Zuordnung über funnel_id → perspective_funnels.
  *
- * Shared-Secret-Prüfung, sobald PERSPECTIVE_WEBHOOK_SECRET gesetzt ist
- * (Header x-webhook-secret oder ?secret=).
+ * Shared-Secret-Prüfung über PERSPECTIVE_WEBHOOK_SECRET (Header x-webhook-secret oder ?secret=).
+ * Ohne gesetztes Secret wird der Webhook abgelehnt (fail-closed).
  */
 
 type ProfileField = { value?: unknown } | string | null | undefined;
@@ -30,13 +31,13 @@ function fieldValue(field: ProfileField): string | null {
 
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.PERSPECTIVE_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const provided =
-      request.headers.get('x-webhook-secret') ||
-      request.nextUrl.searchParams.get('secret');
-    if (provided !== webhookSecret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!webhookSecret) return secretFehlt('PERSPECTIVE_WEBHOOK_SECRET');
+  // Header bevorzugt; ?secret= bleibt für bestehende Forwarder-Konfigurationen erlaubt
+  const provided =
+    request.headers.get('x-webhook-secret') ||
+    request.nextUrl.searchParams.get('secret');
+  if (!secretGleich(provided, webhookSecret)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   let body: Record<string, unknown>;

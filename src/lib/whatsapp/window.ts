@@ -115,6 +115,19 @@ export interface PreflightOpts {
 export interface PreflightResult {
   ok: boolean;
   reason?: string;
+  /** true wenn nur die Ruhezeit den Versand blockiert — Aufrufer sollen verschieben statt aufgeben */
+  quietHours?: boolean;
+}
+
+/**
+ * Versand nur wegen Ruhezeit gesperrt. Der Tick verschiebt den Job auf nextAllowedTime,
+ * statt ihn als Fehler zu werten (sonst nach ~81 Minuten Retries "dead").
+ */
+export class QuietHoursError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'QuietHoursError';
+  }
 }
 
 /**
@@ -133,7 +146,7 @@ export function checkPreflight(opts: PreflightOpts): PreflightResult {
   }
   // Ruhezeiten binden automatisierte Sends; manueller UI-Versand und bypassQuietHours sind ausgenommen
   if (!opts.isHumanUiSend && !opts.bypassQuietHours && isQuietHours(opts.timezone)) {
-    return { ok: false, reason: 'Ruhezeit (20:00–08:00 Mo–Sa, So ganztägig) — automatischer Versand gesperrt' };
+    return { ok: false, reason: 'Ruhezeit (20:00–08:00 Mo–Sa, So ganztägig) — automatischer Versand gesperrt', quietHours: true };
   }
   return { ok: true };
 }

@@ -1,15 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
@@ -17,6 +9,11 @@ import { PageHeader } from '@/components/ui/page-header';
 import { AnrufStatsSection } from './anruf-stats-section';
 import type { RecruitingStatsPayload, JobTableRow } from '@/lib/kpi/get-recruiting-stats';
 import type { KpiTiles } from '@/lib/kpi/recruiting-kpis';
+
+const TimelineChart = dynamic(() => import('./timeline-chart').then((m) => m.TimelineChart), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse rounded-lg bg-gray-100" />,
+});
 
 // ---------------------------------------------------------------------------
 // Formatierungs-Helfer
@@ -337,56 +334,7 @@ export function RecruitingStatsView() {
               <p className="text-sm text-gray-400 py-8 text-center">Keine Verlaufsdaten im gewählten Zeitraum</p>
             ) : (
               <div className="h-[220px] -mx-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={timelineFlat} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                    <defs>
-                      {allSources.map((src) => (
-                        <linearGradient key={src} id={`grad-${src}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={sourceColor(src)} stopOpacity={0.15} />
-                          <stop offset="95%" stopColor={sourceColor(src)} stopOpacity={0} />
-                        </linearGradient>
-                      ))}
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#efedeb" vertical={false} />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 11, fill: '#7a726e' }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: '#7a726e' }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                      width={28}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: '#fdfcfb',
-                        border: 'none',
-                        borderRadius: '10px',
-                        boxShadow: '0 0 0 1px #e6e3e1, 0 10px 24px -10px rgba(26,21,20,0.35)',
-                        fontSize: '13px',
-                        padding: '6px 10px',
-                      }}
-                      labelStyle={{ fontWeight: 600, marginBottom: 2 }}
-                    />
-                    {allSources.map((src) => (
-                      <Area
-                        key={src}
-                        type="monotone"
-                        dataKey={src}
-                        name={src}
-                        stackId="1"
-                        stroke={sourceColor(src)}
-                        strokeWidth={2}
-                        fill={`url(#grad-${src})`}
-                        dot={false}
-                      />
-                    ))}
-                  </AreaChart>
-                </ResponsiveContainer>
+                <TimelineChart timelineFlat={timelineFlat} allSources={allSources} sourceColor={sourceColor} />
               </div>
             )}
             {allSources.length > 0 && (

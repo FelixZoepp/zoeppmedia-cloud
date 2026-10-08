@@ -4,16 +4,14 @@ import { SplitText } from '@/components/ui/motion';
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import {
   GraduationCap, Phone, MessageSquare, Target, Users, Sparkles,
-  Video, HelpCircle, CalendarCheck, ArrowLeftRight, AlertTriangle,
-  ClipboardList, ChevronLeft, BookOpen,
+  Video, CalendarCheck, ArrowLeftRight, AlertTriangle,
+  ChevronLeft, BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { OriginalFraming } from '@/components/masterclass/original-framing';
 import { RecruitingFunnel } from '@/components/masterclass/recruiting-funnel';
 import { RecruiterScorecard } from '@/components/masterclass/recruiter-scorecard';
 import { ShowrateDiagnose } from '@/components/masterclass/showrate-diagnose';

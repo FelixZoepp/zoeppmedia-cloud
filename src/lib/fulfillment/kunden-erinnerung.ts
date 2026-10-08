@@ -120,48 +120,48 @@ export async function erinnereKunden(
     const text = `Hallo ${vorname}, kurzes Update zu deinem Projekt mit Zoepp Media: Damit es weitergeht, fehlt uns noch ${satz}.`;
     const basis = { agency_id: agencyId, name: k.name, aufgaben: keys.map((x) => STEP_BY_KEY.get(x)?.titel ?? x), text };
     const nummer = await kundenNummer(svc, k, !opts.trocken).catch(() => null);
-    if (!nummer) {
-      out.push({ ...basis, nummer: null, ergebnis: 'keine_nummer' });
+    if (opts.trocken) {
+      out.push({ ...basis, nummer, ergebnis: !nummer ? 'keine_nummer' : tmpl ? 'trocken' : 'vorlage_fehlt' });
       continue;
     }
-    if (opts.trocken) {
-      out.push({ ...basis, nummer, ergebnis: tmpl ? 'trocken' : 'vorlage_fehlt' });
+
+    if (!nummer) {
+      out.push({ ...basis, nummer: null, ergebnis: 'keine_nummer' });
       continue;
     }
     if (!tmpl) {
       out.push({ ...basis, nummer, ergebnis: 'vorlage_fehlt' });
       continue;
     }
-    try {
-      const kontaktId = await kundenKontakt(svc, k, nummer);
-      if (!kontaktId) throw new Error('WhatsApp-Kontakt konnte nicht angelegt werden');
-      await svc
-        .from('conversations')
-        .upsert(
-          { agency_id: SALES_AGENCY_ID, candidate_id: kontaktId, wa_account_id: SALES_WA_ACCOUNT_ID, state: 'human_active' },
-          { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true },
-        );
-      const { data: conv } = await svc.from('conversations').select('id').eq('wa_account_id', SALES_WA_ACCOUNT_ID).eq('candidate_id', kontaktId).single();
-      const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
-      await sendWhatsAppMessage(svc, {
-        agencyId: SALES_AGENCY_ID,
-        conversationId: (conv as { id: string }).id,
-        candidatePhone: nummer,
-        waAccountId: SALES_WA_ACCOUNT_ID,
-        payload: {
-          to: nummer,
-          type: 'template',
-          template: { name: tmpl.name, language: { code: 'de' }, components: [{ type: 'body', parameters: [vorname, satz].map((t) => ({ type: 'text', text: t })) }] },
-        },
-        senderType: 'system',
-        templateId: tmpl.id,
-      });
-      for (const r of liste) {
-        await svc.from('client_steps').update({ kunde_erinnert_am: jetzt.toISOString(), kunde_erinnerungen: r.kunde_erinnerungen + 1 }).eq('id', r.id);
+    {
+      try {
+        const kontaktId = await kundenKontakt(svc, k, nummer);
+        if (!kontaktId) throw new Error('WhatsApp-Kontakt konnte nicht angelegt werden');
+        await svc
+          .from('conversations')
+          .upsert(
+            { agency_id: SALES_AGENCY_ID, candidate_id: kontaktId, wa_account_id: SALES_WA_ACCOUNT_ID, state: 'human_active' },
+            { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true },
+          );
+        const { data: conv } = await svc.from('conversations').select('id').eq('wa_account_id', SALES_WA_ACCOUNT_ID).eq('candidate_id', kontaktId).single();
+        const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+        await sendWhatsAppMessage(svc, {
+          agencyId: SALES_AGENCY_ID,
+          conversationId: (conv as { id: string }).id,
+          candidatePhone: nummer,
+          waAccountId: SALES_WA_ACCOUNT_ID,
+          payload: {
+            to: nummer,
+            type: 'template',
+            template: { name: tmpl.name, language: { code: 'de' }, components: [{ type: 'body', parameters: [vorname, satz].map((t) => ({ type: 'text', text: t })) }] },
+          },
+          senderType: 'system',
+          templateId: tmpl.id,
+        });
+        out.push({ ...basis, nummer, ergebnis: 'gesendet' });
+      } catch (err) {
+        out.push({ ...basis, nummer, ergebnis: 'fehler', fehler: err instanceof Error ? err.message : String(err) });
       }
-      out.push({ ...basis, nummer, ergebnis: 'gesendet' });
-    } catch (err) {
-      out.push({ ...basis, nummer, ergebnis: 'fehler', fehler: err instanceof Error ? err.message : String(err) });
     }
 
     // Zusätzlich die Glocke in der Cloud
@@ -176,6 +176,16 @@ export async function erinnereKunden(
         type: 'task_due',
         push_url: '/deine-aufgaben',
       }).catch(() => {});
+    }
+
+    // Auch bei Sendefehler vermerken – sonst kommt die Glocke jeden Tag erneut
+    // und der Höchstwert von MAX_ERINNERUNGEN greift nie.
+    for (const r of liste) {
+      const { error } = await svc
+        .from('client_steps')
+        .update({ kunde_erinnert_am: jetzt.toISOString(), kunde_erinnerungen: r.kunde_erinnerungen + 1 })
+        .eq('id', r.id);
+      if (error) console.error('[kunden-erinnerung] Vermerk nicht gespeichert', r.id, error.message);
     }
   }
   return out;

@@ -1,7 +1,7 @@
 // Oeffentliches Bewerbungsformular — kein Auth erforderlich, multipart/form-data.
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ingestApplication } from '@/lib/recruiting/ingest';
-import { checkRateLimit } from '@/lib/security/rate-limit';
+import { checkRateLimit, clientIp } from '@/lib/security/rate-limit';
 import { verifyTurnstile } from '@/lib/security/turnstile';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const ip = clientIp(request.headers);
   const allowed = await checkRateLimit(supabase, `apply:${ip}`, 20, 600);
   if (!allowed) {
     return NextResponse.json(

@@ -39,7 +39,9 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const svc = createAdminClient();
   const { error } = await svc.auth.admin.deleteUser(userId);
   if (error) {
-    // Fallback: Zugang wenigstens sperren
+    // Fallback: Zugang wenigstens sperren – Login bannen (beendet auch laufende Sitzungen beim nächsten Token-Refresh)
+    // und aktiv=false, das getCurrentUser und die RLS-Helfer sofort auswerten
+    await svc.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
     await svc.from('users').update({ aktiv: false }).eq('id', userId);
     return NextResponse.json({ error: 'Login konnte nicht gelöscht werden – Zugang wurde deaktiviert.' }, { status: 500 });
   }

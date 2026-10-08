@@ -1,7 +1,39 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Öffentliche Pfade brauchen keine Session. API-Routes prüfen ihre Auth selbst
+// (Webhooks/Crons per Signatur bzw. Secret), daher hier kein Auth-Roundtrip.
+function isPublicPath(pathname: string) {
+  return (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/k/') ||
+    // Öffentliche Links für Bewerber/Kontakte: Termin buchen, Dankevideo, Termin in den Kalender
+    pathname.startsWith('/book/') ||
+    pathname.startsWith('/video/') ||
+    pathname.startsWith('/termin/') ||
+    pathname.startsWith('/gespraech/') ||
+    pathname === '/apply' || pathname.startsWith('/apply/') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/register-employee') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/api/') ||
+    // PWA-Assets müssen ohne Login erreichbar sein (Manifest, Service Worker, Offline-Seite)
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/offline'
+  );
+}
+
+const INTERNAL_PREFIXES = ['/admin', '/clients', '/tasks', '/invites', '/funnels', '/team', '/playbook', '/profile', '/employee-reports', '/innendienst', '/ergebnisse'];
+
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isPublicPath(pathname)) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -25,87 +57,48 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-
-  // Public routes
-  if (
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/k/') ||
-    // Öffentliche Links für Bewerber/Kontakte: Termin buchen, Dankevideo, Termin in den Kalender
-    pathname.startsWith('/book/') ||
-    pathname.startsWith('/video/') ||
-    pathname.startsWith('/termin/') ||
-    pathname.startsWith('/gespraech/') ||
-    pathname === '/apply' || pathname.startsWith('/apply/') ||
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/register-employee') ||
-    pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/api/') ||
-    // PWA-Assets müssen ohne Login erreichbar sein (Manifest, Service Worker, Offline-Seite)
-    pathname === '/manifest.json' ||
-    pathname === '/sw.js' ||
-    pathname === '/offline'
-  ) {
-    return supabaseResponse;
-  }
+  // getClaims prüft das JWT (bei asymmetrischen Keys lokal) und frischt die Session bei Bedarf auf
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
 
   // Not authenticated → redirect to login
-  if (!user) {
+  if (!userId) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // Logged-in user on login page → redirect to dashboard
-  if (pathname === '/login') {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
-  }
+  const needsOnboardingCheck = !pathname.startsWith('/onboarding') && !pathname.startsWith('/settings');
+  const isInternalRoute = INTERNAL_PREFIXES.some((p) => pathname.startsWith(p));
+  if (!needsOnboardingCheck && !isInternalRoute) return supabaseResponse;
 
-  // Agency users: redirect to onboarding if not completed
-  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/settings') && !pathname.startsWith('/api/')) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role, agency_id')
-      .eq('id', user.id)
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role, agency_id')
+    .eq('id', userId)
+    .single();
+  const role = profile?.role as string;
+
+  // Onboarding füllt nur der Inhaber aus – Mitarbeiter des Kunden dürfen direkt arbeiten
+  if (needsOnboardingCheck && role === 'agency_owner' && profile?.agency_id) {
+    const { data: agency } = await supabase
+      .from('agencies')
+      .select('onboarding_completed')
+      .eq('id', profile.agency_id)
       .single();
 
-    const role = profile?.role as string;
-
-    // Onboarding füllt nur der Inhaber aus – Mitarbeiter des Kunden dürfen direkt arbeiten
-    if (role === 'agency_owner' && profile?.agency_id) {
-      const { data: agency } = await supabase
-        .from('agencies')
-        .select('onboarding_completed')
-        .eq('id', profile.agency_id)
-        .single();
-
-      if (agency && !agency.onboarding_completed) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/onboarding';
-        return NextResponse.redirect(url);
-      }
+    if (agency && !agency.onboarding_completed) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/onboarding';
+      return NextResponse.redirect(url);
     }
   }
 
   // Admin/internal routes → check role
-  if (pathname.startsWith('/admin') || pathname.startsWith('/clients') || pathname.startsWith('/tasks') || pathname.startsWith('/invites') || pathname.startsWith('/funnels') || pathname.startsWith('/team') || pathname.startsWith('/playbook') || pathname.startsWith('/profile') || pathname.startsWith('/employee-reports') || pathname.startsWith('/innendienst') || pathname.startsWith('/ergebnisse')) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    const role = profile?.role as string;
-    if (role !== 'admin' && role !== 'employee') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
+  if (isInternalRoute && role !== 'admin' && role !== 'employee') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;

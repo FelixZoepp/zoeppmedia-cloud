@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { berechneAnrufStats } from '@/lib/kpi/anruf-stats';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 
 const TAG = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -25,21 +26,34 @@ export async function GET(request: Request) {
   const bis = `${to}T23:59:59.999Z`;
 
   const svc = createAdminClient();
-  const [{ data: calls, error }, { data: cands }, { data: termine }] = await Promise.all([
-    svc.from('call_logs').select('user_id, result').eq('agency_id', agencyId).gte('created_at', ab).lte('created_at', bis).limit(20000),
-    svc
-      .from('candidates')
-      .select('ttfc_seconds')
-      .eq('agency_id', agencyId)
-      .is('deleted_at', null)
-      .gte('created_at', ab)
-      .lte('created_at', bis)
-      .limit(20000),
-    svc.from('candidate_appointments').select('status, scheduled_at').eq('agency_id', agencyId).gte('scheduled_at', ab).lte('scheduled_at', bis),
-  ]);
-  if (error) return NextResponse.json({ error: 'Anrufe konnten nicht geladen werden' }, { status: 500 });
+  // Seitenweise laden – Supabase liefert pro Abfrage höchstens 1000 Zeilen
+  let anrufe: Array<{ user_id: string | null; result: string | null }>;
+  let cands: Array<{ ttfc_seconds: number | null }>;
+  let termine: Array<{ status: string | null; scheduled_at: string }>;
+  try {
+    [anrufe, cands, termine] = await Promise.all([
+      fetchAll<{ user_id: string | null; result: string | null }>((rFrom, rTo) =>
+        svc.from('call_logs').select('user_id, result').eq('agency_id', agencyId).gte('created_at', ab).lte('created_at', bis).order('id').range(rFrom, rTo),
+      ),
+      fetchAll<{ ttfc_seconds: number | null }>((rFrom, rTo) =>
+        svc
+          .from('candidates')
+          .select('ttfc_seconds')
+          .eq('agency_id', agencyId)
+          .is('deleted_at', null)
+          .gte('created_at', ab)
+          .lte('created_at', bis)
+          .order('id')
+          .range(rFrom, rTo),
+      ),
+      fetchAll<{ status: string | null; scheduled_at: string }>((rFrom, rTo) =>
+        svc.from('candidate_appointments').select('status, scheduled_at').eq('agency_id', agencyId).gte('scheduled_at', ab).lte('scheduled_at', bis).order('id').range(rFrom, rTo),
+      ),
+    ]);
+  } catch {
+    return NextResponse.json({ error: 'Anrufe konnten nicht geladen werden' }, { status: 500 });
+  }
 
-  const anrufe = (calls ?? []) as Array<{ user_id: string | null; result: string | null }>;
   const userIds = [...new Set(anrufe.map((a) => a.user_id).filter((x): x is string => !!x))];
   const { data: users } = userIds.length ? await svc.from('users').select('id, name').in('id', userIds) : { data: [] };
 
@@ -47,8 +61,8 @@ export async function GET(request: Request) {
     berechneAnrufStats(
       anrufe,
       new Map(((users ?? []) as Array<{ id: string; name: string }>).map((u) => [u.id, u.name])),
-      ((cands ?? []) as Array<{ ttfc_seconds: number | null }>).map((c) => c.ttfc_seconds),
-      (termine ?? []) as Array<{ status: string | null; scheduled_at: string }>,
+      cands.map((c) => c.ttfc_seconds),
+      termine,
       new Date(),
     ),
   );

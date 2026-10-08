@@ -68,7 +68,14 @@ export async function PATCH(
   if (body.description !== undefined) updateData.description = body.description;
   if (body.conditions !== undefined) updateData.conditions = body.conditions;
   if (body.actions !== undefined) updateData.actions = body.actions;
-  if (body.delay_seconds !== undefined) updateData.delay_seconds = body.delay_seconds;
+  if (body.delay_seconds !== undefined && body.delay_seconds !== null && Number(body.delay_seconds) !== 0) {
+    // Verzögerte Ausführung ist in der Engine nicht umgesetzt — solche Automationen würden still übersprungen.
+    return NextResponse.json(
+      { error: 'Verzögerte Automationen werden noch nicht unterstützt (delay_seconds muss 0 sein).' },
+      { status: 400 },
+    );
+  }
+  if (body.delay_seconds !== undefined) updateData.delay_seconds = 0;
   if (body.active !== undefined) updateData.active = body.active;
 
   const { data, error } = await supabase

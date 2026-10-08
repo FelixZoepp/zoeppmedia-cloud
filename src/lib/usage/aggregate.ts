@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fetchAll } from '@/lib/supabase/fetch-all';
 
 // Geschätzte USD-Preise pro 1 Mio Token (P6-R4)
 const MODEL_PRICES: Array<{ match: string; input: number; output: number }> = [
@@ -30,25 +31,42 @@ export async function aggregateUsageForDay(
   let upserts = 0;
 
   for (const agency of agencies ?? []) {
-    const [msgRes, aiRes] = await Promise.all([
-      svc
-        .from('messages')
-        .select('direction, cost_category')
-        .eq('agency_id', agency.id)
-        .gte('created_at', from)
-        .lte('created_at', to),
-      svc
-        .from('ai_calls')
-        .select('model, input_tokens, output_tokens')
-        .eq('agency_id', agency.id)
-        .gte('created_at', from)
-        .lte('created_at', to),
-    ]);
+    // Seitenweise (sonst kappt Supabase bei 1000); bei Lesefehler die Agentur überspringen,
+    // statt den bestehenden Tageswert mit 0 zu überschreiben
+    let msgs: Array<{ direction: string; cost_category: string | null }>;
+    let ais: Array<{ model: string | null; input_tokens: number | null; output_tokens: number | null }>;
+    try {
+      [msgs, ais] = await Promise.all([
+        fetchAll<{ direction: string; cost_category: string | null }>((rFrom, rTo) =>
+          svc
+            .from('messages')
+            .select('direction, cost_category')
+            .eq('agency_id', agency.id)
+            .gte('created_at', from)
+            .lte('created_at', to)
+            .order('id')
+            .range(rFrom, rTo),
+        ),
+        fetchAll<{ model: string | null; input_tokens: number | null; output_tokens: number | null }>((rFrom, rTo) =>
+          svc
+            .from('ai_calls')
+            .select('model, input_tokens, output_tokens')
+            .eq('agency_id', agency.id)
+            .gte('created_at', from)
+            .lte('created_at', to)
+            .order('id')
+            .range(rFrom, rTo),
+        ),
+      ]);
+    } catch (err) {
+      console.error('[usage] Aggregation übersprungen', agency.id, err);
+      continue;
+    }
 
     let messagesOut = 0;
     let messagesIn = 0;
     const byCategory: Record<string, number> = {};
-    for (const m of msgRes.data ?? []) {
+    for (const m of msgs) {
       if (m.direction === 'out') {
         messagesOut += 1;
         if (m.cost_category) byCategory[m.cost_category] = (byCategory[m.cost_category] ?? 0) + 1;
@@ -60,7 +78,7 @@ export async function aggregateUsageForDay(
     let aiIn = 0;
     let aiOut = 0;
     let aiCost = 0;
-    for (const c of aiRes.data ?? []) {
+    for (const c of ais) {
       aiIn += c.input_tokens ?? 0;
       aiOut += c.output_tokens ?? 0;
       aiCost += estimateAiCostUsd(c.model ?? '', c.input_tokens ?? 0, c.output_tokens ?? 0);

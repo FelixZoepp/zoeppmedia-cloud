@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, Minus, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
 interface SlaData {
   medianTtfcSeconds: number | null;

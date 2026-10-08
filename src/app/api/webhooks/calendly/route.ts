@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { secretFehlt } from '@/lib/security/webhook-secret';
 import { fireEvent } from '@/lib/automations/fire';
 import { signalSafe } from '@/lib/fulfillment/engine';
 import {
@@ -163,11 +164,10 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text();
 
   const signingKey = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
-  if (signingKey) {
-    const sigHeader = request.headers.get('calendly-webhook-signature');
-    if (!verifyCalendlySignature(rawBody, sigHeader, signingKey)) {
-      return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 401 });
-    }
+  if (!signingKey) return secretFehlt('CALENDLY_WEBHOOK_SIGNING_KEY');
+  const sigHeader = request.headers.get('calendly-webhook-signature');
+  if (!verifyCalendlySignature(rawBody, sigHeader, signingKey)) {
+    return NextResponse.json({ error: 'Ungültige Signatur' }, { status: 401 });
   }
 
   let body: CalendlyWebhookPayload;
@@ -255,7 +255,12 @@ export async function POST(request: NextRequest) {
         .eq('calendly_event_id', calendlyEventId);
 
       if (existingEvent?.agency_id && existingEvent?.candidate_id) {
-        fireEvent('appointment_cancelled', existingEvent.agency_id, { candidate_id: existingEvent.candidate_id }).catch(() => {});
+        // await: nach der Antwort friert Vercel die Funktion ein — Automationen liefen sonst nicht (vollständig)
+        try {
+          await fireEvent('appointment_cancelled', existingEvent.agency_id, { candidate_id: existingEvent.candidate_id });
+        } catch (err) {
+          console.error('[calendly] appointment_cancelled-Automationen fehlgeschlagen:', err);
+        }
       }
 
     }
@@ -302,34 +307,57 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insert the calendly event
-    const { error: insertError } = await supabase
-      .from('calendly_events')
-      .upsert(
-        {
+    // Bestehende Buchung (Webhook-Retry, verspätetes invitee.created): nur Zeit-/Ortsfelder
+    // aktualisieren. agency_id/candidate_id/status bleiben — ein abgesagter Termin wird
+    // nicht wieder aktiv, eine Sales-Zuordnung geht nicht verloren.
+    const { data: existing } = calendlyEventId
+      ? await supabase
+          .from('calendly_events')
+          .select('id, agency_id, candidate_id')
+          .eq('calendly_event_id', calendlyEventId)
+          .maybeSingle()
+      : { data: null };
+
+    const timeFields = {
+      event_type: eventTypeName,
+      event_name: scheduledEvent.name || null,
+      start_time: scheduledEvent.start_time,
+      end_time: scheduledEvent.end_time || null,
+      invitee_name: invitee.name || null,
+      invitee_email: invitee.email || null,
+      invitee_phone: phone,
+      location,
+    };
+
+    const { error: insertError } = existing
+      ? await supabase
+          .from('calendly_events')
+          .update({
+            ...timeFields,
+            // Nur leere Zuordnungen nachtragen, vorhandene nie überschreiben
+            ...(!existing.agency_id && agencyId ? { agency_id: agencyId, candidate_id: candidateId } : {}),
+          })
+          .eq('id', existing.id)
+      : await supabase.from('calendly_events').insert({
+          ...timeFields,
           agency_id: agencyId,
           candidate_id: candidateId,
           calendly_event_id: calendlyEventId,
-          event_type: eventTypeName,
-          event_name: scheduledEvent.name || null,
-          start_time: scheduledEvent.start_time,
-          end_time: scheduledEvent.end_time || null,
-          invitee_name: invitee.name || null,
-          invitee_email: invitee.email || null,
-          invitee_phone: phone,
           status: 'scheduled',
-          location,
-        },
-        { onConflict: 'calendly_event_id' }
-      );
+        });
 
     if (insertError) {
       console.error('Calendly webhook insert error:', insertError);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    if (agencyId && candidateId) {
-      fireEvent('appointment_created', agencyId, { candidate_id: candidateId, extra: { event_type: eventTypeName } }).catch(() => {});
+    // Automationen nur bei neuer Buchung — Retries lösen sie nicht erneut aus
+    if (!existing && agencyId && candidateId) {
+      try {
+        await fireEvent('appointment_created', agencyId, { candidate_id: candidateId, extra: { event_type: eventTypeName } });
+      } catch (err) {
+        console.error('[calendly] appointment_created-Automationen fehlgeschlagen:', err);
+      }
     }
 
     // Fulfillment: Onboarding-/Kickoff-Termin des Kunden hakt die passende

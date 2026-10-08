@@ -7,6 +7,7 @@ import {
   extractPhoneFromInvitee,
   extractEventUuid,
 } from '@/lib/calendly/api';
+import { SALES_EVENT_TYPES } from '@/lib/sales/calendly-chain';
 
 /**
  * POST /api/calendly/sync
@@ -37,6 +38,10 @@ export async function POST() {
     let matched = 0;
 
     for (const event of events) {
+      // Sales-Buchungen verwaltet der Sales-Bot (eigene agency_id + Reminder-Jobs) — nicht anfassen
+      const eventTypeUuid = event.event_type?.split('/').pop();
+      if (eventTypeUuid && SALES_EVENT_TYPES[eventTypeUuid]) continue;
+
       const calendlyEventId = extractEventUuid(event.uri);
 
       // Get invitees for this event
@@ -77,26 +82,40 @@ export async function POST() {
           event.location?.type ||
           null;
 
-        // Upsert to avoid duplicates
-        const { error: upsertError } = await supabase
+        // Bestehende Zeilen: nur Zeit-/Ortsfelder aktualisieren — agency_id/candidate_id/status
+        // nie überschreiben (sonst verlieren Zuordnungen ihre Agentur, Absagen werden reaktiviert).
+        const { data: existing } = await supabase
           .from('calendly_events')
-          .upsert(
-            {
+          .select('id, agency_id')
+          .eq('calendly_event_id', calendlyEventId)
+          .maybeSingle();
+
+        const timeFields = {
+          event_type: event.name || null,
+          event_name: event.name || null,
+          start_time: event.start_time,
+          end_time: event.end_time || null,
+          invitee_name: invitee.name || null,
+          invitee_email: invitee.email || null,
+          invitee_phone: phone,
+          location,
+        };
+
+        const { error: upsertError } = existing
+          ? await supabase
+              .from('calendly_events')
+              .update({
+                ...timeFields,
+                ...(!existing.agency_id && agencyId ? { agency_id: agencyId, candidate_id: candidateId } : {}),
+              })
+              .eq('id', existing.id)
+          : await supabase.from('calendly_events').insert({
+              ...timeFields,
               agency_id: agencyId,
               candidate_id: candidateId,
               calendly_event_id: calendlyEventId,
-              event_type: event.name || null,
-              event_name: event.name || null,
-              start_time: event.start_time,
-              end_time: event.end_time || null,
-              invitee_name: invitee.name || null,
-              invitee_email: invitee.email || null,
-              invitee_phone: phone,
               status: 'scheduled',
-              location,
-            },
-            { onConflict: 'calendly_event_id' }
-          );
+            });
 
         if (!upsertError) {
           synced++;

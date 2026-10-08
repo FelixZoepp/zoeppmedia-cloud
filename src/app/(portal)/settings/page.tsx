@@ -457,9 +457,9 @@ export default function SettingsPage() {
             </div>
             <div className="text-xs text-gray-500 space-y-1.5">
               <p className="font-medium text-gray-700">So verbindest du deinen Kalender (einmalig):</p>
-              <p><strong>Google Kalender:</strong> Einstellungen → Kalender hinzufügen → „Per URL" → Link einfügen</p>
-              <p><strong>Outlook:</strong> Kalender hinzufügen → „Aus dem Web abonnieren" → Link einfügen</p>
-              <p><strong>Apple Kalender:</strong> Ablage → „Neues Kalenderabonnement" → Link einfügen</p>
+              <p><strong>Google Kalender:</strong> Einstellungen → Kalender hinzufügen → „Per URL“ → Link einfügen</p>
+              <p><strong>Outlook:</strong> Kalender hinzufügen → „Aus dem Web abonnieren“ → Link einfügen</p>
+              <p><strong>Apple Kalender:</strong> Ablage → „Neues Kalenderabonnement“ → Link einfügen</p>
               <p className="text-gray-400 pt-1">
                 Danach erscheinen alle Vorstellungsgespräche und Probetage automatisch in deinem Kalender.
                 Hinweis: Google aktualisiert abonnierte Kalender teils erst nach einigen Stunden.

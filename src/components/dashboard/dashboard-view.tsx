@@ -1,10 +1,8 @@
 'use client';
 
 import type { DashboardData } from '@/lib/dashboard';
-import { CandidatesChart } from './candidates-chart';
-import { SourcesChart } from './sources-chart';
+import dynamic from 'next/dynamic';
 import { PipelineChart } from './pipeline-chart';
-import { SourceDonut } from './source-donut';
 import { SlaAmpel } from './sla-ampel';
 import { AccessItemsView } from './access-items-view';
 import { ProjectOverview } from './project-overview';
@@ -13,6 +11,14 @@ import { KundenKennzahlen, type KundenKennzahlenDaten } from './kunden-kennzahle
 import { Wochenstand } from './wochenstand';
 import { Fahrplan } from './fahrplan';
 import { Avatar, Badge, CountUp, SplitText, StatCard } from '@/components/ui';
+
+// recharts nur bei Bedarf laden, damit die Startseite des Kundenportals schlank bleibt
+function ChartSkeleton() {
+  return <div className="h-[220px] w-full animate-pulse rounded-lg bg-gray-100" />;
+}
+const CandidatesChart = dynamic(() => import('./candidates-chart').then((m) => m.CandidatesChart), { ssr: false, loading: ChartSkeleton });
+const SourcesChart = dynamic(() => import('./sources-chart').then((m) => m.SourcesChart), { ssr: false, loading: ChartSkeleton });
+const SourceDonut = dynamic(() => import('./source-donut').then((m) => m.SourceDonut), { ssr: false, loading: ChartSkeleton });
 
 /* ── Helpers ─────────────────────────────────────────────── */
 

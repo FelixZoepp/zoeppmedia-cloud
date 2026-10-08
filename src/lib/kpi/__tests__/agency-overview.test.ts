@@ -138,7 +138,7 @@ function makeChain(result: { data: unknown; error: unknown; count?: number | nul
   const chain: Record<string, unknown> = {};
   const self = () => chain;
   for (const m of [
-    'select', 'eq', 'gte', 'lte', 'in', 'order', 'limit', 'filter', 'neq', 'not',
+    'select', 'eq', 'gte', 'lte', 'in', 'order', 'limit', 'filter', 'neq', 'not', 'range',
   ]) {
     chain[m] = self;
   }

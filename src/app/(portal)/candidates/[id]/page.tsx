@@ -19,7 +19,6 @@ import {
   MessageCircle,
   MapPin,
   Megaphone,
-  Clock,
   User,
   FileText,
   Briefcase,
@@ -31,7 +30,6 @@ import {
   X,
   Ban,
   Zap,
-  PhoneCall,
   CircleDot,
   ChevronDown,
   CalendarCheck,
@@ -57,7 +55,6 @@ import type {
   CallRecordingAnalysis,
   CalendlyEvent,
   ActivityLogEntry,
-  ActivityActionType,
 } from '@/lib/types/database';
 
 /* ================================================================== */
@@ -414,7 +411,6 @@ function TabUebersicht({
   answers: ApplicationAnswer[];
   loadingAnswers: boolean;
 }) {
-  const source = sourceConfig[candidate.source] ?? { label: candidate.source, tone: 'neutral' as const };
 
   return (
     <div className="space-y-6">

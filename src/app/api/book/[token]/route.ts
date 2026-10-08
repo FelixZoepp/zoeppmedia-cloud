@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bookAppointment, cancelAppointment, rescheduleAppointment } from '@/lib/appointments/lifecycle';
+import { ladeFreieSlots } from '@/lib/appointments/freie-slots';
 
 export async function POST(
   request: Request,
@@ -33,26 +34,30 @@ export async function POST(
     return NextResponse.json({ error: 'Ungültiger Request-Body' }, { status: 400 });
   }
 
-  // Job laden für Dauer
-  const { data: application } = await svc.from('applications')
-    .select('job_id').eq('id', appt.application_id).eq('agency_id', appt.agency_id).single();
-
-  // Fix 2: Null-Guard für application
-  if (!application) {
-    return NextResponse.json({ error: 'Bewerbung nicht gefunden' }, { status: 404 });
+  // Statusübergänge: buchen nur aus "vorgeschlagen", verschieben nur aus "gebucht"
+  if (body.action === 'book' && appt.status !== 'proposed') {
+    return NextResponse.json({ error: 'Termin ist bereits gebucht oder nicht mehr buchbar' }, { status: 409 });
+  }
+  if (body.action === 'reschedule' && appt.status !== 'booked' && appt.status !== 'confirmed') {
+    return NextResponse.json({ error: 'Termin kann nicht verschoben werden' }, { status: 409 });
   }
 
-  const { data: job } = await svc.from('jobs')
-    .select('appointment_duration_minutes').eq('id', application.job_id).eq('agency_id', appt.agency_id).single();
-  const durationMs = (job?.appointment_duration_minutes ?? 30) * 60_000;
-
-  // Fix 3: body.start vor Verwendung validieren
+  // Fix 3: body.start vor Verwendung validieren – nur angebotene, zukünftige Slots
   const needsStart = body.action === 'book' || body.action === 'reschedule';
+  let durationMs = 30 * 60_000;
   if (needsStart) {
     const startsAt = new Date(body.start ?? '');
-    if (!body.start || Number.isNaN(startsAt.getTime())) {
+    if (!body.start || Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) {
       return NextResponse.json({ error: 'Ungültiger Zeitpunkt' }, { status: 400 });
     }
+    const ergebnis = await ladeFreieSlots(svc, appt);
+    if ('fehler' in ergebnis) {
+      return NextResponse.json({ error: ergebnis.fehler }, { status: ergebnis.status });
+    }
+    if (!ergebnis.slots.some((s) => s.start.getTime() === startsAt.getTime())) {
+      return NextResponse.json({ error: 'Dieser Zeitpunkt ist nicht verfügbar' }, { status: 409 });
+    }
+    durationMs = ergebnis.durationMinutes * 60_000;
   }
 
   try {

@@ -8,6 +8,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fetchAll, fetchAllIn } from '@/lib/supabase/fetch-all';
 import {
   computeRecruitingKpis,
   type KpiAppRow,
@@ -204,12 +205,32 @@ export async function getRecruitingStats(
   const prevTo   = new Date(fromMs - 1).toISOString();
 
   // -------------------------------------------------------------------------
-  // Schritt 1: pipeline_stages → Map stage_id → stage_type
+  // Schritt 1–3: pipeline_stages + applications (aktueller und Vorzeitraum) parallel.
+  // Applications seitenweise – Supabase kappt sonst still bei 1000 Zeilen.
   // -------------------------------------------------------------------------
-  const { data: stagesRaw } = await (svc
-    .from('pipeline_stages')
-    .select('id, stage_type')
-    .eq('agency_id', agencyId) as unknown as Promise<{ data: DbPipelineStageRow[] | null }>);
+  const appSelect = 'id, job_id, source, score_label, score_reasons, status, stage_id, applied_at, assigned_to';
+  const ladeApps = (von: string, bis: string) =>
+    fetchAll<DbAppRow>((rFrom, rTo) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q: any = svc
+        .from('applications')
+        .select(appSelect)
+        .eq('agency_id', agencyId)
+        .gte('applied_at', von)
+        .lte('applied_at', bis);
+      if (jobId)  q = q.eq('job_id', jobId);
+      if (source) q = q.eq('source', source);
+      return q.order('id').range(rFrom, rTo);
+    });
+
+  const [{ data: stagesRaw }, currApps, prevApps] = await Promise.all([
+    svc
+      .from('pipeline_stages')
+      .select('id, stage_type')
+      .eq('agency_id', agencyId) as unknown as Promise<{ data: DbPipelineStageRow[] | null }>,
+    ladeApps(from, to),
+    ladeApps(prevFrom, prevTo),
+  ]);
 
   const stageTypeMap = new Map<string, string>();
   for (const s of stagesRaw ?? []) {
@@ -217,55 +238,19 @@ export async function getRecruitingStats(
   }
 
   // -------------------------------------------------------------------------
-  // Schritt 2: applications aktueller Zeitraum
-  // -------------------------------------------------------------------------
-  let currQuery = svc
-    .from('applications')
-    .select('id, job_id, source, score_label, score_reasons, status, stage_id, applied_at, assigned_to')
-    .eq('agency_id', agencyId)
-    .gte('applied_at', from)
-    .lte('applied_at', to);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let currQueryAny: any = currQuery;
-  if (jobId)  currQueryAny = currQueryAny.eq('job_id', jobId);
-  if (source) currQueryAny = currQueryAny.eq('source', source);
-
-  const { data: currAppsRaw } = await (currQueryAny as Promise<{ data: DbAppRow[] | null }>);
-  const currApps: DbAppRow[] = currAppsRaw ?? [];
-
-  // -------------------------------------------------------------------------
-  // Schritt 3: applications Vorzeitraum
-  // -------------------------------------------------------------------------
-  let prevQuery = svc
-    .from('applications')
-    .select('id, job_id, source, score_label, score_reasons, status, stage_id, applied_at, assigned_to')
-    .eq('agency_id', agencyId)
-    .gte('applied_at', prevFrom)
-    .lte('applied_at', prevTo);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let prevQueryAny: any = prevQuery;
-  if (jobId)  prevQueryAny = prevQueryAny.eq('job_id', jobId);
-  if (source) prevQueryAny = prevQueryAny.eq('source', source);
-
-  const { data: prevAppsRaw } = await (prevQueryAny as Promise<{ data: DbAppRow[] | null }>);
-  const prevApps: DbAppRow[] = prevAppsRaw ?? [];
-
-  // -------------------------------------------------------------------------
-  // Schritt 4: conversations für alle App-IDs (beide Zeiträume)
+  // Schritt 4: conversations für alle App-IDs (beide Zeiträume), in Blöcken
   // -------------------------------------------------------------------------
   const allAppIds = [...new Set([...currApps.map((a) => a.id), ...prevApps.map((a) => a.id)])];
 
-  let conversations: DbConvRow[] = [];
-  if (allAppIds.length > 0) {
-    const { data: convsRaw } = await (svc
+  const conversations: DbConvRow[] = await fetchAllIn<string, DbConvRow>(allAppIds, (chunk, rFrom, rTo) =>
+    svc
       .from('conversations')
       .select('id, application_id, state')
       .eq('agency_id', agencyId)
-      .in('application_id', allAppIds) as unknown as Promise<{ data: DbConvRow[] | null }>);
-    conversations = convsRaw ?? [];
-  }
+      .in('application_id', chunk)
+      .order('id')
+      .range(rFrom, rTo) as unknown as PromiseLike<{ data: DbConvRow[] | null; error: { message: string } | null }>,
+  );
 
   // conv_id → app_id-Map für Nachrichten-Auflösung
   const convToApp = new Map<string, string>();
@@ -277,15 +262,15 @@ export async function getRecruitingStats(
   // Schritt 5: messages für alle conversation_ids
   // -------------------------------------------------------------------------
   const convIds = conversations.map((c) => c.id);
-  let messages: DbMessageRow[] = [];
-  if (convIds.length > 0) {
-    const { data: msgsRaw } = await (svc
+  const messages: DbMessageRow[] = await fetchAllIn<string, DbMessageRow>(convIds, (chunk, rFrom, rTo) =>
+    svc
       .from('messages')
       .select('conversation_id, direction, sender_type, created_at')
       .eq('agency_id', agencyId)
-      .in('conversation_id', convIds) as unknown as Promise<{ data: DbMessageRow[] | null }>);
-    messages = msgsRaw ?? [];
-  }
+      .in('conversation_id', chunk)
+      .order('id')
+      .range(rFrom, rTo) as unknown as PromiseLike<{ data: DbMessageRow[] | null; error: { message: string } | null }>,
+  );
 
   const {
     appsWithOutbound,
@@ -297,15 +282,15 @@ export async function getRecruitingStats(
   // -------------------------------------------------------------------------
   // Schritt 6: appointments für alle app_ids
   // -------------------------------------------------------------------------
-  let appointments: DbAppointmentRow[] = [];
-  if (allAppIds.length > 0) {
-    const { data: apptsRaw } = await (svc
+  const appointments: DbAppointmentRow[] = await fetchAllIn<string, DbAppointmentRow>(allAppIds, (chunk, rFrom, rTo) =>
+    svc
       .from('appointments')
       .select('application_id, status, starts_at, created_at')
       .eq('agency_id', agencyId)
-      .in('application_id', allAppIds) as unknown as Promise<{ data: DbAppointmentRow[] | null }>);
-    appointments = apptsRaw ?? [];
-  }
+      .in('application_id', chunk)
+      .order('id')
+      .range(rFrom, rTo) as unknown as PromiseLike<{ data: DbAppointmentRow[] | null; error: { message: string } | null }>,
+  );
 
   // -------------------------------------------------------------------------
   // Schritt 7: jobs für Jobtabelle

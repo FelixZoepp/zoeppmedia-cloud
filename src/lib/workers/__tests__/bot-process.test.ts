@@ -263,7 +263,8 @@ function makeHappySvc(overrides: {
   const { svc, fromMock, enqueue } = makeSvc();
 
   const conv = { ...baseConversation, ...(overrides.conv ?? {}) };
-  const messages = [...(overrides.messages ?? [baseOutMessage]), ...(overrides.inMessages ?? [baseInMessage])];
+  // Die DB liefert absteigend (neueste zuerst), processBotTurn dreht wieder um
+  const messages = [...(overrides.messages ?? [baseOutMessage]), ...(overrides.inMessages ?? [baseInMessage])].reverse();
   const questions = overrides.questions ?? [baseQuestion];
   const answers = overrides.answers ?? [];
 
