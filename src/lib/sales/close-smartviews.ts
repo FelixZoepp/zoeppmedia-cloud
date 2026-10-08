@@ -188,3 +188,25 @@ export async function passeSmartViewsAn(svc: SupabaseClient): Promise<Record<str
   }
   return ergebnis;
 }
+
+/** Controlling-Views löschen (ersetzt durch Tagesbericht/Abendbericht der Cloud). Kundenliste bleibt. */
+export function istControllingView(name: string): boolean {
+  const n = name.trim();
+  if (n.includes('Abgeschlossene Kunden')) return false;
+  return n.includes('(CO)') || n.startsWith('--Controlling');
+}
+
+export async function loescheControllingViews(): Promise<string[]> {
+  const alle: Array<{ id: string; name: string }> = [];
+  for (let skip = 0; skip < 1000; skip += 100) {
+    const page = await close<{ data: Array<{ id: string; name: string }>; has_more?: boolean }>(`/saved_search/?_limit=100&_skip=${skip}&_fields=id,name`);
+    alle.push(...page.data);
+    if (!page.has_more) break;
+  }
+  const geloescht: string[] = [];
+  for (const v of alle.filter((a) => istControllingView(a.name))) {
+    await close(`/saved_search/${v.id}/`, { method: 'DELETE' });
+    geloescht.push(v.name);
+  }
+  return geloescht;
+}
