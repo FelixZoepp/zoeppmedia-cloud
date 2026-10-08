@@ -337,7 +337,7 @@ export async function getCloseLeadContacts(leadId: string): Promise<CloseLeadCon
   };
 }
 
-const WEBHOOK_EVENTS = [
+export const WEBHOOK_EVENTS = [
   { object_type: 'opportunity', action: 'created' },
   { object_type: 'opportunity', action: 'updated' },
   // Neue Leads (Eintragungen) → 10-Minuten-Check auf Terminbuchung
@@ -355,12 +355,13 @@ export async function ensureCloseWebhook(url: string): Promise<{ id: string; cre
   const list = await fetch(`${CLOSE_BASE}/webhook/`, { headers: closeHeaders(apiKey) });
   if (!list.ok) throw new Error(`Close-Webhooks nicht lesbar (${list.status})`);
   const { data } = (await list.json()) as { data: Array<{ id: string; url: string; status: string }> };
-  const existing = data.find((w) => w.url === url);
+  // Auch ein Abo mit anderer Basis-URL (z. B. Vercel-Domain) wiederverwenden – sonst kämen Events doppelt
+  const existing = data.find((w) => w.url === url) ?? data.find((w) => w.url.includes('/api/webhooks/close?token='));
   if (existing) {
     const upd = await fetch(`${CLOSE_BASE}/webhook/${existing.id}/`, {
       method: 'PUT',
       headers: closeHeaders(apiKey),
-      body: JSON.stringify({ events: WEBHOOK_EVENTS, status: 'active' }),
+      body: JSON.stringify({ url, events: WEBHOOK_EVENTS, status: 'active' }),
     });
     if (!upd.ok) throw new Error(`Close-Webhook aktualisieren fehlgeschlagen (${upd.status}): ${await upd.text()}`);
     return { id: existing.id, created: false };
@@ -460,4 +461,20 @@ export async function getCloseOpportunity(opportunityId: string): Promise<CloseO
     statusLabel: (o.status_label as string) ?? null,
     rhythm: typeof raw === 'string' ? raw : null,
   };
+}
+
+/**
+ * Tick: Close-Webhook-Abo selbst aktuell halten. Ändern sich die abonnierten Events im Code,
+ * wird das Abo einmalig erneuert (Stand in system_einstellungen.close_webhook_events).
+ */
+export async function haltCloseWebhookAktuell(svc: import('@supabase/supabase-js').SupabaseClient): Promise<boolean> {
+  const token = closeWebhookToken();
+  const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '') || 'https://cloud.zoeppmedia.de';
+  if (!token || !process.env.CLOSE_API_KEY) return false;
+  const soll = JSON.stringify(WEBHOOK_EVENTS);
+  const { data } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_webhook_events').maybeSingle();
+  if ((data as { wert: string } | null)?.wert === soll) return false;
+  await ensureCloseWebhook(`${base}/api/webhooks/close?token=${token}`);
+  await svc.from('system_einstellungen').upsert({ key: 'close_webhook_events', wert: soll, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  return true;
 }

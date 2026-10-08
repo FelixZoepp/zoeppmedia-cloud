@@ -159,6 +159,14 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. scheduled_jobs abarbeiten
+  // Close-Webhook-Abo aktuell halten (nur wenn sich die Events im Code geändert haben)
+  try {
+    const { haltCloseWebhookAktuell } = await import('@/lib/sales/close');
+    await haltCloseWebhookAktuell(svc);
+  } catch (err) {
+    console.error('[tick] Close-Webhook nicht aktualisiert:', err);
+  }
+
   // Abendbericht (20 Uhr Berlin, einmal pro Tag) einplanen – läuft dann als normaler Job
   try {
     const { planeAbendbericht } = await import('@/lib/berichte/abendbericht');
