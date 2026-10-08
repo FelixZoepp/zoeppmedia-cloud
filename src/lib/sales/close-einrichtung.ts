@@ -1,8 +1,8 @@
 /**
- * Einmalige Einrichtung in Close (über den API-Key der Cloud): Felder des Protokolls
- * „2 - Gesprächsprotokoll (Setting)“ nach dem Setting-Skript Recruiting Direktvertrieb.
+ * Einmalige Einrichtung in Close (über den API-Key der Cloud): Felder der Protokolle
+ * „2 - Gesprächsprotokoll (Setting)“ (Setting-Skript Recruiting Direktvertrieb) und „4 - Gesprächsprotokoll (Follow-Up)“.
  * Idempotent: vorhandene Felder werden umbenannt/angepasst, fehlende angelegt (Abgleich über den Namen),
- * nichts wird gelöscht. Ausgelöst als Job 'close.einrichtung' (payload { was: 'setting_protokoll' }).
+ * nichts wird gelöscht, Reihenfolge wie definiert. Job 'close.einrichtung' (payload { was: 'setting_protokoll,followup_protokoll' }).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -20,7 +20,7 @@ async function close<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-type FeldTyp = 'text' | 'number' | 'date' | 'datetime' | 'choices' | 'user';
+type FeldTyp = 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'choices' | 'user';
 
 export interface FeldSoll {
   key: string;
@@ -64,7 +64,7 @@ export const SETTING_FELDER: FeldSoll[] = [
     name: '✅ Ergebnis',
     typ: 'choices',
     choices: ['Beratungsgespräch gelegt', 'Follow-up / Rückruf', 'Unqualifiziert', 'Disqualifiziert', 'No-Show', 'Verschoben', 'Abgesagt'],
-    id: 'cf_xPhL5XUDQ8i4gCcUF4pz5uMaHUoIMwZXB3af8Xv0A6B',
+    id: 'cf_76Hh4UwJmO29mcOhNZdGglGCNpQyccCBbZSciCF3fb3',
   },
   {
     key: 'grund',
@@ -76,6 +76,31 @@ export const SETTING_FELDER: FeldSoll[] = [
   { key: 'closer', name: 'Closer', typ: 'user', id: 'cf_v6iiRmUU1aRBhZwaQebR1kpsjJQykQAzxdLjoo2m6zt' },
   // Rich Text bleibt das vorhandene Feld (wird nur umbenannt)
   { key: 'notizen', name: 'Notizen für den Closer', typ: 'text', id: 'cf_HyQjx7kUMpcUxcsFqGKgtiPy9EUyHjvTfjlMNyou5dU' },
+];
+
+const GRUENDE = ['Kein Bedarf (GS 1)', 'Kein Budget / nicht liquide (GS 2)', 'Entscheider fehlt (GS 3)', 'Kein zeitnaher Start (GS 4)', 'Respektlos (GS 5)', 'Passt nicht (Branche/Modell)'];
+
+/** „4 - Gesprächsprotokoll (Follow-Up)“ */
+export const FOLLOWUP_FELDER: FeldSoll[] = [
+  { key: 'art', name: 'Art', typ: 'choices', choices: ['Setting-Follow-up', 'Closing-Follow-up', 'No-Show-Rückholung'] },
+  { key: 'erreicht', name: '📞 Erreicht?', typ: 'choices', choices: ['Ja', 'Nein / Mailbox'] },
+  {
+    key: 'offenerPunkt',
+    name: 'Offener Punkt / Einwand',
+    typ: 'choices',
+    choices: ['Budget', 'Entscheider', 'Zeitpunkt', 'Vertrauen / Garantie', 'Vergleicht Anbieter', 'Kein Bedarf mehr', 'Sonstiges'],
+  },
+  {
+    key: 'ergebnis',
+    name: '✅ Ergebnis',
+    typ: 'choices',
+    choices: ['Erstgespräch gelegt', 'Beratungsgespräch gelegt', 'Abgeschlossen', 'Weiter Follow-up', 'Verloren', 'Nicht erreicht'],
+    id: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
+  },
+  { key: 'verlorenGrund', name: 'Verloren-Grund', typ: 'choices', choices: GRUENDE },
+  { key: 'kalender', name: '📅 Kalender (Termin / nächster Versuch)', typ: 'datetime', id: 'cf_ZygAilDqJL6baOu94HxcH06wt4CYBCAl7kGQDO58PW2' },
+  { key: 'gelegtAuf', name: 'Gelegt auf (Closer/Setter)', typ: 'user', id: 'cf_eUkEtzFEZq0Iruaovqhi2VQoLxQgSJO0oGN33aAUh5s' },
+  { key: 'notizen', name: 'Notizen', typ: 'textarea' },
 ];
 
 interface CloseFeld {
@@ -94,7 +119,7 @@ export async function richteProtokollFelderEin(typId: string, soll: FeldSoll[]):
   const angepasst: string[] = [];
 
   for (const f of soll) {
-    const treffer = f.id ? vorhanden.find((v) => v.id === f.id) : vorhanden.find((v) => v.name.trim() === f.name);
+    const treffer = (f.id ? vorhanden.find((v) => v.id === f.id) : undefined) ?? vorhanden.find((v) => v.name.trim() === f.name);
     if (treffer) {
       // Name + Auswahl angleichen (Typ bleibt – Rich Text u. ä. werden nur umbenannt)
       const body: Record<string, unknown> = { name: f.name };
@@ -104,15 +129,18 @@ export async function richteProtokollFelderEin(typId: string, soll: FeldSoll[]):
       angepasst.push(f.name);
       continue;
     }
-    const neu = await close<{ id: string }>(`/custom_field/activity/`, {
-      method: 'POST',
-      body: JSON.stringify({
-        name: f.name,
-        type: f.typ,
-        custom_activity_type_id: typId,
-        ...(f.choices ? { choices: f.choices, accepts_multiple_values: false } : {}),
-      }),
-    });
+    const anlegen = (typ: FeldTyp) =>
+      close<{ id: string }>(`/custom_field/activity/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: f.name,
+          type: typ,
+          custom_activity_type_id: typId,
+          ...(f.choices ? { choices: f.choices, accepts_multiple_values: false } : {}),
+        }),
+      });
+    // Mehrzeiliger Text: falls Close den Typ ablehnt, als einfaches Textfeld anlegen
+    const neu = await anlegen(f.typ).catch((err) => (f.typ === 'textarea' ? anlegen('text') : Promise.reject(err)));
     ids[f.key] = neu.id;
     angelegt.push(f.name);
   }
@@ -121,20 +149,27 @@ export async function richteProtokollFelderEin(typId: string, soll: FeldSoll[]):
   const reihenfolge = [...soll.map((f) => ids[f.key]), ...übrige];
   let sortiert = false;
   try {
-    await close(`/custom_activity/${typId}/`, { method: 'PUT', body: JSON.stringify({ field_order: reihenfolge }) });
-    sortiert = true;
+    // Reihenfolge = Reihenfolge der fields-Liste (nur Anzeige)
+    await close(`/custom_activity/${typId}/`, { method: 'PUT', body: JSON.stringify({ fields: reihenfolge.map((id) => ({ id })) }) });
+    const typ = await close<{ fields?: Array<{ id: string }> }>(`/custom_activity/${typId}/`);
+    sortiert = (typ.fields ?? []).map((x) => x.id).slice(0, soll.length).join() === reihenfolge.slice(0, soll.length).join();
   } catch (err) {
     console.error('[close-einrichtung] Reihenfolge nicht gesetzt:', err);
   }
   return { ids, angelegt, angepasst, sortiert };
 }
 
-/** Job close.einrichtung */
+const EINRICHTUNGEN: Record<string, { typ: string; felder: FeldSoll[]; key: string }> = {
+  setting_protokoll: { typ: PROTOKOLL_TYPEN.setting, felder: SETTING_FELDER, key: 'close_setting_protokoll_felder' },
+  followup_protokoll: { typ: PROTOKOLL_TYPEN.followUp, felder: FOLLOWUP_FELDER, key: 'close_followup_protokoll_felder' },
+};
+
+/** Job close.einrichtung (was: 'setting_protokoll' | 'followup_protokoll', mehrere mit Komma) */
 export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string): Promise<void> {
-  if (was !== 'setting_protokoll') throw new Error(`Unbekannte Einrichtung: ${was}`);
-  const ergebnis = await richteProtokollFelderEin(PROTOKOLL_TYPEN.setting, SETTING_FELDER);
-  await svc.from('system_einstellungen').upsert(
-    { key: 'close_setting_protokoll_felder', wert: JSON.stringify(ergebnis), updated_at: new Date().toISOString() },
-    { onConflict: 'key' },
-  );
+  for (const name of was.split(',').map((x) => x.trim())) {
+    const e = EINRICHTUNGEN[name];
+    if (!e) throw new Error(`Unbekannte Einrichtung: ${name}`);
+    const ergebnis = await richteProtokollFelderEin(e.typ, e.felder);
+    await svc.from('system_einstellungen').upsert({ key: e.key, wert: JSON.stringify(ergebnis), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  }
 }
