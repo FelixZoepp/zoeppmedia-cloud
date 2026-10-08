@@ -189,10 +189,9 @@ export async function passeSmartViewsAn(svc: SupabaseClient): Promise<Record<str
   return ergebnis;
 }
 
-/** Controlling-Views löschen (ersetzt durch Tagesbericht/Abendbericht der Cloud). Kundenliste bleibt. */
+/** Controlling-Views löschen (ersetzt durch Tagesbericht/Abendbericht der Cloud; Kunden stehen in „💎 Kunden“). */
 export function istControllingView(name: string): boolean {
   const n = name.trim();
-  if (n.includes('Abgeschlossene Kunden')) return false;
   return n.includes('(CO)') || n.startsWith('--Controlling');
 }
 
