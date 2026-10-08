@@ -263,12 +263,13 @@ export async function handleSalesBooking(
 
   // Setting in Close eintragen (Lead + Opportunity „Setting – Terminiert“). Als Job mit kurzer Verzögerung,
   // damit ein gleichzeitig angelegter Funnel-Lead schon in der Close-Suche steht.
-  if (input.chain === 'setting') {
+  // Setting → Opportunity „Setting – Terminiert“ + Lead-Feld „Setting Termin“; Beratung → „Closing – Terminiert“ + „Closing Termin“
+  {
     const { error: closeJobErr } = await svc.from('scheduled_jobs').insert({
       agency_id: SALES_AGENCY_ID,
       type: 'sales.close_buchung',
       run_at: new Date(now.getTime() + 90_000).toISOString(),
-      payload: { name: input.inviteeName, email: input.inviteeEmail, phone: phoneE164 ?? input.phone, startTime: input.startTime, calendlyEventId: input.calendlyEventId },
+      payload: { chain: input.chain, name: input.inviteeName, email: input.inviteeEmail, phone: phoneE164 ?? input.phone, startTime: input.startTime, calendlyEventId: input.calendlyEventId },
       status: 'pending',
       dedupe_key: `sales.close_buchung:${input.calendlyEventId}`,
     });

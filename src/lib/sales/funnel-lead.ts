@@ -13,6 +13,16 @@ const CLOSE_BASE = 'https://api.close.com/api/v1';
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky'; // D2D Sales
 const OPP_SETTING_TERMINIERT = 'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH';
 const LEAD_STATUS_LEADPOOL = 'stat_sgDNPr29uwT7tMPTxzQKW6DDCjbM2JMZzdX3UpeRGLb';
+/** Lead-Feld „Setting Termin (Direktbuchung)“ – Smart View „Settings heute“ */
+export const LEAD_FELD_SETTING_TERMIN = 'cf_Xdl1iNhA7n4BORM3AYbBP99ontdBq39ngOdwjTMdZNq';
+const LEAD_STATUS_CLOSING = 'stat_BqlpXrf3Xh0QnPwZ3ND2a9dbaola4XCIzmFRlgWFnXW';
+const OPP_CLOSING_TERMINIERT = 'stat_RjrZL3ifb4mKNiPEFFX1IQgse1fbI94R9XZgere2wZT';
+/** Setting-Stufen, aus denen eine Beratungs-Buchung den Deal auf „Closing – Terminiert“ schiebt */
+const OPP_SETTING_STUFEN = [
+  'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH',
+  'stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7',
+  'stat_EWpujNpwdtq5HSFAMO6c0awZUVgsz6TfO1ZXe5Ff8IT',
+];
 export const LEAD_STATUS_SETTING = 'stat_E0PMV0VE8R9KIyqq8aGpBMyvBqjmaih50lXRczPpQ2L';
 
 /** Geheimer URL-Token für den Funnel-Webhook, abgeleitet aus CRON_SECRET (keine extra Env-Variable). */
@@ -196,6 +206,8 @@ async function ordneAntwortenZu(apiKey: string, antworten: FunnelLead['antworten
 }
 
 export interface BuchungFuerClose {
+  /** fehlt bei älteren Jobs → Setting */
+  chain?: 'setting' | 'beratung';
   name: string;
   email: string | null;
   phone: string | null;
@@ -219,6 +231,7 @@ export async function bucheSettingInClose(b: BuchungFuerClose): Promise<{ leadId
       body: JSON.stringify({
         name: b.name,
         status_id: LEAD_STATUS_SETTING,
+        [`custom.${LEAD_FELD_SETTING_TERMIN}`]: b.startTime,
         contacts: [{ name: b.name, emails: b.email ? [{ email: b.email, type: 'office' }] : [], phones: b.phone ? [{ phone: b.phone, type: 'mobile' }] : [] }],
         [`custom.${LEADQUELLE_CF}`]: 'Calendly-Buchung (ohne Funnel-Eintrag)',
       }),
@@ -226,7 +239,11 @@ export async function bucheSettingInClose(b: BuchungFuerClose): Promise<{ leadId
     if (!res.ok) throw new Error(`Close-Lead nicht angelegt (${res.status}): ${await res.text()}`);
     leadId = ((await res.json()) as { id: string }).id;
   } else {
-    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: LEAD_STATUS_SETTING }) });
+    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, {
+      method: 'PUT',
+      headers: closeHeaders(apiKey),
+      body: JSON.stringify({ status_id: LEAD_STATUS_SETTING, [`custom.${LEAD_FELD_SETTING_TERMIN}`]: b.startTime }),
+    });
   }
 
   const termin = new Date(b.startTime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -247,4 +264,51 @@ export async function legeSettingOpportunityAn(leadId: string, note: string): Pr
   });
   if (!opp.ok) throw new Error(`Opportunity nicht angelegt (${opp.status}): ${await opp.text()}`);
   return 'angelegt';
+}
+
+/**
+ * Job sales.close_buchung bei einer Beratungs-Buchung (Calendly 60 Min.): Lead finden/anlegen, Status „Closing“,
+ * Lead-Feld „Closing Termin“, Deal aus einer Setting-Stufe auf „Closing – Terminiert“ (oder neu anlegen).
+ */
+export async function bucheBeratungInClose(b: BuchungFuerClose, closingTerminFeld: string | null): Promise<{ leadId: string; opportunity: string }> {
+  const apiKey = process.env.CLOSE_API_KEY;
+  if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
+  const termin = closingTerminFeld ? { [`custom.${closingTerminFeld}`]: b.startTime } : {};
+
+  let leadId = await findCloseLeadId({ email: b.email, phone: b.phone });
+  if (!leadId) {
+    const res = await fetch(`${CLOSE_BASE}/lead/`, {
+      method: 'POST',
+      headers: closeHeaders(apiKey),
+      body: JSON.stringify({
+        name: b.name,
+        status_id: LEAD_STATUS_CLOSING,
+        contacts: [{ name: b.name, emails: b.email ? [{ email: b.email, type: 'office' }] : [], phones: b.phone ? [{ phone: b.phone, type: 'mobile' }] : [] }],
+        [`custom.${LEADQUELLE_CF}`]: 'Calendly-Buchung (ohne Funnel-Eintrag)',
+        ...termin,
+      }),
+    });
+    if (!res.ok) throw new Error(`Close-Lead nicht angelegt (${res.status}): ${await res.text()}`);
+    leadId = ((await res.json()) as { id: string }).id;
+  } else {
+    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: LEAD_STATUS_CLOSING, ...termin }) });
+  }
+
+  const offen = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id`, { headers: closeHeaders(apiKey) });
+  if (!offen.ok) throw new Error(`Close-Opportunities nicht lesbar (${offen.status})`);
+  const opps = ((await offen.json()) as { data: Array<{ id: string; status_id: string }> }).data;
+  const zeit = new Date(b.startTime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const imSetting = opps.find((o) => OPP_SETTING_STUFEN.includes(o.status_id));
+  if (imSetting) {
+    await fetch(`${CLOSE_BASE}/opportunity/${imSetting.id}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: OPP_CLOSING_TERMINIERT }) });
+    return { leadId, opportunity: 'auf_closing' };
+  }
+  if (opps.length > 0) return { leadId, opportunity: 'vorhanden' };
+  const opp = await fetch(`${CLOSE_BASE}/opportunity/`, {
+    method: 'POST',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_CLOSING_TERMINIERT, note: `Beratungsgespräch gebucht über Calendly: ${zeit} Uhr` }),
+  });
+  if (!opp.ok) throw new Error(`Opportunity nicht angelegt (${opp.status}): ${await opp.text()}`);
+  return { leadId, opportunity: 'angelegt' };
 }

@@ -283,8 +283,14 @@ export async function GET(request: NextRequest) {
           break;
         }
         case 'sales.close_buchung': {
-          const { bucheSettingInClose } = await import('@/lib/sales/funnel-lead');
-          await bucheSettingInClose(payload as unknown as import('@/lib/sales/funnel-lead').BuchungFuerClose);
+          const { bucheSettingInClose, bucheBeratungInClose } = await import('@/lib/sales/funnel-lead');
+          const buchung = payload as unknown as import('@/lib/sales/funnel-lead').BuchungFuerClose;
+          if (buchung.chain === 'beratung') {
+            const { data: feld } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_lead_feld_closing_termin').maybeSingle();
+            await bucheBeratungInClose(buchung, (feld as { wert: string } | null)?.wert ?? null);
+          } else {
+            await bucheSettingInClose(buchung);
+          }
           break;
         }
         case 'sales.unconfirmed_check':

@@ -182,6 +182,17 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await exportiereSmartViews(svc);
       continue;
     }
+    if (name === 'slack_diagnose') {
+      const { slackDiagnose } = await import('@/lib/slack/kanaele');
+      await svc.from('system_einstellungen').upsert({ key: 'slack_diagnose', wert: JSON.stringify(await slackDiagnose()), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
+    if (name === 'smartviews_anpassen') {
+      const { passeSmartViewsAn } = await import('./close-smartviews');
+      const ergebnis = await passeSmartViewsAn(svc);
+      await svc.from('system_einstellungen').upsert({ key: 'close_smartviews_anpassung', wert: JSON.stringify(ergebnis), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     const e = EINRICHTUNGEN[name];
     if (!e) throw new Error(`Unbekannte Einrichtung: ${name}`);
     const ergebnis = await richteProtokollFelderEin(e.typ, e.felder);
