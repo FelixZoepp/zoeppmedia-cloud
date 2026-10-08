@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { secretFehlt, secretGleich } from '@/lib/security/webhook-secret';
+import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseIndeedEmail, extractAgencyIdFromAddress } from '@/lib/indeed/parse-email';
 import { extractTextFromPdf, extractCvData, type CvData } from '@/lib/indeed/extract-cv';
@@ -8,16 +8,20 @@ import { logActivity } from '@/lib/activity/log';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 
 export async function POST(request: NextRequest) {
-  // Shared-Secret-Prüfung (fail-closed): ohne INDEED_WEBHOOK_SECRET wird nichts angenommen.
+  // Shared-Secret-Prüfung: aktiv sobald INDEED_WEBHOOK_SECRET gesetzt ist (live noch nicht gesetzt).
   // Der E-Mail-Forwarder muss das Secret als Header x-webhook-secret oder ?secret= mitschicken.
   const webhookSecret = process.env.INDEED_WEBHOOK_SECRET;
-  if (!webhookSecret) return secretFehlt('INDEED_WEBHOOK_SECRET');
-  // Header bevorzugt; ?secret= bleibt für bestehende Forwarder-Konfigurationen erlaubt
-  const provided =
-    request.headers.get('x-webhook-secret') ||
-    request.nextUrl.searchParams.get('secret');
-  if (!secretGleich(provided, webhookSecret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!webhookSecret) {
+    // TODO: Secret beim Absender und in Vercel setzen, dann hier fail-closed (secretFehlt)
+    console.warn('[webhook] INDEED_WEBHOOK_SECRET ist nicht gesetzt – Anfrage ungeprüft angenommen');
+  } else {
+    // Header bevorzugt; ?secret= bleibt für bestehende Forwarder-Konfigurationen erlaubt
+    const provided =
+      request.headers.get('x-webhook-secret') ||
+      request.nextUrl.searchParams.get('secret');
+    if (!secretGleich(provided, webhookSecret)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   const supabase = createAdminClient();

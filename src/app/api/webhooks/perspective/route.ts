@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { secretFehlt, secretGleich } from '@/lib/security/webhook-secret';
+import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { logActivity } from '@/lib/activity/log';
@@ -31,13 +31,17 @@ function fieldValue(field: ProfileField): string | null {
 
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.PERSPECTIVE_WEBHOOK_SECRET;
-  if (!webhookSecret) return secretFehlt('PERSPECTIVE_WEBHOOK_SECRET');
-  // Header bevorzugt; ?secret= bleibt für bestehende Forwarder-Konfigurationen erlaubt
-  const provided =
-    request.headers.get('x-webhook-secret') ||
-    request.nextUrl.searchParams.get('secret');
-  if (!secretGleich(provided, webhookSecret)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!webhookSecret) {
+    // TODO: Secret beim Absender und in Vercel setzen, dann hier fail-closed (secretFehlt)
+    console.warn('[webhook] PERSPECTIVE_WEBHOOK_SECRET ist nicht gesetzt – Anfrage ungeprüft angenommen');
+  } else {
+    // Header bevorzugt; ?secret= bleibt für bestehende Forwarder-Konfigurationen erlaubt
+    const provided =
+      request.headers.get('x-webhook-secret') ||
+      request.nextUrl.searchParams.get('secret');
+    if (!secretGleich(provided, webhookSecret)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   let body: Record<string, unknown>;
