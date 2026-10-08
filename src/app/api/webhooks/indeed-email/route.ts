@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
 
     // Resend Inbound: Der Webhook enthält nur Metadaten (kein html/text, keine
     // Anhang-Inhalte). Vollständigen Inhalt per Receiving-API nachladen.
-    const resendKey = process.env.RESEND_API_KEY;
+    // Receiving-API braucht einen Full-Access-Key; RESEND_API_KEY ist nur zum Senden freigegeben (401 restricted_api_key)
+    const resendKey = process.env.RESEND_RECEIVING_API_KEY || process.env.RESEND_API_KEY;
     const emailId = payload.email_id as string | undefined;
     if (!htmlBody && emailId && resendKey) {
       try {
