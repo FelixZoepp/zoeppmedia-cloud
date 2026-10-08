@@ -164,9 +164,24 @@ const EINRICHTUNGEN: Record<string, { typ: string; felder: FeldSoll[]; key: stri
   followup_protokoll: { typ: PROTOKOLL_TYPEN.followUp, felder: FOLLOWUP_FELDER, key: 'close_followup_protokoll_felder' },
 };
 
-/** Job close.einrichtung (was: 'setting_protokoll' | 'followup_protokoll', mehrere mit Komma) */
+/** Smart Views (Saved Searches) nur auslesen – Name + Filter, für Analyse/Optimierung */
+async function exportiereSmartViews(svc: SupabaseClient): Promise<void> {
+  const out: unknown[] = [];
+  for (let skip = 0; skip < 1000; skip += 100) {
+    const page = await close<{ data: Array<Record<string, unknown>>; has_more?: boolean }>(`/saved_search/?_limit=100&_skip=${skip}`);
+    out.push(...page.data.map((v) => ({ id: v.id, name: v.name, type: v.type, query: v.query, s_query: v.s_query, sort: (v as { s_query?: { sort?: unknown } }).s_query?.sort })));
+    if (!page.has_more) break;
+  }
+  await svc.from('system_einstellungen').upsert({ key: 'close_smartviews_export', wert: JSON.stringify(out), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+}
+
+/** Job close.einrichtung (was: 'setting_protokoll' | 'followup_protokoll' | 'smartviews_export', mehrere mit Komma) */
 export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string): Promise<void> {
   for (const name of was.split(',').map((x) => x.trim())) {
+    if (name === 'smartviews_export') {
+      await exportiereSmartViews(svc);
+      continue;
+    }
     const e = EINRICHTUNGEN[name];
     if (!e) throw new Error(`Unbekannte Einrichtung: ${name}`);
     const ergebnis = await richteProtokollFelderEin(e.typ, e.felder);
