@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mic, Square, Upload, Sparkles, ThumbsDown, ThumbsUp, Check, X, Plus } from 'lucide-react';
 import { Badge, Card, Input, PageHeader, SegmentedControl } from '@/components/ui';
+import { SopAufnahmen } from './sop-aufnahmen';
 
-type Tab = 'aufnahmen' | 'entwuerfe' | 'einspeisen' | 'luecken' | 'zugriffe' | 'feedback';
+type Tab = 'sop' | 'aufnahmen' | 'entwuerfe' | 'einspeisen' | 'luecken' | 'zugriffe' | 'feedback';
 
 const TABS: Array<{ value: Tab; label: string }> = [
+  { value: 'sop', label: 'SOP aus Aufnahmen' },
   { value: 'aufnahmen', label: 'Aufnahme-Liste' },
   { value: 'entwuerfe', label: 'Entwürfe & Freigabe' },
   { value: 'einspeisen', label: 'Wissen einspeisen' },
@@ -28,14 +30,16 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return d as T;
 }
 
-export function AkademieVerwaltung() {
-  const [tab, setTab] = useState<Tab>('aufnahmen');
+export function AkademieVerwaltung({ startTab }: { startTab?: string }) {
+  // Direktlink aus Benachrichtigung/Aufnahme-Dialog: /admin/akademie?tab=sop
+  const [tab, setTab] = useState<Tab>(TABS.some((x) => x.value === startTab) ? (startTab as Tab) : 'aufnahmen');
   return (
     <div className="space-y-5">
       <PageHeader label="Verwaltung" title="Team-Akademie" description="Videos aufnehmen, Wissen einspeisen, Entwürfe freigeben und festlegen, wer was sieht." />
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as Tab)} />
       </div>
+      {tab === 'sop' && <SopAufnahmen />}
       {tab === 'aufnahmen' && <Aufnahmen />}
       {tab === 'entwuerfe' && <Entwuerfe />}
       {tab === 'einspeisen' && <Einspeisen />}

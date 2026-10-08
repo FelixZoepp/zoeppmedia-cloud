@@ -5,6 +5,7 @@ import { agencyLogo } from '@/lib/branding/logo';
 import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { HilfeLeiste } from '@/components/akademie/hilfe-leiste';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { aktiveAnsicht } from '@/lib/ansicht';
 
@@ -38,6 +39,8 @@ export default async function PortalLayout({ children }: { children: React.React
     >
       {ansicht !== 'kunde' && <ImpersonationBanner />}
       {children}
+      {/* Hilfe-Modus nur für das Team in einer Kunden-Cloud (z. B. Innendienst) – Kunden sehen ihn nie */}
+      {inKundenCloud && ansicht !== 'kunde' && <HilfeLeiste />}
       <PushManager />
     </LayoutShell>
   );

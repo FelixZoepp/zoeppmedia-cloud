@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Bot, CheckCircle2, PlayCircle, Search, Send, ThumbsDown, ThumbsUp, Video, Settings2 } from 'lucide-react';
+import { BookOpen, Bot, CheckCircle2, ChevronRight, GraduationCap, PlayCircle, Search, Send, ThumbsDown, ThumbsUp, Users, Video, Settings2 } from 'lucide-react';
+import { lernpfadFuer, fortschrittVon } from '@/lib/akademie/lernpfade';
 import { Badge, Card, Input, PageHeader, SegmentedControl } from '@/components/ui';
 
 interface ArtikelKurz {
@@ -50,7 +51,15 @@ export function AkademieClient() {
   useEffect(() => {
     fetch('/api/akademie')
       .then(async (r) => (r.ok ? r.json() : Promise.reject((await r.json().catch(() => ({}))).error ?? 'Fehler')))
-      .then(setDaten)
+      .then((d: Daten) => {
+        setDaten(d);
+        // Aus der Hilfe-Leiste: „Frag die Akademie“ mit vorbelegter Frage
+        const f = new URLSearchParams(window.location.search).get('frage');
+        if (f) {
+          setAnsicht('bot');
+          setFrage(f);
+        }
+      })
       .catch((e) => setFehler(String(e)));
   }, []);
 
@@ -192,6 +201,7 @@ export function AkademieClient() {
         </Card>
       ) : (
         <>
+          <BereichsKacheln daten={daten} />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Suchen, z. B. „Pixel“, „Vertrag“, „No-Show“ …" icon={<Search className="h-4 w-4" />} className="sm:max-w-md sm:flex-1" />
             <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
@@ -224,6 +234,45 @@ export function AkademieClient() {
           {!suchTreffer && nachModul.length === 0 && <Card className="p-6 text-[15px] text-gray-600">Für dich ist noch nichts freigeschaltet. Felix schaltet dir die Bereiche deiner Position frei.</Card>}
         </>
       )}
+    </div>
+  );
+}
+
+/** Jede freigeschaltete Position ist eine eigene Bereichs-Akademie mit Lernpfad und Fortschritt */
+function BereichsKacheln({ daten }: { daten: Daten }) {
+  const bereiche = daten.positionen.filter((p) => daten.admin || daten.meinePositionen.includes(p.id));
+  if (!bereiche.length) return null;
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="text-[16px] font-semibold tracking-[-0.01em]">Deine Akademien</h2>
+        {daten.admin && (
+          <Link href="/admin/akademie/team" className="ml-auto inline-flex items-center gap-1 text-[13.5px] font-medium text-red-800 hover:underline">
+            <Users className="h-4 w-4" /> Team-Fortschritt & Reviews
+          </Link>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {bereiche.map((b) => {
+          const { stufen } = lernpfadFuer(b.id, daten.artikel);
+          const slugs = stufen.flatMap((s) => s.artikel.map((a) => a.slug));
+          const f = fortschrittVon(slugs, daten.fortschritt);
+          return (
+            <Link key={b.id} href={`/akademie/bereich/${b.id}`} className="group rounded-[16px] bg-card p-4 shadow-sm hover:shadow-md">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-red-800" />
+                <span className="text-[15.5px] font-semibold">{b.label}</span>
+                <ChevronRight className="ml-auto h-4 w-4 text-gray-400 group-hover:text-red-800" />
+              </div>
+              <p className="mt-1 line-clamp-2 text-[13px] text-gray-600">{b.beschreibung}</p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-panel">
+                <div className="h-full rounded-full bg-gradient-to-r from-red-700 to-red-950" style={{ width: `${f.prozent}%` }} />
+              </div>
+              <p className="mt-1 text-[12px] text-gray-500">{f.gesamt ? `${f.gelesen}/${f.gesamt} im Lernpfad gelesen` : 'Inhalte folgen'}</p>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

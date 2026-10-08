@@ -352,6 +352,26 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // 7. SOP aus Aufnahme: Wartendes/Hängengebliebenes in eigener Funktion (maxDuration 300) anstoßen
+  let aufnahmen = 0;
+  if (Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 10_000) {
+    try {
+      const { aufnahmenZumAnstossen } = await import('@/lib/akademie/aufnahme');
+      const ids = await aufnahmenZumAnstossen(svc);
+      const basis = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+      for (const id of ids.slice(0, 3)) {
+        await fetch(`${basis}/api/akademie/aufnahmen/${id}/verarbeiten`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${cronSecret}` },
+          signal: AbortSignal.timeout(8000),
+        }).catch((err) => console.error('[tick] Aufnahme anstoßen', id, err));
+        aufnahmen++;
+      }
+    } catch (err) {
+      console.error('[tick] Aufnahmen fehlgeschlagen:', err);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     events: { processed: eventsProcessed, failed: eventsFailed },
@@ -360,5 +380,6 @@ export async function GET(request: NextRequest) {
     kadenz,
     funnelBauten,
     meta,
+    aufnahmen,
   });
 }

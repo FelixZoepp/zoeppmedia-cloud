@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SopLink } from '@/components/akademie/sop-link';
+import { setzeHilfeKontext, vorErledigen } from '@/components/akademie/hilfe-bus';
 import { Check, RotateCcw, Ban, Play, Building2, AlertTriangle, MessageSquare } from 'lucide-react';
 import type { StepView } from '@/lib/fulfillment/views';
 
@@ -53,7 +54,12 @@ export function StepRow({
   };
 
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2.5 ${done ? 'opacity-60' : ''}`}>
+    <div
+      className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2.5 ${done ? 'opacity-60' : ''}`}
+      // Hilfe-Modus: passende SOP an der Seite zeigen, sobald die Aufgabe angefasst wird
+      onClickCapture={() => !done && setzeHilfeKontext({ stepKey: step.step_key, stepId: step.id, titel: step.titel })}
+      onFocusCapture={() => !done && setzeHilfeKontext({ stepKey: step.step_key, stepId: step.id, titel: step.titel })}
+    >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {showAgency && step.agency_name && (
@@ -127,7 +133,10 @@ export function StepRow({
                 <Play className="w-3.5 h-3.5" /> Starten
               </button>
             )}
-            <button disabled={busy} onClick={() => act({ status: 'erledigt' })}
+            <button disabled={busy} onClick={async () => {
+              // Checkliste offen? → freundlicher Hinweis (nicht blockierend)
+              if (await vorErledigen({ stepKey: step.step_key, stepId: step.id })) void act({ status: 'erledigt' });
+            }}
               className="h-8 px-2.5 rounded-full bg-gradient-to-b from-red-700 to-red-950 text-white font-semibold inline-flex items-center gap-1 hover:from-red-600 hover:to-red-800">
               <Check className="w-3.5 h-3.5" /> Erledigt
             </button>

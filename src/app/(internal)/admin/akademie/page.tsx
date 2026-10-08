@@ -4,8 +4,9 @@ import { AkademieVerwaltung } from './verwaltung-client';
 
 export const metadata = { title: 'Team-Akademie verwalten' };
 
-export default async function AkademieVerwaltungPage() {
+export default async function AkademieVerwaltungPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const user = await getCurrentUser();
   if (!user || user.role !== 'admin') redirect('/akademie');
-  return <AkademieVerwaltung />;
+  const { tab } = await searchParams;
+  return <AkademieVerwaltung startTab={tab} />;
 }

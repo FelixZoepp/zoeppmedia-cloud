@@ -12,7 +12,7 @@ export interface Position {
 }
 
 export const POSITIONEN: Position[] = [
-  { id: 'grundlagen', label: 'Grundlagen & Cloud', beschreibung: 'Wie die Zoepp Cloud aufgebaut ist und wie du deine Aufgaben findest – für alle.', funktionen: [] },
+  { id: 'grundlagen', label: 'Allgemein: Kultur, Arbeitsweise & Cloud', beschreibung: 'Wer wir sind, wie wir arbeiten und kommunizieren, und wie du dich in der Cloud zurechtfindest – für alle.', funktionen: [] },
   { id: 'setting', label: 'Setting', beschreibung: 'Erstgespräche, Terminierung und Setting-Follow-ups.', funktionen: ['setter', 'vertrieb'] },
   { id: 'closing', label: 'Closing', beschreibung: 'Abschlussgespräche, Angebote, CC2 und Einwandbehandlung.', funktionen: ['closer', 'vertrieb'] },
   { id: 'vertriebsleitung', label: 'Vertriebsleitung', beschreibung: 'Sales-Controlling, Team-Auslastung und Close-Pflege.', funktionen: ['vertrieb'] },

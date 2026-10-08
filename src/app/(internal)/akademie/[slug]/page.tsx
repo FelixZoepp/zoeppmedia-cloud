@@ -7,9 +7,12 @@ import { ladeArtikel, ladeFortschritt, ladeVideos } from '@/lib/akademie/daten';
 import { ladeZugriff } from '@/lib/akademie/zugriff';
 import { POSITION_LABEL } from '@/lib/akademie/positionen';
 import { videoEmbedUrl } from '@/lib/masterclass/lesson';
+import { storageVideoUrl } from '@/lib/akademie/aufnahme';
 import { Badge, Card } from '@/components/ui';
 import { Markdown } from '@/components/akademie/markdown';
 import { ArtikelAktionen } from './artikel-aktionen';
+import { BausteineDetail } from '@/components/akademie/bausteine-detail';
+import { checklisteVon, reviewVon } from '@/lib/akademie/bausteine';
 
 const TYP_LABEL: Record<string, string> = { sop: 'SOP', skript: 'Skript', wissen: 'Wissen', faq: 'FAQ', rolle: 'Rolle' };
 
@@ -38,7 +41,9 @@ export default async function AkademieArtikelPage({ params }: { params: Promise<
 
   const [videos, fortschritt] = await Promise.all([ladeVideos(svc), ladeFortschritt(svc, user.id)]);
   const video = a.video_key ? videos.find((v) => v.key === a.video_key) ?? null : null;
-  const embed = video?.video_url ? videoEmbedUrl(video.video_url) : null;
+  // Aufnahmen aus der Cloud liegen im Speicher („storage:…“) und werden direkt abgespielt
+  const datei = video?.video_url ? await storageVideoUrl(svc, video.video_url) : null;
+  const embed = video?.video_url && !datei ? videoEmbedUrl(video.video_url) : null;
   const ab = a.abschnitte ?? {};
   const f = fortschritt[a.slug] ?? { gelesen: false, video: false };
 
@@ -60,7 +65,9 @@ export default async function AkademieArtikelPage({ params }: { params: Promise<
 
         {video && (
           <div className="mt-5">
-            {embed ? (
+            {datei ? (
+              <video src={datei} controls preload="metadata" className="aspect-video w-full rounded-[14px] bg-black" />
+            ) : embed ? (
               <div className="relative aspect-video overflow-hidden rounded-[14px] bg-black">
                 <iframe src={embed} className="absolute inset-0 h-full w-full" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen title={video.titel} />
               </div>
@@ -72,6 +79,8 @@ export default async function AkademieArtikelPage({ params }: { params: Promise<
           </div>
         )}
 
+        {!video && <p className="mt-5 text-[13.5px] text-gray-500">1 · Video: Kein Video nötig – die SOP reicht.</p>}
+        <h2 className="mt-6 text-[13px] font-semibold uppercase tracking-[0.06em] text-red-800">2 · SOP</h2>
         {ab.zweck && <Abschnitt titel="Wozu"><p className="text-[15px]">{ab.zweck}</p></Abschnitt>}
         {ab.ausloeser && <Abschnitt titel="Wann"><p className="text-[15px]">{ab.ausloeser}</p></Abschnitt>}
         {!!ab.automatisch?.length && (
@@ -80,7 +89,7 @@ export default async function AkademieArtikelPage({ params }: { params: Promise<
           </Abschnitt>
         )}
         {!!ab.schritte?.length && <Abschnitt titel="Das machst du"><Liste items={ab.schritte} nummeriert /></Abschnitt>}
-        {!!ab.qualitaet?.length && <Abschnitt titel="Qualitätscheck"><Liste items={ab.qualitaet} /></Abschnitt>}
+        {/* Qualitätscheck steckt jetzt in der Review-Checkliste (Baustein 4) */}
         {!!ab.fehler?.length && <Abschnitt titel="Häufige Fehler"><Liste items={ab.fehler} /></Abschnitt>}
         {a.inhalt && <div className="mt-4"><Markdown text={a.inhalt} /></div>}
         {!!ab.links?.length && (
@@ -92,9 +101,10 @@ export default async function AkademieArtikelPage({ params }: { params: Promise<
             </div>
           </Abschnitt>
         )}
+        <BausteineDetail slug={a.slug} checkliste={checklisteVon(a)} review={reviewVon(a)} />
         {a.quelle && z.admin && <p className="mt-6 text-[12.5px] text-gray-400">Quelle: {a.quelle}</p>}
 
-        <ArtikelAktionen slug={a.slug} gelesen={f.gelesen} videoGesehen={f.video} hatVideo={!!embed} admin={z.admin} />
+        <ArtikelAktionen slug={a.slug} gelesen={f.gelesen} videoGesehen={f.video} hatVideo={!!embed || !!datei} admin={z.admin} />
       </Card>
     </div>
   );

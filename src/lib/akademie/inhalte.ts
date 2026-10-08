@@ -8,6 +8,8 @@
  */
 
 import { STANDARD_SCHWELLEN as S } from '@/lib/sales-controlling/auslastung';
+import { mitBausteinen } from './bausteine';
+import { ARTIKEL_A_Z, VIDEOS_A_Z } from './inhalte-a-z';
 
 export type ArtikelTyp = 'sop' | 'skript' | 'wissen' | 'faq' | 'rolle';
 export type ArtikelStatus = 'entwurf' | 'freigegeben';
@@ -20,6 +22,10 @@ export interface SopAbschnitte {
   qualitaet?: string[];
   fehler?: string[];
   links?: Array<{ label: string; href: string }>;
+  /** Baustein 3: zum Abhaken während der Arbeit (pro Vorgang) */
+  checkliste?: string[];
+  /** Baustein 4: Qualitätsprüfung danach (Selbstcheck, optional Prüfung durch Führung) */
+  review?: string[];
 }
 
 export interface ArtikelDef {
@@ -46,9 +52,13 @@ export interface VideoDef {
   laenge_min: number;
   prioritaet: number;
   drehbuch: string[];
+  /** ideal mit „SOP aufnehmen“ (Bildschirm + Stimme → Video und SOP in einem) */
+  sop_aufnahme?: boolean;
 }
 
 export const MODULE = [
+  'Willkommen & Kultur',
+  'Arbeitsweise & Regeln',
   'Grundlagen',
   'Abschluss & Zahlung',
   'Onboarding',
@@ -58,6 +68,14 @@ export const MODULE = [
   'Vertrieb',
   'Finanzen',
   'Offboarding',
+  'Innendienst',
+  'Setting',
+  'Closing',
+  'Kundenbetreuung',
+  'Handwerk Marketing',
+  'Buchhaltung',
+  'Operations',
+  'Vertriebsleitung',
   'Rollen',
   'Skripte',
   'FAQ',
@@ -65,7 +83,7 @@ export const MODULE = [
 
 /* ── Videos (gebündelt zu Aufnahme-Sessions) ─────────────────────────── */
 
-export const VIDEOS: VideoDef[] = [
+const VIDEOS_BASIS: VideoDef[] = [
   {
     key: 'cloud_rundgang', titel: 'Rundgang durch die Zoepp Cloud', session: 'A · Cloud-Grundlagen', session_reihenfolge: 1, laenge_min: 5, prioritaet: 1,
     drehbuch: ['Seitenleiste: Bereiche je Rolle, Profil, Hilfe, Akademie', 'Cockpit/Heute: was morgens zuerst zählt', 'Kunden-Board: Phasen und aktueller Schritt je Kunde', 'KI-Assistent unten rechts: was er beantworten kann', 'Akademie: SOP suchen, Bot fragen, Fortschritt'],
@@ -134,6 +152,14 @@ export const VIDEOS: VideoDef[] = [
     key: 'lexware_rechnung', titel: 'Setup-Rechnung in Lexware & Zahlungsabgleich', session: 'G · Buchhaltung', session_reihenfolge: 1, laenge_min: 3, prioritaet: 2,
     drehbuch: ['Aufgabe „Setup-Rechnung“ in Meine Aufgaben', 'Rechnung in Lexware an den richtigen Kontakt schreiben', 'Rechnungsnummer in der Cloud verknüpfen, falls nicht automatisch erkannt', 'Zahlungsabgleich über Qonto in Lexware'],
   },
+];
+
+/** Bildschirm-Tutorials: ideal mit „SOP aufnehmen“ (Bildschirm + Stimme → Video und SOP in einem) */
+const PER_SOP_AUFNAHME = new Set(['cloud_rundgang', 'aufgaben_ablauf', 'after_close', 'meta_zugaenge', 'ads_werkstatt', 'funnel_pruefen', 'meta_kampagne', 'indeed', 'continuity_check', 'garantie_verlaengerung', 'innendienst', 'dialer', 'whatsapp_inbox', 'close_pflege', 'sales_controlling', 'lexware_rechnung']);
+
+export const VIDEOS: VideoDef[] = [
+  ...VIDEOS_BASIS.map((v) => ({ ...v, sop_aufnahme: v.sop_aufnahme ?? PER_SOP_AUFNAHME.has(v.key) })),
+  ...VIDEOS_A_Z.map((v) => ({ ...v, sop_aufnahme: v.sop_aufnahme ?? false })),
 ];
 
 /* ── Hilfen ──────────────────────────────────────────────────────────── */
@@ -557,4 +583,5 @@ const FAQ: ArtikelDef[] = [
   },
 ];
 
-export const START_ARTIKEL: ArtikelDef[] = [...SOPS, ...ROLLEN, ...SKRIPTE, ...FAQ];
+/** Alle Start-Inhalte – jedes Thema mit den vier Bausteinen (Checkliste + Review fest in den Abschnitten) */
+export const START_ARTIKEL: ArtikelDef[] = [...SOPS, ...ROLLEN, ...SKRIPTE, ...FAQ, ...ARTIKEL_A_Z].map(mitBausteinen);

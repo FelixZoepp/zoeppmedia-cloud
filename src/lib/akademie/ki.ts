@@ -25,3 +25,25 @@ export const standardKi: KiFn = async ({ model, system, prompt, maxTokens }) => 
   const block = res.content.find((b) => b.type === 'text');
   return block && 'text' in block ? block.text : '';
 };
+
+/** Wie KiFn, zusätzlich mit Standbildern (JPEG/PNG, base64) – für SOPs aus Bildschirmaufnahmen */
+export type KiBildFn = (a: KiAnfrage & { bilder: Array<{ base64: string; mime: 'image/jpeg' | 'image/png' }> }) => Promise<string>;
+
+export const standardKiMitBildern: KiBildFn = async ({ model, system, prompt, maxTokens, bilder }) => {
+  const res = await anthropicClient().messages.create({
+    model,
+    max_tokens: maxTokens,
+    system,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          ...bilder.map((b) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: b.mime, data: b.base64 } })),
+          { type: 'text' as const, text: prompt },
+        ],
+      },
+    ],
+  });
+  const block = res.content.find((b) => b.type === 'text');
+  return block && 'text' in block ? block.text : '';
+};

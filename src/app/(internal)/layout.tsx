@@ -5,6 +5,10 @@ import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
 import { BereichTabs } from '@/components/bereich-tabs';
 import { aktiveAnsicht, ANSICHTEN } from '@/lib/ansicht';
+import { SopAufnahmeKnopf } from '@/components/akademie/sop-aufnahme-knopf';
+import { HilfeLeiste } from '@/components/akademie/hilfe-leiste';
+import { darfAufnehmen } from '@/lib/akademie/aufnahme';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -12,6 +16,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
   if (!isInternal(user.role)) redirect('/dashboard');
 
   const ansicht = await aktiveAnsicht(user);
+  // „SOP aufnehmen“: Admins immer, Mitarbeiter nur wenn in der Akademie freigeschaltet
+  const aufnahmeErlaubt = await darfAufnehmen(createAdminClient(), user).catch(() => false);
 
   // --- 2FA Admin-Gate (env-gated) ---
   const supabase = await createServerClient();
@@ -59,6 +65,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
       )}
       {user.role === 'admin' && !ansicht && <BereichTabs />}
       {children}
+      {aufnahmeErlaubt && <SopAufnahmeKnopf />}
+      <HilfeLeiste />
       <PushManager />
     </LayoutShell>
   );

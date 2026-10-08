@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SopLink } from '@/components/akademie/sop-link';
+import { setzeHilfeKontext, vorErledigen } from '@/components/akademie/hilfe-bus';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Clock, Flag, MoreHorizontal, Plus, Receipt } from 'lucide-react';
@@ -291,6 +292,8 @@ export default function MeineTodosPage() {
       toast.error(t.quelle === 'ad' ? 'Ads gibt der Kunde frei – hier nur „In Arbeit“ oder „Erledigt“.' : 'Dorthin nicht möglich');
       return;
     }
+    // Hilfe-Modus: bei Kunden-Schritten mit SOP vorher die Checkliste prüfen (nicht blockierend)
+    if (spalte === 'erledigt' && t.quelle === 'schritt' && !(await vorErledigen({ stepKey: t.stepKey, stepId: t.id }))) return;
     setMoved((m) => ({ ...m, [t.key]: spalte }));
     const { url, body } = endpoint(t, ziel);
     const res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -468,6 +471,8 @@ function TaskCard({ t, index, heute, logo, onMove }: { t: Task; index: number; h
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      onClickCapture={() => !done && t.stepKey && setzeHilfeKontext({ stepKey: t.stepKey, stepId: t.id, titel: t.titel })}
+      onFocusCapture={() => !done && t.stepKey && setzeHilfeKontext({ stepKey: t.stepKey, stepId: t.id, titel: t.titel })}
       className={`fx-rise relative rounded-[18px] bg-card p-[18px] shadow-sm ${done ? '' : 'cursor-grab active:cursor-grabbing'} ${
         isDragging ? 'z-20 shadow-[0_24px_50px_-20px_#1a151480]' : ''
       }`}
