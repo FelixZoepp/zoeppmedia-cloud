@@ -61,9 +61,9 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     variables: ['vorname'],
     beispiel: ['Mehmet'],
     buttons: [
-      { type: 'QUICK_REPLY', text: '😍 Läuft richtig gut' },
-      { type: 'QUICK_REPLY', text: '🙂 Läuft solide' },
-      { type: 'QUICK_REPLY', text: '😐 Da geht noch mehr' },
+      { type: 'QUICK_REPLY', text: 'Läuft richtig gut' },
+      { type: 'QUICK_REPLY', text: 'Läuft solide' },
+      { type: 'QUICK_REPLY', text: 'Da geht noch mehr' },
       {
         type: 'URL',
         text: 'Zum 2-Minuten-Check',

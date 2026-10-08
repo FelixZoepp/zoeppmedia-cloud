@@ -16,9 +16,9 @@ const ABSTAND_MS = 2 * 864e5;
 
 /** Schnellantworten der Vorlage → Bewertung 1–5 */
 export const SCHNELLANTWORTEN: Array<{ text: string; wert: number }> = [
-  { text: '😍 Läuft richtig gut', wert: 5 },
-  { text: '🙂 Läuft solide', wert: 4 },
-  { text: '😐 Da geht noch mehr', wert: 2 },
+  { text: 'Läuft richtig gut', wert: 5 },
+  { text: 'Läuft solide', wert: 4 },
+  { text: 'Da geht noch mehr', wert: 2 },
 ];
 
 interface KundeRoh {
