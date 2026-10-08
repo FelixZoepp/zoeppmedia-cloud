@@ -187,6 +187,11 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'slack_diagnose', wert: JSON.stringify(await slackDiagnose()), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    if (name === 'kunden_felder') {
+      const { stelleCloseKundenFelderSicher } = await import('./kunden-sync');
+      await stelleCloseKundenFelderSicher(svc);
+      continue;
+    }
     if (name === 'smartviews_controlling_loeschen') {
       const { loescheControllingViews } = await import('./close-smartviews');
       const geloescht = await loescheControllingViews();

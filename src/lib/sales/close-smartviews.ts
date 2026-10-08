@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { PROTOKOLL_TYPEN } from '@/lib/sales-controlling/tagesbericht';
+import type { CloseKundenIds } from './kunden-sync';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 
@@ -35,6 +36,8 @@ const F = {
   fErgebnis: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
   fKalender: 'cf_TXou3dAspi00xZ6gcrT0wXGoWq7IgDMBAJcXqcHszCR',
 } as const;
+
+const STATUS_KUNDE = 'stat_p7s3wz4JnH4ftamYyGTIHf8I3Gy9fBuxqhIfKufqmGG';
 
 const STATUS = {
   leadpool: 'stat_sgDNPr29uwT7tMPTxzQKW6DDCjbM2JMZzdX3UpeRGLb',
@@ -95,8 +98,23 @@ const sortierung = (name: string, richtung: 'asc' | 'desc', objectType = 'lead')
 
 /* ── Smart Views ───────────────────────────────────────────────── */
 
-export function smartViews(closingTerminFeld: string | null): Array<{ id?: string; name: string; s_query: Q }> {
+export function smartViews(closingTerminFeld: string | null, kunden: CloseKundenIds | null = null): Array<{ id?: string; name: string; s_query: Q }> {
+  const kundenViews = kunden
+    ? [
+        {
+          id: 'save_Ap0daw8CiYE0bVKt6PjXOtlf4STT79ZBkeoudgreiXy',
+          name: '🥩 Upsell-Potenzial',
+          s_query: sQuery(and(leadStatus(STATUS_KUNDE), cf(kunden.feldUpsell, term('Ja'))), [sortierung('date_updated', 'asc')]),
+        },
+        {
+          id: 'save_acKA6xzK3XrSx0glfxp3YxhtzvhVnnU7SDBbdkGr9MC',
+          name: '💳 Ex Kunde Follow Up',
+          s_query: sQuery(and(leadStatus(kunden.statusExKunde), nichtGesperrt), [sortierung('date_updated', 'asc')]),
+        },
+      ]
+    : [];
   return [
+    ...kundenViews,
     {
       id: 'save_q72PO9OEVdWeXhTo6QyckLsbt14bQ3QzSkUxlchj3OV',
       name: '📅 2.0 (QC) Erstgespräche heute',
@@ -166,6 +184,8 @@ async function closingTerminFeld(svc: SupabaseClient): Promise<string> {
 
 export async function passeSmartViewsAn(svc: SupabaseClient): Promise<Record<string, string>> {
   const feldId = await closingTerminFeld(svc);
+  const { data: k } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_kunden_ids').maybeSingle();
+  const kunden = (k as { wert: string } | null)?.wert ? (JSON.parse((k as { wert: string }).wert) as CloseKundenIds) : null;
   const alle: Array<{ id: string; name: string }> = [];
   for (let skip = 0; skip < 1000; skip += 100) {
     const page = await close<{ data: Array<{ id: string; name: string }>; has_more?: boolean }>(`/saved_search/?_limit=100&_skip=${skip}&_fields=id,name`);
@@ -173,7 +193,7 @@ export async function passeSmartViewsAn(svc: SupabaseClient): Promise<Record<str
     if (!page.has_more) break;
   }
   const ergebnis: Record<string, string> = {};
-  for (const v of smartViews(feldId)) {
+  for (const v of smartViews(feldId, kunden)) {
     const ziel =
       (v.id ? alle.find((a) => a.id === v.id) : undefined) ??
       alle.find((a) => a.name.trim() === v.name) ??

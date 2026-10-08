@@ -167,6 +167,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Close-Webhook nicht aktualisiert:', err);
   }
 
+  // Kunden-Abgleich Cloud → Close (Kunde/Ex-Kunde/Upsell, einmal täglich ab 7 Uhr)
+  try {
+    const { planeKundenSync } = await import('@/lib/sales/kunden-sync');
+    await planeKundenSync(svc);
+  } catch (err) {
+    console.error('[tick] Kunden-Sync nicht geplant:', err);
+  }
+
   // Unqualifizierte nach 3 Monaten zurück in den Leadpool (einmal täglich ab 6 Uhr)
   try {
     const { planeReaktivierung } = await import('@/lib/sales/reaktivierung');
@@ -278,6 +286,11 @@ export async function GET(request: NextRequest) {
         case 'close.einrichtung': {
           const { fuehreCloseEinrichtungAus } = await import('@/lib/sales/close-einrichtung');
           await fuehreCloseEinrichtungAus(svc, (payload as { was: string }).was);
+          break;
+        }
+        case 'sales.kunden_sync': {
+          const { synchronisiereKunden } = await import('@/lib/sales/kunden-sync');
+          console.log('[kunden-sync]', JSON.stringify(await synchronisiereKunden(svc)));
           break;
         }
         case 'sales.reaktivierung': {
