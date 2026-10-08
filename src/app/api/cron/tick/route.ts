@@ -267,6 +267,11 @@ export async function GET(request: NextRequest) {
           await pruefeEintragung(svc, payload as unknown as { lead_id: string }, todayBerlin());
           break;
         }
+        case 'close.einrichtung': {
+          const { fuehreCloseEinrichtungAus } = await import('@/lib/sales/close-einrichtung');
+          await fuehreCloseEinrichtungAus(svc, (payload as { was: string }).was);
+          break;
+        }
         case 'sales.protokoll': {
           const { verarbeiteProtokoll } = await import('@/lib/sales/protokolle');
           await verarbeiteProtokoll(svc, (payload as { activity_id: string }).activity_id);
