@@ -5,11 +5,11 @@
  * - Upsell-Potenzial: Zufriedenheit (Schnitt der letzten 2 Umfragen) ≥ 8/10 + gute Ergebnisse
  *   (Einstellung in 30 Tagen oder ≥ 10 Bewerber) + mindestens eine passende Leistung aus dem Upsell-Booster
  *   → Lead-Felder „Upsell-Potenzial = Ja“ + „Upsell-Empfehlung“, beim ersten Mal eine Notiz an den Lead.
- * Zuordnung Kunde → Lead über E-Mail (agencies.email, sonst rechnungsmail). Stand je Kunde in kunden_close_sync.
+ * Zuordnung Kunde → Lead: gemerkt, E-Mail, Rechnungsmail, Telefon, Name (nur eindeutige Treffer). Stand je Kunde in kunden_close_sync.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { findCloseLeadId } from './close';
+import { findCloseLeadId, findCloseLeadIdByName } from './close';
 import { SALES_AGENCY_ID } from './calendly-chain';
 import { ladeEmpfehlungen } from '@/lib/empfehlungen/laden';
 import { berlinTag } from '@/lib/zeit/berlin';
@@ -95,6 +95,8 @@ export async function planeKundenSync(svc: SupabaseClient, jetzt: Date = new Dat
 interface Kunde {
   id: string;
   name: string;
+  phone: string | null;
+  contact_name: string | null;
   email: string | null;
   rechnungsmail: string | null;
   fulfillment_phase: string | null;
@@ -104,14 +106,21 @@ interface Kunde {
 /** Job sales.kunden_sync */
 export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = new Date()) {
   const ids = await stelleCloseKundenFelderSicher(svc);
-  const { data } = await svc.from('agencies').select('id, name, email, rechnungsmail, fulfillment_phase, fulfillment_phase_seit').neq('id', SALES_AGENCY_ID).not('fulfillment_phase', 'is', null);
+  const { data } = await svc.from('agencies').select('id, name, email, rechnungsmail, phone, contact_name, fulfillment_phase, fulfillment_phase_seit').neq('id', SALES_AGENCY_ID).not('fulfillment_phase', 'is', null);
   const kunden = (data ?? []) as Kunde[];
-  const { data: stand } = await svc.from('kunden_close_sync').select('agency_id, upsell, ex_kunde');
-  const vorher = new Map(((stand ?? []) as Array<{ agency_id: string; upsell: boolean; ex_kunde: boolean }>).map((s) => [s.agency_id, s]));
+  const { data: stand } = await svc.from('kunden_close_sync').select('agency_id, lead_id, upsell, ex_kunde');
+  const vorher = new Map(((stand ?? []) as Array<{ agency_id: string; lead_id: string | null; upsell: boolean; ex_kunde: boolean }>).map((s) => [s.agency_id, s]));
   const ergebnis = { abgeglichen: 0, ohneLead: [] as string[], exKunden: 0, upsell: 0 };
 
   for (const k of kunden) {
-    const leadId = (k.email ? await findCloseLeadId({ email: k.email }) : null) ?? (k.rechnungsmail ? await findCloseLeadId({ email: k.rechnungsmail }) : null);
+    // Zuordnung: gemerkter Lead → E-Mail → Rechnungsmail → Telefon → Name des Ansprechpartners → Firmenname (nur eindeutige Treffer)
+    const leadId =
+      vorher.get(k.id)?.lead_id ??
+      (k.email ? await findCloseLeadId({ email: k.email }) : null) ??
+      (k.rechnungsmail ? await findCloseLeadId({ email: k.rechnungsmail }) : null) ??
+      (k.phone ? await findCloseLeadId({ phone: k.phone }) : null) ??
+      (k.contact_name ? await findCloseLeadIdByName(k.contact_name).catch(() => null) : null) ??
+      (await findCloseLeadIdByName(k.name).catch(() => null));
     if (!leadId) {
       ergebnis.ohneLead.push(k.name);
       continue;
