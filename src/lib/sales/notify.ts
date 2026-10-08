@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { slackKanal } from '@/lib/slack/kanaele';
 import { createNotificationForInternals, type NotificationType } from '@/lib/notifications/create';
 import { SALES_AGENCY_ID } from './calendly-chain';
 
@@ -49,7 +50,7 @@ export function buildSalesSlackMessage(n: SalesNotice): { text: string; blocks: 
 
 export async function postSalesSlack(n: SalesNotice): Promise<void> {
   const token = process.env.SLACK_BOT_TOKEN;
-  const channel = process.env.SLACK_SALES_CHANNEL?.trim();
+  const channel = await slackKanal('sales');
   if (!token || !channel) return;
 
   const res = await fetch('https://slack.com/api/chat.postMessage', {
