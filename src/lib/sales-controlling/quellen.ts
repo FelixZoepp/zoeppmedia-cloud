@@ -73,8 +73,8 @@ async function ladeStatuswechsel(ab: string): Promise<RohStatuswechsel[]> {
 export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) => Opp[]) {
   const [pipeline, oppsRaw, eventsRaw, usersRaw] = await Promise.all([
     closeGet<{ statuses: CloseStatus[] }>(`/pipeline/${CLOSE_PIPELINE_ID}/`),
-    closeAll<{ id: string; lead_id: string; status_id: string; value: number | null; date_created: string; date_won: string | null; user_id: string | null }>(
-      `/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=id,lead_id,status_id,value,date_created,date_won,user_id`,
+    closeAll<{ id: string; lead_id: string; lead_name?: string | null; status_id: string; value: number | null; date_created: string; date_won: string | null; user_id: string | null }>(
+      `/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=id,lead_id,lead_name,status_id,value,date_created,date_won,user_id`,
     ),
     ladeStatuswechsel(historieAb),
     closeAll<{ id: string; first_name?: string; last_name?: string; email?: string }>(`/user/?_fields=id,first_name,last_name,email`).catch(() => []),
@@ -84,7 +84,7 @@ export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) =
   const valid = new Set(statuses.map((s) => s.id));
   const opps: Opp[] = oppsRaw
     .filter((o) => valid.has(o.status_id))
-    .map((o) => ({ id: o.id, lead_id: o.lead_id, status_id: o.status_id, value: (o.value ?? 0) / 100, date_created: o.date_created, date_won: o.date_won, user_id: o.user_id }));
+    .map((o) => ({ id: o.id, lead_id: o.lead_id, lead_name: o.lead_name ?? null, status_id: o.status_id, value: (o.value ?? 0) / 100, date_created: o.date_created, date_won: o.date_won, user_id: o.user_id }));
   const oppIds = new Set(opps.map((o) => o.id));
   const events: StatusEvent[] = eventsRaw
     .filter((e) => oppIds.has(e.opportunity_id))
@@ -126,6 +126,15 @@ export async function ladeAnrufe(ab: string): Promise<Anruf[]> {
 /** Offene Aufgaben (Follow-ups) in Close */
 export async function ladeAufgaben(): Promise<Aufgabe[]> {
   return closeAll<Aufgabe>(`/task/?_type=lead&is_complete=false&_fields=lead_id,lead_name,assigned_to,due_date,text`, 5000);
+}
+
+/** Erledigte Close-Aufgaben mit Fälligkeit ab Datum (für „erledigte Follow-ups je Person“) */
+export async function ladeErledigteAufgaben(ab: string): Promise<Array<{ assigned_to: string | null; due_date: string | null }>> {
+  const roh = await closeAll<{ assigned_to: string | null; due_date?: string | null; date?: string | null }>(
+    `/task/?_type=lead&is_complete=true&date__gte=${encodeURIComponent(ab)}&_fields=assigned_to,due_date,date`,
+    5000,
+  );
+  return roh.map((t) => ({ assigned_to: t.assigned_to, due_date: t.due_date ?? t.date ?? null }));
 }
 
 interface MetaInsight {

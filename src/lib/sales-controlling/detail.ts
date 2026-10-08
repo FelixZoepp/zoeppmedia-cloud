@@ -59,9 +59,9 @@ function stundeUndTag(iso: string): { stunde: number; tag: string } {
   };
 }
 
-const istGespraech = (a: Anruf) => a.disposition === 'answered' && (a.duration ?? 0) >= GESPRAECH_AB_SEK;
+export const istGespraech = (a: Anruf) => a.disposition === 'answered' && (a.duration ?? 0) >= GESPRAECH_AB_SEK;
 const istMailbox = (a: Anruf) => (a.disposition ?? '').startsWith('vm');
-const istAusgehend = (a: Anruf) => a.direction !== 'inbound';
+export const istAusgehend = (a: Anruf) => a.direction !== 'inbound';
 
 /** Montag der Woche (UTC-Datum) als YYYY-MM-DD */
 function wochenStart(iso: string): string {
@@ -80,7 +80,7 @@ function werktage(von: string, bis: string, jetzt: Date): number {
   return Math.max(1, n);
 }
 
-interface Übergang {
+export interface Übergang {
   opp: string;
   von: Stufe | null;
   nach: Stufe;
@@ -88,24 +88,30 @@ interface Übergang {
   user_id: string | null;
 }
 
-export function berechneDetails(e: DetailEingaben) {
-  const statusById = new Map(e.statuses.map((s) => [s.id, s]));
+/** Statusübergänge aller Deals (inkl. Anlage als erster Übergang), chronologisch */
+export function baueUebergaenge(statuses: CloseStatus[], opps: Opp[], events: StatusEvent[]) {
+  const statusById = new Map(statuses.map((s) => [s.id, s]));
   const stufe = (id: string | null) => (id ? klassifiziere(statusById.get(id)) : null);
+  const evByOpp = new Map<string, StatusEvent[]>();
+  for (const ev of events) evByOpp.set(ev.opportunity_id, [...(evByOpp.get(ev.opportunity_id) ?? []), ev]);
+  const ü: Übergang[] = [];
+  // Anlage des Deals zählt als erster Übergang (z. B. direkt als „Setting terminiert“ angelegt)
+  for (const o of opps) {
+    const erste = (evByOpp.get(o.id) ?? []).sort((a, b) => a.date.localeCompare(b.date))[0];
+    ü.push({ opp: o.id, von: null, nach: stufe(erste?.old_status_id ?? o.status_id) ?? 'andere', date: o.date_created, user_id: o.user_id });
+  }
+  for (const ev of events) ü.push({ opp: ev.opportunity_id, von: stufe(ev.old_status_id), nach: stufe(ev.new_status_id) ?? 'andere', date: ev.date, user_id: ev.user_id });
+  ü.sort((a, b) => a.date.localeCompare(b.date));
+  return { ü, stufe, evByOpp };
+}
+
+export function berechneDetails(e: DetailEingaben) {
   const drin = (d: string) => d >= e.zeitraum.von && d < e.zeitraum.bis;
   const heute = e.jetzt.toISOString().slice(0, 10);
   const name = (id: string | null) => (id ? e.users.get(id) ?? 'Unbekannt' : 'Ohne Zuordnung');
 
   // Übergänge je Deal
-  const evByOpp = new Map<string, StatusEvent[]>();
-  for (const ev of e.events) evByOpp.set(ev.opportunity_id, [...(evByOpp.get(ev.opportunity_id) ?? []), ev]);
-  const ü: Übergang[] = [];
-  // Anlage des Deals zählt als erster Übergang (z. B. direkt als „Setting terminiert“ angelegt)
-  for (const o of e.opps) {
-    const erste = (evByOpp.get(o.id) ?? []).sort((a, b) => a.date.localeCompare(b.date))[0];
-    ü.push({ opp: o.id, von: null, nach: stufe(erste?.old_status_id ?? o.status_id) ?? 'andere', date: o.date_created, user_id: o.user_id });
-  }
-  for (const ev of e.events) ü.push({ opp: ev.opportunity_id, von: stufe(ev.old_status_id), nach: stufe(ev.new_status_id) ?? 'andere', date: ev.date, user_id: ev.user_id });
-  ü.sort((a, b) => a.date.localeCompare(b.date));
+  const { ü, stufe, evByOpp } = baueUebergaenge(e.statuses, e.opps, e.events);
   const imZeitraum = ü.filter((x) => drin(x.date));
 
   /* ── Telefonie ─────────────────────────────────────────────── */

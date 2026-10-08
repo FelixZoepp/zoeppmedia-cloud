@@ -9,8 +9,10 @@ import type { SalesControlling } from '@/lib/sales-controlling/compute';
 import type { SalesDetails } from '@/lib/sales-controlling/detail';
 import { WhatsAppBereich } from './whatsapp-bereich';
 import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche';
+import { AuslastungBereich } from './auslastung-bereich';
+import type { Auslastung } from '@/lib/sales-controlling/auslastung';
 
-type Daten = SalesControlling & { metaVerbunden: boolean; details: SalesDetails; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
+type Daten = SalesControlling & { metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
 
 const eur = (n: number | null | undefined, digits = 0) =>
   n === null || n === undefined ? '–' : `${n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })} €`;
@@ -178,6 +180,7 @@ export function VertriebClient() {
               { value: 'gesamt', label: 'Gesamt' },
               { value: 'marketing', label: 'Marketing' },
               { value: 'sales', label: 'Sales & Shows' },
+              { value: 'team', label: 'Team & Auslastung' },
               { value: 'telefonie', label: 'Telefonie' },
               { value: 'followups', label: 'Follow-ups' },
               { value: 'gespraeche', label: 'Gespräche' },
@@ -242,6 +245,13 @@ export function VertriebClient() {
               <EintragungenBereich zeitraum={zeitraum} />
             </>
           )}
+
+          {ansicht === 'team' &&
+            (d.auslastung ? (
+              <AuslastungBereich a={d.auslastung} />
+            ) : (
+              <Card className="text-[13.5px] text-gray-600">Auslastung wird beim nächsten Laden berechnet.</Card>
+            ))}
 
           {ansicht === 'followups' && <FollowupBereich f={d.details.followups} verbunden={d.aufgabenVerbunden} />}
 

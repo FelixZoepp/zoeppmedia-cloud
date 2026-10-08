@@ -25,6 +25,8 @@ export interface CloseStatus {
 export interface Opp {
   id: string;
   lead_id: string;
+  /** Name des Leads in Close (optional) */
+  lead_name?: string | null;
   status_id: string;
   /** in Euro */
   value: number;
