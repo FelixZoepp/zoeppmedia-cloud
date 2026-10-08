@@ -167,6 +167,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Close-Webhook nicht aktualisiert:', err);
   }
 
+  // Unqualifizierte nach 3 Monaten zurück in den Leadpool (einmal täglich ab 6 Uhr)
+  try {
+    const { planeReaktivierung } = await import('@/lib/sales/reaktivierung');
+    await planeReaktivierung(svc);
+  } catch (err) {
+    console.error('[tick] Reaktivierung nicht geplant:', err);
+  }
+
   // Abendbericht (20 Uhr Berlin, einmal pro Tag) einplanen – läuft dann als normaler Job
   try {
     const { planeAbendbericht } = await import('@/lib/berichte/abendbericht');
@@ -270,6 +278,11 @@ export async function GET(request: NextRequest) {
         case 'close.einrichtung': {
           const { fuehreCloseEinrichtungAus } = await import('@/lib/sales/close-einrichtung');
           await fuehreCloseEinrichtungAus(svc, (payload as { was: string }).was);
+          break;
+        }
+        case 'sales.reaktivierung': {
+          const { reaktiviereUnqualifizierte } = await import('@/lib/sales/reaktivierung');
+          console.log('[reaktivierung]', JSON.stringify(await reaktiviereUnqualifizierte(svc)));
           break;
         }
         case 'sales.protokoll': {

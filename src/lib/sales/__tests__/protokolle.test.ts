@@ -35,8 +35,8 @@ describe('regelnTerminierung', () => {
     });
   });
 
-  it('Unqualifiziert / Bad Data → Status + offene Opportunities verloren', () => {
-    expect(r({ [F.ergebnis]: 'Unqualifiziert' })).toEqual({ leadStatus: 'unqualifiziert', oppsVerloren: true });
+  it('Unqualifiziert (3 Monate gesperrt) / Bad Data → Status + offene Opportunities verloren', () => {
+    expect(r({ [F.ergebnis]: 'Unqualifiziert' })).toEqual({ leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: '2027-01-08T10:00:00.000Z' });
     expect(r({ [F.ergebnis]: 'Bad Data / Falsche Nummer' })).toEqual({ leadStatus: 'bad_data', oppsVerloren: true });
   });
 });

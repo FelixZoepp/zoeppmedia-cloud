@@ -68,7 +68,8 @@ export function regelnTerminierung(felder: Record<string, string | null>, jetzt:
   const bisKalender = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : null;
 
   if (ergebnis.startsWith('Setting vereinbart')) return { leadStatus: 'setting', settingOpportunity: true, termin: kalender };
-  if (ergebnis.startsWith('Unqualifiziert')) return { leadStatus: 'unqualifiziert', oppsVerloren: true };
+  // Nach 3 Monaten holt die tägliche Reaktivierung den Lead zurück in den Leadpool
+  if (ergebnis.startsWith('Unqualifiziert')) return { leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: plusMonate(jetzt, 3).toISOString() };
   if (ergebnis.startsWith('Bad Data')) return { leadStatus: 'bad_data', oppsVerloren: true };
   if (ergebnis.includes('3M')) return { gesperrtBis: plusMonate(jetzt, 3).toISOString() };
   if (ergebnis.includes('6M')) return { gesperrtBis: plusMonate(jetzt, 6).toISOString() };
