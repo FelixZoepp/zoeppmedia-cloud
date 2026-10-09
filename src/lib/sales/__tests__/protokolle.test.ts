@@ -54,6 +54,16 @@ describe('regelnFollowUp', () => {
   it('weiter Follow-up mit Kalender → bis Kalender, ohne Kalender keine Sperre', () => {
     expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Weiter Follow-up', [F.kalender]: '2026-10-15T08:00:00Z' }, jetzt)).toEqual({ gesperrtBis: '2026-10-15T08:00:00.000Z' });
     expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Weiter Follow-up' }, jetzt)).toEqual({});
-    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Erstgespräch gelegt' }, jetzt)).toEqual({});
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Abgeschlossen' }, jetzt)).toEqual({});
+  });
+});
+
+describe('regelnFollowUp – Erstgespräch gelegt', () => {
+  it('setzt die Opportunity zurück auf Setting – Terminiert, ohne Sperre', () => {
+    const F = FOLLOWUP_FELDER_IDS;
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Erstgespräch gelegt', [F.kalender]: '2026-10-12T09:00:00Z' }, new Date('2026-10-09T10:00:00Z'))).toEqual({
+      settingTerminiert: true,
+      termin: '2026-10-12T09:00:00Z',
+    });
   });
 });
