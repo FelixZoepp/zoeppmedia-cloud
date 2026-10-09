@@ -341,6 +341,18 @@ export async function processSalesNoShowCheck(
   if (!ctx) return;
 
   const label = payload.chain === 'setting' ? 'Erstgespräch' : 'Beratungsgespräch';
+  // Schon dokumentiert (Protokoll in Close, neuer Termin gebucht) → keine Nachfrage
+  const beleg = await gespraechDokumentiert(svc, agencyId, payload.calendly_event_id, ctx.event.start_time, ctx.candidate.phone_e164);
+  if (beleg) {
+    await logActivity(svc, {
+      agency_id: agencyId,
+      candidate_id: ctx.candidate.id,
+      action: `Sales No-Show-Check (${label}) übersprungen: ${beleg}`,
+      action_type: 'other',
+      metadata: { kind: 'sales_noshow_check_uebersprungen', calendly_event_id: ctx.event.id, chain: payload.chain, beleg },
+    });
+    return;
+  }
   await notifySales(svc, {
     emoji: '❓',
     title: `${label} mit ${ctx.candidate.name} — hat es stattgefunden?`,
@@ -357,6 +369,52 @@ export async function processSalesNoShowCheck(
     action_type: 'other',
     metadata: { kind: 'sales_noshow_check', calendly_event_id: ctx.event.id, chain: payload.chain },
   });
+}
+
+/**
+ * Hat das Gespräch nachweislich stattgefunden bzw. ist es schon dokumentiert?
+ * - Gesprächsprotokoll (Setting/Closing/Follow-up) in Close ab 1 h vor Terminbeginn
+ * - oder ein neuer Calendly-Termin derselben Person nach Terminbeginn (z. B. Beratungsgespräch gebucht)
+ * Gibt eine kurze Begründung zurück oder null.
+ */
+export async function gespraechDokumentiert(
+  svc: SupabaseClient,
+  agencyId: string,
+  calendlyEventId: string,
+  startTime: string,
+  phone: string | null,
+): Promise<string | null> {
+  const ab = new Date(new Date(startTime).getTime() - 3600_000).toISOString();
+  const { data: evt } = await svc.from('calendly_events').select('invitee_email, invitee_phone').eq('calendly_event_id', calendlyEventId).maybeSingle();
+  const e = evt as { invitee_email: string | null; invitee_phone: string | null } | null;
+
+  // Neuer Termin nach Beginn (z. B. im Gespräch das Beratungsgespräch gelegt)
+  if (e?.invitee_email) {
+    const { data: neu } = await svc
+      .from('calendly_events')
+      .select('id')
+      .eq('agency_id', agencyId)
+      .eq('invitee_email', e.invitee_email)
+      .neq('calendly_event_id', calendlyEventId)
+      .gte('created_at', startTime)
+      .eq('status', 'scheduled')
+      .limit(1);
+    if (neu?.length) return 'neuer Termin gebucht';
+  }
+
+  // Gesprächsprotokoll am Close-Lead
+  const { findCloseLeadId } = await import('@/lib/sales/close');
+  const leadId = await findCloseLeadId({ email: e?.invitee_email ?? null, phone: phone ?? e?.invitee_phone ?? null }).catch(() => null);
+  if (!leadId) return null;
+  const { data: prot } = await svc
+    .from('close_protokolle')
+    .select('typ')
+    .eq('lead_id', leadId)
+    .in('typ', ['setting', 'closing', 'follow_up'])
+    .gte('datum', ab)
+    .limit(1);
+  if (prot?.length) return `Gesprächsprotokoll (${(prot[0] as { typ: string }).typ}) in Close`;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
