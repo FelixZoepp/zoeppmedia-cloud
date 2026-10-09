@@ -239,15 +239,28 @@ export async function bucheSettingInClose(b: BuchungFuerClose): Promise<{ leadId
     if (!res.ok) throw new Error(`Close-Lead nicht angelegt (${res.status}): ${await res.text()}`);
     leadId = ((await res.json()) as { id: string }).id;
   } else {
-    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, {
-      method: 'PUT',
-      headers: closeHeaders(apiKey),
-      body: JSON.stringify({ status_id: LEAD_STATUS_SETTING, [`custom.${LEAD_FELD_SETTING_TERMIN}`]: b.startTime }),
-    });
+    await aktualisiereBuchungsLead(apiKey, leadId, LEAD_STATUS_SETTING, { [`custom.${LEAD_FELD_SETTING_TERMIN}`]: b.startTime });
   }
 
   const termin = new Date(b.startTime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   return { leadId, opportunity: await legeSettingOpportunityAn(leadId, `Setting gebucht über Calendly: ${termin} Uhr`) };
+}
+
+/**
+ * Lead bei einer Buchung aktualisieren: Termin-Felder immer, Status nur wenn der Lead kein (Ex-)Kunde ist –
+ * bucht ein Bestandskunde (Upsell), bleibt er „Kunde“. Fehler von Close werden geworfen (Retry des Jobs).
+ */
+async function aktualisiereBuchungsLead(apiKey: string, leadId: string, status: string, felder: Record<string, unknown>): Promise<void> {
+  const info = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=status_label`, { headers: closeHeaders(apiKey) });
+  if (!info.ok) throw new Error(`Close-Lead nicht lesbar (${info.status})`);
+  const label = ((await info.json()) as { status_label?: string }).status_label ?? '';
+  const istKunde = ['kunde', 'ex-kunde'].includes(label.trim().toLowerCase());
+  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/`, {
+    method: 'PUT',
+    headers: closeHeaders(apiKey),
+    body: JSON.stringify({ ...(istKunde ? {} : { status_id: status }), ...felder }),
+  });
+  if (!res.ok) throw new Error(`Close-Lead nicht aktualisiert (${res.status}): ${(await res.text()).slice(0, 200)}`);
 }
 
 /** Opportunity „Setting – Terminiert“ anlegen – nur wenn der Lead noch keine aktive Opportunity hat */
@@ -291,7 +304,7 @@ export async function bucheBeratungInClose(b: BuchungFuerClose, closingTerminFel
     if (!res.ok) throw new Error(`Close-Lead nicht angelegt (${res.status}): ${await res.text()}`);
     leadId = ((await res.json()) as { id: string }).id;
   } else {
-    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: LEAD_STATUS_CLOSING, ...termin }) });
+    await aktualisiereBuchungsLead(apiKey, leadId, LEAD_STATUS_CLOSING, termin);
   }
 
   const offen = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id`, { headers: closeHeaders(apiKey) });
@@ -300,7 +313,8 @@ export async function bucheBeratungInClose(b: BuchungFuerClose, closingTerminFel
   const zeit = new Date(b.startTime).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const imSetting = opps.find((o) => OPP_SETTING_STUFEN.includes(o.status_id));
   if (imSetting) {
-    await fetch(`${CLOSE_BASE}/opportunity/${imSetting.id}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: OPP_CLOSING_TERMINIERT }) });
+    const up = await fetch(`${CLOSE_BASE}/opportunity/${imSetting.id}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ status_id: OPP_CLOSING_TERMINIERT }) });
+    if (!up.ok) throw new Error(`Opportunity nicht auf Closing gesetzt (${up.status})`);
     return { leadId, opportunity: 'auf_closing' };
   }
   if (opps.length > 0) return { leadId, opportunity: 'vorhanden' };

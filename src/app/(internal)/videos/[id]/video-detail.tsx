@@ -64,6 +64,8 @@ export function VideoDetail({ id }: { id: string }) {
   const [nurOffen, setNurOffen] = useState(false);
   const [arbeit, setArbeit] = useState<string | null>(null);
   const player = useRef<HTMLVideoElement>(null);
+  const neuGeladen = useRef(false);
+  const autoKi = useRef<string | null>(null);
   const dateiInput = useRef<HTMLInputElement>(null);
 
   const anwenden = useCallback((j: Daten) => {
@@ -137,15 +139,30 @@ export function VideoDetail({ id }: { id: string }) {
     setD((alt) => (alt ? { ...alt, kommentare: alt.kommentare.filter((x) => x.id !== k.id) } : alt));
   };
 
-  const status = async (s: VideoStatus) => {
-    if (s === 'aenderungen' && !kommentare.some((k) => !k.erledigt)) {
-      if (!confirm('Es gibt keine offenen Kommentare. Trotzdem Änderungen anfordern?')) return;
+  /** Nächstes Video, das auf meine Freigabe wartet (Prüf-Modus am Abend) */
+  const naechstes = async () => {
+    const r = await fetch('/api/videos', { cache: 'no-store' });
+    const j = await r.json().catch(() => null);
+    const liste = ((j?.videos ?? []) as Array<{ id: string; status: string; pruefer_id: string | null; faellig_am: string | null }>)
+      .filter((x) => x.id !== id && x.status === 'in_pruefung' && (!x.pruefer_id || x.pruefer_id === d?.ich.id))
+      .sort((a, b) => (a.faellig_am ?? '9999').localeCompare(b.faellig_am ?? '9999'));
+    if (liste[0]) router.push(`/videos/${liste[0].id}`);
+    else {
+      toast.success('Alles geprüft 🎉');
+      router.push('/videos');
     }
+  };
+
+  const status = async (s: VideoStatus) => {
+    const offeneZahl = kommentare.filter((k) => !k.erledigt).length;
+    if (s === 'aenderungen' && offeneZahl === 0 && !confirm('Es gibt keine offenen Kommentare. Trotzdem Änderungen anfordern?')) return;
+    if (s === 'freigegeben' && offeneZahl > 0 && !confirm(`Es sind noch ${offeneZahl} Kommentare offen. Trotzdem freigeben?`)) return;
     const r = await fetch(`/api/videos/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: s }) });
     const j = await r.json();
     if (!r.ok) return toast.error(j.error ?? 'Fehler');
     setD((alt) => (alt ? { ...alt, video: { ...alt.video, ...j } } : alt));
-    toast.success(s === 'freigegeben' ? 'Freigegeben – Bearbeiter ist informiert' : s === 'aenderungen' ? 'Änderungen angefordert – Bearbeiter ist informiert' : 'Gespeichert');
+    toast.success(s === 'freigegeben' ? 'Freigegeben – Bearbeiter ist informiert' : 'Änderungen angefordert – Bearbeiter ist informiert');
+    await naechstes();
   };
 
   const kiPruefen = async (src: string, vId: string) => {
@@ -166,6 +183,16 @@ export function VideoDetail({ id }: { id: string }) {
     }
   };
 
+  // Noch nicht geprüft (z. B. Upload-Tab früh geschlossen) → beim Öffnen automatisch prüfen
+  useEffect(() => {
+    if (!d || !version?.url || arbeit) return;
+    if (version.version !== d.video.aktuelle_version || version.ki_status !== 'offen' || autoKi.current === version.id) return;
+    autoKi.current = version.id;
+    const t = setTimeout(() => void kiPruefen(version.url!, version.id), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur bei Versionswechsel
+  }, [version?.id, version?.ki_status]);
+
   const neueVersion = async (datei: File) => {
     setArbeit('Lade neue Version hoch …');
     try {
@@ -178,6 +205,7 @@ export function VideoDetail({ id }: { id: string }) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? 'Fehler');
       setVersionId(j.version_id);
+      await laden();
       await kiPruefen(lokaleUrl, j.version_id);
       URL.revokeObjectURL(lokaleUrl);
       toast.success(`Version ${j.version} hochgeladen – Prüfer ist informiert`);
@@ -204,6 +232,7 @@ export function VideoDetail({ id }: { id: string }) {
 
   const v = d.video;
   const istAktuell = version?.version === v.aktuelle_version;
+  const darfEntscheiden = d.ich.role === 'admin' || d.ich.id === v.pruefer_id;
   const offen = kommentare.filter((k) => !k.erledigt).length;
 
   return (
@@ -220,12 +249,12 @@ export function VideoDetail({ id }: { id: string }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-[13px] font-semibold ${STATUS_STIL[v.status]}`}>{VIDEO_STATUS[v.status]}</span>
-          {v.status !== 'freigegeben' && (
+          {darfEntscheiden && v.status !== 'freigegeben' && (
             <Button onClick={() => status('freigegeben')} disabled={!!arbeit}>
               <CheckCircle2 className="h-4 w-4" /> Freigeben
             </Button>
           )}
-          {v.status !== 'aenderungen' && (
+          {darfEntscheiden && v.status !== 'aenderungen' && (
             <Button variant="secondary" onClick={() => status('aenderungen')} disabled={!!arbeit}>
               <PencilLine className="h-4 w-4" /> Änderungen anfordern
             </Button>
@@ -267,6 +296,11 @@ export function VideoDetail({ id }: { id: string }) {
                 className="max-h-[70vh] w-full rounded-xl bg-black"
                 onTimeUpdate={(e) => setZeit(e.currentTarget.currentTime)}
                 onLoadedMetadata={(e) => setDauer(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : null)}
+                onError={() => {
+                  if (neuGeladen.current) return;
+                  neuGeladen.current = true;
+                  void laden();
+                }}
               />
             ) : (
               <p className="p-6 text-[14px] text-gray-500">Video nicht verfügbar.</p>

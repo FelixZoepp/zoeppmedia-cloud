@@ -18,18 +18,25 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
   const [text, setText] = useState('');
   const [transkript, setTranskript] = useState('');
   const [rueckfrage, setRueckfrage] = useState<string | null>(null);
-  const [vorschlaege, setVorschlaege] = useState<Array<Vorschlag & { an: boolean }>>([]);
+  const [vorschlaege, setVorschlaege] = useState<Array<Vorschlag & { an: boolean; nr: number }>>([]);
+  const [ref, setRef] = useState<string | null>(null);
+  const [kunden, setKunden] = useState<Array<{ id: string; name: string }>>([]);
+  const abgebrochen = useRef(false);
   const rec = useRef<MediaRecorder | null>(null);
   const teile = useRef<Blob[]>([]);
   const uhr = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(
     () => () => {
+      // Schließen während der Aufnahme: nichts abschicken
+      abgebrochen.current = true;
       if (uhr.current) clearInterval(uhr.current);
+      if (rec.current && rec.current.state !== 'inactive') rec.current.stop();
       rec.current?.stream.getTracks().forEach((t) => t.stop());
     },
     [],
   );
+
 
   const auswerten = async (form: FormData) => {
     setPhase('verarbeitet');
@@ -39,7 +46,9 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
       if (!r.ok) throw new Error(j.error ?? 'Fehler');
       setTranskript(j.transkript);
       setRueckfrage(j.rueckfrage ?? null);
-      setVorschlaege((j.aufgaben as Vorschlag[]).map((v) => ({ ...v, an: true })));
+      setRef(j.ref ?? null);
+      setKunden(j.kunden ?? []);
+      setVorschlaege((j.aufgaben as Vorschlag[]).map((v, nr) => ({ ...v, an: true, nr })));
       setPhase('vorschau');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
@@ -51,11 +60,14 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((m) => MediaRecorder.isTypeSupported(m)) ?? '';
-      const r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      // Niedrige Bitrate: 9 Minuten bleiben unter dem Upload-Limit von 4,5 MB
+      const r = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), audioBitsPerSecond: 32000 });
       teile.current = [];
+      abgebrochen.current = false;
       r.ondataavailable = (e) => e.data.size && teile.current.push(e.data);
       r.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
+        if (abgebrochen.current) return;
         const typ = r.mimeType || 'audio/webm';
         const blob = new Blob(teile.current, { type: typ });
         const form = new FormData();
@@ -65,7 +77,16 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
       r.start(1000);
       rec.current = r;
       setSekunden(0);
-      uhr.current = setInterval(() => setSekunden((s) => s + 1), 1000);
+      let n = 0;
+      uhr.current = setInterval(() => {
+        n++;
+        setSekunden(n);
+        // Nach 9 Minuten automatisch beenden (Upload-Limit)
+        if (n >= 540) {
+          if (uhr.current) clearInterval(uhr.current);
+          if (r.state !== 'inactive') r.stop();
+        }
+      }, 1000);
       setPhase('aufnahme');
     } catch {
       toast.error('Kein Zugriff aufs Mikrofon – bitte im Browser erlauben');
@@ -85,10 +106,11 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
 
   const anlegen = async () => {
     const auswahl = vorschlaege.filter((v) => v.an).map(({ an: _an, ...v }) => (void _an, v));
+    if (phase === 'legt_an') return;
     if (!auswahl.length) return onClose();
     setPhase('legt_an');
     try {
-      const r = await fetch('/api/boards/sprachnachricht/anlegen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vorschlaege: auswahl }) });
+      const r = await fetch('/api/boards/sprachnachricht/anlegen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vorschlaege: auswahl, ref }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? 'Fehler');
       toast.success(`${j.angelegt.length} ${j.angelegt.length === 1 ? 'Aufgabe' : 'Aufgaben'} angelegt – die Zuständigen sind benachrichtigt`);
@@ -100,7 +122,7 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
     }
   };
 
-  const setze = (i: number, patch: Partial<Vorschlag & { an: boolean }>) => setVorschlaege((vs) => vs.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+  const setze = (i: number, patch: Partial<Vorschlag & { an: boolean; nr: number }>) => setVorschlaege((vs) => vs.map((v, j) => (j === i ? { ...v, ...patch } : v)));
   const rhythmusText = (v: Vorschlag) =>
     v.rhythmus === 'einmalig' ? null : v.rhythmus === 'taeglich' ? 'täglich' : v.rhythmus === 'woechentlich' ? `wöchentlich (${WOCHENTAGE[(v.wochentag ?? 1) - 1]})` : `monatlich am ${v.monatstag ?? 1}.`;
 
@@ -122,7 +144,9 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
                 <Square className="h-8 w-8" />
               </button>
             )}
-            <p className="text-[13px] text-gray-600">{phase === 'bereit' ? 'Tippen zum Aufnehmen' : `Aufnahme läuft · ${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')} – tippen zum Beenden`}</p>
+            <p className="text-[13px] text-gray-600">{phase === 'bereit'
+                ? 'Tippen zum Aufnehmen (max. 9 Minuten)'
+                : `Aufnahme läuft · ${Math.floor(sekunden / 60)}:${String(sekunden % 60).padStart(2, '0')} – tippen zum Beenden${sekunden >= 480 ? ' · endet gleich automatisch' : ''}`}</p>
           </div>
           {phase === 'bereit' && (
             <div>
@@ -160,7 +184,7 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
                 <input type="checkbox" className="mt-3 h-4 w-4" checked={v.an} onChange={(e) => setze(i, { an: e.target.checked })} aria-label="Übernehmen" />
                 <div className="flex-1 space-y-2">
                   <input className={inputCls} value={v.titel} onChange={(e) => setze(i, { titel: e.target.value })} />
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <select className={inputCls} value={v.zustaendig_id ?? ''} onChange={(e) => setze(i, { zustaendig_id: e.target.value || null })}>
                       <option value="">Ich selbst</option>
                       {daten.team.map((t) => (
@@ -175,6 +199,14 @@ export function DiktatModal({ daten, onClose, onAngelegt }: { daten: BoardDaten;
                       <option value="taeglich">Täglich</option>
                       <option value="woechentlich">Wöchentlich</option>
                       <option value="monatlich">Monatlich</option>
+                    </select>
+                    <select className={inputCls} value={v.kunde_id ?? ''} onChange={(e) => setze(i, { kunde_id: e.target.value || null })}>
+                      <option value="">Kein Kunde</option>
+                      {kunden.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   {v.beschreibung && <p className="text-[12.5px] text-gray-600">{v.beschreibung}</p>}

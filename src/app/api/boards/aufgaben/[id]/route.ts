@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { internerNutzer } from '@/lib/aufgaben/zugriff';
-import { AUFGABEN_STATUS, benachrichtige, PRIORITAETEN } from '@/lib/aufgaben/boards';
+import { AUFGABEN_STATUS, benachrichtige, darfAufgabeSehen, PRIORITAETEN } from '@/lib/aufgaben/boards';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+async function darf(svc: SupabaseClient, a: { board_id: string | null; assigned_to: string | null; created_by: string | null }, user: { id: string; role: string }) {
+  if (user.role === 'admin') return true;
+  const { data: b } = a.board_id ? await svc.from('aufgaben_boards').select('id, besitzer_id').eq('id', a.board_id).maybeSingle() : { data: null };
+  const boards = new Map(b ? [[(b as { id: string }).id, b as { besitzer_id: string | null }]] : []);
+  return darfAufgabeSehen(a, boards, user);
+}
 
 const AUSWAHL = 'id, title, description, assigned_to, board_id, status, priority, due_date, quelle, serie_id, position, agency_id, created_by, created_at, erledigt_am, agencies(name)';
 
@@ -12,8 +20,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const svc = createAdminClient();
-  const { data: alt } = await svc.from('internal_tasks').select('assigned_to, status').eq('id', id).maybeSingle();
+  const { data: alt } = await svc.from('internal_tasks').select('assigned_to, status, board_id, created_by').eq('id', id).maybeSingle();
   if (!alt) return NextResponse.json({ error: 'Aufgabe nicht gefunden' }, { status: 404 });
+  if (!(await darf(svc, alt as { board_id: string | null; assigned_to: string | null; created_by: string | null }, user))) {
+    return NextResponse.json({ error: 'Kein Zugriff auf diese Aufgabe' }, { status: 403 });
+  }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof b.title === 'string' && b.title.trim()) patch.title = b.title.trim().slice(0, 200);
@@ -42,7 +53,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const user = await internerNutzer();
   if (!user) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { id } = await params;
-  const { error } = await createAdminClient().from('internal_tasks').delete().eq('id', id);
+  const svc = createAdminClient();
+  const { data: alt } = await svc.from('internal_tasks').select('assigned_to, board_id, created_by').eq('id', id).maybeSingle();
+  if (!alt) return NextResponse.json({ error: 'Aufgabe nicht gefunden' }, { status: 404 });
+  if (!(await darf(svc, alt as { board_id: string | null; assigned_to: string | null; created_by: string | null }, user))) {
+    return NextResponse.json({ error: 'Kein Zugriff auf diese Aufgabe' }, { status: 403 });
+  }
+  const { error } = await svc.from('internal_tasks').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

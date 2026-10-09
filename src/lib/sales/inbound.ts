@@ -78,14 +78,16 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     const { internerNutzerZuNummer, istTextDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
     const intern = await internerNutzerZuNummer(svc, senderPhone);
     if (intern) {
-      await svc.from('scheduled_jobs').insert({
+      const { error: jobErr } = await svc.from('scheduled_jobs').insert({
         agency_id: agencyId,
         type: 'aufgaben.whatsapp_diktat',
         run_at: new Date().toISOString(),
-        payload: { user_id: intern.id, phone: senderPhone, media_id: msg.audio?.id, text: msg.type === 'audio' ? undefined : istTextDiktat(text) ?? text },
+        payload: { user_id: intern.id, phone: senderPhone, message_id: msg.id, media_id: msg.audio?.id, text: msg.type === 'audio' ? undefined : istTextDiktat(text) ?? text },
         status: 'pending',
         dedupe_key: `aufgaben.whatsapp_diktat:${msg.id}`,
       });
+      // Nur „schon eingeplant“ ist ok – sonst werfen, damit das Event wiederholt wird und das Diktat nicht verloren geht
+      if (jobErr && jobErr.code !== '23505') throw new Error(`Diktat-Job nicht eingeplant: ${jobErr.message}`);
       return;
     }
   }

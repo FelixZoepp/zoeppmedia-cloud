@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { internerNutzer } from '@/lib/aufgaben/zugriff';
 import { ladeTeam } from '@/lib/aufgaben/boards';
-import { erkenneAufgaben } from '@/lib/aufgaben/diktat';
+import { erkenneAufgaben, ladeKundenKurz } from '@/lib/aufgaben/diktat';
+import { randomUUID } from 'node:crypto';
 import { transcribeAudio } from '@/lib/recordings/transcribe';
 
 export const maxDuration = 120;
@@ -23,10 +24,11 @@ export async function POST(req: NextRequest) {
     }
     if (!text) return NextResponse.json({ error: 'Nichts verstanden – bitte nochmal aufnehmen' }, { status: 400 });
     const svc = createAdminClient();
-    const team = await ladeTeam(svc);
-    const erg = await erkenneAufgaben(text, team, { id: user.id, name: user.name ?? 'Felix' });
-    await svc.from('aufgaben_sprachnachrichten').insert({ user_id: user.id, quelle: 'cloud', transkript: text, ergebnis: erg });
-    return NextResponse.json({ transkript: text, ...erg });
+    const [team, kunden] = await Promise.all([ladeTeam(svc), ladeKundenKurz(svc)]);
+    const erg = await erkenneAufgaben(text, team, { id: user.id, name: user.name ?? 'Felix' }, new Date(), kunden);
+    const ref = `cloud:${randomUUID()}`;
+    await svc.from('aufgaben_sprachnachrichten').insert({ user_id: user.id, quelle: 'cloud', transkript: text, ergebnis: erg, ref });
+    return NextResponse.json({ transkript: text, ref, kunden, ...erg });
   } catch (err) {
     console.error('[boards/sprachnachricht]', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Fehler' }, { status: 502 });

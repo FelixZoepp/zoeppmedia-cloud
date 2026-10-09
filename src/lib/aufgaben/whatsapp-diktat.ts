@@ -7,19 +7,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getProvider } from '@/lib/whatsapp/provider';
 import { decryptSecret } from '@/lib/crypto';
-import { SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID } from '@/lib/sales/calendly-chain';
+import { normalizeToE164, SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID } from '@/lib/sales/calendly-chain';
 import { ladeTeam } from './boards';
-import { erkenneAufgaben, legeVorschlaegeAn } from './diktat';
+import { erkenneAufgaben, ladeKundenKurz, legeVorschlaegeAn, type Vorschlag } from './diktat';
 
-const letzte9 = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '').slice(-9);
-
-/** Interner Nutzer zu einer WhatsApp-Nummer (letzte 9 Ziffern) */
+/** Interner Nutzer zu einer WhatsApp-Nummer – exakter Vergleich der normalisierten E.164-Nummer */
 export async function internerNutzerZuNummer(svc: SupabaseClient, phone: string): Promise<{ id: string; name: string } | null> {
-  const ziel = letzte9(phone);
-  if (ziel.length < 9) return null;
+  const ziel = normalizeToE164(phone);
+  if (!ziel) return null;
   const { data } = await svc.from('users').select('id, name, phone, aktiv').in('role', ['admin', 'employee']).not('phone', 'is', null);
-  const u = ((data ?? []) as Array<{ id: string; name: string; phone: string | null; aktiv: boolean | null }>).find((x) => x.aktiv !== false && letzte9(x.phone) === ziel);
-  return u ? { id: u.id, name: u.name } : null;
+  const treffer = ((data ?? []) as Array<{ id: string; name: string; phone: string | null; aktiv: boolean | null }>).filter(
+    (x) => x.aktiv !== false && normalizeToE164(x.phone) === ziel,
+  );
+  // Mehrdeutig (gleiche Nummer bei mehreren Nutzern) → niemandem zuordnen
+  return treffer.length === 1 ? { id: treffer[0].id, name: treffer[0].name } : null;
 }
 
 /** Text-Diktat erkennen: „Aufgabe: …“, „To-do: …“, „Todo …“ */
@@ -31,6 +32,8 @@ export function istTextDiktat(text: string | undefined): string | null {
 export interface DiktatJob {
   user_id: string;
   phone: string;
+  /** WhatsApp-Nachrichten-ID – macht den Job idempotent */
+  message_id?: string;
   media_id?: string;
   text?: string;
 }
@@ -47,33 +50,43 @@ async function antworte(svc: SupabaseClient, to: string, body: string) {
   await getProvider().sendMessage(phoneNumberId, token, { to, type: 'text', text: { body } });
 }
 
-/** Job aufgaben.whatsapp_diktat */
+/** Job aufgaben.whatsapp_diktat – idempotent: Erkennung wird gespeichert, Aufgaben je Nachricht + Vorschlag nur einmal */
 export async function verarbeiteWhatsAppDiktat(svc: SupabaseClient, job: DiktatJob): Promise<void> {
   const { data: u } = await svc.from('users').select('id, name').eq('id', job.user_id).single();
   const von = u as { id: string; name: string };
-  let text = job.text ?? '';
-  if (!text && job.media_id) {
-    const { token } = await zugang(svc);
-    const url = await getProvider().getMediaUrl(job.media_id, token);
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`Sprachnachricht nicht ladbar (${res.status})`);
-    const { transcribeAudio } = await import('@/lib/recordings/transcribe');
-    text = (await transcribeAudio(Buffer.from(await res.arrayBuffer()), 'diktat.ogg')).trim();
-  }
-  if (!text) {
-    await antworte(svc, job.phone, 'Ich habe die Nachricht leider nicht verstanden – schick sie bitte nochmal.');
-    return;
-  }
+  const ref = job.message_id ? `wa:${job.message_id}` : null;
   const team = await ladeTeam(svc);
-  const erg = await erkenneAufgaben(text, team, von);
-  const angelegt = erg.aufgaben.length ? await legeVorschlaegeAn(svc, erg.aufgaben, von, 'whatsapp') : [];
-  await svc.from('aufgaben_sprachnachrichten').insert({ user_id: von.id, quelle: 'whatsapp', transkript: text, ergebnis: { ...erg, angelegt } });
+
+  // Bei Wiederholung: gespeicherte Erkennung wiederverwenden (keine neue Transkription, keine abweichende KI-Antwort)
+  const { data: gespeichert } = ref ? await svc.from('aufgaben_sprachnachrichten').select('transkript, ergebnis').eq('ref', ref).maybeSingle() : { data: null };
+  let erg = (gespeichert as { ergebnis: { aufgaben: Vorschlag[]; rueckfrage: string | null } | null } | null)?.ergebnis ?? null;
+
+  if (!erg) {
+    let text = job.text ?? '';
+    if (!text && job.media_id) {
+      const { token } = await zugang(svc);
+      const url = await getProvider().getMediaUrl(job.media_id, token);
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`Sprachnachricht nicht ladbar (${res.status})`);
+      const { transcribeAudio } = await import('@/lib/recordings/transcribe');
+      text = (await transcribeAudio(Buffer.from(await res.arrayBuffer()), 'diktat.ogg')).trim();
+    }
+    if (!text) {
+      await antworte(svc, job.phone, 'Ich habe die Nachricht leider nicht verstanden – schick sie bitte nochmal.').catch(() => {});
+      return;
+    }
+    erg = await erkenneAufgaben(text, team, von, new Date(), await ladeKundenKurz(svc));
+    const { error } = await svc.from('aufgaben_sprachnachrichten').insert({ user_id: von.id, quelle: 'whatsapp', transkript: text, ergebnis: erg, ref });
+    if (error && error.code !== '23505') throw new Error(`Diktat nicht gespeichert: ${error.message}`);
+  }
+
+  const angelegt = erg.aufgaben.length ? await legeVorschlaegeAn(svc, erg.aufgaben, von, 'whatsapp', new Date(), ref) : [];
 
   const name = (id: string | null) => team.find((t) => t.id === id)?.name.split(' ')[0] ?? '–';
   const zeilen = angelegt.map((a) => `• ${a.titel} → ${name(a.zustaendig)}${a.art === 'serie' ? ' (wiederkehrend)' : ''}`);
   const antwort = angelegt.length
     ? `✅ ${angelegt.length === 1 ? '1 Aufgabe angelegt' : `${angelegt.length} Aufgaben angelegt`}:\n${zeilen.join('\n')}${erg.rueckfrage ? `\n\n❓ ${erg.rueckfrage}` : ''}\n\nhttps://cloud.zoeppmedia.de/boards`
     : `Ich habe keine Aufgabe erkannt.${erg.rueckfrage ? ` ${erg.rueckfrage}` : ''}`;
-  // Antwort darf den Job nicht scheitern lassen – sonst würden die Aufgaben beim Wiederholen doppelt angelegt
+  // Antwort darf den Job nicht scheitern lassen – sonst würde er wiederholt
   await antworte(svc, job.phone, antwort).catch((err) => console.error('[whatsapp-diktat] Antwort fehlgeschlagen', err));
 }

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { internerNutzer } from '@/lib/aufgaben/zugriff';
 import { benachrichtige, boardVon, PRIORITAETEN } from '@/lib/aufgaben/boards';
 import { ersterTermin, legeSerienAufgabenAn, type Rhythmus } from '@/lib/aufgaben/serien';
+import { bereinigeRegel } from '@/lib/aufgaben/regeln';
 import { berlinTag } from '@/lib/zeit/berlin';
 
 /** POST – wiederkehrende Aufgabe anlegen */
@@ -15,9 +16,7 @@ export async function POST(req: NextRequest) {
   if (!title || !['taeglich', 'woechentlich', 'monatlich'].includes(rhythmus)) return NextResponse.json({ error: 'Titel und Rhythmus nötig' }, { status: 400 });
   const svc = createAdminClient();
   const assigned = typeof b.assigned_to === 'string' && b.assigned_to ? b.assigned_to : user.id;
-  const wochentag = Number(b.wochentag) >= 1 && Number(b.wochentag) <= 7 ? Number(b.wochentag) : 1;
-  const monatstag = Number(b.monatstag) >= 1 && Number(b.monatstag) <= 31 ? Number(b.monatstag) : 1;
-  const nurWerktags = b.nur_werktags !== false;
+  const { wochentag, monatstag, nur_werktags: nurWerktags } = bereinigeRegel({ rhythmus, wochentag: b.wochentag as number, monatstag: b.monatstag as number, nur_werktags: b.nur_werktags as boolean });
   const { data, error } = await svc
     .from('aufgaben_serien')
     .insert({

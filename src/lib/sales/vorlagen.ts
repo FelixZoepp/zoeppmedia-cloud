@@ -124,7 +124,13 @@ export async function reicheSalesVorlageEin(svc: SupabaseClient, name: string): 
   }
 
   const status = (data.status ?? 'PENDING').toLowerCase();
-  await svc.from('whatsapp_templates').upsert(
+  await speichereVorlage(svc, v, status, data.id);
+  return { status, metaId: data.id };
+}
+
+/** Vorlage in der Cloud anlegen bzw. aktualisieren (eindeutig je Konto + preset_key) */
+async function speichereVorlage(svc: SupabaseClient, v: SalesVorlage, status: string, metaId: string | null): Promise<void> {
+  const { error } = await svc.from('whatsapp_templates').upsert(
     {
       agency_id: SALES_AGENCY_ID,
       wa_account_id: SALES_WA_ACCOUNT_ID,
@@ -136,30 +142,27 @@ export async function reicheSalesVorlageEin(svc: SupabaseClient, name: string): 
       buttons: v.buttons,
       status: status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'pending',
       preset_key: v.name,
-      meta_template_id: data.id,
+      ...(metaId ? { meta_template_id: metaId } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'wa_account_id,preset_key' },
   );
-  return { status, metaId: data.id };
+  if (error) throw new Error(`Vorlage ${v.name} nicht gespeichert: ${error.message}`);
 }
 
 /** Freigabe-Status der Sales-Vorlagen bei Meta abfragen und in der Cloud nachziehen */
 export async function aktualisiereSalesVorlagen(svc: SupabaseClient): Promise<Array<{ name: string; status: string; grund?: string | null }>> {
   const { wabaId, token } = await zugang(svc);
   const namen = SALES_VORLAGEN.map((v) => v.name);
-  const res = await fetch(`${GRAPH}/${wabaId}/message_templates?limit=200&fields=name,status,rejected_reason,language`, {
+  const res = await fetch(`${GRAPH}/${wabaId}/message_templates?limit=200&fields=id,name,status,rejected_reason,language`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const data = (await res.json().catch(() => ({}))) as { data?: Array<{ name: string; status: string; rejected_reason?: string; language: string }> };
-  const treffer = (data.data ?? []).filter((t) => namen.includes(t.name));
+  const treffer = (data.data ?? []).filter((t) => namen.includes(t.name) && t.language === 'de');
   for (const t of treffer) {
-    const s = t.status.toLowerCase();
-    await svc
-      .from('whatsapp_templates')
-      .update({ status: s === 'approved' ? 'approved' : s === 'rejected' ? 'rejected' : 'pending', updated_at: new Date().toISOString() })
-      .eq('wa_account_id', SALES_WA_ACCOUNT_ID)
-      .eq('name', t.name);
+    // Legt fehlende Zeilen an (z. B. wenn das Speichern beim Einreichen gescheitert war) und zieht den Status nach
+    const v = SALES_VORLAGEN.find((x) => x.name === t.name)!;
+    await speichereVorlage(svc, v, t.status.toLowerCase(), (t as { id?: string }).id ?? null);
   }
   return treffer.map((t) => ({ name: t.name, status: t.status.toLowerCase(), grund: t.rejected_reason ?? null }));
 }

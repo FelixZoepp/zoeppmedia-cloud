@@ -10,6 +10,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID } from '@/lib/sales/calendly-chain';
 import { umfrageLink } from './versand';
+import { berlinTag } from '@/lib/zeit/berlin';
 
 export const MAX_UMFRAGE_ERINNERUNGEN = 2;
 const ABSTAND_MS = 2 * 864e5;
@@ -94,10 +95,12 @@ export async function sendeUmfrageWhatsApp(svc: SupabaseClient, s: { agency_id: 
 
 /** Welche offenen Checks heute erinnert werden (rein, testbar) */
 export function faelligeErinnerung(
-  s: { completed_at: string | null; wa_gesendet_am: string | null; erinnert_am: string | null; erinnerungen: number; sent_at: string | null },
+  s: { completed_at: string | null; wa_gesendet_am: string | null; erinnert_am: string | null; erinnerungen: number; sent_at: string | null; schnell_bewertung?: number | null },
   jetzt: Date,
 ): boolean {
-  if (s.completed_at || s.erinnerungen >= MAX_UMFRAGE_ERINNERUNGEN) return false;
+  // Wer schon per Schnellantwort geantwortet hat, bekommt höchstens eine Erinnerung
+  const max = s.schnell_bewertung ? 1 : MAX_UMFRAGE_ERINNERUNGEN;
+  if (s.completed_at || s.erinnerungen >= max) return false;
   const start = s.wa_gesendet_am ?? s.sent_at;
   if (!start) return false;
   // Nach 12 Tagen ist der Check verfallen – der nächste kommt ohnehin
@@ -110,12 +113,12 @@ export function faelligeErinnerung(
 export async function erinnereUmfragen(svc: SupabaseClient, jetzt: Date = new Date()): Promise<number> {
   const { data } = await svc
     .from('survey_schedule')
-    .select('id, agency_id, token, completed_at, wa_gesendet_am, erinnert_am, erinnerungen, sent_at')
+    .select('id, agency_id, token, completed_at, wa_gesendet_am, erinnert_am, erinnerungen, sent_at, schnell_bewertung')
     .is('completed_at', null)
     .not('sent_at', 'is', null)
     .gte('sent_at', new Date(jetzt.getTime() - 12 * 864e5).toISOString());
   let n = 0;
-  for (const s of (data ?? []) as Array<{ id: string; agency_id: string; token: string; completed_at: string | null; wa_gesendet_am: string | null; erinnert_am: string | null; erinnerungen: number; sent_at: string | null }>) {
+  for (const s of (data ?? []) as Array<{ id: string; agency_id: string; token: string; completed_at: string | null; wa_gesendet_am: string | null; erinnert_am: string | null; erinnerungen: number; sent_at: string | null; schnell_bewertung: number | null }>) {
     if (!faelligeErinnerung(s, jetzt)) continue;
     const r = await sendeUmfrageWhatsApp(svc, s, 'erinnerung');
     // Auch ohne Versand vermerken, sonst wird es jeden Tag erneut versucht
@@ -138,39 +141,62 @@ export async function verarbeiteUmfrageAntwort(
   if (!m) return false;
   const [, token, w] = m;
   const wert = Number(w);
-  const { data } = await svc.from('survey_schedule').select('id, agency_id, completed_at, agencies(name, csm_user_id)').eq('token', token).maybeSingle();
-  const s = data as unknown as { id: string; agency_id: string; completed_at: string | null; agencies: { name: string; csm_user_id: string | null } | null } | null;
+  const { data } = await svc
+    .from('survey_schedule')
+    .select('id, agency_id, completed_at, schnell_bewertung, rueckruf_aufgabe_am, agencies(name, csm_user_id)')
+    .eq('token', token)
+    .maybeSingle();
+  const s = data as unknown as {
+    id: string;
+    agency_id: string;
+    completed_at: string | null;
+    schnell_bewertung: number | null;
+    rueckruf_aufgabe_am: string | null;
+    agencies: { name: string; csm_user_id: string | null } | null;
+  } | null;
   if (!s) return false;
-  if (!s.completed_at) await svc.from('survey_schedule').update({ schnell_bewertung: wert }).eq('id', s.id);
+  const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+  const sende = (body: string) =>
+    sendWhatsAppMessage(svc, {
+      agencyId: SALES_AGENCY_ID,
+      conversationId: ctx.conversationId,
+      candidatePhone: ctx.phone,
+      waAccountId: ctx.waAccountId,
+      payload: { to: ctx.phone, type: 'text', text: { body } },
+      senderType: 'system',
+    }).catch((err) => console.error('[umfrage-wa] Antwort fehlgeschlagen', err));
+  // Schon beantwortet oder schon per Schnellantwort bewertet → keine neuen Aufgaben, nur kurz bestätigen
+  if (s.completed_at || s.schnell_bewertung) {
+    await sende(s.completed_at ? 'Danke, dein 2-Wochen-Check ist schon bei uns angekommen 🙌' : `Danke, ist notiert! Den kompletten Check findest du hier: ${umfrageLink(token)}`);
+    return true;
+  }
+  const { error: uErr } = await svc.from('survey_schedule').update({ schnell_bewertung: wert }).eq('id', s.id).is('schnell_bewertung', null);
+  if (uErr) throw new Error(`Schnellantwort nicht gespeichert: ${uErr.message}`);
 
   const link = umfrageLink(token);
   const text =
     wert >= 4
       ? `Freut mich richtig! 🙌 Magst du mir in 2 Minuten erzählen, was gerade am besten läuft? Das hilft uns, genau daran weiterzuarbeiten: ${link}`
       : `Danke für die ehrliche Antwort – genau das brauchen wir. Was hakt gerade am meisten? Schreib's mir hier oder im kurzen Check: ${link}\n\nDein Kundenberater meldet sich zusätzlich bei dir.`;
-  const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
-  await sendWhatsAppMessage(svc, {
-    agencyId: SALES_AGENCY_ID,
-    conversationId: ctx.conversationId,
-    candidatePhone: ctx.phone,
-    waAccountId: ctx.waAccountId,
-    payload: { to: ctx.phone, type: 'text', text: { body: text } },
-    senderType: 'system',
-  }).catch((err) => console.error('[umfrage-wa] Antwort fehlgeschlagen', err));
+  await sende(text);
 
-  if (wert <= 2) {
+  // Rückruf-Aufgabe nur einmal je Check
+  if (wert <= 2 && !s.rueckruf_aufgabe_am) {
+    const { data: claim } = await svc.from('survey_schedule').update({ rueckruf_aufgabe_am: new Date().toISOString() }).eq('id', s.id).is('rueckruf_aufgabe_am', null).select('id');
+    if (!claim?.length) return true;
     const kunde = s.agencies?.name ?? 'Kunde';
     const { resolveOwner } = await import('@/lib/fulfillment/engine');
     const betreuer = s.agencies?.csm_user_id ?? (await resolveOwner(svc, 'csm'));
-    await svc.from('internal_tasks').insert({
+    const { error: tErr } = await svc.from('internal_tasks').insert({
       agency_id: s.agency_id,
       title: `${kunde} anrufen – 2-Wochen-Check: „Da geht noch mehr“`,
       description: 'Schnellantwort im WhatsApp-Check. Heute anrufen, nachfragen, was hakt, und nachschärfen.',
       assigned_to: betreuer,
       priority: 'high',
-      due_date: new Date().toISOString().slice(0, 10),
+      due_date: berlinTag(),
       status: 'todo',
     });
+    if (tErr) console.error('[umfrage-wa] Rückruf-Aufgabe nicht angelegt', tErr.message);
     if (betreuer) {
       const { createNotification } = await import('@/lib/notifications/create');
       await createNotification(svc, {

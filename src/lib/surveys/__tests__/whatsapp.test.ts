@@ -19,3 +19,10 @@ describe('faelligeErinnerung (2-Wochen-Check)', () => {
     expect(faelligeErinnerung({ ...basis, erinnerungen: 1, erinnert_am: '2026-10-18T08:00:00Z' }, jetzt)).toBe(true);
   });
 });
+
+describe('faelligeErinnerung nach Schnellantwort', () => {
+  it('höchstens eine Erinnerung, wenn schon per Button geantwortet', () => {
+    expect(faelligeErinnerung({ ...basis, schnell_bewertung: 4 }, jetzt)).toBe(true);
+    expect(faelligeErinnerung({ ...basis, schnell_bewertung: 4, erinnerungen: 1, erinnert_am: '2026-10-18T08:00:00Z' }, jetzt)).toBe(false);
+  });
+});

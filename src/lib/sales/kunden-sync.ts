@@ -104,81 +104,104 @@ interface Kunde {
 }
 
 /** Job sales.kunden_sync */
-export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = new Date()) {
+export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = new Date(), opts: { nachId?: string | null } = {}) {
+  const start = Date.now();
   const ids = await stelleCloseKundenFelderSicher(svc);
   const { data } = await svc.from('agencies').select('id, name, email, rechnungsmail, phone, contact_name, fulfillment_phase, fulfillment_phase_seit').neq('id', SALES_AGENCY_ID).not('fulfillment_phase', 'is', null);
-  const kunden = (data ?? []) as Kunde[];
+  // Feste Reihenfolge, damit ein Folge-Job dort weitermacht, wo die Zeit nicht gereicht hat
+  const kunden = ((data ?? []) as Kunde[]).sort((a, b) => a.id.localeCompare(b.id)).filter((k) => !opts.nachId || k.id > opts.nachId);
   const { data: stand } = await svc.from('kunden_close_sync').select('agency_id, lead_id, upsell, ex_kunde');
   const vorher = new Map(((stand ?? []) as Array<{ agency_id: string; lead_id: string | null; upsell: boolean; ex_kunde: boolean }>).map((s) => [s.agency_id, s]));
-  const ergebnis = { abgeglichen: 0, ohneLead: [] as string[], exKunden: 0, upsell: 0 };
+  const ergebnis = { abgeglichen: 0, ohneLead: [] as string[], exKunden: 0, upsell: 0, fehler: [] as string[], fortsetzung: false };
 
   for (const k of kunden) {
-    // Zuordnung: gemerkter Lead → E-Mail → Rechnungsmail → Telefon → Name des Ansprechpartners → Firmenname (nur eindeutige Treffer)
-    const leadId =
-      vorher.get(k.id)?.lead_id ??
-      (k.email ? await findCloseLeadId({ email: k.email }) : null) ??
-      (k.rechnungsmail ? await findCloseLeadId({ email: k.rechnungsmail }) : null) ??
-      (k.phone ? await findCloseLeadId({ phone: k.phone }) : null) ??
-      (k.contact_name ? await findCloseLeadIdByName(k.contact_name).catch(() => null) : null) ??
-      (await findCloseLeadIdByName(k.name).catch(() => null));
-    if (!leadId) {
-      ergebnis.ohneLead.push(k.name);
-      continue;
+    // Zeitbudget im Minuten-Tick: nach 35 s einen Folge-Job planen, der beim nächsten Kunden weitermacht
+    if (Date.now() - start > 35_000) {
+      const nachId = kunden[kunden.indexOf(k) - 1]?.id ?? opts.nachId ?? null;
+      await svc.from('scheduled_jobs').insert({
+        agency_id: SALES_AGENCY_ID,
+        type: 'sales.kunden_sync',
+        run_at: new Date(Date.now() + 60_000).toISOString(),
+        payload: { nach_id: nachId },
+        status: 'pending',
+        dedupe_key: `sales.kunden_sync:fortsetzung:${nachId}:${berlinTag(jetzt)}`,
+      });
+      ergebnis.fortsetzung = true;
+      break;
     }
-    const alt = vorher.get(k.id);
-    const exKunde = INAKTIV.includes(k.fulfillment_phase ?? '');
-    const update: Record<string, unknown> = {};
-    let notiz: string | null = null;
-    let up = { ja: false, grund: '' };
-    let empfehlung: string | null = null;
+    try {
+      // Zuordnung: gemerkter Lead → E-Mail → Rechnungsmail → Telefon (wird gemerkt) → Name (nur eindeutig, wird NICHT gemerkt)
+      const sicher =
+        vorher.get(k.id)?.lead_id ??
+        (k.email ? await findCloseLeadId({ email: k.email }) : null) ??
+        (k.rechnungsmail ? await findCloseLeadId({ email: k.rechnungsmail }) : null) ??
+        (k.phone ? await findCloseLeadId({ phone: k.phone }) : null);
+      const leadId =
+        sicher ??
+        (k.contact_name ? await findCloseLeadIdByName(k.contact_name).catch(() => null) : null) ??
+        (await findCloseLeadIdByName(k.name).catch(() => null));
+      if (!leadId) {
+        ergebnis.ohneLead.push(k.name);
+        continue;
+      }
+      const alt = vorher.get(k.id);
+      const exKunde = INAKTIV.includes(k.fulfillment_phase ?? '');
+      const update: Record<string, unknown> = {};
+      let notiz: string | null = null;
+      let up = { ja: false, grund: '' };
+      let empfehlung: string | null = null;
 
-    if (exKunde) {
-      update.status_id = ids.statusExKunde;
-      update[`custom.${ids.feldUpsell}`] = null;
-      if (!alt?.ex_kunde) {
-        const seit = k.fulfillment_phase_seit ?? jetzt.toISOString();
-        const bis = new Date(seit);
-        bis.setUTCMonth(bis.getUTCMonth() + 3);
-        update[`custom.${GESPERRT_BIS}`] = bis.toISOString();
-        notiz = `💳 Kunde ist in der Cloud „${k.fulfillment_phase}“ – Status „Ex-Kunde“. Follow-up durch den Kundenberater ab ${bis.toLocaleDateString('de-DE')}.`;
+      if (exKunde) {
+        update.status_id = ids.statusExKunde;
+        update[`custom.${ids.feldUpsell}`] = null;
+        if (!alt?.ex_kunde) {
+          const seit = k.fulfillment_phase_seit ?? jetzt.toISOString();
+          const bis = new Date(seit);
+          bis.setUTCMonth(bis.getUTCMonth() + 3);
+          update[`custom.${GESPERRT_BIS}`] = bis.toISOString();
+          notiz = `💳 Kunde ist in der Cloud „${k.fulfillment_phase}“ – Status „Ex-Kunde“. Follow-up durch den Kundenberater ab ${bis.toLocaleDateString('de-DE')}.`;
+        }
+        ergebnis.exKunden++;
+      } else {
+        update.status_id = LEAD_STATUS_KUNDE;
+        const [{ data: umfragen }, empf] = await Promise.all([
+          svc.from('survey_responses').select('rating, answers').eq('agency_id', k.id).order('created_at', { ascending: false }).limit(2),
+          ladeEmpfehlungen(svc, k.id).catch(() => ({ lage: null, empfehlungen: [] })),
+        ]);
+        const leistungen = empf.empfehlungen.filter((e) => e.art === 'leistung').sort((a, b) => a.prio - b.prio);
+        up = upsell(
+          zufriedenheit((umfragen ?? []) as Array<{ rating: number | null; answers: Record<string, unknown> | null }>),
+          { einstellungen30: empf.lage?.einstellungen30 ?? 0, bewerber30: empf.lage?.bewerber30 ?? 0 },
+          leistungen.map((l) => l.titel),
+        );
+        empfehlung = up.ja ? leistungen.slice(0, 3).map((l) => l.titel).join(' · ') : null;
+        update[`custom.${ids.feldUpsell}`] = up.ja ? 'Ja' : null;
+        update[`custom.${ids.feldUpsellEmpfehlung}`] = empfehlung;
+        if (up.ja && !alt?.upsell) {
+          notiz = `🥩 Upsell-Potenzial: ${up.grund}. Empfehlung aus dem Upsell-Booster: ${leistungen
+            .slice(0, 3)
+            .map((l) => `${l.titel} (${l.warum})`)
+            .join('; ')}.`;
+        }
+        if (up.ja) ergebnis.upsell++;
       }
-      ergebnis.exKunden++;
-    } else {
-      update.status_id = LEAD_STATUS_KUNDE;
-      const [{ data: umfragen }, empf] = await Promise.all([
-        svc.from('survey_responses').select('rating, answers').eq('agency_id', k.id).order('created_at', { ascending: false }).limit(2),
-        ladeEmpfehlungen(svc, k.id).catch(() => ({ lage: null, empfehlungen: [] })),
-      ]);
-      const leistungen = empf.empfehlungen.filter((e) => e.art === 'leistung').sort((a, b) => a.prio - b.prio);
-      up = upsell(
-        zufriedenheit((umfragen ?? []) as Array<{ rating: number | null; answers: Record<string, unknown> | null }>),
-        { einstellungen30: empf.lage?.einstellungen30 ?? 0, bewerber30: empf.lage?.bewerber30 ?? 0 },
-        leistungen.map((l) => l.titel),
-      );
-      empfehlung = up.ja ? leistungen.slice(0, 3).map((l) => l.titel).join(' · ') : null;
-      update[`custom.${ids.feldUpsell}`] = up.ja ? 'Ja' : null;
-      update[`custom.${ids.feldUpsellEmpfehlung}`] = empfehlung;
-      if (up.ja && !alt?.upsell) {
-        notiz = `🥩 Upsell-Potenzial: ${up.grund}. Empfehlung aus dem Upsell-Booster: ${leistungen
-          .slice(0, 3)
-          .map((l) => `${l.titel} (${l.warum})`)
-          .join('; ')}.`;
-      }
-      if (up.ja) ergebnis.upsell++;
+
+      await close(`/lead/${leadId}/`, { method: 'PUT', body: JSON.stringify(update) });
+      if (notiz) await close(`/activity/note/`, { method: 'POST', body: JSON.stringify({ lead_id: leadId, note: notiz }) }).catch(() => null);
+      await svc.from('kunden_close_sync').upsert({
+        agency_id: k.id,
+        lead_id: sicher,
+        ex_kunde: exKunde,
+        upsell: up.ja,
+        upsell_empfehlung: empfehlung,
+        grund: exKunde ? null : up.grund,
+        aktualisiert_am: jetzt.toISOString(),
+      });
+      ergebnis.abgeglichen++;
+    } catch (err) {
+      // Ein Fehler bei einem Kunden bricht nicht den ganzen Abgleich ab
+      ergebnis.fehler.push(`${k.name}: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    await close(`/lead/${leadId}/`, { method: 'PUT', body: JSON.stringify(update) });
-    if (notiz) await close(`/activity/note/`, { method: 'POST', body: JSON.stringify({ lead_id: leadId, note: notiz }) }).catch(() => null);
-    await svc.from('kunden_close_sync').upsert({
-      agency_id: k.id,
-      lead_id: leadId,
-      ex_kunde: exKunde,
-      upsell: up.ja,
-      upsell_empfehlung: empfehlung,
-      grund: exKunde ? null : up.grund,
-      aktualisiert_am: jetzt.toISOString(),
-    });
-    ergebnis.abgeglichen++;
   }
   return ergebnis;
 }

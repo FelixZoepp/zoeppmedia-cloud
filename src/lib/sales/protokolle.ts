@@ -161,12 +161,16 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   const felder = felderAus(a);
 
   // Schon verarbeitet? (Close schickt created + updated)
+  // Schon umgesetzt? Nur erneut ausführen, wenn sich das ausschlaggebende Ergebnis geändert hat (Korrektur im Protokoll)
   const { data: vorhanden } = await svc.from('close_protokolle').select('id, aktionen').eq('id', a.id).maybeSingle();
-  const schonAusgefuehrt = !!(vorhanden as { aktionen: unknown } | null)?.aktionen;
+  const alteAktionen = (vorhanden as { aktionen: { schluessel?: string } | null } | null)?.aktionen ?? null;
+  const schluessel = [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender]
+    .map((f) => felder[f] ?? '')
+    .join('|');
 
   let aktionen: Record<string, unknown> | null = null;
-  if (typ === 'terminierung' && a.lead_id && !schonAusgefuehrt) {
-    aktionen = await fuehreAus(a.lead_id, regelnTerminierung(felder, jetzt), a.user_id);
+  if (typ === 'terminierung' && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
+    aktionen = { ...(await fuehreAus(a.lead_id, regelnTerminierung(felder, jetzt), a.user_id)), schluessel };
   }
 
   const { error } = await svc.from('close_protokolle').upsert({

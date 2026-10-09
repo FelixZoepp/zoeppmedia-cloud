@@ -17,6 +17,8 @@ const LEAD_STATUS_LEADPOOL = 'stat_sgDNPr29uwT7tMPTxzQKW6DDCjbM2JMZzdX3UpeRGLb';
 const GESPERRT_BIS = 'cf_ivdENLjTV0OBF9z2It0W5CikYZMBZbE54BgcbINdO9S';
 export const REAKTIVIERUNG_MONATE = 3;
 const PORTION = 60;
+/** Zeitbudget im Minuten-Tick */
+const BUDGET_MS = 35_000;
 
 /** Protokoll-Felder mit dem Grund (Setting „Grund“, Follow-up „Verloren-Grund“, Terminierung „Einwand“) */
 const GRUND_FELDER = ['cf_F0RQQriozWIK59wJEZqtRTxUPYNU0QAUXk6cgWla6xX', 'cf_WTlYPdZH1Tf1dvOilHwtQY24z3ilVOqBhcPOeyWL4IN', 'cf_LrfCv9jCiQOAkx4EaBAa3E3rzA5NIfa4CIfWT2rwuhe'];
@@ -120,6 +122,7 @@ async function grundAus(svc: SupabaseClient, leadId: string): Promise<string | n
 
 /** Job sales.reaktivierung */
 export async function reaktiviereUnqualifizierte(svc: SupabaseClient, jetzt: Date = new Date()): Promise<{ reaktiviert: number; gesperrt: number; offen: number }> {
+  const start = Date.now();
   const leads = await unqualifizierteLeads();
   let reaktiviert = 0;
   let gesperrt = 0;
@@ -129,7 +132,7 @@ export async function reaktiviereUnqualifizierte(svc: SupabaseClient, jetzt: Dat
     const gesperrtBis = (lead[`custom.${GESPERRT_BIS}`] as string | null | undefined) ?? null;
     // Mit gesetzter, noch laufender Sperre braucht es keinen Abruf
     if (gesperrtBis && new Date(gesperrtBis).getTime() > jetzt.getTime()) continue;
-    if (bearbeitet >= PORTION) break;
+    if (bearbeitet >= PORTION || Date.now() - start > BUDGET_MS) break;
     bearbeitet++;
 
     const seit = gesperrtBis ? null : await eingestuftAm(lead);

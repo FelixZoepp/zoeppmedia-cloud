@@ -98,8 +98,8 @@ export const FOLLOWUP_FELDER: FeldSoll[] = [
     id: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
   },
   { key: 'verlorenGrund', name: 'Verloren-Grund', typ: 'choices', choices: GRUENDE },
-  { key: 'kalender', name: '📅 Kalender (Termin / nächster Versuch)', typ: 'datetime', id: 'cf_ZygAilDqJL6baOu94HxcH06wt4CYBCAl7kGQDO58PW2' },
-  { key: 'gelegtAuf', name: 'Gelegt auf (Closer/Setter)', typ: 'user', id: 'cf_eUkEtzFEZq0Iruaovqhi2VQoLxQgSJO0oGN33aAUh5s' },
+  { key: 'kalender', name: '📅 Kalender (Termin / nächster Versuch)', typ: 'datetime', id: 'cf_TXou3dAspi00xZ6gcrT0wXGoWq7IgDMBAJcXqcHszCR' },
+  { key: 'gelegtAuf', name: 'Gelegt auf (Closer/Setter)', typ: 'user', id: 'cf_1hn0Ut08aV1Wb5z8aGgM4bwQjMOi31gihKRMZy0vrqV' },
   { key: 'notizen', name: 'Notizen', typ: 'textarea' },
 ];
 
@@ -190,6 +190,11 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
     if (name.startsWith('smartview_loeschen:')) {
       const { loescheSmartView } = await import('./close-smartviews');
       await loescheSmartView(name.slice('smartview_loeschen:'.length));
+      continue;
+    }
+    if (name === 'vorlagen_sync') {
+      const { aktualisiereSalesVorlagen } = await import('./vorlagen');
+      await svc.from('system_einstellungen').upsert({ key: 'vorlagen_sync_ergebnis', wert: JSON.stringify(await aktualisiereSalesVorlagen(svc)), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
     if (name === 'umfrage_vorlagen') {

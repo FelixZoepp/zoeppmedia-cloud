@@ -4,7 +4,7 @@ export const VIDEO_BUCKET = 'videos';
 /** Supabase Free-Plan: max. 50 MB pro Datei (mit Pro-Plan anheben) */
 export const MAX_VIDEO_MB = Number(process.env.NEXT_PUBLIC_MAX_VIDEO_MB) || 50;
 /** Höchstzahl Standbilder für die KI-Prüfung (Browser zieht sie, Server prüft) */
-export const MAX_STANDBILDER = 40;
+export const MAX_STANDBILDER = 32;
 
 export const VIDEO_ARTEN = { ad: 'Ad', website: 'Website-Video', reel: 'Reel', sonstiges: 'Sonstiges' } as const;
 export type VideoArt = keyof typeof VIDEO_ARTEN;

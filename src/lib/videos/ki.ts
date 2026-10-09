@@ -50,9 +50,17 @@ export async function pruefeVideoTexte(
     .map((f) => ({ zeit: Math.round((f.zeit as number) * 10) / 10, base64: (f.bild as string).split(',')[1] }));
   if (!frames.length) throw new Error('Keine Standbilder – das Video konnte im Browser nicht gelesen werden');
 
-  const { data: v } = await svc.from('video_versionen').select('id, video_id').eq('id', versionId).single();
+  // Kein zweiter Lauf, solange einer läuft (älter als 5 Minuten gilt als abgebrochen)
+  const fuenfMin = new Date(Date.now() - 5 * 60_000).toISOString();
+  const { data: v } = await svc
+    .from('video_versionen')
+    .update({ ki_status: 'laeuft', ki_gestartet_am: new Date().toISOString() })
+    .eq('id', versionId)
+    .or(`ki_status.neq.laeuft,ki_gestartet_am.lt.${fuenfMin},ki_gestartet_am.is.null`)
+    .select('id, video_id')
+    .maybeSingle();
+  if (!v) throw new Error('Die KI-Prüfung für diese Version läuft gerade schon');
   const version = v as { id: string; video_id: string };
-  await svc.from('video_versionen').update({ ki_status: 'laeuft' }).eq('id', versionId);
 
   try {
     const res = await anthropicClient().messages.parse({
@@ -76,21 +84,25 @@ export async function pruefeVideoTexte(
     if (!res.parsed_output) throw new Error('Die KI hat kein gültiges Ergebnis geliefert');
     const erg: KiVideoErgebnis = { ...res.parsed_output, bilder: frames.length, am: new Date().toISOString() };
 
-    // Alte KI-Kommentare dieser Version ersetzen
-    await svc.from('video_kommentare').delete().eq('version_id', versionId).eq('ki', true);
+    // Neue Hinweise zuerst speichern, dann die alten entfernen – Erledigt-Status gleicher Hinweise bleibt erhalten
+    const { data: alte, error: aErr } = await svc.from('video_kommentare').select('id, text, erledigt').eq('version_id', versionId).eq('ki', true);
+    if (aErr) throw new Error(`Alte KI-Hinweise nicht lesbar: ${aErr.message}`);
+    const erledigt = new Set(((alte ?? []) as Array<{ text: string; erledigt: boolean }>).filter((k) => k.erledigt).map((k) => k.text));
     if (erg.funde.length) {
-      await svc.from('video_kommentare').insert(
-        erg.funde.map((f) => ({
-          video_id: version.video_id,
-          version_id: versionId,
-          zeit_s: f.zeit,
-          text: `KI (${f.art}): „${f.text}“ – ${f.problem}. Vorschlag: „${f.vorschlag}“`,
-          autor_id: autorId,
-          ki: true,
-        })),
-      );
+      const zeilen = erg.funde.map((f) => {
+        const text = `KI (${f.art}): „${f.text}“ – ${f.problem}. Vorschlag: „${f.vorschlag}“`;
+        return { video_id: version.video_id, version_id: versionId, zeit_s: f.zeit, text, autor_id: autorId, ki: true, erledigt: erledigt.has(text) };
+      });
+      const { error: iErr } = await svc.from('video_kommentare').insert(zeilen);
+      if (iErr) throw new Error(`KI-Hinweise nicht gespeichert: ${iErr.message}`);
     }
-    await svc.from('video_versionen').update({ ki_status: 'fertig', ki_ergebnis: erg }).eq('id', versionId);
+    const alteIds = ((alte ?? []) as Array<{ id: string }>).map((k) => k.id);
+    if (alteIds.length) {
+      const { error: dErr } = await svc.from('video_kommentare').delete().in('id', alteIds);
+      if (dErr) console.error('[videos/ki] alte Hinweise nicht entfernt', dErr.message);
+    }
+    const { error: uErr } = await svc.from('video_versionen').update({ ki_status: 'fertig', ki_ergebnis: erg }).eq('id', versionId);
+    if (uErr) throw new Error(`KI-Ergebnis nicht gespeichert: ${uErr.message}`);
     return erg;
   } catch (err) {
     await svc.from('video_versionen').update({ ki_status: 'fehler' }).eq('id', versionId);

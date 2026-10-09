@@ -18,10 +18,16 @@ describe('Rhythmus-Regeln', () => {
   });
   it('monatlich: Monatsende und Wochenende auf den Freitag davor', () => {
     expect(ersterTermin({ rhythmus: 'monatlich', monatstag: 31, nur_werktags: false }, '2026-11-01')).toBe('2026-11-30');
-    // 01.11.2026 ist ein Sonntag → Freitag 30.10. liegt vor „ab“ → Montag danach (02.11.), kein Monat fällt aus
+    // 01.11.2026 ist ein Sonntag → Freitag läge im Oktober → Montag 02.11.; nie zwei Termine im selben Monat
+    expect(ersterTermin({ rhythmus: 'monatlich', monatstag: 1 }, '2026-10-02')).toBe('2026-11-02');
+    expect(naechsterTermin({ rhythmus: 'monatlich', monatstag: 1 }, '2026-11-02')).toBe('2026-12-01');
     expect(ersterTermin({ rhythmus: 'monatlich', monatstag: 1 }, '2026-10-31')).toBe('2026-11-02');
-    expect(ersterTermin({ rhythmus: 'monatlich', monatstag: 1 }, '2026-10-20')).toBe('2026-10-30');
     expect(naechsterTermin({ rhythmus: 'monatlich', monatstag: 15 }, '2026-10-15')).toBe('2026-11-13');
+  });
+  it('ungültige Werte führen nicht in eine Endlosschleife', () => {
+    expect(ersterTermin({ rhythmus: 'woechentlich', wochentag: 0 }, '2026-10-09')).toBe('2026-10-12');
+    expect(ersterTermin({ rhythmus: 'woechentlich', wochentag: 8 }, '2026-10-09')).toBe('2026-10-12');
+    expect(ersterTermin({ rhythmus: 'woechentlich', wochentag: 1.5 }, '2026-10-09')).toBe('2026-10-12');
   });
   it('lesbare Regel', () => {
     expect(regelText({ rhythmus: 'woechentlich', wochentag: 1 })).toBe('Wöchentlich, montags');
@@ -35,5 +41,20 @@ describe('Text-Diktat per WhatsApp', () => {
     expect(istTextDiktat('Aufgabe: Nils soll morgen das Reel schneiden')).toBe('Nils soll morgen das Reel schneiden');
     expect(istTextDiktat('todo - Rechnung an Turhan')).toBe('Rechnung an Turhan');
     expect(istTextDiktat('Hallo, wie geht es?')).toBeNull();
+  });
+});
+
+describe('Sichtbarkeit der Boards', () => {
+  it('Mitarbeiter sehen eigene + Team-Boards, nicht persönliche Boards anderer', async () => {
+    const { darfAufgabeSehen, darfBoardSehen } = await import('../boards');
+    const nils = { id: 'nils', role: 'employee' };
+    const felix = { id: 'felix', role: 'admin' };
+    expect(darfBoardSehen({ besitzer_id: null }, nils)).toBe(true);
+    expect(darfBoardSehen({ besitzer_id: 'nils' }, nils)).toBe(true);
+    expect(darfBoardSehen({ besitzer_id: 'felix' }, nils)).toBe(false);
+    expect(darfBoardSehen({ besitzer_id: 'nils' }, felix)).toBe(true);
+    const boards = new Map([['b-felix', { besitzer_id: 'felix' }]]);
+    expect(darfAufgabeSehen({ board_id: 'b-felix', assigned_to: 'felix', created_by: 'felix' }, boards, nils)).toBe(false);
+    expect(darfAufgabeSehen({ board_id: 'b-felix', assigned_to: 'nils', created_by: 'felix' }, boards, nils)).toBe(true);
   });
 });

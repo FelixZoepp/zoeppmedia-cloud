@@ -37,34 +37,54 @@ export async function ladeTeam(svc: SupabaseClient): Promise<TeamMitglied[]> {
 
 /** Persönliche Boards für alle aktiven internen Nutzer sicherstellen */
 export async function stelleBoardsSicher(svc: SupabaseClient, team: TeamMitglied[]): Promise<Board[]> {
-  const { data } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung').order('sortierung').order('name');
+  const { data, error } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung').order('sortierung').order('name');
+  if (error) throw new Error(`Boards nicht ladbar: ${error.message}`);
   const boards = (data ?? []) as Board[];
   const fehlend = team.filter((u) => !boards.some((b) => b.besitzer_id === u.id));
   if (fehlend.length) {
-    const { data: neu } = await svc
+    const { error: e } = await svc
       .from('aufgaben_boards')
       .upsert(
         fehlend.map((u) => ({ name: u.name, besitzer_id: u.id })),
         { onConflict: 'besitzer_id', ignoreDuplicates: true },
-      )
-      .select('id, name, besitzer_id, beschreibung, farbe, sortierung');
-    boards.push(...((neu ?? []) as Board[]));
+      );
+    if (e) throw new Error(`Persönliche Boards nicht angelegt: ${e.message}`);
+    const { data: alle } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung').order('sortierung').order('name');
+    return (alle ?? []) as Board[];
   }
   return boards;
 }
 
-/** Board-ID für eine Person (persönliches Board) */
+/** Board-ID für eine Person (persönliches Board, wird bei Bedarf angelegt) */
 export async function boardVon(svc: SupabaseClient, userId: string | null): Promise<string | null> {
   if (!userId) return null;
   const { data } = await svc.from('aufgaben_boards').select('id').eq('besitzer_id', userId).maybeSingle();
   if (data) return (data as { id: string }).id;
   const { data: u } = await svc.from('users').select('name').eq('id', userId).maybeSingle();
-  const { data: neu } = await svc
+  const { error } = await svc
     .from('aufgaben_boards')
-    .upsert({ name: (u as { name: string } | null)?.name ?? 'Board', besitzer_id: userId }, { onConflict: 'besitzer_id' })
-    .select('id')
-    .single();
+    .upsert({ name: (u as { name: string } | null)?.name ?? 'Board', besitzer_id: userId }, { onConflict: 'besitzer_id', ignoreDuplicates: true });
+  if (error) throw new Error(`Board nicht angelegt: ${error.message}`);
+  const { data: neu } = await svc.from('aufgaben_boards').select('id').eq('besitzer_id', userId).maybeSingle();
   return (neu as { id: string } | null)?.id ?? null;
+}
+
+/**
+ * Sichtbarkeit: Admins sehen alles. Mitarbeiter sehen ihr eigenes Board, alle Team-Boards und
+ * Aufgaben, die ihnen zugewiesen sind oder die sie selbst angelegt haben – nicht die persönlichen Boards anderer.
+ */
+export function darfBoardSehen(b: Pick<Board, 'besitzer_id'>, user: { id: string; role: string }): boolean {
+  return user.role === 'admin' || !b.besitzer_id || b.besitzer_id === user.id;
+}
+
+export function darfAufgabeSehen(
+  a: { board_id: string | null; assigned_to: string | null; created_by: string | null },
+  boards: Map<string, Pick<Board, 'besitzer_id'>>,
+  user: { id: string; role: string },
+): boolean {
+  if (user.role === 'admin' || a.assigned_to === user.id || a.created_by === user.id) return true;
+  const b = a.board_id ? boards.get(a.board_id) : undefined;
+  return !!b && darfBoardSehen(b, user);
 }
 
 /** Neue Aufgabe → Push + Glocke an die zuständige Person (nicht an sich selbst) */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Mic, Plus, Repeat, Users, MessageSquareText, Calendar } from 'lucide-react';
+import { Calendar, Check, MessageSquareText, Mic, Plus, Repeat, Users } from 'lucide-react';
 import { Avatar, Button, Card, PageHeader, SegmentedControl } from '@/components/ui';
 import { AUFGABEN_STATUS, STATUS_LABEL, type AufgabenStatus } from '@/lib/aufgaben/konstanten';
 import type { Board } from '@/lib/aufgaben/boards';
@@ -14,7 +14,12 @@ import { datumKurz, heuteIso, inputCls, plusTage, PRIO_FARBE } from './typen';
 
 const SPALTE_FARBE: Record<AufgabenStatus, string> = { todo: 'bg-gray-50', in_progress: 'bg-sky-50/60', review: 'bg-amber-50/60', done: 'bg-green-50/60' };
 
+/** Virtuelles Board für Admins: Aufgaben ohne Board und ohne Zuständigen (z. B. automatische Aufgaben) */
+const OHNE_ID = '__ohne';
+const OHNE_BOARD: Board = { id: OHNE_ID, name: 'Nicht zugeordnet', besitzer_id: null, beschreibung: null, farbe: null, sortierung: 999 };
+
 function gehoertZu(a: Aufgabe, b: Board) {
+  if (b.id === OHNE_ID) return !a.board_id && !a.assigned_to;
   return a.board_id === b.id || (!a.board_id && !!b.besitzer_id && a.assigned_to === b.besitzer_id);
 }
 
@@ -61,7 +66,8 @@ export function BoardsClient() {
     };
   }, [anwenden]);
 
-  const board = d?.boards.find((b) => b.id === boardId) ?? null;
+  const alleBoards = useMemo(() => (d ? (d.ich.role === 'admin' ? [...d.boards, OHNE_BOARD] : d.boards) : []), [d]);
+  const board = alleBoards.find((b) => b.id === boardId) ?? null;
   const aufgaben = useMemo(() => (d && board ? d.aufgaben.filter((a) => gehoertZu(a, board)) : []), [d, board]);
   const offeneZahl = (b: Board) => (d ? d.aufgaben.filter((a) => a.status !== 'done' && gehoertZu(a, b)).length : 0);
   const person = (id: string | null) => d?.team.find((t) => t.id === id) ?? null;
@@ -84,7 +90,7 @@ export function BoardsClient() {
     const r = await fetch('/api/boards/aufgaben', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: neuTitel, board_id: board.id, assigned_to: board.besitzer_id }),
+      body: JSON.stringify({ title: neuTitel, board_id: board.id === OHNE_ID ? null : board.id, assigned_to: board.besitzer_id }),
     });
     const j = await r.json();
     if (!r.ok) return toast.error(j.error ?? 'Fehler');
@@ -111,7 +117,7 @@ export function BoardsClient() {
   }
 
   const meins = d.boards.filter((b) => b.besitzer_id === d.ich.id);
-  const team = d.boards.filter((b) => !b.besitzer_id);
+  const team = alleBoards.filter((b) => !b.besitzer_id);
   const andere = d.boards.filter((b) => b.besitzer_id && b.besitzer_id !== d.ich.id);
   const heute = heuteIso();
 
@@ -119,15 +125,37 @@ export function BoardsClient() {
     const p = person(a.assigned_to);
     const ueberfaellig = a.due_date && a.due_date < heute && a.status !== 'done';
     return (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         draggable
         onDragStart={() => setZiehe(a.id)}
         onDragEnd={() => setZiehe(null)}
         onClick={() => setOffen(a)}
+        onKeyDown={(e) => e.key === 'Enter' && setOffen(a)}
         className={`w-full rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-gray-300 ${ziehe === a.id ? 'opacity-40' : ''}`}
       >
         <div className="flex items-start gap-2">
+          <span
+            role="checkbox"
+            aria-checked={a.status === 'done'}
+            aria-label={a.status === 'done' ? 'Wieder öffnen' : 'Erledigt'}
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              void verschiebe(a.id, a.status === 'done' ? 'todo' : 'done');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                void verschiebe(a.id, a.status === 'done' ? 'todo' : 'done');
+              }
+            }}
+            className={`mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full border ${a.status === 'done' ? 'border-green-600 bg-green-600 text-white' : 'border-gray-300 hover:border-green-600'}`}
+          >
+            {a.status === 'done' && <Check className="h-3 w-3" />}
+          </span>
           <span className={`mt-1.5 h-2 w-2 flex-none rounded-full ${PRIO_FARBE[a.priority] ?? 'bg-gray-300'}`} aria-hidden />
           <p className={`flex-1 text-[14px] leading-snug ${a.status === 'done' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{a.title}</p>
         </div>
@@ -146,7 +174,7 @@ export function BoardsClient() {
             </span>
           )}
         </div>
-      </button>
+      </div>
     );
   };
 
@@ -293,7 +321,7 @@ export function BoardsClient() {
             </Card>
           )}
 
-          {board && ansicht === 'serien' && <SerienBereich board={board} daten={d} onAenderung={(serien) => setD({ ...d, serien })} />}
+          {board && ansicht === 'serien' && board.id !== OHNE_ID && <SerienBereich board={board} daten={d} onAenderung={(serien) => setD({ ...d, serien })} />}
         </div>
       </div>
 

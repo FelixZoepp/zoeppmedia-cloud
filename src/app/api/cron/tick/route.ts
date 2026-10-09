@@ -321,7 +321,7 @@ export async function GET(request: NextRequest) {
         }
         case 'sales.kunden_sync': {
           const { synchronisiereKunden } = await import('@/lib/sales/kunden-sync');
-          console.log('[kunden-sync]', JSON.stringify(await synchronisiereKunden(svc)));
+          console.log('[kunden-sync]', JSON.stringify(await synchronisiereKunden(svc, new Date(), { nachId: (payload as { nach_id?: string | null }).nach_id ?? null })));
           break;
         }
         case 'sales.reaktivierung': {

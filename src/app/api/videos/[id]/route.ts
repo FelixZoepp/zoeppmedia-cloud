@@ -34,9 +34,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const svc = createAdminClient();
-  const { data: alt } = await svc.from('videos').select('id, titel, status, bearbeiter_id, aktuelle_version').eq('id', id).maybeSingle();
+  const { data: alt } = await svc.from('videos').select('id, titel, status, bearbeiter_id, pruefer_id, aktuelle_version').eq('id', id).maybeSingle();
   if (!alt) return NextResponse.json({ error: 'Video nicht gefunden' }, { status: 404 });
-  const v = alt as { id: string; titel: string; status: string; bearbeiter_id: string | null; aktuelle_version: number };
+  const v = alt as { id: string; titel: string; status: string; bearbeiter_id: string | null; pruefer_id: string | null; aktuelle_version: number };
+  // Freigeben / Änderungen anfordern nur durch den Prüfer oder einen Admin
+  if ((b.status === 'freigegeben' || b.status === 'aenderungen') && user.role !== 'admin' && v.pruefer_id !== user.id) {
+    return NextResponse.json({ error: 'Nur der Prüfer oder ein Admin kann freigeben bzw. Änderungen anfordern' }, { status: 403 });
+  }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof b.titel === 'string' && b.titel.trim()) patch.titel = b.titel.trim().slice(0, 160);
@@ -64,16 +68,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(data);
 }
 
-/** DELETE – Video samt aller Versionen und Dateien */
+/** DELETE – Video samt aller Versionen und Dateien (nur Admin oder wer es angelegt hat) */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await internerNutzer();
   if (!user) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { id } = await params;
   const svc = createAdminClient();
+  const { data: video } = await svc.from('videos').select('created_by').eq('id', id).maybeSingle();
+  if (!video) return NextResponse.json({ error: 'Video nicht gefunden' }, { status: 404 });
+  if (user.role !== 'admin' && (video as { created_by: string | null }).created_by !== user.id) {
+    return NextResponse.json({ error: 'Nur Admins oder wer das Video angelegt hat, können es löschen' }, { status: 403 });
+  }
   const { data: versionen } = await svc.from('video_versionen').select('storage_pfad').eq('video_id', id);
   const pfade = ((versionen ?? []) as Array<{ storage_pfad: string }>).map((v) => v.storage_pfad);
-  if (pfade.length) await svc.storage.from(VIDEO_BUCKET).remove(pfade);
+  // Erst die Datenbank, dann die Dateien – scheitert das Löschen in der DB, bleiben die Dateien erhalten
   const { error } = await svc.from('videos').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (pfade.length) {
+    const { error: sErr } = await svc.storage.from(VIDEO_BUCKET).remove(pfade);
+    if (sErr) console.error('[videos] Dateien nicht gelöscht', id, sErr.message);
+  }
   return NextResponse.json({ ok: true });
 }

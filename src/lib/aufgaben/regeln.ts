@@ -19,40 +19,55 @@ const plus = (tag: string, n: number) => iso(new Date(d(tag).getTime() + n * TAG
 export const wochentagVon = (tag: string) => ((d(tag).getUTCDay() + 6) % 7) + 1;
 const istWochenende = (tag: string) => wochentagVon(tag) >= 6;
 
-function monatsTermin(jahr: number, monat0: number, monatstag: number, nurWerktags: boolean, ab: string): string {
+/**
+ * Termin eines Monats – unabhängig vom Suchdatum, damit ein Monat nie zwei Termine bekommt:
+ * Wochenende → Freitag davor; läge der im Vormonat (z. B. Sonntag, der 1.), dann Montag danach.
+ */
+function monatsTermin(jahr: number, monat0: number, monatstag: number, nurWerktags: boolean): string {
   const letzter = new Date(Date.UTC(jahr, monat0 + 1, 0)).getUTCDate();
   const roh = iso(new Date(Date.UTC(jahr, monat0, Math.min(monatstag, letzter), 12)));
   if (!nurWerktags || !istWochenende(roh)) return roh;
-  // Wochenende: auf den Freitag davor ziehen – liegt der schon vor „ab“, auf den Montag danach
   let zurueck = roh;
   while (istWochenende(zurueck)) zurueck = plus(zurueck, -1);
-  if (zurueck >= ab || roh < ab) return zurueck;
+  if (zurueck.slice(0, 7) === roh.slice(0, 7)) return zurueck;
   let vor = roh;
   while (istWochenende(vor)) vor = plus(vor, 1);
   return vor;
 }
 
+/** Gültige Regel erzwingen (ganze Zahlen im Bereich) – schützt die Schleifen unten */
+export function bereinigeRegel(r: SerieRegel): { rhythmus: Rhythmus; wochentag: number; monatstag: number; nur_werktags: boolean } {
+  const rhythmus: Rhythmus = r.rhythmus === 'taeglich' || r.rhythmus === 'monatlich' ? r.rhythmus : 'woechentlich';
+  const wt = Math.trunc(Number(r.wochentag));
+  const mt = Math.trunc(Number(r.monatstag));
+  return {
+    rhythmus,
+    wochentag: wt >= 1 && wt <= 7 ? wt : 1,
+    monatstag: mt >= 1 && mt <= 31 ? mt : 1,
+    nur_werktags: r.nur_werktags !== false,
+  };
+}
+
 /** Erster Termin am oder nach `ab` (YYYY-MM-DD) */
-export function ersterTermin(r: SerieRegel, ab: string): string {
-  const werktags = r.nur_werktags ?? true;
+export function ersterTermin(regel: SerieRegel, ab: string): string {
+  const r = bereinigeRegel(regel);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ab)) throw new Error(`Ungültiges Datum ${ab}`);
   if (r.rhythmus === 'taeglich') {
     let t = ab;
-    if (werktags) while (istWochenende(t)) t = plus(t, 1);
+    if (r.nur_werktags) while (istWochenende(t)) t = plus(t, 1);
     return t;
   }
   if (r.rhythmus === 'woechentlich') {
-    const ziel = r.wochentag ?? 1;
     let t = ab;
-    while (wochentagVon(t) !== ziel) t = plus(t, 1);
+    for (let i = 0; i < 7 && wochentagVon(t) !== r.wochentag; i++) t = plus(t, 1);
     return t;
   }
-  const md = r.monatstag ?? 1;
   const a = d(ab);
   for (let i = 0; i < 3; i++) {
-    const t = monatsTermin(a.getUTCFullYear(), a.getUTCMonth() + i, md, werktags, ab);
+    const t = monatsTermin(a.getUTCFullYear(), a.getUTCMonth() + i, r.monatstag, r.nur_werktags);
     if (t >= ab) return t;
   }
-  return monatsTermin(a.getUTCFullYear(), a.getUTCMonth() + 1, md, werktags, ab);
+  return monatsTermin(a.getUTCFullYear(), a.getUTCMonth() + 2, r.monatstag, r.nur_werktags);
 }
 
 /** Nächster Termin nach `nach` */

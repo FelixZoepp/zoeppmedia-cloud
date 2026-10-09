@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { internerNutzer } from '@/lib/aufgaben/zugriff';
-import { ladeTeam, stelleBoardsSicher } from '@/lib/aufgaben/boards';
+import { darfAufgabeSehen, darfBoardSehen, ladeTeam, stelleBoardsSicher } from '@/lib/aufgaben/boards';
 
 /** GET – Boards (persönliche werden sichergestellt), Team, offene + kürzlich erledigte Aufgaben, Serien */
 export async function GET() {
@@ -9,7 +9,12 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const svc = createAdminClient();
   const team = await ladeTeam(svc);
-  const boards = await stelleBoardsSicher(svc, team);
+  let boards;
+  try {
+    boards = await stelleBoardsSicher(svc, team);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Boards nicht ladbar' }, { status: 500 });
+  }
   const seit = new Date(Date.now() - 14 * 864e5).toISOString();
   const [{ data: offen }, { data: erledigt }, { data: serien }] = await Promise.all([
     svc
@@ -28,12 +33,15 @@ export async function GET() {
       .limit(500),
     svc.from('aufgaben_serien').select('*').order('created_at', { ascending: false }),
   ]);
+  const ich = { id: user.id, role: user.role };
+  const boardMap = new Map(boards.map((b) => [b.id, b]));
+  type Zeile = { board_id: string | null; assigned_to: string | null; created_by: string | null };
   return NextResponse.json({
     ich: { id: user.id, name: user.name, role: user.role },
     team: team.map(({ phone: _p, ...t }) => (void _p, t)),
-    boards,
-    aufgaben: [...(offen ?? []), ...(erledigt ?? [])],
-    serien: serien ?? [],
+    boards: boards.filter((b) => darfBoardSehen(b, ich)),
+    aufgaben: [...(offen ?? []), ...(erledigt ?? [])].filter((a) => darfAufgabeSehen(a as Zeile, boardMap, ich)),
+    serien: (serien ?? []).filter((s) => darfAufgabeSehen({ ...(s as Zeile), created_by: (s as { created_by: string | null }).created_by }, boardMap, ich)),
   });
 }
 
