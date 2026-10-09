@@ -73,3 +73,45 @@ export async function ladeErfolg(svc: SupabaseClient, jetzt: Date = new Date()):
   if (eErr) throw new Error(`Einstellungen nicht zählbar: ${eErr.message}`);
   return berechne({ kunden: kunden ?? 0, bewerbungen: bew ?? 0, einstellungen: einst ?? 0, tage: 5 }, 'live', jetzt);
 }
+
+export interface KundenZahl {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  bewerbungen: number;
+  einstellungen: number;
+}
+
+/** Je Kunde in der Cloud: Bewerbungen und Einstellungen der letzten 7 Tage (live) */
+export async function ladeKundenZahlen(svc: SupabaseClient, jetzt: Date = new Date()): Promise<KundenZahl[]> {
+  const seit = new Date(jetzt.getTime() - 7 * 864e5).toISOString();
+  const [{ data: ags, error: aErr }, { data: stages }] = await Promise.all([
+    svc.from('agencies').select('id, name, settings').neq('id', SALES_AGENCY_ID).in('fulfillment_phase', ['onboarding', 'setup', 'continuity']),
+    svc.from('pipeline_stages').select('id, name, stage_type'),
+  ]);
+  if (aErr) throw new Error(`Kunden nicht ladbar: ${aErr.message}`);
+  const hired = new Set(((stages ?? []) as Array<{ id: string; name: string; stage_type: string | null }>).filter((s) => s.stage_type === 'hired' || /^eingestellt/i.test(s.name)).map((s) => s.id));
+  const zeilen = new Map<string, KundenZahl>();
+  for (const a of (ags ?? []) as Array<{ id: string; name: string; settings: { logo_url?: string } | null }>) {
+    zeilen.set(a.id, { id: a.id, name: a.name, logo_url: a.settings?.logo_url ?? null, bewerbungen: 0, einstellungen: 0 });
+  }
+  // In Portionen, damit auch große Wochen vollständig gezählt werden
+  for (let von = 0; von < 50_000; von += 1000) {
+    const { data, error } = await svc
+      .from('applications')
+      .select('agency_id, status, stage_id, created_at, updated_at')
+      .in('agency_id', [...zeilen.keys()])
+      .or(`created_at.gte.${seit},updated_at.gte.${seit}`)
+      .order('id')
+      .range(von, von + 999);
+    if (error) throw new Error(`Bewerbungen nicht ladbar: ${error.message}`);
+    for (const r of (data ?? []) as Array<{ agency_id: string; status: string | null; stage_id: string | null; created_at: string; updated_at: string }>) {
+      const z = zeilen.get(r.agency_id);
+      if (!z) continue;
+      if (r.created_at >= seit) z.bewerbungen++;
+      if (r.updated_at >= seit && (r.status === 'hired' || (r.stage_id && hired.has(r.stage_id)))) z.einstellungen++;
+    }
+    if ((data ?? []).length < 1000) break;
+  }
+  return [...zeilen.values()].sort((a, b) => b.bewerbungen - a.bewerbungen || b.einstellungen - a.einstellungen);
+}

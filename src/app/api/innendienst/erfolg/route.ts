@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { darfKundenCloud } from '@/lib/kunden-cloud/zugriff';
-import { ladeErfolg, MANUELL_KEY, pruefeWerte } from '@/lib/kunden-cloud/erfolg';
+import { ladeErfolg, ladeKundenZahlen, MANUELL_KEY, pruefeWerte } from '@/lib/kunden-cloud/erfolg';
 
 /** GET /api/innendienst/erfolg – Zahlen für die Erfolgs-Anzeige (manuell eingetragen oder live) */
 export async function GET() {
   const user = await getCurrentUser();
   if (!darfKundenCloud(user)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   try {
-    return NextResponse.json({ ...(await ladeErfolg(createAdminClient())), darfBearbeiten: user?.role === 'admin' });
+    const svc = createAdminClient();
+    const [gesamt, kunden] = await Promise.all([ladeErfolg(svc), ladeKundenZahlen(svc)]);
+    return NextResponse.json({ ...gesamt, kundenListe: kunden, darfBearbeiten: user?.role === 'admin' });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Fehler' }, { status: 500 });
   }
@@ -30,5 +32,6 @@ export async function PUT(req: NextRequest) {
     const { error } = await svc.from('system_einstellungen').upsert({ key: MANUELL_KEY, wert: JSON.stringify(w), updated_at: new Date().toISOString() }, { onConflict: 'key' });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ...(await ladeErfolg(svc)), darfBearbeiten: true });
+  const [gesamt, kunden] = await Promise.all([ladeErfolg(svc), ladeKundenZahlen(svc)]);
+  return NextResponse.json({ ...gesamt, kundenListe: kunden, darfBearbeiten: true });
 }

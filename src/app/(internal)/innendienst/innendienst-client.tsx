@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Inbox, Link2, MessageCircle, PhoneCall, RefreshCw, Search, Sparkles, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Inbox, Link2, MessageCircle, PhoneCall, RefreshCw, Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, Button, Card, Input, PageHeader, SegmentedControl, StatCard } from '@/components/ui';
 import type { KundeArbeit } from '@/lib/kunden-cloud/uebersicht';
 import { GarantieBalken } from '@/components/garantie/garantie-balken';
-import { ErfolgsAnzeige } from './erfolgs-anzeige';
+import { ZahlenTab } from './zahlen-tab';
 
 const PHASE: Record<string, string> = {
   zahlung: 'Zahlung',
@@ -37,7 +37,6 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
   const [lädt, setLädt] = useState(false);
   // Zeitpunkt der letzten Ladung – Basis für „wartet seit …“
   const [stand, setStand] = useState(0);
-  const [erfolg, setErfolg] = useState(false);
 
   const laden = useCallback(async () => {
     setLädt(true);
@@ -80,14 +79,9 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
         title={vorname ? `Hallo ${vorname}` : 'Innendienst'}
         description="Alle Kunden auf einen Blick – mit einem Klick in die Cloud des Kunden und loslegen."
         action={
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setErfolg(true)}>
-              <Sparkles className="h-4 w-4" /> Erfolgs-Anzeige
-            </Button>
-            <Button variant="secondary" onClick={laden} disabled={lädt} aria-label="Aktualisieren">
-              <RefreshCw className={lädt ? 'animate-spin' : ''} />
-            </Button>
-          </div>
+          <Button variant="secondary" onClick={laden} disabled={lädt} aria-label="Aktualisieren">
+            <RefreshCw className={lädt ? 'animate-spin' : ''} />
+          </Button>
         }
       />
 
@@ -99,13 +93,14 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="w-full sm:w-72">
+        <div className={`w-full sm:w-72 ${filter === 'zahlen' ? 'hidden' : ''}`}>
           <Input pill icon={<Search />} placeholder="Kunde suchen …" value={suche} onChange={(e) => setSuche(e.target.value)} />
         </div>
         <SegmentedControl
           items={[
             { value: 'arbeit', label: `Mit Arbeit (${mitArbeit})` },
             { value: 'alle', label: `Alle Kunden (${kunden?.length ?? 0})` },
+            { value: 'zahlen', label: 'Zahlen' },
           ]}
           value={filter}
           onChange={setFilter}
@@ -119,7 +114,9 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
         </Card>
       )}
 
-      {!kunden ? (
+      {filter === 'zahlen' ? (
+        <ZahlenTab />
+      ) : !kunden ? (
         !fehler && (
           <div className="flex justify-center py-24">
             <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-red-200 border-t-red-700" />
@@ -138,7 +135,6 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
           ))}
         </div>
       )}
-      {erfolg && <ErfolgsAnzeige onClose={() => setErfolg(false)} />}
     </div>
   );
 }
