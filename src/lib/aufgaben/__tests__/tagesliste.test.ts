@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { einzeilig, istListenBefehl, leseErledigt, listenText, sortiere } from '../tagesliste';
+import { einzeilig, imFenster, istListenBefehl, leseErledigt, listenText, sortiere } from '../tagesliste';
 
 describe('leseErledigt', () => {
   it('erkennt einzelne und mehrere Nummern', () => {
@@ -8,6 +8,9 @@ describe('leseErledigt', () => {
     expect(leseErledigt('erledigt 1, 3 und 4')).toEqual([1, 3, 4]);
     expect(leseErledigt('done 2!')).toEqual([2]);
     expect(leseErledigt('erledigt: 5')).toEqual([5]);
+    expect(leseErledigt('erledigt 2 👍')).toEqual([2]);
+    expect(leseErledigt('2 erledigt')).toEqual([2]);
+    expect(leseErledigt('1 und 3 erledigt ✅')).toEqual([1, 3]);
   });
   it('ignoriert normalen Text', () => {
     expect(leseErledigt('erledigt')).toBeNull();
@@ -47,5 +50,16 @@ describe('Listen', () => {
     expect(istListenBefehl('Liste')).toBe(true);
     expect(istListenBefehl('meine aufgaben?')).toBe(true);
     expect(istListenBefehl('liste bitte die Kunden')).toBe(false);
+  });
+});
+
+describe('Versandfenster', () => {
+  it('nur Mo–Fr 7:30–10 Uhr Berlin', () => {
+    expect(imFenster(new Date('2026-10-09T05:45:00Z'))).toBe(true); // Fr 7:45 (Sommerzeit)
+    expect(imFenster(new Date('2026-10-09T05:15:00Z'))).toBe(false); // Fr 7:15
+    expect(imFenster(new Date('2026-10-09T08:30:00Z'))).toBe(false); // Fr 10:30
+    expect(imFenster(new Date('2026-10-09T08:30:00Z'), 11)).toBe(true);
+    expect(imFenster(new Date('2026-10-10T06:00:00Z'))).toBe(false); // Samstag
+    expect(imFenster(new Date('2026-11-09T06:45:00Z'))).toBe(true); // Mo 7:45 (Winterzeit)
   });
 });

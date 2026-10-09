@@ -23,7 +23,7 @@ export function VersionVergleich({ versionen }: { versionen: V[] }) {
   const b = useRef<HTMLVideoElement>(null);
 
   const sync = () => {
-    if (a.current && b.current && Math.abs(a.current.currentTime - b.current.currentTime) > 0.08) b.current.currentTime = a.current.currentTime;
+    if (a.current && b.current && Math.abs(a.current.currentTime - b.current.currentTime) > 0.25) b.current.currentTime = a.current.currentTime;
   };
   useTastenkuerzel(a, {});
 
@@ -77,7 +77,22 @@ export function VersionVergleich({ versionen }: { versionen: V[] }) {
         <div>
           {auswahl(rechts, setRechts)}
           {/* rechts stumm, damit der Ton nicht doppelt läuft */}
-          <video ref={b} key={`b-${rechts}`} src={url(rechts)} playsInline muted className="mt-1.5 aspect-video w-full rounded-xl bg-black" />
+          <video
+            ref={b}
+            key={`b-${rechts}`}
+            src={url(rechts)}
+            playsInline
+            muted
+            className="mt-1.5 aspect-video w-full rounded-xl bg-black"
+            onLoadedMetadata={(e) => {
+              // Neu gewählte Version übernimmt Position, Tempo und Wiedergabe vom linken Player
+              const l = a.current;
+              if (!l) return;
+              e.currentTarget.currentTime = l.currentTime;
+              e.currentTarget.playbackRate = l.playbackRate;
+              if (!l.paused) void e.currentTarget.play();
+            }}
+          />
         </div>
       </div>
       <div className="mt-2 flex items-center gap-3">

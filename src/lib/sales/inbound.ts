@@ -92,25 +92,20 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     }
   }
 
-  // Antwort auf die Morgenliste („erledigt 2“) oder „liste“ von einem internen Nutzer
-  if (msg.type === 'text' || msg.type === 'button') {
-    const { leseErledigt, istListenBefehl } = await import('@/lib/aufgaben/tagesliste');
-    if (leseErledigt(text) || istListenBefehl(text)) {
-      const { internerNutzerZuNummer } = await import('@/lib/aufgaben/whatsapp-diktat');
-      const intern = await internerNutzerZuNummer(svc, senderPhone);
-      if (intern) {
-        const { error: jobErr } = await svc.from('scheduled_jobs').insert({
-          agency_id: agencyId,
-          type: 'aufgaben.whatsapp_befehl',
-          run_at: new Date().toISOString(),
-          payload: { user_id: intern.id, phone: senderPhone, message_id: msg.id, text },
-          status: 'pending',
-          dedupe_key: `aufgaben.whatsapp_befehl:${msg.id}`,
-        });
-        if (jobErr && jobErr.code !== '23505') throw new Error(`Befehl nicht eingeplant: ${jobErr.message}`);
-        return;
-      }
-    }
+  // Teammitglied (Nummer im Profil): „erledigt 2“, „liste“ – alles andere bekommt eine kurze Hilfe, wird aber nie zum Lead
+  const { internerNutzerZuNummer: istIntern } = await import('@/lib/aufgaben/whatsapp-diktat');
+  const intern = await istIntern(svc, senderPhone);
+  if (intern) {
+    const { error: jobErr } = await svc.from('scheduled_jobs').insert({
+      agency_id: agencyId,
+      type: 'aufgaben.whatsapp_befehl',
+      run_at: new Date().toISOString(),
+      payload: { user_id: intern.id, phone: senderPhone, message_id: msg.id, text },
+      status: 'pending',
+      dedupe_key: `aufgaben.whatsapp_befehl:${msg.id}`,
+    });
+    if (jobErr && jobErr.code !== '23505') throw new Error(`Befehl nicht eingeplant: ${jobErr.message}`);
+    return;
   }
 
   // Prospect über die Nummer finden (angelegt bei der Calendly-Buchung)

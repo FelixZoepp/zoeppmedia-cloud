@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { ladeErlaubteAufgabe } from '@/lib/aufgaben/zugriff-aufgabe';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +19,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!profile || (profile.role !== 'admin' && profile.role !== 'employee')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  // Gleiche Sichtbarkeit wie auf den Boards (persönliche Boards anderer nur für Admins)
+  const zugriff = await ladeErlaubteAufgabe(createAdminClient(), id, { id: user.id, role: profile.role });
+  if ('fehler' in zugriff) return NextResponse.json({ error: zugriff.fehler }, { status: zugriff.status });
 
   const { data, error } = await supabase
     .from('task_comments')
@@ -44,6 +49,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!profile || (profile.role !== 'admin' && profile.role !== 'employee')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  // Gleiche Sichtbarkeit wie auf den Boards (persönliche Boards anderer nur für Admins)
+  const zugriff = await ladeErlaubteAufgabe(createAdminClient(), id, { id: user.id, role: profile.role });
+  if ('fehler' in zugriff) return NextResponse.json({ error: zugriff.fehler }, { status: zugriff.status });
 
   const { text } = await req.json();
   if (!text?.trim()) {

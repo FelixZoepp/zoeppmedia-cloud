@@ -55,6 +55,7 @@ interface Daten {
     aktuelle_version: number;
     faellig_am: string | null;
     kunden_status: 'offen' | 'freigegeben' | 'aenderungen' | null;
+    kunden_version: number | null;
   };
   kundenLink: string | null;
   versionen: Version[];
@@ -162,7 +163,7 @@ export function VideoDetail({ id }: { id: string }) {
         setBereichBis(s);
       },
     },
-    !vergleich,
+    !vergleich && modal === null,
   );
 
   const kommentarAendern = async (k: Kommentar, patch: Partial<Kommentar>) => {
@@ -464,6 +465,10 @@ export function VideoDetail({ id }: { id: string }) {
                   if (bereichBis === null) setKommentarZeit(player.current?.currentTime ?? zeit);
                 }}
                 onChange={(e) => setText(e.target.value)}
+                onBlur={() => {
+                  // Leeres Feld verlassen → kein veralteter Startpunkt für später
+                  if (!text.trim() && bereichBis === null) setKommentarZeit(null);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void kommentieren();
                 }}
@@ -564,8 +569,13 @@ export function VideoDetail({ id }: { id: string }) {
           videoId={v.id}
           link={d.kundenLink}
           kundenStatus={v.kunden_status}
+          kundenVersion={v.kunden_version}
+          aktuelleVersion={v.aktuelle_version}
+          darf={darfEntscheiden}
           onClose={() => setModal(null)}
-          onAenderung={(link) => setD((alt) => (alt ? { ...alt, kundenLink: link, video: { ...alt.video, kunden_status: link ? alt.video.kunden_status ?? 'offen' : alt.video.kunden_status } } : alt))}
+          onAenderung={(e) =>
+            setD((alt) => (alt ? { ...alt, kundenLink: e.url, video: { ...alt.video, kunden_version: e.kunden_version, kunden_status: e.kunden_status as Daten['video']['kunden_status'] } } : alt))
+          }
         />
       )}
       {modal === 'kuerzel' && (

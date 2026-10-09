@@ -44,9 +44,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const svc = createAdminClient();
-  const { data: alt } = await svc.from('videos').select('id, titel, status, bearbeiter_id, pruefer_id, aktuelle_version').eq('id', id).maybeSingle();
+  const { data: alt } = await svc.from('videos').select('id, titel, status, bearbeiter_id, pruefer_id, aktuelle_version, kunden_version').eq('id', id).maybeSingle();
   if (!alt) return NextResponse.json({ error: 'Video nicht gefunden' }, { status: 404 });
-  const v = alt as { id: string; titel: string; status: string; bearbeiter_id: string | null; pruefer_id: string | null; aktuelle_version: number };
+  const v = alt as { id: string; titel: string; status: string; bearbeiter_id: string | null; pruefer_id: string | null; aktuelle_version: number; kunden_version: number | null };
   const istPruefer = user.role === 'admin' || v.pruefer_id === user.id;
   // Freigeben / Änderungen anfordern nur durch den Prüfer oder einen Admin
   if ((b.status === 'freigegeben' || b.status === 'aenderungen') && !istPruefer) {
@@ -67,6 +67,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (typeof b.status === 'string' && b.status in VIDEO_STATUS) {
     patch.status = b.status;
     patch.freigegeben_am = b.status === 'freigegeben' ? new Date().toISOString() : null;
+    // Intern freigegeben + Kunden-Link vorhanden → Kunde bekommt jetzt diese Version und entscheidet neu
+    if (b.status === 'freigegeben' && v.kunden_version !== null && v.kunden_version !== v.aktuelle_version) {
+      patch.kunden_version = v.aktuelle_version;
+      patch.kunden_status = 'offen';
+      patch.kunden_entscheidung_am = null;
+    }
   }
   const { data, error } = await svc.from('videos').update(patch).eq('id', id).select('*, agencies(name)').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

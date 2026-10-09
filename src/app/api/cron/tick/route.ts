@@ -329,7 +329,7 @@ export async function GET(request: NextRequest) {
         }
         case 'aufgaben.tagesliste': {
           const { sendeTageslisten } = await import('@/lib/aufgaben/tagesliste');
-          console.log('[tagesliste]', JSON.stringify(await sendeTageslisten(svc)));
+          console.log('[tagesliste]', JSON.stringify(await sendeTageslisten(svc, new Date(), (payload as { tag?: string }).tag)));
           break;
         }
         case 'aufgaben.whatsapp_befehl': {

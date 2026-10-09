@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+// Absender in diesen Tests sind nie Teammitglieder
+vi.mock('@/lib/aufgaben/whatsapp-diktat', () => ({
+  internerNutzerZuNummer: vi.fn(async () => null),
+  istTextDiktat: vi.fn(() => null),
+}));
 vi.mock('@/lib/notifications/create', () => ({
   createNotificationForInternals: vi.fn().mockResolvedValue(undefined),
 }));

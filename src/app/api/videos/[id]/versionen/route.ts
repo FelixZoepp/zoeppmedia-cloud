@@ -33,8 +33,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error || !neu) return NextResponse.json({ error: error?.message ?? 'Version konnte nicht angelegt werden' }, { status: 500 });
   const nr = neu.nr;
   const version = { id: neu.version_id };
-  // Hatte der Kunde schon entschieden, wartet die neue Version wieder auf ihn
-  await svc.from('videos').update({ kunden_status: 'offen', kunden_entscheidung_am: null }).eq('id', id).not('kunden_status', 'is', null);
   const pruefer = v.pruefer_id ?? (await standardPruefer(svc));
   await meldeVideo(svc, pruefer, user.id, id, `Neue Version ${nr}: ${v.titel}`, `Von ${user.name ?? 'Team'} – bereit zur Prüfung`);
   return NextResponse.json({ version_id: version.id, version: nr });

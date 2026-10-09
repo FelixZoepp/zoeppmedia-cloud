@@ -1,5 +1,6 @@
 /**
- * Kunden-Freigabelink (wie Frame.io-Review-Link): Der Kunde sieht ohne Login die aktuelle Version,
+ * Kunden-Freigabelink (wie Frame.io-Review-Link): Der Kunde sieht ohne Login die für ihn freigeschaltete Version
+ * (videos.kunden_version – wird beim internen „Freigeben“ bzw. bewusst per „an Kunden geben“ weitergeschaltet),
  * kommentiert zeitgenau mit seinem Namen und gibt frei oder fordert Änderungen an.
  * Interne Kommentare sieht er nicht. Bearbeiter + Prüfer werden benachrichtigt.
  */
@@ -38,10 +39,11 @@ export async function ladeLink(svc: SupabaseClient, token: string): Promise<{ vi
 export async function ladeFreigabe(svc: SupabaseClient, token: string): Promise<FreigabeDaten | null> {
   const link = await ladeLink(svc, token);
   if (!link) return null;
-  const { data: v } = await svc.from('videos').select('id, titel, aktuelle_version, kunden_status, agencies(name)').eq('id', link.video_id).maybeSingle();
-  const video = v as { id: string; titel: string; aktuelle_version: number; kunden_status: KundenStatus | null; agencies: { name: string } | null } | null;
+  const { data: v } = await svc.from('videos').select('id, titel, aktuelle_version, kunden_version, kunden_status, agencies(name)').eq('id', link.video_id).maybeSingle();
+  const video = v as { id: string; titel: string; aktuelle_version: number; kunden_version: number | null; kunden_status: KundenStatus | null; agencies: { name: string } | null } | null;
   if (!video) return null;
-  const { data: ver } = await svc.from('video_versionen').select('id, storage_pfad, dauer_s').eq('video_id', video.id).eq('version', video.aktuelle_version).maybeSingle();
+  const nr = video.kunden_version ?? video.aktuelle_version;
+  const { data: ver } = await svc.from('video_versionen').select('id, storage_pfad, dauer_s').eq('video_id', video.id).eq('version', nr).maybeSingle();
   const version = ver as { id: string; storage_pfad: string; dauer_s: number | null } | null;
   if (!version) return null;
   const [{ data: signiert }, { data: k }] = await Promise.all([
@@ -57,12 +59,17 @@ export async function ladeFreigabe(svc: SupabaseClient, token: string): Promise<
   ]);
   return {
     token,
-    video: { id: video.id, titel: video.titel, kunde: video.agencies?.name ?? null, kunden_status: video.kunden_status, version: video.aktuelle_version },
+    video: { id: video.id, titel: video.titel, kunde: video.agencies?.name ?? null, kunden_status: video.kunden_status, version: nr },
     versionId: version.id,
     url: signiert?.signedUrl ?? null,
     dauer_s: version.dauer_s,
     kommentare: (k ?? []) as FreigabeDaten['kommentare'],
   };
+}
+
+/** Link verwalten / Version an den Kunden geben: nur Prüfer oder Admin (sonst ließe sich die Prüfer-Freigabe umgehen) */
+export function darfKundenLink(user: { id: string; role: string }, video: { pruefer_id: string | null }): boolean {
+  return user.role === 'admin' || video.pruefer_id === user.id;
 }
 
 /** Bearbeiter + Prüfer informieren */

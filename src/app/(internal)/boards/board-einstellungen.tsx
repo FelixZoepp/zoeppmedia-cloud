@@ -35,12 +35,16 @@ export function BoardEinstellungen({ board, onClose, onGespeichert }: { board: B
         {istTeam && (
           <>
             <div>
-              <label className={label}>Name</label>
-              <input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+              <label htmlFor="board-name" className={label}>
+                Name
+              </label>
+              <input id="board-name" className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
             </div>
             <div>
-              <label className={label}>Beschreibung</label>
-              <input className={inputCls} placeholder="Wofür ist das Board?" value={f.beschreibung} onChange={(e) => setF({ ...f, beschreibung: e.target.value })} />
+              <label htmlFor="board-beschreibung" className={label}>
+                Beschreibung
+              </label>
+              <input id="board-beschreibung" className={inputCls} placeholder="Wofür ist das Board?" value={f.beschreibung} onChange={(e) => setF({ ...f, beschreibung: e.target.value })} />
             </div>
           </>
         )}
@@ -53,7 +57,8 @@ export function BoardEinstellungen({ board, onClose, onGespeichert }: { board: B
                 type="button"
                 onClick={() => setF({ ...f, farbe: k })}
                 className={`h-8 w-8 rounded-full ${cls} ${f.farbe === k ? 'ring-2 ring-gray-900 ring-offset-2' : ''}`}
-                aria-label={k}
+                aria-label={`Farbe ${k}`}
+                aria-pressed={f.farbe === k}
               />
             ))}
           </div>
@@ -63,7 +68,7 @@ export function BoardEinstellungen({ board, onClose, onGespeichert }: { board: B
             <button
               type="button"
               disabled={speichert}
-              onClick={() => confirm(`„${board.name}“ archivieren? Die Aufgaben bleiben erhalten, das Board verschwindet aus der Liste und kann wiederhergestellt werden.`) && senden({ archiviert: true })}
+              onClick={() => confirm(`„${board.name}“ archivieren? Das geht nur, wenn keine offenen Aufgaben mehr darauf liegen. Das Board verschwindet aus der Liste und kann wiederhergestellt werden.`) && senden({ archiviert: true })}
               className="inline-flex items-center gap-1.5 text-[13px] text-red-700 hover:underline"
             >
               <Archive className="h-4 w-4" /> Archivieren

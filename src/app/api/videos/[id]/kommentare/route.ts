@@ -10,8 +10,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const b = (await req.json().catch(() => ({}))) as { version_id?: string; zeit_s?: number | null; zeit_bis_s?: number | null; text?: string };
   const text = b.text?.trim();
   if (!text) return NextResponse.json({ error: 'Kommentar ist leer' }, { status: 400 });
-  const zeitS = typeof b.zeit_s === 'number' && Number.isFinite(b.zeit_s) && b.zeit_s >= 0 ? Math.round(b.zeit_s * 10) / 10 : null;
-  const bis = typeof b.zeit_bis_s === 'number' && Number.isFinite(b.zeit_bis_s) ? Math.round(b.zeit_bis_s * 10) / 10 : null;
+  const zeitS = typeof b.zeit_s === 'number' && Number.isFinite(b.zeit_s) && b.zeit_s >= 0 ? Math.round(b.zeit_s * 100) / 100 : null;
+  const bis = typeof b.zeit_bis_s === 'number' && Number.isFinite(b.zeit_bis_s) ? Math.round(b.zeit_bis_s * 100) / 100 : null;
   const { data, error } = await createAdminClient()
     .from('video_kommentare')
     .insert({

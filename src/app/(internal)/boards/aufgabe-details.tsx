@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Send, X } from 'lucide-react';
 import { Avatar } from '@/components/ui';
@@ -52,7 +52,14 @@ export function AufgabeDetails({
     };
   }, [aufgabeId]);
 
-  const melde = (p: Punkt[], k: Kommentar[]) => onZaehler({ check_gesamt: p.length, check_erledigt: p.filter((x) => x.erledigt).length, kommentare: k.length });
+  // Zähler an die Karte melden, sobald sich Checkliste oder Verlauf ändern
+  const meldeRef = useRef(onZaehler);
+  useEffect(() => {
+    meldeRef.current = onZaehler;
+  });
+  useEffect(() => {
+    if (punkte) meldeRef.current({ check_gesamt: punkte.length, check_erledigt: punkte.filter((x) => x.erledigt).length, kommentare: kommentare.length });
+  }, [punkte, kommentare]);
 
   const punktAnlegen = async () => {
     const text = neuPunkt.trim();
@@ -61,31 +68,23 @@ export function AufgabeDetails({
     const r = await fetch(`/api/boards/aufgaben/${aufgabeId}/checkliste`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
     const j = await r.json();
     if (!r.ok) return toast.error(j.error ?? 'Fehler');
-    const neu = [...punkte, j];
-    setPunkte(neu);
-    melde(neu, kommentare);
+    setPunkte((alt) => [...(alt ?? []), j]);
   };
 
   const punktAendern = async (p: Punkt, patch: Partial<Punkt>) => {
-    if (!punkte) return;
-    const neu = punkte.map((x) => (x.id === p.id ? { ...x, ...patch } : x));
-    setPunkte(neu);
-    melde(neu, kommentare);
+    const vorher = { ...p };
+    setPunkte((alt) => (alt ?? []).map((x) => (x.id === p.id ? { ...x, ...patch } : x)));
     const r = await fetch(`/api/boards/checkliste/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
     if (!r.ok) {
       toast.error('Nicht gespeichert');
-      setPunkte(punkte);
-      melde(punkte, kommentare);
+      setPunkte((alt) => (alt ?? []).map((x) => (x.id === p.id ? vorher : x)));
     }
   };
 
   const punktLoeschen = async (p: Punkt) => {
-    if (!punkte) return;
     const r = await fetch(`/api/boards/checkliste/${p.id}`, { method: 'DELETE' });
     if (!r.ok) return toast.error('Nicht gelöscht');
-    const neu = punkte.filter((x) => x.id !== p.id);
-    setPunkte(neu);
-    melde(neu, kommentare);
+    setPunkte((alt) => (alt ?? []).filter((x) => x.id !== p.id));
   };
 
   const kommentieren = async () => {
@@ -96,10 +95,8 @@ export function AufgabeDetails({
       const r = await fetch(`/api/boards/aufgaben/${aufgabeId}/kommentare`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? 'Fehler');
-      const neu = [...kommentare, j];
-      setKommentare(neu);
+      setKommentare((alt) => [...alt, j]);
       setNeuKommentar('');
-      melde(punkte ?? [], neu);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
     } finally {
@@ -128,7 +125,7 @@ export function AufgabeDetails({
             <li key={p.id} className="group flex items-center gap-2">
               <input type="checkbox" className="h-4 w-4" checked={p.erledigt} onChange={() => punktAendern(p, { erledigt: !p.erledigt })} aria-label={p.text} />
               <span className={`flex-1 text-[14px] ${p.erledigt ? 'text-gray-400 line-through' : ''}`}>{p.text}</span>
-              <button type="button" onClick={() => punktLoeschen(p)} className="text-gray-300 opacity-0 hover:text-red-700 group-hover:opacity-100" aria-label="Punkt löschen">
+              <button type="button" onClick={() => punktLoeschen(p)} className="text-gray-300 hover:text-red-700 sm:opacity-0 sm:group-hover:opacity-100" aria-label="Punkt löschen">
                 <X className="h-4 w-4" />
               </button>
             </li>

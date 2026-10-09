@@ -41,11 +41,15 @@ export function listenText(liste: ListenAufgabe[], heute: string, gesamt: number
   return `${teile.join(' · ')}${rest > 0 ? ` · und ${rest} weitere im Board` : ''}`;
 }
 
-/** „erledigt 2“, „erledigt 1, 3“, „Erledigt 1 und 4“, „done 2“ → [2] / [1,3] / [1,4]; sonst null */
+/** „erledigt 2“, „erledigt 1, 3 👍“, „Erledigt 1 und 4“, „2 erledigt“, „done 2“ → [2] / [1,3] / [1,4]; sonst null */
 export function leseErledigt(text: string): number[] | null {
-  const m = /^\s*(erledigt|fertig|done|erl\.?)\s*[:\-]?\s*([\d\s,.;&+und]+)\s*[.!✅]*\s*$/i.exec(text);
-  if (!m) return null;
-  const nummern = [...new Set((m[2].match(/\d+/g) ?? []).map(Number).filter((n) => n >= 1 && n <= 50))];
+  // Emojis/Satzzeichen am Ende ignorieren
+  const t = text.replace(/[^\p{L}\p{N}\s,.;:&+\-]+/gu, ' ').trim();
+  const vorne = /^(erledigt|fertig|done|erl\.?)\s*[:\-]?\s*((?:\d+\s*(?:,|;|&|\+|und|\.)?\s*)+)[.!]*$/i.exec(t);
+  const hinten = /^((?:\d+\s*(?:,|;|&|\+|und)?\s*)+)\s*(erledigt|fertig|done)[.!]*$/i.exec(t);
+  const zahlen = vorne?.[2] ?? hinten?.[1];
+  if (!zahlen) return null;
+  const nummern = [...new Set((zahlen.match(/\d+/g) ?? []).map(Number).filter((n) => n >= 1 && n <= 50))];
   return nummern.length ? nummern : null;
 }
 
@@ -58,12 +62,17 @@ function stundeMinute(jetzt: Date) {
   return { h: Number(p.hour), min: Number(p.minute), wt: p.weekday as string };
 }
 
+/** Versandfenster: Mo–Fr 7:30 bis 10 Uhr (Planung) – verspätete Jobs dürfen bis 11 Uhr noch senden */
+export function imFenster(jetzt: Date, bisStunde = 10): boolean {
+  const { h, min, wt } = stundeMinute(jetzt);
+  if (wt === 'Sat' || wt === 'Sun') return false;
+  const minuten = h * 60 + min;
+  return minuten >= 7 * 60 + 30 && minuten < bisStunde * 60;
+}
+
 /** Tick: Mo–Fr zwischen 7:30 und 10 Uhr einmal planen (spätere Deploys verschicken nichts mehr am selben Tag) */
 export async function planeTageslisten(svc: SupabaseClient, jetzt: Date = new Date()): Promise<void> {
-  const { h, min, wt } = stundeMinute(jetzt);
-  if (wt === 'Sat' || wt === 'Sun') return;
-  const minuten = h * 60 + min;
-  if (minuten < 7 * 60 + 30 || minuten >= 10 * 60) return;
+  if (!imFenster(jetzt)) return;
   const tag = berlinTag(jetzt);
   const { error } = await svc.from('scheduled_jobs').insert({
     agency_id: SALES_AGENCY_ID,
@@ -83,21 +92,26 @@ async function zugang(svc: SupabaseClient) {
   return { token: decryptSecret(a.access_token_enc), phoneNumberId: a.phone_number_id };
 }
 
-/** Offene Aufgaben einer Person, die heute fällig oder überfällig sind */
-export async function faelligeAufgaben(svc: SupabaseClient, userId: string, heute: string): Promise<ListenAufgabe[]> {
-  const { data } = await svc
+/** Offene Aufgaben einer Person, die heute fällig oder überfällig sind (älteste zuerst, max. 100 + Gesamtzahl) */
+export async function faelligeAufgaben(svc: SupabaseClient, userId: string, heute: string): Promise<{ liste: ListenAufgabe[]; gesamt: number }> {
+  const { data, count, error } = await svc
     .from('internal_tasks')
-    .select('id, title, due_date, priority')
+    .select('id, title, due_date, priority', { count: 'exact' })
     .eq('assigned_to', userId)
     .neq('status', 'done')
     .lte('due_date', heute)
-    .limit(200);
-  return sortiere((data ?? []) as ListenAufgabe[]);
+    .order('due_date', { ascending: true })
+    .limit(100);
+  if (error) throw new Error(`Aufgaben nicht ladbar: ${error.message}`);
+  const liste = sortiere((data ?? []) as ListenAufgabe[]);
+  return { liste, gesamt: Math.max(count ?? 0, liste.length) };
 }
 
 /** Job aufgaben.tagesliste – je Person höchstens einmal pro Tag (Eintrag in aufgaben_tageslisten zuerst beanspruchen) */
-export async function sendeTageslisten(svc: SupabaseClient, jetzt: Date = new Date()): Promise<{ gesendet: number; push: number; fehler: string[] }> {
+export async function sendeTageslisten(svc: SupabaseClient, jetzt: Date = new Date(), geplantFuer?: string): Promise<{ gesendet: number; push: number; fehler: string[]; uebersprungen?: string }> {
   const heute = berlinTag(jetzt);
+  // Verspäteter Job (Ausfall, Retry) → keine Morgenliste mittags, am Wochenende oder mit falschem Datum
+  if ((geplantFuer && geplantFuer !== heute) || !imFenster(jetzt, 11)) return { gesendet: 0, push: 0, fehler: [], uebersprungen: 'außerhalb des Versandfensters' };
   const team = await ladeTeam(svc);
   const { data: vorlage } = await svc
     .from('whatsapp_templates')
@@ -114,8 +128,7 @@ export async function sendeTageslisten(svc: SupabaseClient, jetzt: Date = new Da
 
   for (const u of team) {
     const nummer = normalizeToE164(u.phone);
-    // Ohne Handynummer und ohne freigegebene Vorlage gibt es nichts zu senden
-    const alle = await faelligeAufgaben(svc, u.id, heute);
+    const { liste: alle, gesamt } = await faelligeAufgaben(svc, u.id, heute);
     if (!alle.length) continue;
     const liste = alle.slice(0, MAX_LISTE);
     const { error: claimErr } = await svc.from('aufgaben_tageslisten').insert({ user_id: u.id, tag: heute, task_ids: liste.map((a) => a.id), gesendet_am: jetzt.toISOString() });
@@ -125,7 +138,7 @@ export async function sendeTageslisten(svc: SupabaseClient, jetzt: Date = new Da
       continue;
     }
     const vorname = einzeilig(u.name.split(' ')[0] || u.name, 30);
-    const text = listenText(liste, heute, alle.length);
+    const text = listenText(liste, heute, gesamt);
     try {
       if (tmpl && z && nummer) {
         await getProvider().sendMessage(z.phoneNumberId, z.token, {
@@ -138,7 +151,7 @@ export async function sendeTageslisten(svc: SupabaseClient, jetzt: Date = new Da
         const { createNotification } = await import('@/lib/notifications/create');
         await createNotification(svc, {
           user_id: u.id,
-          title: `☀️ ${alle.length === 1 ? '1 Aufgabe' : `${alle.length} Aufgaben`} für heute`,
+          title: `☀️ ${gesamt === 1 ? '1 Aufgabe' : `${gesamt} Aufgaben`} für heute`,
           body: text.slice(0, 200),
           type: 'task_due',
           push_url: '/boards',
@@ -166,12 +179,15 @@ export interface BefehlJob {
 export async function verarbeiteBefehl(svc: SupabaseClient, job: BefehlJob, jetzt: Date = new Date()): Promise<void> {
   const heute = berlinTag(jetzt);
   const { token, phoneNumberId } = await zugang(svc);
-  const antworte = (body: string) => getProvider().sendMessage(phoneNumberId, token, { to: job.phone, type: 'text', text: { body } }).catch((err) => console.error('[tagesliste] Antwort fehlgeschlagen', err));
+  // Fehler beim Antworten → Job wird wiederholt (Abhaken ist idempotent, die Antwort kommt dann erneut)
+  const antworte = async (body: string) => {
+    await getProvider().sendMessage(phoneNumberId, token, { to: job.phone, type: 'text', text: { body } });
+  };
 
   const nummern = leseErledigt(job.text);
   if (nummern) {
     // Bezug: die zuletzt verschickte Liste (heute, sonst die letzte der vergangenen 3 Tage)
-    const seit = new Date(jetzt.getTime() - 3 * 864e5).toISOString().slice(0, 10);
+    const seit = berlinTag(new Date(jetzt.getTime() - 3 * 864e5));
     const { data: l } = await svc.from('aufgaben_tageslisten').select('tag, task_ids').eq('user_id', job.user_id).gte('tag', seit).order('tag', { ascending: false }).limit(1).maybeSingle();
     const liste = l as { tag: string; task_ids: string[] } | null;
     if (!liste) {
@@ -184,31 +200,52 @@ export async function verarbeiteBefehl(svc: SupabaseClient, job: BefehlJob, jetz
       await antworte(`Die Nummer ${ungueltig.join(', ')} gibt es in deiner Liste nicht (1–${liste.task_ids.length}).`);
       return;
     }
-    const { data: tasks } = await svc.from('internal_tasks').select('id, title, status').in('id', ids);
-    const offen = ((tasks ?? []) as Array<{ id: string; title: string; status: string }>).filter((t) => t.status !== 'done');
+    // Nur Aufgaben, die (noch) dir zugewiesen sind – inzwischen umverteilte bleiben unangetastet
+    const { data: tasks, error: lErr } = await svc.from('internal_tasks').select('id, title, status').in('id', ids).eq('assigned_to', job.user_id);
+    if (lErr) throw new Error(`Aufgaben nicht ladbar: ${lErr.message}`);
+    const meine = (tasks ?? []) as Array<{ id: string; title: string; status: string }>;
+    const offen = meine.filter((t) => t.status !== 'done');
     if (offen.length) {
-      const { error } = await svc.from('internal_tasks').update({ status: 'done', erledigt_am: jetzt.toISOString() }).in('id', offen.map((t) => t.id)).neq('status', 'done');
+      const { error } = await svc
+        .from('internal_tasks')
+        .update({ status: 'done', erledigt_am: jetzt.toISOString(), updated_at: jetzt.toISOString() })
+        .in('id', offen.map((t) => t.id))
+        .eq('assigned_to', job.user_id)
+        .neq('status', 'done');
       if (error) throw new Error(`Abhaken fehlgeschlagen: ${error.message}`);
     }
-    const titel = ids.map((id) => ((tasks ?? []) as Array<{ id: string; title: string }>).find((t) => t.id === id)?.title).filter(Boolean);
-    const rest = (await faelligeAufgaben(svc, job.user_id, heute)).length;
+    const titel = ids.map((id) => meine.find((t) => t.id === id)?.title).filter(Boolean);
+    const fremd = nummern.filter((n) => liste.task_ids[n - 1] && !meine.some((t) => t.id === liste.task_ids[n - 1]));
+    const rest = (await faelligeAufgaben(svc, job.user_id, heute)).gesamt;
+    const hinweise = [
+      ungueltig.length ? `Nummer ${ungueltig.join(', ')} gibt es nicht.` : '',
+      fremd.length ? `Nummer ${fremd.join(', ')} ist nicht mehr dir zugewiesen – nicht abgehakt.` : '',
+    ].filter(Boolean);
     await antworte(
-      `✅ Erledigt: ${titel.join(', ')}${ungueltig.length ? `\n(Nummer ${ungueltig.join(', ')} gibt es nicht.)` : ''}\n\n${rest ? `Noch ${rest} fällig für heute.` : 'Alles für heute erledigt – stark! 🎉'}`,
+      `${titel.length ? `✅ Erledigt: ${titel.join(', ')}` : 'Nichts abgehakt.'}${hinweise.length ? `\n(${hinweise.join(' ')})` : ''}\n\n${rest ? `Noch ${rest} fällig für heute.` : 'Alles für heute erledigt – stark! 🎉'}`,
     );
     return;
   }
 
   if (istListenBefehl(job.text)) {
-    const alle = await faelligeAufgaben(svc, job.user_id, heute);
+    const { liste: alle, gesamt } = await faelligeAufgaben(svc, job.user_id, heute);
     if (!alle.length) {
       await antworte('Für heute ist nichts fällig. 🎉');
       return;
     }
     const liste = alle.slice(0, MAX_LISTE);
-    await svc.from('aufgaben_tageslisten').upsert({ user_id: job.user_id, tag: heute, task_ids: liste.map((a) => a.id), gesendet_am: jetzt.toISOString() }, { onConflict: 'user_id,tag' });
+    // Erst speichern, dann senden – sonst passt die Nummerierung von „erledigt N“ nicht zur verschickten Liste
+    const { error } = await svc.from('aufgaben_tageslisten').upsert({ user_id: job.user_id, tag: heute, task_ids: liste.map((a) => a.id), gesendet_am: jetzt.toISOString() }, { onConflict: 'user_id,tag' });
+    if (error) throw new Error(`Liste nicht gespeichert: ${error.message}`);
     const zeilen = liste.map((a, i) => `${i + 1}) ${a.title}${a.due_date && a.due_date < heute ? ' (überfällig)' : ''}`);
     await antworte(
-      `Deine Aufgaben für heute:\n${zeilen.join('\n')}${alle.length > liste.length ? `\n… und ${alle.length - liste.length} weitere im Board` : ''}\n\nAbhaken: „erledigt 2“ oder „erledigt 1 3“.`,
+      `Deine Aufgaben für heute:\n${zeilen.join('\n')}${gesamt > liste.length ? `\n… und ${gesamt - liste.length} weitere im Board` : ''}\n\nAbhaken: „erledigt 2“ oder „erledigt 1 3“.`,
     );
+    return;
   }
+
+  // Alles andere von einem Teammitglied: kurze Hilfe statt Vertriebs-Lead
+  await antworte(
+    'Hi! Das hier ist die Zoepp-Nummer. Für dich gehen:\n• Sprachnachricht oder „Aufgabe: …“ → legt Aufgaben an\n• „liste“ → deine Aufgaben für heute\n• „erledigt 2“ → Aufgabe 2 aus der Liste abhaken',
+  );
 }

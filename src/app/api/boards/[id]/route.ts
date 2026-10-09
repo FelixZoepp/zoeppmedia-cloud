@@ -22,8 +22,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (istTeam && typeof b.name === 'string' && b.name.trim()) patch.name = b.name.trim().slice(0, 80);
   if (istTeam && typeof b.beschreibung === 'string') patch.beschreibung = b.beschreibung.slice(0, 300) || null;
   if (typeof b.farbe === 'string' && FARBEN.includes(b.farbe)) patch.farbe = b.farbe;
-  if (istTeam && typeof b.archiviert === 'boolean') patch.archiviert = b.archiviert;
-  const { data, error } = await svc.from('aufgaben_boards').update(patch).eq('id', id).select('id, name, besitzer_id, beschreibung, farbe, sortierung, archiviert').single();
+  if (istTeam && typeof b.archiviert === 'boolean') {
+    if (b.archiviert) {
+      // Offene Aufgaben würden sonst auf keinem Board mehr auftauchen
+      const { count } = await svc.from('internal_tasks').select('id', { count: 'exact', head: true }).eq('board_id', id).neq('status', 'done');
+      if (count) return NextResponse.json({ error: `Auf dem Board sind noch ${count} offene Aufgaben – erst erledigen oder auf ein anderes Board verschieben.` }, { status: 409 });
+    }
+    patch.archiviert = b.archiviert;
+  }
+  const { data, error } = await svc.from('aufgaben_boards').update(patch).eq('id', id).select('id, name, besitzer_id, beschreibung, farbe, sortierung, archiviert, created_by').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

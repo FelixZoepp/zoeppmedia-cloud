@@ -21,7 +21,14 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
   const [mitZeit, setMitZeit] = useState(true);
   const [sendet, setSendet] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [entscheidung, setEntscheidung] = useState<'freigegeben' | 'aenderungen' | null>(null);
+  const [entscheidung, setEntscheidungRoh] = useState<'freigegeben' | 'aenderungen' | null>(null);
+  // Namensfeld im Dialog bleibt sichtbar, solange der Dialog offen ist (nicht nach dem ersten Buchstaben verschwinden)
+  const [fragtName, setFragtName] = useState(false);
+  const setEntscheidung = (e: 'freigegeben' | 'aenderungen' | null) => {
+    setFragtName(!!e && !name.trim());
+    setEntscheidungRoh(e);
+  };
+  const neuGeladen = useRef(false);
   const [notiz, setNotiz] = useState('');
   const [kuerzel, setKuerzel] = useState(false);
   const player = useRef<HTMLVideoElement>(null);
@@ -46,7 +53,9 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
     }
   };
 
-  useTastenkuerzel(player, {
+  useTastenkuerzel(
+    player,
+    {
     onKommentar: () => {
       setVon(player.current?.currentTime ?? zeit);
       setMitZeit(true);
@@ -60,7 +69,9 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
       setVon((a) => (a !== null && a < s ? a : Math.max(0, s - 2)));
       setBis(s);
     },
-  });
+    },
+    !entscheidung,
+  );
 
   const senden = async (body: Record<string, unknown>) => {
     setSendet(true);
@@ -83,7 +94,7 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
   };
 
   const kommentieren = async () => {
-    if (!text.trim() || !name.trim()) return;
+    if (!text.trim() || !name.trim() || sendet) return;
     const zeitS = mitZeit ? (von ?? zeit) : null;
     const j = await senden({ aktion: 'kommentar', text, zeit_s: zeitS, zeit_bis_s: zeitS !== null && bis !== null && bis > zeitS ? bis : null });
     if (!j) return;
@@ -152,6 +163,12 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
               className="max-h-[70vh] w-full rounded-xl bg-black"
               onTimeUpdate={(e) => setZeit(e.currentTarget.currentTime)}
               onLoadedMetadata={(e) => setDauer(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : null)}
+              onError={() => {
+                // Signierte Adresse abgelaufen (Seite länger offen) → einmal neu laden
+                if (neuGeladen.current) return;
+                neuGeladen.current = true;
+                window.location.reload();
+              }}
             />
           ) : (
             <p className="p-6 text-gray-500">Video gerade nicht verfügbar – bitte Seite neu laden.</p>
@@ -199,6 +216,9 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
                 if (bis === null) setVon(player.current?.currentTime ?? zeit);
               }}
               onChange={(e) => setText(e.target.value)}
+              onBlur={() => {
+                if (!text.trim() && bis === null) setVon(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void kommentieren();
               }}
@@ -256,7 +276,7 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
                 ? `Damit gibst du Version ${d.video.version} frei. Wir bereiten alles für die Veröffentlichung vor.`
                 : 'Wir setzen deine Kommentare um und schicken dir die neue Version über diesen Link.'}
             </p>
-            {!name.trim() && <input className="mt-3 h-10 w-full rounded-lg border border-gray-300 px-3 text-[14px]" placeholder="Dein Name" value={name} onChange={(e) => merkeName(e.target.value)} />}
+            {fragtName && <input className="mt-3 h-10 w-full rounded-lg border border-gray-300 px-3 text-[14px]" placeholder="Dein Name" value={name} onChange={(e) => merkeName(e.target.value)} />}
             <textarea
               className="mt-3 min-h-[70px] w-full rounded-lg border border-gray-300 p-2.5 text-[14px]"
               placeholder={entscheidung === 'freigegeben' ? 'Noch etwas für uns? (optional)' : 'Was sollen wir allgemein ändern? (optional)'}
