@@ -167,6 +167,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Close-Webhook nicht aktualisiert:', err);
   }
 
+  // Video-Freigabe: Sammelerinnerung an die Prüfer (einmal täglich ab 17 Uhr)
+  try {
+    const { planeVideoErinnerung } = await import('@/lib/videos/ablauf');
+    await planeVideoErinnerung(svc);
+  } catch (err) {
+    console.error('[tick] Video-Erinnerung nicht geplant:', err);
+  }
+
   // Wiederkehrende Board-Aufgaben (einmal täglich ab 5 Uhr)
   try {
     const { planeSerien } = await import('@/lib/aufgaben/serien');
@@ -294,6 +302,11 @@ export async function GET(request: NextRequest) {
         case 'close.einrichtung': {
           const { fuehreCloseEinrichtungAus } = await import('@/lib/sales/close-einrichtung');
           await fuehreCloseEinrichtungAus(svc, (payload as { was: string }).was);
+          break;
+        }
+        case 'videos.erinnerung': {
+          const { erinnerePruefer } = await import('@/lib/videos/ablauf');
+          await erinnerePruefer(svc);
           break;
         }
         case 'aufgaben.serien': {
