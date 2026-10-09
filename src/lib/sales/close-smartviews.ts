@@ -43,6 +43,7 @@ const STATUS = {
   leadpool: 'stat_sgDNPr29uwT7tMPTxzQKW6DDCjbM2JMZzdX3UpeRGLb',
   interessiert: 'stat_Qzunur5ekjXNVsgsWoZbgSAlpdnnLAIQkVnz1ihrElY',
   settingNoShow: 'stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7',
+  closingNoShow: 'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG',
   settingFollowUp: 'stat_EWpujNpwdtq5HSFAMO6c0awZUVgsz6TfO1ZXe5Ff8IT',
   closingFollowUp: 'stat_qdOAuGHxRx66Mk45E58gOOXnceL04Iouh6nAuoEXyjy',
   angebot: 'stat_rfJv0gUGFIaEo2LQc7CkKKjSjabGuE509yRR0gZjozP',
@@ -141,6 +142,12 @@ export function smartViews(closingTerminFeld: string | null, kunden: CloseKunden
       id: 'save_jKY5Hy9jR7EC2e78fElz1CNJ9fNFULDLtBNLszK15d7',
       name: '❌2.1 (QC) Setting No-Show zurückholen',
       s_query: sQuery(and(deal(STATUS.settingNoShow), nichtGesperrt)),
+    },
+    {
+      // Nach „nicht erreicht“ im Follow-up-Protokoll 1 Tag gesperrt → so lange nicht in der Liste
+      id: 'save_hHK1L1FDdyCjl92Q2HB8RBHghLfCDVdNWIJvbzYcgVw',
+      name: '❌1.1 (SC) Closings No-Show nachfassen',
+      s_query: sQuery(and(deal(STATUS.closingNoShow), nichtGesperrt), [sortierung('date_updated', 'asc')]),
     },
     {
       name: '🔥 3.0 Neu eingetragen – sofort anrufen',

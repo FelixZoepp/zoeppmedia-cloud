@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { regelnTerminierung, TERMINIERUNG_FELDER as F } from '../protokolle';
+import { FOLLOWUP_FELDER_IDS, regelnFollowUp, regelnTerminierung, TERMINIERUNG_FELDER as F } from '../protokolle';
 
 const jetzt = new Date('2026-10-08T10:00:00Z');
 const r = (f: Record<string, string | null>) => regelnTerminierung(f, jetzt);
@@ -38,5 +38,22 @@ describe('regelnTerminierung', () => {
   it('Unqualifiziert (3 Monate gesperrt) / Bad Data → Status + offene Opportunities verloren', () => {
     expect(r({ [F.ergebnis]: 'Unqualifiziert' })).toEqual({ leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: '2027-01-08T10:00:00.000Z' });
     expect(r({ [F.ergebnis]: 'Bad Data / Falsche Nummer' })).toEqual({ leadStatus: 'bad_data', oppsVerloren: true });
+  });
+});
+
+describe('regelnFollowUp', () => {
+  const jetzt = new Date('2026-10-09T10:00:00Z');
+  const F = FOLLOWUP_FELDER_IDS;
+  it('nicht erreicht → 1 Tag gesperrt', () => {
+    expect(regelnFollowUp({ [F.erreicht]: 'Nein / Mailbox' }, jetzt)).toEqual({ gesperrtBis: '2026-10-10T10:00:00.000Z' });
+    expect(regelnFollowUp({ [F.ergebnis]: 'Nicht erreicht' }, jetzt)).toEqual({ gesperrtBis: '2026-10-10T10:00:00.000Z' });
+  });
+  it('nicht erreicht mit Kalender → bis Kalender', () => {
+    expect(regelnFollowUp({ [F.erreicht]: 'Nein / Mailbox', [F.kalender]: '2026-10-13T08:00:00Z' }, jetzt)).toEqual({ gesperrtBis: '2026-10-13T08:00:00.000Z' });
+  });
+  it('weiter Follow-up mit Kalender → bis Kalender, ohne Kalender keine Sperre', () => {
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Weiter Follow-up', [F.kalender]: '2026-10-15T08:00:00Z' }, jetzt)).toEqual({ gesperrtBis: '2026-10-15T08:00:00.000Z' });
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Weiter Follow-up' }, jetzt)).toEqual({});
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Erstgespräch gelegt' }, jetzt)).toEqual({});
   });
 });

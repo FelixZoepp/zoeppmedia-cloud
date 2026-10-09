@@ -10,6 +10,11 @@
  * - Unqualifiziert / Bad Data → Lead-Status entsprechend, offene Opportunities „Verloren“
  * Ein gesetzter Kalender im Protokoll gilt immer als „gesperrt bis“ (außer bei Setting/Unqualifiziert/Bad Data).
  *
+ * „Follow-up-Protokoll“ (Setting-/Closing-Follow-up, No-Show-Rückholung):
+ * - Nicht erreicht („Erreicht?“ = Nein / Mailbox oder Ergebnis „Nicht erreicht“) → Lead gesperrt bis Kalender, sonst 1 Tag
+ *   → verschwindet so lange aus den Smart Views (z. B. „Setting No-Show zurückholen“)
+ * - „Weiter Follow-up“ mit Kalender → gesperrt bis zum Kalender-Termin
+ *
  * Jedes Protokoll (alle Typen) landet in close_protokolle – für Auswertungen je Person und Tag.
  * Ablauf: Close-Webhook activity.custom_activity → Job sales.protokoll (dedupe je Aktivität) → hier.
  */
@@ -28,6 +33,12 @@ export const TERMINIERUNG_FELDER = {
   einwand: 'cf_LrfCv9jCiQOAkx4EaBAa3E3rzA5NIfa4CIfWT2rwuhe',
   kalender: 'cf_M9ZoB7v81dzKGCHLAu43qVAmNKhZ94TIXskUxLEQPBA',
   gelegtAuf: 'cf_IyliLY3PMMXOVdqlG83hpCesfo9N5R98AYxsiFF5T0p',
+} as const;
+
+export const FOLLOWUP_FELDER_IDS = {
+  erreicht: 'cf_Cua7sMxQ2f21XKBBaWBNcb0eDpWpGkLDkLcKlt0nihI',
+  ergebnis: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
+  kalender: 'cf_TXou3dAspi00xZ6gcrT0wXGoWq7IgDMBAJcXqcHszCR',
 } as const;
 
 const LEAD_FELD_GESPERRT_BIS = 'cf_ivdENLjTV0OBF9z2It0W5CikYZMBZbE54BgcbINdO9S';
@@ -81,6 +92,18 @@ export function regelnTerminierung(felder: Record<string, string | null>, jetzt:
     return { gesperrtBis: bisKalender ?? morgen, termin: gk.startsWith('Rückruf') ? kalender : null };
   }
   return bisKalender ? { gesperrtBis: bisKalender } : {};
+}
+
+/** Regeln für das Follow-up-Protokoll (rein, testbar) */
+export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Date): Aktionen {
+  const erreicht = felder[FOLLOWUP_FELDER_IDS.erreicht] ?? '';
+  const ergebnis = felder[FOLLOWUP_FELDER_IDS.ergebnis] ?? '';
+  const kalender = felder[FOLLOWUP_FELDER_IDS.kalender] || null;
+  const morgen = new Date(jetzt.getTime() + TAG).toISOString();
+  const bisKalender = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : null;
+  if (erreicht.startsWith('Nein') || ergebnis.startsWith('Nicht erreicht')) return { gesperrtBis: bisKalender ?? morgen };
+  if (ergebnis.startsWith('Weiter Follow-up') && bisKalender) return { gesperrtBis: bisKalender };
+  return {};
 }
 
 /* ── Close ─────────────────────────────────────────────────────── */
@@ -152,7 +175,7 @@ function felderAus(a: CloseCustomActivity): Record<string, string | null> {
   return felder;
 }
 
-/** Job sales.protokoll: Protokoll laden, speichern und (bei Terminierung) die Regeln in Close umsetzen */
+/** Job sales.protokoll: Protokoll laden, speichern und (bei Terminierung / Follow-up) die Regeln in Close umsetzen */
 export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: string, jetzt: Date = new Date()): Promise<string> {
   const a = await closeJson<CloseCustomActivity>(`/activity/custom/${activityId}/`);
   if (a.status && a.status !== 'published') return 'entwurf';
@@ -164,13 +187,16 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   // Schon umgesetzt? Nur erneut ausführen, wenn sich das ausschlaggebende Ergebnis geändert hat (Korrektur im Protokoll)
   const { data: vorhanden } = await svc.from('close_protokolle').select('id, aktionen').eq('id', a.id).maybeSingle();
   const alteAktionen = (vorhanden as { aktionen: { schluessel?: string } | null } | null)?.aktionen ?? null;
-  const schluessel = [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender]
-    .map((f) => felder[f] ?? '')
-    .join('|');
+  const schluesselFelder =
+    typ === 'follow_up'
+      ? [FOLLOWUP_FELDER_IDS.erreicht, FOLLOWUP_FELDER_IDS.ergebnis, FOLLOWUP_FELDER_IDS.kalender]
+      : [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender];
+  const schluessel = schluesselFelder.map((f) => felder[f] ?? '').join('|');
 
   let aktionen: Record<string, unknown> | null = null;
-  if (typ === 'terminierung' && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
-    aktionen = { ...(await fuehreAus(a.lead_id, regelnTerminierung(felder, jetzt), a.user_id)), schluessel };
+  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : null;
+  if (regeln && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
+    aktionen = { ...(await fuehreAus(a.lead_id, regeln(felder, jetzt), a.user_id)), schluessel };
   }
 
   const { error } = await svc.from('close_protokolle').upsert({
