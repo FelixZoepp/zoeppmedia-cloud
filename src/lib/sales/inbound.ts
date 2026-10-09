@@ -73,6 +73,23 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
   const senderPhone = msg.from.startsWith('+') ? msg.from : `+${msg.from}`;
   const text = inboundText(msg);
 
+  // Aufgaben-Diktat: Sprachnachricht oder „Aufgabe: …“ von einem internen Nutzer → Aufgaben auf den Boards
+  if (msg.type === 'audio' || /^\s*(aufgaben?|to-?dos?)\s*[:\-–]/i.test(text)) {
+    const { internerNutzerZuNummer, istTextDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
+    const intern = await internerNutzerZuNummer(svc, senderPhone);
+    if (intern) {
+      await svc.from('scheduled_jobs').insert({
+        agency_id: agencyId,
+        type: 'aufgaben.whatsapp_diktat',
+        run_at: new Date().toISOString(),
+        payload: { user_id: intern.id, phone: senderPhone, media_id: msg.audio?.id, text: msg.type === 'audio' ? undefined : istTextDiktat(text) ?? text },
+        status: 'pending',
+        dedupe_key: `aufgaben.whatsapp_diktat:${msg.id}`,
+      });
+      return;
+    }
+  }
+
   // Prospect über die Nummer finden (angelegt bei der Calendly-Buchung)
   const { data: found } = await svc
     .from('candidates')

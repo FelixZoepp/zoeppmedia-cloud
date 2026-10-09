@@ -29,7 +29,7 @@ function isPublicPath(pathname: string) {
   );
 }
 
-const INTERNAL_PREFIXES = ['/admin', '/clients', '/tasks', '/invites', '/funnels', '/team', '/playbook', '/profile', '/employee-reports', '/innendienst', '/ergebnisse'];
+const INTERNAL_PREFIXES = ['/admin', '/clients', '/tasks', '/boards', '/videos', '/invites', '/funnels', '/team', '/playbook', '/profile', '/employee-reports', '/innendienst', '/ergebnisse'];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

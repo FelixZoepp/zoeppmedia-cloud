@@ -167,6 +167,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Close-Webhook nicht aktualisiert:', err);
   }
 
+  // Wiederkehrende Board-Aufgaben (einmal täglich ab 5 Uhr)
+  try {
+    const { planeSerien } = await import('@/lib/aufgaben/serien');
+    await planeSerien(svc);
+  } catch (err) {
+    console.error('[tick] Serien nicht geplant:', err);
+  }
+
   // Kunden-Abgleich Cloud → Close (Kunde/Ex-Kunde/Upsell, einmal täglich ab 7 Uhr)
   try {
     const { planeKundenSync } = await import('@/lib/sales/kunden-sync');
@@ -286,6 +294,16 @@ export async function GET(request: NextRequest) {
         case 'close.einrichtung': {
           const { fuehreCloseEinrichtungAus } = await import('@/lib/sales/close-einrichtung');
           await fuehreCloseEinrichtungAus(svc, (payload as { was: string }).was);
+          break;
+        }
+        case 'aufgaben.serien': {
+          const { legeSerienAufgabenAn } = await import('@/lib/aufgaben/serien');
+          await legeSerienAufgabenAn(svc);
+          break;
+        }
+        case 'aufgaben.whatsapp_diktat': {
+          const { verarbeiteWhatsAppDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
+          await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
           break;
         }
         case 'sales.kunden_sync': {

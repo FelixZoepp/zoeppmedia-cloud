@@ -38,6 +38,8 @@ import {
   Plug,
   Lightbulb,
   MessagesSquare,
+  KanbanSquare,
+  Clapperboard,
   Mail,
 } from 'lucide-react';
 import { ADMIN_BEREICHE } from '@/lib/navigation/bereiche';
@@ -54,6 +56,8 @@ const adminGroups: SidebarGroup[] = [
     items: [
       { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
+      { id: 'boards', label: 'Boards', icon: <KanbanSquare className="w-5 h-5" />, href: '/boards' },
+      { id: 'videos', label: 'Video-Freigabe', icon: <Clapperboard className="w-5 h-5" />, href: '/videos' },
       { id: 'kalender', label: 'Kalender', icon: <CalendarDays className="w-5 h-5" />, href: '/kalender' },
     ],
   },
@@ -85,6 +89,8 @@ const employeeGroups: SidebarGroup[] = [
     label: 'Meine Arbeit',
     items: [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
+      { id: 'boards', label: 'Boards', icon: <KanbanSquare className="w-5 h-5" />, href: '/boards' },
+      { id: 'videos', label: 'Video-Freigabe', icon: <Clapperboard className="w-5 h-5" />, href: '/videos' },
       { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
       { id: 'rechnungen-mahnwesen', label: 'Buchhaltung', icon: <Receipt className="w-5 h-5" />, href: '/buchhaltung' },
       { id: 'dialer', label: 'Dialer', icon: <PhoneCall className="w-5 h-5" />, href: '/dialer' },
@@ -117,6 +123,8 @@ const fulfillmentGroups: SidebarGroup[] = [
     label: 'Fulfillment',
     items: [
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
+      { id: 'boards', label: 'Boards', icon: <KanbanSquare className="w-5 h-5" />, href: '/boards' },
+      { id: 'videos', label: 'Video-Freigabe', icon: <Clapperboard className="w-5 h-5" />, href: '/videos' },
       { id: 'clients', label: 'Kunden-Board', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'ads', label: 'Ads', icon: <Megaphone className="w-5 h-5" />, href: '/ads' },
       { id: 'funnels', label: 'Funnels', icon: <FolderKanban className="w-5 h-5" />, href: '/funnels' },
