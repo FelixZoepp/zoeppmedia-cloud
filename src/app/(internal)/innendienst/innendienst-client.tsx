@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Inbox, Link2, MessageCircle, PhoneCall, RefreshCw, Search, UserPlus } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Inbox, Link2, MessageCircle, PhoneCall, RefreshCw, Search, Sparkles, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, Button, Card, Input, PageHeader, SegmentedControl, StatCard } from '@/components/ui';
 import type { KundeArbeit } from '@/lib/kunden-cloud/uebersicht';
 import { GarantieBalken } from '@/components/garantie/garantie-balken';
+import { ErfolgsAnzeige } from './erfolgs-anzeige';
 
 const PHASE: Record<string, string> = {
   zahlung: 'Zahlung',
@@ -36,6 +37,7 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
   const [lädt, setLädt] = useState(false);
   // Zeitpunkt der letzten Ladung – Basis für „wartet seit …“
   const [stand, setStand] = useState(0);
+  const [erfolg, setErfolg] = useState(false);
 
   const laden = useCallback(async () => {
     setLädt(true);
@@ -78,9 +80,14 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
         title={vorname ? `Hallo ${vorname}` : 'Innendienst'}
         description="Alle Kunden auf einen Blick – mit einem Klick in die Cloud des Kunden und loslegen."
         action={
-          <Button variant="secondary" onClick={laden} disabled={lädt} aria-label="Aktualisieren">
-            <RefreshCw className={lädt ? 'animate-spin' : ''} />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setErfolg(true)}>
+              <Sparkles className="h-4 w-4" /> Erfolgs-Anzeige
+            </Button>
+            <Button variant="secondary" onClick={laden} disabled={lädt} aria-label="Aktualisieren">
+              <RefreshCw className={lädt ? 'animate-spin' : ''} />
+            </Button>
+          </div>
         }
       />
 
@@ -131,6 +138,7 @@ export function InnendienstClient({ vorname }: { vorname: string }) {
           ))}
         </div>
       )}
+      {erfolg && <ErfolgsAnzeige onClose={() => setErfolg(false)} />}
     </div>
   );
 }
