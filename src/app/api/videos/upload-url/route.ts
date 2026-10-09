@@ -15,5 +15,5 @@ export async function POST(req: NextRequest) {
   const pfad = `${new Date().toISOString().slice(0, 7)}/${randomUUID()}-${sichererDateiname(b.dateiname ?? 'video.mp4')}`;
   const { data, error } = await createAdminClient().storage.from(VIDEO_BUCKET).createSignedUploadUrl(pfad);
   if (error || !data) return NextResponse.json({ error: error?.message ?? 'Upload-URL fehlgeschlagen' }, { status: 500 });
-  return NextResponse.json({ pfad, token: data.token });
+  return NextResponse.json({ pfad, token: data.token, signedUrl: data.signedUrl });
 }

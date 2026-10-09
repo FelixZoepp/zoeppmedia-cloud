@@ -13,6 +13,8 @@ export interface Board {
   beschreibung: string | null;
   farbe: string | null;
   sortierung: number;
+  archiviert?: boolean;
+  created_by?: string | null;
 }
 
 export interface TeamMitglied {
@@ -37,7 +39,7 @@ export async function ladeTeam(svc: SupabaseClient): Promise<TeamMitglied[]> {
 
 /** Persönliche Boards für alle aktiven internen Nutzer sicherstellen */
 export async function stelleBoardsSicher(svc: SupabaseClient, team: TeamMitglied[]): Promise<Board[]> {
-  const { data, error } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung').order('sortierung').order('name');
+  const { data, error } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung, archiviert, created_by').order('sortierung').order('name');
   if (error) throw new Error(`Boards nicht ladbar: ${error.message}`);
   const boards = (data ?? []) as Board[];
   const fehlend = team.filter((u) => !boards.some((b) => b.besitzer_id === u.id));
@@ -49,7 +51,7 @@ export async function stelleBoardsSicher(svc: SupabaseClient, team: TeamMitglied
         { onConflict: 'besitzer_id', ignoreDuplicates: true },
       );
     if (e) throw new Error(`Persönliche Boards nicht angelegt: ${e.message}`);
-    const { data: alle } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung').order('sortierung').order('name');
+    const { data: alle } = await svc.from('aufgaben_boards').select('id, name, besitzer_id, beschreibung, farbe, sortierung, archiviert, created_by').order('sortierung').order('name');
     return (alle ?? []) as Board[];
   }
   return boards;

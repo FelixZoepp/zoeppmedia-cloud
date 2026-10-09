@@ -183,6 +183,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Serien nicht geplant:', err);
   }
 
+  // Morgens „Deine Aufgaben heute“ per WhatsApp (Mo–Fr 7:30–10 Uhr)
+  try {
+    const { planeTageslisten } = await import('@/lib/aufgaben/tagesliste');
+    await planeTageslisten(svc);
+  } catch (err) {
+    console.error('[tick] Tagesliste nicht geplant:', err);
+  }
+
   // Kunden-Abgleich Cloud → Close (Kunde/Ex-Kunde/Upsell, einmal täglich ab 7 Uhr)
   try {
     const { planeKundenSync } = await import('@/lib/sales/kunden-sync');
@@ -317,6 +325,16 @@ export async function GET(request: NextRequest) {
         case 'aufgaben.whatsapp_diktat': {
           const { verarbeiteWhatsAppDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
+          break;
+        }
+        case 'aufgaben.tagesliste': {
+          const { sendeTageslisten } = await import('@/lib/aufgaben/tagesliste');
+          console.log('[tagesliste]', JSON.stringify(await sendeTageslisten(svc)));
+          break;
+        }
+        case 'aufgaben.whatsapp_befehl': {
+          const { verarbeiteBefehl } = await import('@/lib/aufgaben/tagesliste');
+          await verarbeiteBefehl(svc, payload as unknown as import('@/lib/aufgaben/tagesliste').BefehlJob);
           break;
         }
         case 'sales.kunden_sync': {

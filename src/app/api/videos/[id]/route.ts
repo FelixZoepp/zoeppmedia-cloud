@@ -17,6 +17,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     svc.from('users').select('id, name, avatar_url').in('role', ['admin', 'employee']),
     svc.from('agencies').select('id, name').order('name'),
   ]);
+  const { data: link } = await svc.from('video_freigabe_links').select('token').eq('video_id', id).eq('aktiv', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const { freigabeUrl } = await import('@/lib/videos/freigabe');
   if (!video) return NextResponse.json({ error: 'Video nicht gefunden' }, { status: 404 });
   const mitUrl = await Promise.all(
     ((versionen ?? []) as Array<{ storage_pfad: string } & Record<string, unknown>>).map(async (v) => {
@@ -24,7 +26,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return { ...v, url: data?.signedUrl ?? null };
     }),
   );
-  return NextResponse.json({ ich: { id: user.id, role: user.role, name: user.name }, video, versionen: mitUrl, kommentare: kommentare ?? [], team: team ?? [], agencies: agencies ?? [] });
+  return NextResponse.json({
+    ich: { id: user.id, role: user.role, name: user.name },
+    video,
+    versionen: mitUrl,
+    kommentare: kommentare ?? [],
+    team: team ?? [],
+    agencies: agencies ?? [],
+    kundenLink: link ? freigabeUrl((link as { token: string }).token) : null,
+  });
 }
 
 /** PATCH { status?, titel?, agency_id?, art?, bearbeiter_id?, pruefer_id?, faellig_am? } */

@@ -12,6 +12,8 @@ function isPublicPath(pathname: string) {
     pathname.startsWith('/video/') ||
     pathname.startsWith('/termin/') ||
     pathname.startsWith('/gespraech/') ||
+    // Kunden-Freigabe von Videos über Link (ohne Login)
+    pathname.startsWith('/freigabe/') ||
     // Zufriedenheits-Umfrage über persönlichen Link (ohne Login)
     pathname.startsWith('/umfrage/') ||
     // Vertragsbestätigung über persönlichen Link (vor der Registrierung)

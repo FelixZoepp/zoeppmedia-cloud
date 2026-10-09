@@ -644,4 +644,155 @@ const VERWALTUNG: ArtikelDef[] = [
   },
 ];
 
-export const ARTIKEL_A_Z: ArtikelDef[] = [...KULTUR, ...ARBEITSWEISE, ...INNENDIENST, ...SETTING, ...CLOSING, ...KUNDENBETREUUNG, ...MARKETING, ...VERWALTUNG];
+/** Arbeiten in der Cloud: Boards und Video-Freigabe (Stand 09.10.2026) */
+const BOARDS_VIDEOS: ArtikelDef[] = [
+  {
+    slug: 'boards-aufgaben', typ: 'sop', titel: 'Boards: Aufgaben anlegen, abarbeiten und übergeben', modul: 'Arbeitsweise & Regeln', positionen: ['grundlagen'], status: 'freigegeben', prioritaet: 1, reihenfolge: 20,
+    zusammenfassung: 'Alle Aufgaben laufen über die Boards in der Cloud – nicht über WhatsApp-Zurufe, Zettel oder Monday.',
+    abschnitte: {
+      zweck: 'Jeder sieht jederzeit, was er heute zu tun hat, was beim Team liegt und was erledigt ist. Nichts geht im Chat verloren.',
+      ausloeser: 'Jede neue Aufgabe – egal ob von Felix, aus einem Kundengespräch oder von dir selbst.',
+      automatisch: [
+        'Jeder Mitarbeiter hat automatisch ein persönliches Board („Mein Board“).',
+        'Wer eine Aufgabe zugewiesen bekommt oder kommentiert wird, bekommt Push + Glocke.',
+        'Wiederkehrende Aufgaben (täglich, wöchentlich, monatlich) legen sich morgens um 5 Uhr selbst an.',
+        'Fortschritt der Checkliste und Anzahl der Kommentare stehen direkt auf der Karte.',
+      ],
+      schritte: [
+        'Cloud → Boards öffnen. Links: „Mein Board“, darunter Team-Boards und (für Admins) die Boards der Kollegen.',
+        'Neue Aufgabe: oben ins Feld tippen und Enter. Auf dem Board eines Kollegen landet sie direkt bei ihm.',
+        'Karte anklicken → Titel, Beschreibung, Zuständig, Fälligkeit, Priorität, Status pflegen. Ohne Fälligkeit taucht die Aufgabe nicht in der Morgenliste auf.',
+        'Größere Aufgaben in Unteraufgaben zerlegen: im Aufgaben-Fenster unter „Checkliste“ Punkte eintippen (Enter) und abhaken.',
+        'Rückfragen, Zwischenstände und Links gehören in den „Verlauf“ der Aufgabe (Kommentar, Strg/⌘ + Enter) – nicht in WhatsApp. Zuständige(r) und Ersteller werden benachrichtigt.',
+        'Arbeiten: Karte per Drag & Drop von „Offen“ → „In Arbeit“ → „Review“ ziehen. Fertig = Kreis auf der Karte anklicken (geht auch am Handy).',
+        'Suchen: oben „Alle Boards durchsuchen“ und Filter Person / Kunde / Priorität. „Nur meine“ zeigt alles, was dir zugewiesen ist – über alle Boards.',
+        'Ansicht „Liste“ sortiert nach Überfällig, Heute, Nächste 7 Tage, Später – ideal für den Tagesstart.',
+        'Wiederkehrend: Reiter „Wiederkehrend“ → Rhythmus wählen (täglich Mo–Fr, wöchentlich mit Wochentag, monatlich mit Tag; fällt der auf ein Wochenende, kommt die Aufgabe am Freitag davor).',
+        'Team-Board anlegen: links „+ Team-Board“. Über das Zahnrad neben dem Board-Namen: umbenennen, Beschreibung, Farbe, archivieren. Archivierte Boards stehen links unten und lassen sich wiederherstellen.',
+      ],
+      checkliste: [
+        'Jede Aufgabe hat einen Zuständigen und – wenn sie zeitkritisch ist – ein Fälligkeitsdatum',
+        'Aufgaben mit mehreren Schritten haben eine Checkliste',
+        'Rückfragen stehen im Verlauf der Aufgabe, nicht im Chat',
+        'Erledigtes ist abgehakt',
+        'Keine überfällige Aufgabe ohne Kommentar oder neues Datum',
+      ],
+      review: ['Morgens: „Nur meine“ zeigt keine überfälligen Aufgaben ohne Kommentar', 'Freitags: Board aufgeräumt, Review-Spalte leer oder mit klarer nächster Person'],
+      fehler: [
+        'Aufgaben per WhatsApp „zurufen“ statt sie anzulegen.',
+        'Aufgabe auf „Review“ ziehen, ohne im Verlauf zu schreiben, wer prüfen soll.',
+        'Fälligkeit weglassen – dann fehlt die Aufgabe in der Morgenliste.',
+      ],
+      links: [L('Boards', '/boards')],
+    },
+  },
+  {
+    slug: 'boards-sprache-whatsapp', typ: 'sop', titel: 'Aufgaben per Sprachnachricht und WhatsApp – und die Morgenliste', modul: 'Arbeitsweise & Regeln', positionen: ['grundlagen'], status: 'freigegeben', prioritaet: 1, reihenfolge: 21,
+    zusammenfassung: 'Aufgaben einsprechen statt tippen, morgens die eigene Liste per WhatsApp bekommen und mit „erledigt 2“ abhaken.',
+    abschnitte: {
+      zweck: 'Aufgaben entstehen oft unterwegs oder im Gespräch. So landen sie trotzdem sauber auf dem richtigen Board.',
+      ausloeser: 'Du hast unterwegs eine Idee, delegierst etwas oder willst morgens wissen, was ansteht.',
+      automatisch: [
+        'Die KI erkennt aus der Sprachnachricht Titel, zuständige Person, Fälligkeit, Kunde und ob es wiederkehrend ist.',
+        'Mo–Fr gegen 7:30 Uhr kommt per WhatsApp „Das steht heute auf deinem Board“ mit nummerierter Liste (überfällige + heute fällige Aufgaben).',
+        'Ist die WhatsApp-Vorlage noch nicht freigegeben, kommt die Liste als Push-Benachrichtigung.',
+      ],
+      schritte: [
+        'Voraussetzung: deine Handynummer steht in deinem Profil in der Cloud (genau die Nummer, mit der du WhatsApp nutzt).',
+        'In der Cloud: Boards → „Per Sprache“ → einsprechen (max. 9 Minuten), z. B. „Nils, schneid bis Freitag das Ad-Video für Turhan, und jeden Montag die Kunden-Reports raus.“',
+        'Vorschau prüfen: Personen, Daten und Kunde kontrollieren, Unpassendes abwählen → „Anlegen“.',
+        'Per WhatsApp: Sprachnachricht an die Zoepp-Nummer 030 82684175 schicken – oder Text, der mit „Aufgabe:“ beginnt. Du bekommst eine Zusammenfassung zurück, was angelegt wurde.',
+        'Morgenliste: Antworte mit „erledigt 2“ oder „erledigt 1 3“ – die Aufgaben mit diesen Nummern werden abgehakt, du bekommst eine Bestätigung.',
+        'Liste nochmal schicken lassen (z. B. mittags): einfach „liste“ schreiben. Die Nummern gelten dann für die neue Liste.',
+      ],
+      checkliste: ['Handynummer im Profil eingetragen', 'Sprach-Aufgaben in der Vorschau geprüft', 'Bestätigung nach „erledigt …“ erhalten'],
+      review: ['Die per Sprache angelegten Aufgaben haben die richtige Person und das richtige Datum', 'Nach dem Abhaken per WhatsApp stimmt das Board'],
+      fehler: [
+        'Andere Nummer als im Profil – dann erkennt die Cloud dich nicht und die Nachricht landet in der Vertriebs-Inbox.',
+        '„erledigt“ ohne Nummer schicken.',
+        'Vertrauliche Kundendaten diktieren, die nicht in eine Aufgabe gehören.',
+      ],
+      links: [L('Boards', '/boards'), L('Mein Profil', '/profile')],
+    },
+  },
+  {
+    slug: 'video-freigabe-schnitt', typ: 'sop', titel: 'Video-Freigabe für den Schnitt: hochladen, Feedback umsetzen, neue Version', modul: 'Arbeitsweise & Regeln', positionen: ['grundlagen', 'media_buyer', 'content'], status: 'freigegeben', prioritaet: 1, reihenfolge: 22,
+    zusammenfassung: 'Jedes Ad, Website-Video und Reel geht vor der Veröffentlichung durch die Video-Freigabe – Feedback gibt es zeitgenau im Video, nicht per WhatsApp.',
+    abschnitte: {
+      zweck: 'Kein Video geht mit Rechtschreibfehlern oder ohne Freigabe raus, und jedes Feedback ist sekundengenau nachvollziehbar.',
+      ausloeser: 'Ein Schnitt ist fertig (erste Version) oder Änderungen wurden umgesetzt (neue Version).',
+      automatisch: [
+        'Die KI liest nach dem Upload alle Texte im Video (Untertitel, Einblendungen, CTA) und markiert Fehler lila auf der Zeitleiste.',
+        'Der Prüfer bekommt Push + Glocke, täglich ab 17 Uhr zusätzlich eine Sammelerinnerung.',
+        'Neue Version → Status springt automatisch zurück auf „Zu prüfen“, die KI prüft erneut, alte Versionen bleiben nachlesbar.',
+      ],
+      schritte: [
+        'Export: 1080p, H.264, so komprimiert, dass die Datei unter dem angezeigten Limit bleibt.',
+        'Cloud → Video-Freigabe → „Video hochladen“: Titel (Kunde – Art – Inhalt), Kunde, Art, Prüfer (Standard: Felix), Fälligkeit, Datei. Fenster offen lassen, bis der Fortschrittsbalken durch ist.',
+        'Wenn das Video „Änderungen nötig“ hat: Video öffnen, Kommentare von oben nach unten durchgehen. Klick auf die Zeit springt an die Stelle. Rot = Team, Orange = Kunde, Lila = KI.',
+        'Für den Schnitt: „Marker“ → Resolve (.edl) oder Premiere (.xml) herunterladen und importieren – dann stehen alle Kommentare als Marker in deiner Timeline.',
+        'Jeden umgesetzten Kommentar auf „erledigt“ setzen. Unklar? Antwort als neuen Kommentar an dieselbe Stelle schreiben.',
+        '„Neue Version“ hochladen – sie geht automatisch wieder an den Prüfer (und ist sofort über den Kunden-Link sichtbar, falls einer existiert).',
+        'Mit „Versionen vergleichen“ prüfst du vorher selbst: alte und neue Version laufen synchron nebeneinander.',
+      ],
+      checkliste: ['Titel nach Schema „Kunde – Art – Inhalt“', 'Prüfer und Fälligkeit gesetzt', 'KI-Hinweise geprüft und Fehler korrigiert', 'Alle Kommentare der letzten Runde erledigt', 'Neue Version statt neues Video hochgeladen'],
+      review: ['Kein offener Kommentar beim Hochladen der neuen Version', 'Keine KI-Rechtschreibhinweise offen'],
+      fehler: [
+        'Ein „neues Video“ statt einer „neuen Version“ anlegen – dann geht der Verlauf verloren.',
+        'Feedback per WhatsApp annehmen und nicht in der Video-Freigabe vermerken.',
+        'Kommentare nicht abhaken – der Prüfer sieht dann nicht, was umgesetzt ist.',
+      ],
+      links: [L('Video-Freigabe', '/videos')],
+    },
+  },
+  {
+    slug: 'video-freigabe-pruefen', typ: 'sop', titel: 'Videos prüfen und freigeben (Prüfer)', modul: 'Arbeitsweise & Regeln', positionen: ['grundlagen', 'fuehrung'], status: 'freigegeben', prioritaet: 1, reihenfolge: 23,
+    zusammenfassung: 'Abends im Prüf-Modus alle Videos durchgehen: zeitgenau kommentieren, Änderungen anfordern oder freigeben.',
+    abschnitte: {
+      zweck: 'Schnelles, präzises Feedback – der Cutter weiß genau, was an welcher Stelle zu tun ist.',
+      ausloeser: 'Benachrichtigung „bereit zur Prüfung“ oder die Sammelerinnerung ab 17 Uhr.',
+      automatisch: ['Nach „Freigeben“ oder „Änderungen anfordern“ springt die Cloud direkt zum nächsten Video, das auf dich wartet.', 'Der Bearbeiter wird automatisch informiert.'],
+      schritte: [
+        'Video-Freigabe → Reiter „Zu prüfen“ → erstes Video öffnen.',
+        'Abspielen. Tastenkürzel: Leertaste = Play/Pause, K = Pause, L = Play (nochmal = schneller), J = 5 s zurück, ←/→ = ein Bild, ⇧+←/→ = eine Sekunde, F = Vollbild.',
+        'Etwas fällt auf → Taste C (oder ins Kommentarfeld klicken): Video hält an, der Kommentar gilt für genau diese Stelle. Kurz und konkret schreiben, Strg/⌘ + Enter sendet.',
+        'Betrifft es einen Abschnitt (z. B. „Musik von 0:12 bis 0:18 leiser“): an den Anfang springen und I drücken, an das Ende und O drücken – dann kommentieren. Der Bereich erscheint als Balken auf der Zeitleiste.',
+        'Allgemeines (Farben, Tempo, Musik insgesamt) → Häkchen „bei …“ abwählen = allgemeiner Kommentar.',
+        'Lila KI-Hinweise prüfen: echter Fehler → offen lassen; Fehlalarm → „erledigt“.',
+        'Bei neuen Versionen: „Versionen vergleichen“ – vorher/nachher synchron nebeneinander.',
+        'Entscheiden: „Änderungen anfordern“ (mindestens ein offener Kommentar) oder „Freigeben“.',
+      ],
+      checkliste: ['Ganzes Video einmal komplett angesehen', 'Jeder Punkt als Kommentar an der richtigen Stelle', 'KI-Hinweise bewertet', 'Entscheidung getroffen (nicht liegen lassen)'],
+      review: ['Kein Video länger als 24 Stunden in „Zu prüfen“', 'Kommentare sind ohne Rückfrage umsetzbar'],
+      fehler: ['Feedback als ein langer Text statt einzelner Kommentare an den Stellen.', 'Freigeben, obwohl noch Kommentare offen sind (die Cloud fragt nach).'],
+      links: [L('Video-Freigabe', '/videos')],
+    },
+  },
+  {
+    slug: 'video-kunden-freigabe', typ: 'sop', titel: 'Kunden-Freigabe: Video per Link vom Kunden abnehmen lassen', modul: 'Arbeitsweise & Regeln', positionen: ['grundlagen', 'csm'], status: 'freigegeben', prioritaet: 1, reihenfolge: 24,
+    zusammenfassung: 'Der Kunde bekommt einen Link ohne Login, kommentiert direkt im Video und gibt frei – kein Hin und Her per WhatsApp oder E-Mail.',
+    abschnitte: {
+      zweck: 'Kundenfeedback kommt strukturiert und zeitgenau an, und die Freigabe ist dokumentiert.',
+      ausloeser: 'Das Video ist intern freigegeben (oder der Kunde soll früh mitreden).',
+      automatisch: [
+        'Der Link zeigt immer die aktuelle Version. Lädt der Cutter eine neue Version hoch, sieht der Kunde sie sofort, und der Kundenstatus steht wieder auf „offen“.',
+        'Kundenkommentare erscheinen orange in der Cloud; Bearbeiter und Prüfer bekommen eine Benachrichtigung (höchstens eine pro 10 Minuten).',
+        'Wünscht der Kunde Änderungen, springt das Video automatisch auf „Änderungen nötig“ beim Bearbeiter.',
+        'Interne Kommentare (Team, KI) sieht der Kunde nie.',
+      ],
+      schritte: [
+        'Video öffnen → „Kunden-Link“ → „Link erstellen“ (wird automatisch kopiert).',
+        'Link per WhatsApp an den Kunden: „Hier ist dein Video zur Freigabe. Halte einfach an der Stelle an, die du ändern möchtest, und schreib es dazu – oder klick oben auf Freigeben.“',
+        'Kunde kommentiert mit seinem Namen und klickt „Freigeben“ oder „Änderungen gewünscht“. Du siehst den Status oben im Video und in der Liste („Kunde: ✓ / Änderungen / offen“).',
+        'Änderungen gewünscht → Cutter setzt um, lädt neue Version hoch → Kunde sieht sie unter demselben Link. Kurze Nachricht an den Kunden: „Neue Version ist drin, gleicher Link.“',
+        'Nach der Freigabe: Link über „Kunden-Link“ → „Link deaktivieren“ schließen, wenn der Kunde nicht mehr zugreifen soll.',
+      ],
+      checkliste: ['Video intern freigegeben, bevor der Kunde es sieht', 'Link mit kurzer Anleitung verschickt', 'Kundenstatus geprüft', 'Nach Abschluss Link deaktiviert'],
+      review: ['Freigabe des Kunden liegt in der Cloud vor, bevor das Video live geht'],
+      fehler: ['Video als Datei per WhatsApp schicken – dann fehlt die Dokumentation.', 'Kundenfeedback aus dem Telefonat nicht als Kommentar nachtragen.'],
+      links: [L('Video-Freigabe', '/videos')],
+    },
+  },
+];
+
+export const ARTIKEL_A_Z: ArtikelDef[] = [...KULTUR, ...ARBEITSWEISE, ...BOARDS_VIDEOS, ...INNENDIENST, ...SETTING, ...CLOSING, ...KUNDENBETREUUNG, ...MARKETING, ...VERWALTUNG];

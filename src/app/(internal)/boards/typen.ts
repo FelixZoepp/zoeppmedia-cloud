@@ -19,6 +19,9 @@ export interface Aufgabe {
   created_at: string;
   erledigt_am: string | null;
   agencies: { name: string } | null;
+  check_gesamt?: number;
+  check_erledigt?: number;
+  kommentare?: number;
 }
 
 export interface Serie {
@@ -49,6 +52,7 @@ export interface BoardDaten {
   ich: { id: string; name: string; role: string };
   team: Person[];
   boards: Board[];
+  archiviert?: Board[];
   aufgaben: Aufgabe[];
   serien: Serie[];
 }
@@ -58,3 +62,6 @@ export const datumKurz = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleD
 export const PRIO_FARBE: Record<Prioritaet, string> = { low: 'bg-gray-300', medium: 'bg-sky-400', high: 'bg-amber-500', urgent: 'bg-red-600' };
 export const inputCls = 'w-full h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm';
 export const plusTage = (tag: string, n: number) => new Date(new Date(`${tag}T12:00:00Z`).getTime() + n * 864e5).toISOString().slice(0, 10);
+
+/** Board-Farben (aufgaben_boards.farbe) */
+export const BOARD_FARBEN: Record<string, string> = { rot: 'bg-red-500', orange: 'bg-orange-500', gelb: 'bg-yellow-400', gruen: 'bg-green-500', blau: 'bg-sky-500', lila: 'bg-violet-500', grau: 'bg-gray-400' };

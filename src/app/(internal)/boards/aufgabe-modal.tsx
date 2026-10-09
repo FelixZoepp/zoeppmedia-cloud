@@ -7,6 +7,7 @@ import { Button, Modal } from '@/components/ui';
 import { AUFGABEN_STATUS, PRIORITAETEN, PRIO_LABEL, STATUS_LABEL } from '@/lib/aufgaben/konstanten';
 import type { Aufgabe, BoardDaten } from './typen';
 import { inputCls } from './typen';
+import { AufgabeDetails } from './aufgabe-details';
 
 /** Aufgabe ansehen und bearbeiten */
 export function AufgabeModal({
@@ -15,12 +16,14 @@ export function AufgabeModal({
   onClose,
   onGespeichert,
   onGeloescht,
+  onZaehler,
 }: {
   aufgabe: Aufgabe;
   daten: BoardDaten;
   onClose: () => void;
   onGespeichert: (a: Aufgabe) => void;
   onGeloescht: (id: string) => void;
+  onZaehler?: (z: { check_gesamt: number; check_erledigt: number; kommentare: number }) => void;
 }) {
   const [f, setF] = useState({
     title: aufgabe.title,
@@ -131,6 +134,7 @@ export function AufgabeModal({
             </div>
           )}
         </div>
+        <AufgabeDetails aufgabeId={aufgabe.id} daten={daten} onZaehler={(z) => onZaehler?.(z)} />
         <p className="text-[12px] text-gray-500">
           Angelegt am {new Date(aufgabe.created_at).toLocaleString('de-DE')}
           {aufgabe.quelle && aufgabe.quelle !== 'manuell' ? ` · ${aufgabe.quelle === 'serie' ? 'wiederkehrend' : aufgabe.quelle === 'whatsapp' ? 'per WhatsApp-Sprachnachricht' : 'per Sprachnachricht'}` : ''}

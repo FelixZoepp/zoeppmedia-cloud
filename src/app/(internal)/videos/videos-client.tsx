@@ -23,6 +23,7 @@ interface VideoZeile {
   faellig_am: string | null;
   updated_at: string;
   offene_kommentare: number;
+  kunden_status: 'offen' | 'freigegeben' | 'aenderungen' | null;
 }
 
 interface Daten {
@@ -45,12 +46,15 @@ function UploadModal({ d, onClose }: { d: Daten; onClose: () => void }) {
   const [f, setF] = useState({ titel: '', agency_id: '', art: 'ad' as VideoArt, pruefer_id: d.standardPruefer ?? '', faellig_am: '' });
   const [datei, setDatei] = useState<File | null>(null);
   const [schritt, setSchritt] = useState<string | null>(null);
+  const [fortschritt, setFortschritt] = useState<number | null>(null);
 
   const los = async () => {
     if (!datei || !f.titel.trim()) return;
     try {
       setSchritt('Lade hoch …');
-      const { pfad, dauer, lokaleUrl } = await ladeVideoHoch(datei);
+      setFortschritt(0);
+      const { pfad, dauer, lokaleUrl } = await ladeVideoHoch(datei, setFortschritt);
+      setFortschritt(null);
       setSchritt('Lege Video an …');
       const r = await fetch('/api/videos', {
         method: 'POST',
@@ -73,6 +77,7 @@ function UploadModal({ d, onClose }: { d: Daten; onClose: () => void }) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
       setSchritt(null);
+      setFortschritt(null);
     }
   };
 
@@ -83,6 +88,16 @@ function UploadModal({ d, onClose }: { d: Daten; onClose: () => void }) {
         <div className="flex flex-col items-center gap-3 py-10 text-[14px] text-gray-600">
           <Loader2 className="h-7 w-7 animate-spin text-red-700" />
           {schritt}
+          {fortschritt !== null && datei && (
+            <div className="w-full max-w-sm">
+              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-full bg-red-700 transition-all" style={{ width: `${Math.round(fortschritt * 100)}%` }} />
+              </div>
+              <p className="mt-1 text-center text-[12.5px] text-gray-500">
+                {Math.round(fortschritt * 100)} % · {((fortschritt * datei.size) / 1024 / 1024).toFixed(1)} von {(datei.size / 1024 / 1024).toFixed(1)} MB – Fenster bitte offen lassen
+              </p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -231,6 +246,11 @@ export function VideosClient() {
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px]">
                       <span className={`rounded-full px-2.5 py-0.5 font-semibold ${STATUS_STIL[v.status]}`}>{VIDEO_STATUS[v.status]}</span>
+                      {v.kunden_status && (
+                        <span className={`rounded-full px-2.5 py-0.5 font-semibold ${v.kunden_status === 'freigegeben' ? 'bg-green-50 text-green-800' : v.kunden_status === 'aenderungen' ? 'bg-orange-50 text-orange-800' : 'bg-gray-100 text-gray-600'}`}>
+                          Kunde: {v.kunden_status === 'freigegeben' ? '✓' : v.kunden_status === 'aenderungen' ? 'Änderungen' : 'offen'}
+                        </span>
+                      )}
                       {v.offene_kommentare > 0 && (
                         <span className="inline-flex items-center gap-1 text-gray-600">
                           <MessageSquare className="h-3.5 w-3.5" /> {v.offene_kommentare} offen

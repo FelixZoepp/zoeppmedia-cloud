@@ -89,6 +89,17 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
       },
     ],
   },
+  {
+    // Interne Morgenliste für das Team (aufgaben/tagesliste.ts) – Antwort „erledigt 2“ hakt ab
+    name: 'team_aufgaben_heute',
+    category: 'UTILITY',
+    body:
+      'Guten Morgen {{1}}, das steht heute auf deinem Board: {{2}}\n\n' +
+      'Zum Abhaken antworte einfach mit „erledigt“ und der Nummer, zum Beispiel „erledigt 2“ oder „erledigt 1 3“.',
+    variables: ['vorname', 'liste'],
+    beispiel: ['Nils', '1) Ad-Video Turhan schneiden (überfällig) · 2) Kunden-Reports raus · 3) Thumbnail Website-Video'],
+    buttons: [{ type: 'URL', text: 'Zum Board', url: 'https://cloud.zoeppmedia.de/boards' }],
+  },
 ];
 
 async function zugang(svc: SupabaseClient): Promise<{ wabaId: string; token: string }> {

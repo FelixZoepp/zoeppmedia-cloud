@@ -4,12 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Bot, Check, CheckCircle2, Loader2, PencilLine, Sparkles, Trash2, Upload } from 'lucide-react';
-import { Avatar, Button, Card } from '@/components/ui';
+import { ArrowLeft, Bot, Check, CheckCircle2, Columns2, Download, Keyboard, Link2, Loader2, PencilLine, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import { Avatar, Button, Card, Modal } from '@/components/ui';
 import { VIDEO_ARTEN, VIDEO_STATUS, zeitText, type KiVideoErgebnis, type VideoArt, type VideoStatus } from '@/lib/videos/konstanten';
 import { ladeVideoHoch } from '@/components/videos/hochladen';
 import { standbilderMitZeit } from '@/components/videos/standbilder';
 import { STATUS_STIL } from '../videos-client';
+import { KUERZEL, useTastenkuerzel } from '@/components/videos/tastenkuerzel';
+import { Zeitleiste, zeitLabel } from '@/components/videos/zeitleiste';
+import { VersionVergleich } from '@/components/videos/version-vergleich';
+import { MarkerExportModal } from '@/components/videos/marker-export-modal';
+import { KundenLinkModal } from '@/components/videos/kunden-link-modal';
 
 interface Version {
   id: string;
@@ -27,8 +32,11 @@ interface Kommentar {
   id: string;
   version_id: string | null;
   zeit_s: number | null;
+  zeit_bis_s: number | null;
   text: string;
   autor_id: string | null;
+  extern: boolean;
+  kunde_name: string | null;
   ki: boolean;
   erledigt: boolean;
   created_at: string;
@@ -46,7 +54,9 @@ interface Daten {
     pruefer_id: string | null;
     aktuelle_version: number;
     faellig_am: string | null;
+    kunden_status: 'offen' | 'freigegeben' | 'aenderungen' | null;
   };
+  kundenLink: string | null;
   versionen: Version[];
   kommentare: Kommentar[];
   team: Array<{ id: string; name: string; avatar_url: string | null }>;
@@ -61,6 +71,10 @@ export function VideoDetail({ id }: { id: string }) {
   const [text, setText] = useState('');
   const [mitZeit, setMitZeit] = useState(true);
   const [kommentarZeit, setKommentarZeit] = useState<number | null>(null);
+  const [bereichBis, setBereichBis] = useState<number | null>(null);
+  const [vergleich, setVergleich] = useState(false);
+  const [modal, setModal] = useState<'export' | 'kunde' | 'kuerzel' | null>(null);
+  const textfeld = useRef<HTMLTextAreaElement>(null);
   const [nurOffen, setNurOffen] = useState(false);
   const [arbeit, setArbeit] = useState<string | null>(null);
   const player = useRef<HTMLVideoElement>(null);
@@ -115,13 +129,41 @@ export function VideoDetail({ id }: { id: string }) {
   const kommentieren = async () => {
     if (!text.trim() || !version) return;
     const zeitS = mitZeit ? (kommentarZeit ?? zeit) : null;
-    const r = await fetch(`/api/videos/${id}/kommentare`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version_id: version.id, zeit_s: zeitS, text }) });
+    const r = await fetch(`/api/videos/${id}/kommentare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version_id: version.id, zeit_s: zeitS, zeit_bis_s: zeitS !== null && bereichBis !== null && bereichBis > zeitS ? bereichBis : null, text }),
+    });
     const j = await r.json();
     if (!r.ok) return toast.error(j.error ?? 'Fehler');
     setD((alt) => (alt ? { ...alt, kommentare: [...alt.kommentare, j] } : alt));
     setText('');
     setKommentarZeit(null);
+    setBereichBis(null);
   };
+
+  // Tastenkürzel: C = Kommentar, I/O = Bereich (im Vergleich steuert der Vergleich selbst)
+  useTastenkuerzel(
+    player,
+    {
+      onKommentar: () => {
+        setKommentarZeit(player.current?.currentTime ?? zeit);
+        setMitZeit(true);
+        textfeld.current?.focus();
+      },
+      onAnfang: (s) => {
+        setMitZeit(true);
+        setKommentarZeit(s);
+        setBereichBis((b) => (b !== null && b > s ? b : null));
+      },
+      onEnde: (s) => {
+        setMitZeit(true);
+        setKommentarZeit((a) => (a !== null && a < s ? a : Math.max(0, s - 2)));
+        setBereichBis(s);
+      },
+    },
+    !vergleich,
+  );
 
   const kommentarAendern = async (k: Kommentar, patch: Partial<Kommentar>) => {
     setD((alt) => (alt ? { ...alt, kommentare: alt.kommentare.map((x) => (x.id === k.id ? { ...x, ...patch } : x)) } : alt));
@@ -197,7 +239,7 @@ export function VideoDetail({ id }: { id: string }) {
   const neueVersion = async (datei: File) => {
     setArbeit('Lade neue Version hoch …');
     try {
-      const { pfad, dauer: neueDauer, lokaleUrl } = await ladeVideoHoch(datei);
+      const { pfad, dauer: neueDauer, lokaleUrl } = await ladeVideoHoch(datei, (a) => setArbeit(`Lade neue Version hoch … ${Math.round(a * 100)} %`));
       const r = await fetch(`/api/videos/${id}/versionen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -250,6 +292,14 @@ export function VideoDetail({ id }: { id: string }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-[13px] font-semibold ${STATUS_STIL[v.status]}`}>{VIDEO_STATUS[v.status]}</span>
+          {v.kunden_status && (
+            <span className={`rounded-full px-3 py-1 text-[13px] font-semibold ${v.kunden_status === 'freigegeben' ? 'bg-green-50 text-green-800' : v.kunden_status === 'aenderungen' ? 'bg-orange-50 text-orange-800' : 'bg-gray-100 text-gray-700'}`}>
+              Kunde: {v.kunden_status === 'freigegeben' ? 'freigegeben' : v.kunden_status === 'aenderungen' ? 'Änderungen' : 'offen'}
+            </span>
+          )}
+          <Button variant="secondary" onClick={() => setModal('kunde')}>
+            <Link2 className="h-4 w-4" /> Kunden-Link
+          </Button>
           {darfEntscheiden && v.status !== 'freigegeben' && (
             <Button onClick={() => status('freigegeben')} disabled={!!arbeit}>
               <CheckCircle2 className="h-4 w-4" /> Freigeben
@@ -286,7 +336,9 @@ export function VideoDetail({ id }: { id: string }) {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
         <div className="space-y-3">
           <Card padding="sm">
-            {version?.url ? (
+            {vergleich ? (
+              <VersionVergleich versionen={d.versionen} />
+            ) : version?.url ? (
               <video
                 ref={player}
                 key={version.id}
@@ -306,41 +358,51 @@ export function VideoDetail({ id }: { id: string }) {
             ) : (
               <p className="p-6 text-[14px] text-gray-500">Video nicht verfügbar.</p>
             )}
-            {/* Zeitleiste mit Kommentar-Markern */}
-            {laenge ? (
-              <div
-                className="relative mt-3 h-6 cursor-pointer rounded-full bg-gray-100"
-                onClick={(e) => {
-                  const r = e.currentTarget.getBoundingClientRect();
-                  springe(((e.clientX - r.left) / r.width) * laenge);
-                }}
-              >
-                <div className="absolute inset-y-0 left-0 rounded-full bg-red-100" style={{ width: `${Math.min(100, (zeit / laenge) * 100)}%` }} />
-                {kommentare
+            {/* Zeitleiste mit Kommentar-Markern und Bereichen */}
+            {laenge && !vergleich ? (
+              <Zeitleiste
+                laenge={laenge}
+                zeit={zeit}
+                marker={kommentare
                   .filter((k) => k.zeit_s !== null)
-                  .map((k) => (
-                    <button
-                      key={k.id}
-                      type="button"
-                      title={`${zeitText(k.zeit_s)} – ${k.text}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        springe(k.zeit_s);
-                      }}
-                      className={`absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow ${k.erledigt ? 'bg-gray-300' : k.ki ? 'bg-violet-500' : 'bg-red-600'}`}
-                      style={{ left: `${Math.min(100, ((k.zeit_s ?? 0) / laenge) * 100)}%` }}
-                      aria-label={`Kommentar bei ${zeitText(k.zeit_s)}`}
-                    />
-                  ))}
-              </div>
+                  .map((k) => ({
+                    id: k.id,
+                    zeit_s: k.zeit_s!,
+                    zeit_bis_s: k.zeit_bis_s,
+                    farbe: k.erledigt ? 'bg-gray-300' : k.ki ? 'bg-violet-500' : k.extern ? 'bg-orange-500' : 'bg-red-600',
+                    titel: `${k.extern ? `${k.kunde_name ?? 'Kunde'}: ` : ''}${k.text}`,
+                  }))}
+                bereich={mitZeit && kommentarZeit !== null && (bereichBis !== null || !!text) ? { von: kommentarZeit, bis: bereichBis } : null}
+                onSpringe={springe}
+              />
             ) : null}
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[12.5px] text-gray-500">
               <span>
-                {zeitText(zeit)} / {zeitText(laenge)} · <span className="text-red-700">●</span> Kommentar · <span className="text-violet-600">●</span> KI-Hinweis
+                {!vergleich && (
+                  <>
+                    {zeitText(zeit)} / {zeitText(laenge)} ·{' '}
+                  </>
+                )}
+                <span className="text-red-700">●</span> Team · <span className="text-orange-500">●</span> Kunde · <span className="text-violet-600">●</span> KI
               </span>
-              <div className="flex items-center gap-2">
-                <span>Version</span>
-                <select className="h-8 rounded-lg border border-gray-300 bg-white px-2 text-[13px]" value={versionId ?? ''} onChange={(e) => setVersionId(e.target.value)}>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setModal('kuerzel')} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 hover:bg-gray-100" title="Tastenkürzel">
+                  <Keyboard className="h-3.5 w-3.5" /> Kürzel
+                </button>
+                {d.versionen.filter((x) => x.url).length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setVergleich((x) => !x)}
+                    className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 ${vergleich ? 'bg-red-50 text-red-800' : 'hover:bg-gray-100'}`}
+                  >
+                    <Columns2 className="h-3.5 w-3.5" /> {vergleich ? 'Vergleich beenden' : 'Versionen vergleichen'}
+                  </button>
+                )}
+                <button type="button" onClick={() => setModal('export')} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 hover:bg-gray-100">
+                  <Download className="h-3.5 w-3.5" /> Marker
+                </button>
+                {!vergleich && <span>Version</span>}
+                <select hidden={vergleich} className="h-8 rounded-lg border border-gray-300 bg-white px-2 text-[13px]" value={versionId ?? ''} onChange={(e) => setVersionId(e.target.value)}>
                   {d.versionen.map((x) => (
                     <option key={x.id} value={x.id}>
                       V{x.version} · {new Date(x.created_at).toLocaleDateString('de-DE')}
@@ -392,12 +454,14 @@ export function VideoDetail({ id }: { id: string }) {
           {istAktuell && (
             <div className="mt-3 rounded-xl border border-gray-200 p-2.5">
               <textarea
+                ref={textfeld}
                 className="min-h-[70px] w-full resize-none text-[14px] outline-none"
-                placeholder={mitZeit ? `Kommentar bei ${zeitText(kommentarZeit ?? zeit)} … (Video hält an)` : 'Allgemeiner Kommentar …'}
+                placeholder={mitZeit ? `Kommentar bei ${zeitLabel(kommentarZeit ?? zeit, bereichBis)} … (Video hält an)` : 'Allgemeiner Kommentar …'}
                 value={text}
                 onFocus={() => {
                   player.current?.pause();
-                  setKommentarZeit(player.current?.currentTime ?? zeit);
+                  // Gesetzten Bereich (I/O) nicht überschreiben
+                  if (bereichBis === null) setKommentarZeit(player.current?.currentTime ?? zeit);
                 }}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
@@ -405,9 +469,31 @@ export function VideoDetail({ id }: { id: string }) {
                 }}
               />
               <div className="flex items-center justify-between gap-2">
-                <label className="flex items-center gap-1.5 text-[12.5px] text-gray-600">
-                  <input type="checkbox" checked={mitZeit} onChange={(e) => setMitZeit(e.target.checked)} /> bei {zeitText(kommentarZeit ?? zeit)}
-                </label>
+                <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-gray-600">
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" checked={mitZeit} onChange={(e) => setMitZeit(e.target.checked)} /> bei {zeitLabel(kommentarZeit ?? zeit, bereichBis)}
+                  </label>
+                  {mitZeit &&
+                    (bereichBis === null ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const jetzt = player.current?.currentTime ?? zeit;
+                          const von = kommentarZeit ?? jetzt;
+                          if (jetzt > von) setBereichBis(jetzt);
+                          else toast.info('Video bis zum Ende des Bereichs abspielen, dann hier klicken (oder Taste O)');
+                        }}
+                        className="rounded-md px-1.5 py-0.5 text-red-700 hover:bg-red-50"
+                        title="Ende des Bereichs = aktuelle Position (Taste O)"
+                      >
+                        + Bereich bis {zeitText(zeit)}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setBereichBis(null)} className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 hover:bg-gray-100">
+                        <X className="h-3 w-3" /> Bereich
+                      </button>
+                    ))}
+                </div>
                 <Button size="sm" onClick={kommentieren} disabled={!text.trim()}>
                   Senden
                 </Button>
@@ -421,20 +507,24 @@ export function VideoDetail({ id }: { id: string }) {
             {kommentare.map((k) => {
               const autor = person(k.autor_id);
               return (
-                <li key={k.id} className={`rounded-xl border p-2.5 ${k.erledigt ? 'border-gray-100 opacity-60' : k.ki ? 'border-violet-100 bg-violet-50/40' : 'border-gray-200'}`}>
+                <li key={k.id} className={`rounded-xl border p-2.5 ${k.erledigt ? 'border-gray-100 opacity-60' : k.ki ? 'border-violet-100 bg-violet-50/40' : k.extern ? 'border-orange-100 bg-orange-50/30' : 'border-gray-200'}`}>
                   <div className="flex items-start gap-2">
                     <button
                       type="button"
                       onClick={() => springe(k.zeit_s)}
-                      className={`mt-0.5 flex-none rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${k.zeit_s === null ? 'bg-gray-100 text-gray-500' : 'bg-red-50 text-red-800 hover:bg-red-100'}`}
+                      className={`mt-0.5 flex-none rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${k.zeit_s === null ? 'bg-gray-100 text-gray-500' : k.extern ? 'bg-orange-50 text-orange-800 hover:bg-orange-100' : 'bg-red-50 text-red-800 hover:bg-red-100'}`}
                     >
-                      {k.zeit_s === null ? 'allg.' : zeitText(k.zeit_s)}
+                      {zeitLabel(k.zeit_s, k.zeit_bis_s)}
                     </button>
                     <p className={`flex-1 whitespace-pre-wrap text-[13.5px] ${k.erledigt ? 'line-through' : ''}`}>{k.text}</p>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2 text-[12px] text-gray-500">
                     {k.ki ? <Bot className="h-3.5 w-3.5 text-violet-600" /> : autor ? <Avatar name={autor.name} src={autor.avatar_url} size={18} /> : null}
-                    <span>{k.ki ? 'KI' : autor?.name ?? '–'}</span>
+                    {k.extern ? (
+                      <span className="rounded bg-orange-50 px-1.5 py-0.5 font-medium text-orange-800">Kunde · {k.kunde_name ?? '–'}</span>
+                    ) : (
+                      <span>{k.ki ? 'KI' : autor?.name ?? '–'}</span>
+                    )}
                     <span>· {new Date(k.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     <button
                       type="button"
@@ -460,6 +550,36 @@ export function VideoDetail({ id }: { id: string }) {
           )}
         </Card>
       </div>
+
+      {modal === 'export' && (
+        <MarkerExportModal
+          titel={`${v.titel} V${version?.version ?? v.aktuelle_version}`}
+          dauerS={laenge ?? 0}
+          kommentare={kommentare.map((k) => ({ zeit_s: k.zeit_s, zeit_bis_s: k.zeit_bis_s, text: k.text, erledigt: k.erledigt, autor: k.ki ? 'KI' : k.extern ? `Kunde ${k.kunde_name ?? ''}`.trim() : person(k.autor_id)?.name ?? 'Team' }))}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal === 'kunde' && (
+        <KundenLinkModal
+          videoId={v.id}
+          link={d.kundenLink}
+          kundenStatus={v.kunden_status}
+          onClose={() => setModal(null)}
+          onAenderung={(link) => setD((alt) => (alt ? { ...alt, kundenLink: link, video: { ...alt.video, kunden_status: link ? alt.video.kunden_status ?? 'offen' : alt.video.kunden_status } } : alt))}
+        />
+      )}
+      {modal === 'kuerzel' && (
+        <Modal open onClose={() => setModal(null)} title="Tastenkürzel im Player" width="max-w-sm">
+          <ul className="space-y-1.5 text-[14px]">
+            {KUERZEL.map(([t, b]) => (
+              <li key={t} className="flex justify-between gap-3">
+                <kbd className="rounded border border-gray-300 bg-gray-50 px-1.5 text-[12.5px]">{t}</kbd>
+                <span className="text-right text-gray-600">{b}</span>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
     </div>
   );
 }
