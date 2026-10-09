@@ -31,27 +31,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'E-Mail oder Telefonnummer erforderlich' }, { status: 400 });
   }
 
-  // Eintrag ZUERST beanspruchen: schickt Perspective dieselbe Eintragung nochmal, entsteht kein zweiter Lead
-  // (Status 'done' als Platzhalter – der Minuten-Tick verarbeitet diese Quelle nicht)
-  const { data: claim, error: claimErr } = await svc
-    .from('events_inbox')
-    .insert({ source: 'sales_funnel', external_id: externalId, payload: body, status: 'done', error: 'in Bearbeitung', processed_at: new Date().toISOString() })
-    .select('id')
-    .single();
-  if (claimErr?.code === '23505') return NextResponse.json({ ok: true, duplicate: true });
-  if (claimErr) console.error('[sales-funnel] Protokoll fehlgeschlagen:', claimErr.message);
-  const claimId = (claim as { id: string } | null)?.id ?? null;
+  // Eintrag ZUERST beanspruchen (eigene Tabelle, wiederaufnehmbar): dieselbe Eintragung erzeugt nie einen zweiten Lead.
+  // Bricht ein Lauf hart ab, darf nach 2 Minuten ein erneuter Versuch übernehmen.
+  if (externalId) {
+    const { error: claimErr } = await svc.from('sales_funnel_eingaenge').insert({ external_id: externalId });
+    if (claimErr?.code === '23505') {
+      const zweiMin = new Date(Date.now() - 2 * 60_000).toISOString();
+      const { data: uebernommen } = await svc
+        .from('sales_funnel_eingaenge')
+        .update({ gestartet_am: new Date().toISOString(), fehler: null })
+        .eq('external_id', externalId)
+        .eq('status', 'laeuft')
+        .lt('gestartet_am', zweiMin)
+        .select('external_id');
+      if (!uebernommen?.length) return NextResponse.json({ ok: true, duplicate: true });
+    } else if (claimErr) {
+      return NextResponse.json({ error: `Eingang nicht gespeichert: ${claimErr.message}` }, { status: 500 });
+    }
+  }
+  const protokoll = (status: string, error: string | null) =>
+    svc.from('events_inbox').insert({ source: 'sales_funnel', external_id: null, payload: body, status, error, processed_at: new Date().toISOString() });
 
   try {
     const ergebnis = await uebernehmeFunnelLead(lead);
-    if (claimId) await svc.from('events_inbox').update({ error: null, processed_at: new Date().toISOString() }).eq('id', claimId);
+    if (externalId) await svc.from('sales_funnel_eingaenge').update({ status: 'fertig', erledigt_am: new Date().toISOString(), lead_id: ergebnis.leadId }).eq('external_id', externalId);
+    await protokoll('done', null);
     return NextResponse.json({ ok: true, lead_id: ergebnis.leadId, neu: ergebnis.neu });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Fehler';
     console.error('[sales-funnel]', msg);
     // Freigeben, damit ein erneuter Versuch von Perspective die Eintragung übernehmen kann
-    if (claimId) await svc.from('events_inbox').delete().eq('id', claimId);
-    await svc.from('events_inbox').insert({ source: 'sales_funnel', external_id: null, payload: body, status: 'failed', error: msg, processed_at: new Date().toISOString() });
+    if (externalId) await svc.from('sales_funnel_eingaenge').delete().eq('external_id', externalId).eq('status', 'laeuft');
+    await protokoll('failed', msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

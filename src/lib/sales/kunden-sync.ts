@@ -104,8 +104,9 @@ interface Kunde {
 }
 
 /** Job sales.kunden_sync */
-export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = new Date(), opts: { nachId?: string | null } = {}) {
-  const start = Date.now();
+export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = new Date(), opts: { nachId?: string | null; deadline?: number } = {}) {
+  // Zeitbudget: höchstens 35 s und nie über die Restzeit des Minuten-Ticks hinaus
+  const ende = Math.min(Date.now() + 35_000, opts.deadline ?? Infinity);
   const ids = await stelleCloseKundenFelderSicher(svc);
   const { data } = await svc.from('agencies').select('id, name, email, rechnungsmail, phone, contact_name, fulfillment_phase, fulfillment_phase_seit').neq('id', SALES_AGENCY_ID).not('fulfillment_phase', 'is', null);
   // Feste Reihenfolge, damit ein Folge-Job dort weitermacht, wo die Zeit nicht gereicht hat
@@ -115,10 +116,15 @@ export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = ne
   const ergebnis = { abgeglichen: 0, ohneLead: [] as string[], exKunden: 0, upsell: 0, fehler: [] as string[], fortsetzung: false };
 
   for (const k of kunden) {
-    // Zeitbudget im Minuten-Tick: nach 35 s einen Folge-Job planen, der beim nächsten Kunden weitermacht
-    if (Date.now() - start > 35_000) {
-      const nachId = kunden[kunden.indexOf(k) - 1]?.id ?? opts.nachId ?? null;
-      await svc.from('scheduled_jobs').insert({
+    // Zeitbudget erreicht: Folge-Job planen, der beim nächsten Kunden weitermacht
+    if (Date.now() > ende) {
+      const nachId = kunden[kunden.indexOf(k) - 1]?.id ?? null;
+      if (!nachId) {
+        // Kein Fortschritt in diesem Lauf (Budget schon vor dem ersten Kunden verbraucht) → nicht planen, morgen erneut
+        console.error('[kunden-sync] Kein Zeitbudget für den ersten Kunden – Abbruch ohne Fortsetzung');
+        break;
+      }
+      const { error: fErr } = await svc.from('scheduled_jobs').insert({
         agency_id: SALES_AGENCY_ID,
         type: 'sales.kunden_sync',
         run_at: new Date(Date.now() + 60_000).toISOString(),
@@ -126,6 +132,7 @@ export async function synchronisiereKunden(svc: SupabaseClient, jetzt: Date = ne
         status: 'pending',
         dedupe_key: `sales.kunden_sync:fortsetzung:${nachId}:${berlinTag(jetzt)}`,
       });
+      if (fErr && fErr.code !== '23505') throw new Error(`Fortsetzung nicht geplant: ${fErr.message}`);
       ergebnis.fortsetzung = true;
       break;
     }

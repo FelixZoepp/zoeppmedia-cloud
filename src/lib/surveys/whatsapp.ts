@@ -165,25 +165,26 @@ export async function verarbeiteUmfrageAntwort(
       payload: { to: ctx.phone, type: 'text', text: { body } },
       senderType: 'system',
     }).catch((err) => console.error('[umfrage-wa] Antwort fehlgeschlagen', err));
-  // Schon beantwortet oder schon per Schnellantwort bewertet → keine neuen Aufgaben, nur kurz bestätigen
-  if (s.completed_at || s.schnell_bewertung) {
+  // Schon beantwortet oder schon bewertet (und ggf. Rückruf-Aufgabe vorhanden) → nur kurz bestätigen
+  if (s.completed_at || (s.schnell_bewertung && (s.schnell_bewertung > 2 || s.rueckruf_aufgabe_am))) {
     await sende(s.completed_at ? 'Danke, dein 2-Wochen-Check ist schon bei uns angekommen 🙌' : `Danke, ist notiert! Den kompletten Check findest du hier: ${umfrageLink(token)}`);
     return true;
   }
-  const { error: uErr } = await svc.from('survey_schedule').update({ schnell_bewertung: wert }).eq('id', s.id).is('schnell_bewertung', null);
-  if (uErr) throw new Error(`Schnellantwort nicht gespeichert: ${uErr.message}`);
+  const nachholen = !!s.schnell_bewertung;
+  if (!nachholen) {
+    const { error: uErr } = await svc.from('survey_schedule').update({ schnell_bewertung: wert }).eq('id', s.id).is('schnell_bewertung', null);
+    if (uErr) throw new Error(`Schnellantwort nicht gespeichert: ${uErr.message}`);
+  }
 
   const link = umfrageLink(token);
   const text =
     wert >= 4
       ? `Freut mich richtig! 🙌 Magst du mir in 2 Minuten erzählen, was gerade am besten läuft? Das hilft uns, genau daran weiterzuarbeiten: ${link}`
       : `Danke für die ehrliche Antwort – genau das brauchen wir. Was hakt gerade am meisten? Schreib's mir hier oder im kurzen Check: ${link}\n\nDein Kundenberater meldet sich zusätzlich bei dir.`;
-  await sende(text);
+  await sende(nachholen ? `Danke, ist notiert! Den kompletten Check findest du hier: ${link}` : text);
 
-  // Rückruf-Aufgabe nur einmal je Check
-  if (wert <= 2 && !s.rueckruf_aufgabe_am) {
-    const { data: claim } = await svc.from('survey_schedule').update({ rueckruf_aufgabe_am: new Date().toISOString() }).eq('id', s.id).is('rueckruf_aufgabe_am', null).select('id');
-    if (!claim?.length) return true;
+  // Rückruf-Aufgabe genau einmal je Check (eindeutig über quelle_ref) – wird bei einem erneuten Tippen nachgeholt, falls sie fehlt
+  if ((s.schnell_bewertung ?? wert) <= 2 && !s.rueckruf_aufgabe_am) {
     const kunde = s.agencies?.name ?? 'Kunde';
     const { resolveOwner } = await import('@/lib/fulfillment/engine');
     const betreuer = s.agencies?.csm_user_id ?? (await resolveOwner(svc, 'csm'));
@@ -195,8 +196,12 @@ export async function verarbeiteUmfrageAntwort(
       priority: 'high',
       due_date: berlinTag(),
       status: 'todo',
+      quelle: 'umfrage',
+      quelle_ref: `umfrage-rueckruf:${s.id}`,
     });
-    if (tErr) console.error('[umfrage-wa] Rückruf-Aufgabe nicht angelegt', tErr.message);
+    if (tErr && tErr.code !== '23505') throw new Error(`Rückruf-Aufgabe nicht angelegt: ${tErr.message}`);
+    await svc.from('survey_schedule').update({ rueckruf_aufgabe_am: new Date().toISOString() }).eq('id', s.id);
+    if (tErr) return true; // schon vorhanden – nicht erneut benachrichtigen
     if (betreuer) {
       const { createNotification } = await import('@/lib/notifications/create');
       await createNotification(svc, {

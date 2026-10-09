@@ -144,7 +144,8 @@ export function VideoDetail({ id }: { id: string }) {
     const r = await fetch('/api/videos', { cache: 'no-store' });
     const j = await r.json().catch(() => null);
     const liste = ((j?.videos ?? []) as Array<{ id: string; status: string; pruefer_id: string | null; faellig_am: string | null }>)
-      .filter((x) => x.id !== id && x.status === 'in_pruefung' && (!x.pruefer_id || x.pruefer_id === d?.ich.id))
+      // Nur Videos, über die ich entscheiden darf: Admin alle, sonst nur als eingetragener Prüfer
+      .filter((x) => x.id !== id && x.status === 'in_pruefung' && (d?.ich.role === 'admin' || x.pruefer_id === d?.ich.id))
       .sort((a, b) => (a.faellig_am ?? '9999').localeCompare(b.faellig_am ?? '9999'));
     if (liste[0]) router.push(`/videos/${liste[0].id}`);
     else {

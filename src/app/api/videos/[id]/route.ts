@@ -37,9 +37,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { data: alt } = await svc.from('videos').select('id, titel, status, bearbeiter_id, pruefer_id, aktuelle_version').eq('id', id).maybeSingle();
   if (!alt) return NextResponse.json({ error: 'Video nicht gefunden' }, { status: 404 });
   const v = alt as { id: string; titel: string; status: string; bearbeiter_id: string | null; pruefer_id: string | null; aktuelle_version: number };
+  const istPruefer = user.role === 'admin' || v.pruefer_id === user.id;
   // Freigeben / Änderungen anfordern nur durch den Prüfer oder einen Admin
-  if ((b.status === 'freigegeben' || b.status === 'aenderungen') && user.role !== 'admin' && v.pruefer_id !== user.id) {
+  if ((b.status === 'freigegeben' || b.status === 'aenderungen') && !istPruefer) {
     return NextResponse.json({ error: 'Nur der Prüfer oder ein Admin kann freigeben bzw. Änderungen anfordern' }, { status: 403 });
+  }
+  // Prüfer umsetzen ebenfalls nur Prüfer/Admin – sonst könnte man sich selbst eintragen und freigeben
+  if ('pruefer_id' in b && (b.pruefer_id ?? null) !== v.pruefer_id && !istPruefer) {
+    return NextResponse.json({ error: 'Nur der Prüfer oder ein Admin kann den Prüfer ändern' }, { status: 403 });
   }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };

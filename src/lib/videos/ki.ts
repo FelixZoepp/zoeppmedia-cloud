@@ -52,13 +52,14 @@ export async function pruefeVideoTexte(
 
   // Kein zweiter Lauf, solange einer läuft (älter als 5 Minuten gilt als abgebrochen)
   const fuenfMin = new Date(Date.now() - 5 * 60_000).toISOString();
-  const { data: v } = await svc
+  const { data: v, error: claimErr } = await svc
     .from('video_versionen')
     .update({ ki_status: 'laeuft', ki_gestartet_am: new Date().toISOString() })
     .eq('id', versionId)
     .or(`ki_status.neq.laeuft,ki_gestartet_am.lt.${fuenfMin},ki_gestartet_am.is.null`)
     .select('id, video_id')
     .maybeSingle();
+  if (claimErr) throw new Error(`KI-Prüfung konnte nicht gestartet werden: ${claimErr.message}`);
   if (!v) throw new Error('Die KI-Prüfung für diese Version läuft gerade schon');
   const version = v as { id: string; video_id: string };
 
@@ -84,25 +85,16 @@ export async function pruefeVideoTexte(
     if (!res.parsed_output) throw new Error('Die KI hat kein gültiges Ergebnis geliefert');
     const erg: KiVideoErgebnis = { ...res.parsed_output, bilder: frames.length, am: new Date().toISOString() };
 
-    // Neue Hinweise zuerst speichern, dann die alten entfernen – Erledigt-Status gleicher Hinweise bleibt erhalten
-    const { data: alte, error: aErr } = await svc.from('video_kommentare').select('id, text, erledigt').eq('version_id', versionId).eq('ki', true);
+    // Erledigt-Status gleicher Hinweise übernehmen, dann Ergebnis + Hinweise atomar ersetzen
+    const { data: alte, error: aErr } = await svc.from('video_kommentare').select('text, erledigt').eq('version_id', versionId).eq('ki', true);
     if (aErr) throw new Error(`Alte KI-Hinweise nicht lesbar: ${aErr.message}`);
     const erledigt = new Set(((alte ?? []) as Array<{ text: string; erledigt: boolean }>).filter((k) => k.erledigt).map((k) => k.text));
-    if (erg.funde.length) {
-      const zeilen = erg.funde.map((f) => {
-        const text = `KI (${f.art}): „${f.text}“ – ${f.problem}. Vorschlag: „${f.vorschlag}“`;
-        return { video_id: version.video_id, version_id: versionId, zeit_s: f.zeit, text, autor_id: autorId, ki: true, erledigt: erledigt.has(text) };
-      });
-      const { error: iErr } = await svc.from('video_kommentare').insert(zeilen);
-      if (iErr) throw new Error(`KI-Hinweise nicht gespeichert: ${iErr.message}`);
-    }
-    const alteIds = ((alte ?? []) as Array<{ id: string }>).map((k) => k.id);
-    if (alteIds.length) {
-      const { error: dErr } = await svc.from('video_kommentare').delete().in('id', alteIds);
-      if (dErr) console.error('[videos/ki] alte Hinweise nicht entfernt', dErr.message);
-    }
-    const { error: uErr } = await svc.from('video_versionen').update({ ki_status: 'fertig', ki_ergebnis: erg }).eq('id', versionId);
-    if (uErr) throw new Error(`KI-Ergebnis nicht gespeichert: ${uErr.message}`);
+    const hinweise = erg.funde.map((f) => {
+      const text = `KI (${f.art}): „${f.text}“ – ${f.problem}. Vorschlag: „${f.vorschlag}“`;
+      return { video_id: version.video_id, zeit_s: f.zeit, text, autor_id: autorId ?? '', erledigt: erledigt.has(text) };
+    });
+    const { error: rErr } = await svc.rpc('video_ki_ersetzen', { p_version: versionId, p_ergebnis: erg, p_hinweise: hinweise });
+    if (rErr) throw new Error(`KI-Ergebnis nicht gespeichert: ${rErr.message}`);
     return erg;
   } catch (err) {
     await svc.from('video_versionen').update({ ki_status: 'fehler' }).eq('id', versionId);

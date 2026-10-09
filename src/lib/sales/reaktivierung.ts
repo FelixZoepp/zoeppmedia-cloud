@@ -121,8 +121,8 @@ async function grundAus(svc: SupabaseClient, leadId: string): Promise<string | n
 }
 
 /** Job sales.reaktivierung */
-export async function reaktiviereUnqualifizierte(svc: SupabaseClient, jetzt: Date = new Date()): Promise<{ reaktiviert: number; gesperrt: number; offen: number }> {
-  const start = Date.now();
+export async function reaktiviereUnqualifizierte(svc: SupabaseClient, jetzt: Date = new Date(), deadline?: number): Promise<{ reaktiviert: number; gesperrt: number; offen: number }> {
+  const ende = Math.min(Date.now() + BUDGET_MS, deadline ?? Infinity);
   const leads = await unqualifizierteLeads();
   let reaktiviert = 0;
   let gesperrt = 0;
@@ -132,7 +132,7 @@ export async function reaktiviereUnqualifizierte(svc: SupabaseClient, jetzt: Dat
     const gesperrtBis = (lead[`custom.${GESPERRT_BIS}`] as string | null | undefined) ?? null;
     // Mit gesetzter, noch laufender Sperre braucht es keinen Abruf
     if (gesperrtBis && new Date(gesperrtBis).getTime() > jetzt.getTime()) continue;
-    if (bearbeitet >= PORTION || Date.now() - start > BUDGET_MS) break;
+    if (bearbeitet >= PORTION || Date.now() > ende) break;
     bearbeitet++;
 
     const seit = gesperrtBis ? null : await eingestuftAm(lead);

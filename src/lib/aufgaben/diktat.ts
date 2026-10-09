@@ -103,6 +103,18 @@ export async function legeVorschlaegeAn(
     // Nummer des ursprünglichen Vorschlags (bei abgewählten Vorschlägen bleibt die Zuordnung stabil)
     const quelleRef = ref ? `${ref}:${v.nr ?? index}` : null;
     const zustaendig = v.zustaendig_id ?? von.id;
+    if (quelleRef) {
+      // Schon angelegt – egal ob als Aufgabe oder Serie (Rhythmus kann sich zwischen zwei Versuchen ändern)
+      const [{ data: ta }, { data: se }] = await Promise.all([
+        svc.from('internal_tasks').select('id').eq('quelle_ref', quelleRef).maybeSingle(),
+        svc.from('aufgaben_serien').select('id').eq('quelle_ref', quelleRef).maybeSingle(),
+      ]);
+      const vorhanden = (ta as { id: string } | null) ?? (se as { id: string } | null);
+      if (vorhanden) {
+        out.push({ titel: v.titel, zustaendig, art: ta ? 'aufgabe' : 'serie', id: vorhanden.id });
+        continue;
+      }
+    }
     const board = await boardVon(svc, zustaendig);
     if (v.rhythmus === 'einmalig') {
       const { data, error } = await svc

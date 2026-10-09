@@ -321,12 +321,15 @@ export async function GET(request: NextRequest) {
         }
         case 'sales.kunden_sync': {
           const { synchronisiereKunden } = await import('@/lib/sales/kunden-sync');
-          console.log('[kunden-sync]', JSON.stringify(await synchronisiereKunden(svc, new Date(), { nachId: (payload as { nach_id?: string | null }).nach_id ?? null })));
+          console.log(
+            '[kunden-sync]',
+            JSON.stringify(await synchronisiereKunden(svc, new Date(), { nachId: (payload as { nach_id?: string | null }).nach_id ?? null, deadline: startTime + WALL_CLOCK_LIMIT_MS - 8_000 })),
+          );
           break;
         }
         case 'sales.reaktivierung': {
           const { reaktiviereUnqualifizierte } = await import('@/lib/sales/reaktivierung');
-          console.log('[reaktivierung]', JSON.stringify(await reaktiviereUnqualifizierte(svc)));
+          console.log('[reaktivierung]', JSON.stringify(await reaktiviereUnqualifizierte(svc, new Date(), startTime + WALL_CLOCK_LIMIT_MS - 8_000)));
           break;
         }
         case 'sales.protokoll': {
