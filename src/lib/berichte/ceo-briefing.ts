@@ -2,7 +2,8 @@
  * CEO-Briefing: Mo–Fr um 7 Uhr (Berlin) eine Zusammenfassung des Vortags für die Geschäftsführung.
  * Montags umfasst „Vortag“ Freitag bis Sonntag.
  * Inhalt: Alarme bei Geschäftszahlen → Sales → Marketing → Kunden & Bewerber → Ausnahmen aus dem Cockpit → offene Entscheidungen.
- * Versand: E-Mail an die Empfänger (system_einstellungen.ceo_briefing, sonst alle Admins) + Glocke/Push,
+ * Versand: WhatsApp über die Zoepp-Nummer an system_einstellungen.ceo_briefing.whatsapp (Vorlage ceo_briefing,
+ * bis zur Freigabe Freitext im 24-h-Fenster) + Glocke/Push an die Admins; Mail nur, wenn dort nicht "mail": false steht.
  * Ansicht in der Cloud unter /admin/briefing. Jede Ausgabe wird in ceo_briefings gespeichert (ein Versand pro Tag).
  * Geht nur an interne Admins – nie an Kunden oder Bewerber.
  */
@@ -329,30 +330,113 @@ export async function planeCeoBriefing(svc: SupabaseClient, jetzt: Date = new Da
   if (error && error.code !== '23505') console.error('[ceo-briefing] nicht geplant:', error.message);
 }
 
+/* ── WhatsApp-Texte ────────────────────────────────────────────── */
+
+/** Einzeilig für Vorlagen-Parameter (Meta: keine Umbrüche/Tabs, keine 4+ Leerzeichen) */
+const einzeilig = (t: string, max = 300) => {
+  const x = t.replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return x.length > max ? `${x.slice(0, max - 1)}…` : x;
+};
+
+export function waTeile(b: BriefingDaten) {
+  const s = b.sales;
+  const m = b.marketing;
+  const k = b.kunden;
+  const rot = b.alarme.filter((a) => a.stufe === 'rot');
+  const gelb = b.alarme.filter((a) => a.stufe === 'gelb');
+  const alarme = b.alarme.length ? [...rot, ...gelb].slice(0, 4).map((a) => `${a.stufe === 'rot' ? '🔴' : '🟡'} ${a.text}`).join(' · ') : '✅ Keine Auffälligkeiten, alles im Plan';
+  const monat = `Monat ${eur(s.monat.volumen)} von ${eur(s.monat.ziel)} (${Math.round((s.monat.volumen / s.monat.ziel) * 100)} %)${s.monat.prognose !== null ? `, Prognose ${eur(s.monat.prognose)}` : ''}`;
+  return {
+    datum: new Date(`${b.tag}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }),
+    alarme,
+    sales: `${z(s.abschluesse)} Abschlüsse (${eur(s.volumen)}) · ${z(s.closingsGehalten)} Closings · ${z(s.settingsGehalten)} Settings · Show-up ${pz(s.showUpSetting)} · ${monat}`,
+    marketing: m.verbunden ? `${eur(m.ausgaben)} Ausgaben · ${z(m.leads)} Leads · ${m.cpl === null ? '–' : eur(m.cpl)} pro Lead${m.cplSchnitt14 !== null ? ` (Ø ${eur(m.cplSchnitt14)})` : ''}` : 'Meta Ads nicht verbunden',
+    kunden: `${z(k.bewerber)} Bewerber · ${z(k.aktiv)} Kunden 🟢 ${k.ampel.gruen} 🟡 ${k.ampel.gelb} 🔴 ${k.ampel.rot}${k.neu.length ? ` · neu: ${k.neu.join(', ')}` : ''}${k.beendet.length ? ` · beendet: ${k.beendet.join(', ')}` : ''}`,
+  };
+}
+
+/** Vorlagen-Parameter für ceo_briefing (Reihenfolge wie im Vorlagentext) */
+export function waParameter(b: BriefingDaten, vorname: string): string[] {
+  const t = waTeile(b);
+  return [vorname, t.datum, t.alarme, t.sales, t.marketing, t.kunden].map((x) => einzeilig(x));
+}
+
+/** Ausführliche Freitext-Version (nur im offenen 24-h-Fenster zustellbar) */
+export function waLangtext(b: BriefingDaten, vorname: string): string {
+  const t = waTeile(b);
+  const s = b.sales;
+  const zeilen = [
+    `☀️ *Guten Morgen ${vorname}* – dein Briefing für ${t.datum}`,
+    `_${b.zeitraum.label}_`,
+    '',
+    '🚨 *Auf einen Blick*',
+    ...(b.alarme.length ? b.alarme.slice(0, 6).map((a) => `${a.stufe === 'rot' ? '🔴' : '🟡'} ${a.text}`) : ['✅ Keine Auffälligkeiten, alles im Plan']),
+    '',
+    '💼 *Sales*',
+    `🏆 ${z(s.abschluesse)} Abschlüsse · ${eur(s.volumen)}`,
+    `🤝 ${z(s.closingsGehalten)} Closings (Show-up ${pz(s.showUpClosing)}) · Closing-Rate ${pz(s.closingRate)}`,
+    `🗓️ ${z(s.settingsGehalten)} Settings (Show-up ${pz(s.showUpSetting)}) · ➕ ${z(s.settingsGebucht)} neu gebucht`,
+    `🎯 Monat ${eur(s.monat.volumen)} von ${eur(s.monat.ziel)}${s.monat.prognose !== null ? ` · Prognose ${eur(s.monat.prognose)}` : ''}`,
+    '',
+    '📣 *Marketing*',
+    t.marketing,
+    '',
+    '👥 *Kunden & Bewerber*',
+    t.kunden,
+    ...(b.entscheidungen.length ? ['', '🧭 *Offene Entscheidungen*', ...b.entscheidungen.map((p) => `• ${p.titel}`)] : []),
+    '',
+    '🔗 cloud.zoeppmedia.de/admin/briefing',
+  ];
+  return zeilen.join('\n');
+}
+
+interface BriefingEinstellung {
+  user_ids?: string[];
+  whatsapp?: string[];
+  mail?: boolean;
+}
+
+/** system_einstellungen.ceo_briefing = {"whatsapp": ["+49…"], "mail": false, "user_ids": [...]} */
+async function ladeEinstellung(svc: SupabaseClient): Promise<BriefingEinstellung> {
+  const { data } = await svc.from('system_einstellungen').select('wert').eq('key', 'ceo_briefing').maybeSingle();
+  try {
+    const w = (data as { wert: unknown } | null)?.wert;
+    const obj = typeof w === 'string' ? JSON.parse(w) : w;
+    return obj && typeof obj === 'object' ? (obj as BriefingEinstellung) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Per WhatsApp über die Zoepp-Nummer: freigegebene Vorlage, sonst Freitext (klappt nur im 24-h-Fenster) */
+async function sendeWhatsApp(svc: SupabaseClient, nummer: string, b: BriefingDaten, vorname: string): Promise<'vorlage' | 'text'> {
+  const { getProvider } = await import('@/lib/whatsapp/provider');
+  const { decryptSecret } = await import('@/lib/crypto');
+  const { SALES_WA_ACCOUNT_ID } = await import('@/lib/sales/calendly-chain');
+  const { data: acc } = await svc.from('whatsapp_accounts').select('access_token_enc, phone_number_id').eq('id', SALES_WA_ACCOUNT_ID).single();
+  const a = acc as { access_token_enc: string; phone_number_id: string } | null;
+  if (!a) throw new Error('Sales-WhatsApp-Konto nicht gefunden');
+  const token = decryptSecret(a.access_token_enc);
+  const { data: vorlage } = await svc.from('whatsapp_templates').select('name').eq('wa_account_id', SALES_WA_ACCOUNT_ID).eq('preset_key', 'ceo_briefing').eq('status', 'approved').maybeSingle();
+  if (vorlage) {
+    await getProvider().sendMessage(a.phone_number_id, token, {
+      to: nummer,
+      type: 'template',
+      template: { name: (vorlage as { name: string }).name, language: { code: 'de' }, components: [{ type: 'body', parameters: waParameter(b, vorname).map((t) => ({ type: 'text', text: t })) }] },
+    });
+    return 'vorlage';
+  }
+  await getProvider().sendMessage(a.phone_number_id, token, { to: nummer, type: 'text', text: { body: waLangtext(b, vorname) } });
+  return 'text';
+}
+
 interface Empfaenger {
   id: string;
   name: string;
   email: string | null;
 }
 
-/** Empfänger: system_einstellungen.ceo_briefing = {"user_ids": [...]} – sonst alle Admins */
-async function ladeEmpfaenger(svc: SupabaseClient): Promise<Empfaenger[]> {
-  const { data: einst } = await svc.from('system_einstellungen').select('wert').eq('key', 'ceo_briefing').maybeSingle();
-  let ids: string[] | null = null;
-  try {
-    const w = (einst as { wert: unknown } | null)?.wert;
-    const obj = typeof w === 'string' ? JSON.parse(w) : w;
-    if (obj && Array.isArray((obj as { user_ids?: unknown }).user_ids)) ids = (obj as { user_ids: string[] }).user_ids;
-  } catch {
-    /* Standard: alle Admins */
-  }
-  let q = svc.from('users').select('id, name, email').eq('role', 'admin');
-  if (ids) q = q.in('id', ids);
-  const { data } = await q;
-  return (data ?? []) as Empfaenger[];
-}
-
-/** Job 'berichte.ceo': Briefing berechnen, speichern (einmal pro Tag), per Mail + Push verschicken */
+/** Job 'berichte.ceo': Briefing berechnen, speichern (einmal pro Tag), per WhatsApp (+ optional Mail) und Glocke verschicken */
 export async function sendeCeoBriefing(svc: SupabaseClient, tag: string, jetzt: Date = new Date()): Promise<{ gesendet: number; uebersprungen?: string }> {
   if (tag !== berlinTag(jetzt) || berlinStunde(jetzt) >= SPAETESTENS) return { gesendet: 0, uebersprungen: 'zu spät' };
   const daten = await erstelleBriefing(svc, jetzt);
@@ -361,23 +445,38 @@ export async function sendeCeoBriefing(svc: SupabaseClient, tag: string, jetzt: 
   if (claim?.code === '23505') return { gesendet: 0, uebersprungen: 'bereits verschickt' };
   if (claim) throw new Error(`Briefing nicht gespeichert: ${claim.message}`);
 
-  const empfaenger = await ladeEmpfaenger(svc);
+  const einst = await ladeEinstellung(svc);
+  let q = svc.from('users').select('id, name, email').eq('role', 'admin');
+  if (einst.user_ids?.length) q = q.in('id', einst.user_ids);
+  const empfaenger = ((await q).data ?? []) as Empfaenger[];
+  const vorname = (empfaenger[0]?.name ?? 'Felix').split(' ')[0];
   const { titel, text } = kurzfassung(daten);
-  const html = briefingHtml(daten);
-  const { Resend } = await import('resend');
-  const resend = new Resend(process.env.RESEND_API_KEY || '');
   const { createNotification } = await import('@/lib/notifications/create');
   let gesendet = 0;
   const fehler: string[] = [];
+  const wege: string[] = [];
+
+  for (const nummer of einst.whatsapp ?? []) {
+    try {
+      wege.push(`WhatsApp ${await sendeWhatsApp(svc, nummer, daten, vorname)}`);
+      gesendet++;
+    } catch (e) {
+      fehler.push(`WhatsApp: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
   for (const u of empfaenger) {
     await createNotification(svc, { user_id: u.id, title: titel, body: text, type: 'system', push_url: '/admin/briefing' }).catch((e) => fehler.push(`Push ${u.name}: ${e}`));
-    if (!u.email) continue;
-    const { error } = await resend.emails.send({ from: 'Zoepp Cloud <noreply@zoepp-gruppe.de>', to: u.email, subject: titel, html });
+    if (einst.mail === false || !u.email) continue;
+    const { Resend } = await import('resend');
+    const { error } = await new Resend(process.env.RESEND_API_KEY || '').emails.send({ from: 'Zoepp Cloud <noreply@zoepp-gruppe.de>', to: u.email, subject: titel, html: briefingHtml(daten) });
     if (error) fehler.push(`Mail ${u.name}: ${error.message}`);
     else gesendet++;
   }
-  await svc.from('ceo_briefings').update({ gesendet_am: new Date().toISOString(), fehler: fehler.length ? fehler.join(' | ') : null }).eq('tag', tag);
-  // Kein Retry (sonst doppelte Mails) – Fehler stehen am Briefing
+  await svc
+    .from('ceo_briefings')
+    .update({ gesendet_am: new Date().toISOString(), fehler: [...wege, ...fehler].join(' | ') || null })
+    .eq('tag', tag);
+  // Kein Retry (sonst doppelte Nachrichten) – Ergebnis steht am Briefing
   if (fehler.length) console.error('[ceo-briefing]', fehler.join(' | '));
   return { gesendet };
 }

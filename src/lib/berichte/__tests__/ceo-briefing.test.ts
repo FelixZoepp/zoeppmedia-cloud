@@ -93,3 +93,25 @@ describe('Darstellung', () => {
     expect(h).toContain('Prognose');
   });
 });
+
+describe('WhatsApp', () => {
+  it('Vorlagen-Parameter sind einzeilig und ohne Umbrüche', async () => {
+    const { waParameter, waLangtext } = await import('../ceo-briefing');
+    const b = {
+      tag: '2026-10-13',
+      zeitraum: { von: '2026-10-12', bis: '2026-10-12', label: 'Gestern' },
+      alarme: [{ stufe: 'rot' as const, text: 'Zeile1\nZeile2' }],
+      sales: { abschluesse: 1, volumen: 6000, settingsGehalten: 3, settingsNoShow: 0, closingsGehalten: 2, closingsNoShow: 0, settingsGebucht: 4, closingsGebucht: 1, showUpSetting: 100, showUpClosing: 100, closingRate: 50, protokolleFehlen: 0, monat: { volumen: 6000, abschluesse: 1, ziel: 300000, prognose: null, werktageVorbei: 1, werktageGesamt: 22 } },
+      marketing: { verbunden: false, ausgaben: 0, leads: 0, cpl: null, cplSchnitt14: null, direktQuote: null },
+      kunden: { aktiv: 1, mrr: 0, ampel: { gruen: 1, gelb: 0, rot: 0 }, neu: [], beendet: [], bewerber: 5, bewerberWoche: 5, bewerberVorwoche: 0, starts7: [] },
+      ausnahmen: [],
+      entscheidungen: [],
+      prioritaeten: [],
+    };
+    const p = waParameter(b, 'Felix');
+    expect(p).toHaveLength(6);
+    for (const x of p) expect(x).not.toMatch(/[\n\t]|\s{4,}/);
+    expect(p[2]).toContain('🔴 Zeile1 Zeile2');
+    expect(waLangtext(b, 'Felix')).toContain('💼 *Sales*');
+  });
+});

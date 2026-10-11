@@ -217,6 +217,12 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'team_vorlage_einreichung', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    if (name === 'ceo_vorlage') {
+      const { reicheSalesVorlageEin } = await import('./vorlagen');
+      const erg = await reicheSalesVorlageEin(svc, 'ceo_briefing');
+      await svc.from('system_einstellungen').upsert({ key: 'ceo_vorlage_einreichung', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'kunden_felder') {
       const { stelleCloseKundenFelderSicher } = await import('./kunden-sync');
       await stelleCloseKundenFelderSicher(svc);

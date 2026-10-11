@@ -143,6 +143,28 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     beispiel: ['Nils', '1) Ad-Video Turhan schneiden (überfällig) · 2) Kunden-Reports raus · 3) Thumbnail Website-Video'],
     buttons: [{ type: 'URL', text: 'Zum Board', url: 'https://cloud.zoeppmedia.de/boards' }],
   },
+  {
+    // Morgen-Briefing für die Geschäftsführung (src/lib/berichte/ceo-briefing.ts)
+    name: 'ceo_briefing',
+    category: 'UTILITY',
+    body:
+      'Guten Morgen {{1}}, hier ist dein Briefing für {{2}}.\n\n' +
+      '🚨 Auf einen Blick: {{3}}\n\n' +
+      '💼 Sales: {{4}}\n\n' +
+      '📣 Marketing: {{5}}\n\n' +
+      '👥 Kunden und Bewerber: {{6}}\n\n' +
+      'Alle Details, Ausnahmen und offenen Entscheidungen findest du in der Cloud.',
+    variables: ['vorname', 'datum', 'alarme', 'sales', 'marketing', 'kunden'],
+    beispiel: [
+      'Felix',
+      'Dienstag, 13. Oktober',
+      '🔴 0 Abschlüsse in den letzten 7 Tagen · 🟡 3 Kunden auf Rot',
+      '2 Abschlüsse (12.000 €) · 4 Closings · 9 Settings · Show-up 90 % · Monat 90.000 € von 300.000 € (30 %), Prognose 220.000 €',
+      '300 € Ausgaben · 6 Leads · 50 € pro Lead (Ø 45 €)',
+      '140 Bewerber · 30 Kunden 🟢 20 🟡 7 🔴 3',
+    ],
+    buttons: [{ type: 'URL', text: 'Briefing öffnen', url: 'https://cloud.zoeppmedia.de/admin/briefing' }],
+  },
 ];
 
 async function zugang(svc: SupabaseClient): Promise<{ wabaId: string; token: string }> {
