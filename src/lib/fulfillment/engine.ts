@@ -289,6 +289,10 @@ export async function isSignalSatisfied(svc: SupabaseClient, agencyId: string, s
       const { data } = await svc.from('whatsapp_accounts').select('id').eq('agency_id', agencyId).eq('status', 'connected').limit(1).maybeSingle();
       return !!data;
     }
+    case 'kalender_verbunden': {
+      const { data } = await svc.from('kalender_verbindungen').select('id').eq('agency_id', agencyId).eq('aktiv', true).limit(1).maybeSingle();
+      return !!data;
+    }
     case 'transkript_hochgeladen': {
       const { data } = await svc.from('transcripts').select('id').eq('agency_id', agencyId).limit(1).maybeSingle();
       return !!data;

@@ -28,6 +28,7 @@ export type AutoSignal =
   | 'kunde_eingeloggt'
   | 'onboarding_formular'
   | 'whatsapp_verbunden'
+  | 'kalender_verbunden'
   | 'werbekonto_verbunden'
   | 'testimonial_gebucht'
   | 'ad_ideen_angelegt'
@@ -147,6 +148,12 @@ export const STEPS: StepDef[] = [
     anleitung: { schritte: indeedZugangSchritte() },
   },
   { key: 'o_whatsapp', phase: 'onboarding', titel: 'WhatsApp-Nummer verbunden', wer: 'kunde', funktion: 'csm', frist_tage: 3, auto: 'whatsapp_verbunden', optional: true },
+  {
+    key: 'o_kalender', phase: 'onboarding', titel: 'Kalender verbunden',
+    beschreibung: 'Einstellungen → Kalender → mit Google oder Outlook verbinden. Dann tragen wir Vorstellungsgespräche und Probetage direkt in deinen Kalender ein und sehen deine freien Zeiten.',
+    wer: 'kunde', funktion: 'innendienst', frist_tage: 3, auto: 'kalender_verbunden',
+    anleitung: { schritte: ['In der Zoepp Cloud links auf Einstellungen → Kalender', 'Auf „Mit Google Kalender verbinden“ bzw. „Mit Outlook verbinden“ klicken', 'Mit deinem Firmenkonto anmelden und den Zugriff bestätigen – fertig'] },
+  },
   { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Meta: Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode. Indeed: Admin-Zugang da, Zahlungsmethode hinterlegt, Weiterleitung bewerber+<Kunden-ID>@zoepp-gruppe.de in der Anzeige eingetragen (Adresse unter Anbindung).', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
   {
     key: 'o_systemnutzer', phase: 'onboarding', titel: 'Systemnutzer zugewiesen & Werbekonto-ID eingetragen',

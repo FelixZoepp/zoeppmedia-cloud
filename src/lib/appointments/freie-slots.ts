@@ -42,11 +42,17 @@ export async function ladeFreieSlots(
   ]);
 
   const durationMinutes = dauerMinuten(job.appointment_duration_minutes);
+  // Belegte Zeiten aus dem verbundenen Kundenkalender (Google/Outlook) – Fehler dürfen die Buchung nicht verhindern
+  const { belegteZeiten } = await import('@/lib/kalender/kunden-kalender');
+  const kalender = await belegteZeiten(svc, appt.agency_id, new Date(), new Date(Date.now() + 15 * 864e5)).catch(() => null);
   const slots = computeSlots({
     rules: rules ?? [],
-    bookedSlots: ((booked ?? []) as Array<{ id: string; starts_at: string | null; ends_at: string | null }>)
-      .filter((b) => b.id !== appt.id && b.starts_at && b.ends_at)
-      .map((b) => ({ starts_at: b.starts_at!, ends_at: b.ends_at! })),
+    bookedSlots: [
+      ...((booked ?? []) as Array<{ id: string; starts_at: string | null; ends_at: string | null }>)
+        .filter((b) => b.id !== appt.id && b.starts_at && b.ends_at)
+        .map((b) => ({ starts_at: b.starts_at!, ends_at: b.ends_at! })),
+      ...(kalender ?? []),
+    ],
     from: new Date(),
     days: 14,
     durationMinutes,

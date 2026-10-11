@@ -43,6 +43,25 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
   const [rescheduleAt, setRescheduleAt] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  // Freie Zeiten aus dem verbundenen Kundenkalender (Google/Outlook)
+  const [freie, setFreie] = useState<{ verbunden: boolean; zeiten: Array<{ start: string }> } | null>(null);
+  useEffect(() => {
+    if (!showForm) return;
+    let aktiv = true;
+    const minuten = newType === 'probetag' ? 240 : 60;
+    fetch(`/api/kalender/freie-zeiten?minuten=${minuten}&tage=10`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => aktiv && setFreie(j))
+      .catch(() => {});
+    return () => {
+      aktiv = false;
+    };
+  }, [showForm, newType]);
+  const alsEingabe = (iso: string) => {
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
 
   const load = useCallback(async () => {
     try {
@@ -178,6 +197,30 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
               className="h-10 rounded-lg border border-gray-300 px-3 text-sm text-gray-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 bg-white"
             />
           </div>
+          {freie?.verbunden && (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-gray-600">Frei im Kalender des Kunden:</p>
+              {freie.zeiten.length === 0 ? (
+                <p className="text-xs text-gray-500">In den nächsten Tagen keine freie Zeit gefunden – bitte von Hand eintragen.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {freie.zeiten.slice(0, 10).map((z) => {
+                    const wert = alsEingabe(z.start);
+                    return (
+                      <button
+                        key={z.start}
+                        type="button"
+                        onClick={() => setNewAt(wert)}
+                        className={`rounded-full px-2.5 py-1 text-xs ${newAt === wert ? 'bg-red-700 text-white' : 'bg-white text-gray-700 shadow-[inset_0_0_0_1px_#e5e7eb] hover:bg-red-50'}`}
+                      >
+                        {new Date(z.start).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex gap-3 flex-wrap">
             <input
               value={newNotes}
@@ -190,8 +233,9 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
             </Button>
           </div>
           <p className="text-xs text-gray-500">
-            Der Bewerber erhält automatisch eine Bestätigungs-Mail. Der Termin erscheint im
-            verbundenen Kalender des Kunden. Der Innendienst erinnert den Bewerber in den 24h vor dem Termin.
+            Der Bewerber erhält automatisch eine Bestätigungs-Mail.{' '}
+            {freie?.verbunden ? 'Der Termin wird direkt im Kalender des Kunden eingetragen.' : 'Der Kunde bekommt eine Kalender-Einladung per Mail (Kalender unter Einstellungen → Kalender verbinden).'} Der Innendienst
+            erinnert den Bewerber in den 24h vor dem Termin.
           </p>
         </div>
       )}

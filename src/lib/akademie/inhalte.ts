@@ -259,11 +259,16 @@ const SOPS: ArtikelDef[] = [
     },
   },
   {
-    slug: 'onboarding-kunde', typ: 'sop', titel: 'Kunden-Onboarding begleiten (Login, Formular, Bilder)', modul: 'Onboarding', positionen: ['csm', 'media_buyer'], step_keys: ['o_cloud_login', 'o_inhaltsfunnel', 'o_bilder', 'o_whatsapp'], status: 'freigegeben', prioritaet: 2, reihenfolge: 21,
+    slug: 'onboarding-kunde', typ: 'sop', titel: 'Kunden-Onboarding begleiten (Login, Formular, Bilder, WhatsApp, Kalender)', modul: 'Onboarding', positionen: ['csm', 'media_buyer', 'innendienst'], step_keys: ['o_cloud_login', 'o_inhaltsfunnel', 'o_bilder', 'o_whatsapp', 'o_kalender'], status: 'freigegeben', prioritaet: 2, reihenfolge: 21,
     zusammenfassung: 'Was der Kunde selbst erledigt und wann du nachhakst.',
     abschnitte: {
-      automatisch: ['Login, Onboarding-Formular und WhatsApp-Verbindung hakt die Cloud selbst ab.', 'Erinnerungen an offene Kunden-Aufgaben gehen gestuft raus (nicht täglich).', 'Nach dem Formular baut sich das Setup bei Automatik-Kunden selbst (siehe „Setup automatisch prüfen“).'],
-      schritte: ['Bilder & Branding prüfen (zur Prüfung): Logo, Farben, Team- und Arbeitsfotos brauchbar?', 'Hängt ein Kunde über 3 Tage: anrufen statt nur schreiben.'],
+      automatisch: ['Login, Onboarding-Formular, WhatsApp- und Kalender-Verbindung hakt die Cloud selbst ab.', 'Mit verbundener WhatsApp-Nummer bekommt jede Stelle automatisch den KI-Agenten (Vorqualifizierung + Rückruf-Zeit).', 'Mit verbundenem Kalender sieht der Innendienst die freien Zeiten des Kunden und trägt Vorstellungsgespräche direkt dort ein.', 'Erinnerungen an offene Kunden-Aufgaben gehen gestuft raus (nicht täglich).', 'Nach dem Formular baut sich das Setup bei Automatik-Kunden selbst (siehe „Setup automatisch prüfen“).'],
+      schritte: [
+        'Bilder & Branding prüfen (zur Prüfung): Logo, Farben, Team- und Arbeitsfotos brauchbar?',
+        'WhatsApp: Kunde verbindet seine Nummer unter Einstellungen → WhatsApp (mit Meta anmelden, Nummer wählen). Steht dort „Einrichtung unvollständig“: Grund lesen, „Erneut prüfen“ – sonst mit dem Kunden kurz telefonieren.',
+        'Kalender: Kunde verbindet Google oder Outlook unter Einstellungen → Kalender (ein Klick, Anmeldung bestätigen). Ohne Kalender legt der Innendienst Termine von Hand und schickt die Einladung per Mail.',
+        'Hängt ein Kunde über 3 Tage: anrufen statt nur schreiben.',
+      ],
     },
   },
   {

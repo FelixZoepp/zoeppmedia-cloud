@@ -122,8 +122,29 @@ export async function POST(
     }
   }
 
+  // Verbundener Kundenkalender (Google/Outlook): Termin direkt eintragen – sonst Einladung per Mail
+  let imKalender = false;
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { trageTerminEin } = await import('@/lib/kalender/kunden-kalender');
+    const svc = createAdminClient();
+    const minuten = Math.min(600, Math.max(15, Number(body.dauer_minuten) || (body.type === 'probetag' ? 240 : 60)));
+    const ev = await trageTerminEin(svc, candidate.agency_id, {
+      start: scheduledAt,
+      ende: new Date(scheduledAt.getTime() + minuten * 60_000),
+      titel: `${typeLabel}: ${candidate.name}`,
+      beschreibung: [`${typeLabel} mit ${candidate.name}`, candidate.phone ? `Telefon: ${candidate.phone}` : '', candidate.email ? `E-Mail: ${candidate.email}` : '', body.notes ? `Notiz: ${body.notes}` : '', `Bewerber in der Cloud: ${process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de'}/candidates/${id}`].filter(Boolean).join('\n'),
+    });
+    if (ev) {
+      imKalender = true;
+      await svc.from('candidate_appointments').update({ kalender_event_id: ev.eventId, kalender_provider: ev.provider }).eq('id', data.id);
+    }
+  } catch (e) {
+    console.error('[termin] Kundenkalender nicht erreicht – Einladung per Mail', e);
+  }
+
   // Kalender-Einladung an den Kunden — Termin landet sofort in seinem Kalender
-  if (agency?.email) {
+  if (agency?.email && !imKalender) {
     const dateStr = scheduledAt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
     sendAgencyCalendarInvite(
       agency.email,
@@ -133,5 +154,5 @@ export async function POST(
     ).catch(() => {});
   }
 
-  return NextResponse.json({ ...data, confirmation_sent: confirmationSent }, { status: 201 });
+  return NextResponse.json({ ...data, confirmation_sent: confirmationSent, im_kundenkalender: imKalender }, { status: 201 });
 }

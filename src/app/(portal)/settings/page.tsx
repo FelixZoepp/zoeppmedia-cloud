@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
-import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pencil, Lock, ShieldCheck, Users, ChevronRight } from 'lucide-react';
+import { Copy, Check, User, Building2, Webhook, CalendarCheck, CalendarClock, Pencil, Lock, ShieldCheck, Users, ChevronRight, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { TwoFactorSetup } from '@/components/security/two-factor-setup';
 import { toast } from 'sonner';
@@ -235,6 +235,20 @@ export default function SettingsPage() {
           </div>
         </div>
       </Card>
+
+      {/* Kalender: Google/Outlook verbinden */}
+      <Link href="/settings/kalender" className="mb-3 block">
+        <Card padding="md" className="fx-lift flex items-center gap-4 transition-colors hover:bg-red-50/40">
+          <div className="grid h-11 w-11 flex-none place-items-center rounded-full bg-red-50 text-red-800">
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[16px] font-medium">Kalender</h2>
+            <p className="text-[13.5px] text-gray-600">Google oder Outlook verbinden – Termine mit Bewerbern landen direkt in deinem Kalender.</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-gray-400" />
+        </Card>
+      </Link>
 
       {/* Team & Zugänge: Kollegen (z. B. eigener Innendienst) einladen */}
       <Link href="/settings/team" className="mb-6 block">

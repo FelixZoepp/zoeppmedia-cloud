@@ -14,6 +14,7 @@ export const SCHRITT_SOP: Record<string, string> = {
   o_inhaltsfunnel: 'onboarding-kunde',
   o_bilder: 'onboarding-kunde',
   o_whatsapp: 'onboarding-kunde',
+  o_kalender: 'onboarding-kunde',
   o_meta_seite: 'meta-zugaenge',
   o_meta_instagram: 'meta-zugaenge',
   o_meta_werbekonto: 'meta-zugaenge',

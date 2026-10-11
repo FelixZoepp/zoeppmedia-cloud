@@ -39,7 +39,7 @@ describe('Bausteine', () => {
 
   it('nur Indeed: kein Kick-off, keine Meta-Zugänge, kein Funnel/Werbemanager', () => {
     const onboarding = stepsForKunde('onboarding', ['indeed']).map((s) => s.key);
-    expect(onboarding).toEqual(['o_cloud_login', 'o_inhaltsfunnel', 'o_indeed', 'o_whatsapp', 'o_zugaenge_geprueft']);
+    expect(onboarding).toEqual(['o_cloud_login', 'o_inhaltsfunnel', 'o_indeed', 'o_whatsapp', 'o_kalender', 'o_zugaenge_geprueft']);
     const setup = stepsForKunde('setup', ['indeed']).map((s) => s.key);
     expect(setup).toEqual(['s_indeed_anzeige', 's_testlead', 's_freigabe', 's_starttermin', 's_launch']);
   });
