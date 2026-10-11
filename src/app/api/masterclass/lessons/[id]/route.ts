@@ -78,6 +78,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const svc = createAdminClient();
   const ready = await lessonSchemaReady(svc);
   const row = prepareLessonPatch(parsed.data, ready);
+  // Drehbuch-Lektionen sind ohne Video Entwurf – mit dem ersten Video-Link werden sie automatisch für Kunden sichtbar
+  if (ready && typeof row.video_url === 'string' && row.video_url.trim()) {
+    const { data: alt } = await svc.from('masterclass_lessons').select('video_url, status, tags').eq('id', id).maybeSingle();
+    const a = alt as { video_url: string | null; status: string | null; tags: string[] | null } | null;
+    if (a && !a.video_url && a.status === 'entwurf' && (a.tags ?? []).includes('drehbuch-v2')) row.status = 'veroeffentlicht';
+  }
   const { data, error } = await svc.from('masterclass_lessons').update(row).eq('id', id).select('*').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Lektion nicht gefunden' }, { status: 404 });
