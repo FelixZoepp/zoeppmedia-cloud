@@ -68,8 +68,8 @@ const baseCtx: PromptContext = {
 // -------------------------------------------------------------------
 
 describe('PROMPT_VERSION', () => {
-  it('P0: ist "v1"', () => {
-    expect(PROMPT_VERSION).toBe('v1');
+  it('P0: ist "v2"', () => {
+    expect(PROMPT_VERSION).toBe('v2');
   });
 });
 

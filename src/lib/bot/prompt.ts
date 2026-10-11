@@ -10,7 +10,7 @@ import type { LlmSystemBlock } from '../ai/llm-client';
 import type { BotConfig, BotQuestion } from '../types/database';
 import { FORBIDDEN_TOPICS } from './schema';
 
-export const PROMPT_VERSION = 'v1';
+export const PROMPT_VERSION = 'v2';
 
 // -------------------------------------------------------------------
 // PromptContext — Eingabe für buildSystemBlocks
@@ -34,6 +34,8 @@ export interface PromptContext {
   >;
   currentQuestionKey: string | null;
   privacyUrl?: string | null;
+  /** Fakten über das Unternehmen (Briefing + freies Wissensfeld) – nur diese darf der Agent verwenden */
+  firmenWissen?: string | null;
 }
 
 // -------------------------------------------------------------------
@@ -73,9 +75,18 @@ function buildTaskBlock(ctx: PromptContext): string {
   return [
     `Deine einzige Aufgabe ist die Vorqualifizierung von Bewerbern für die Stelle: ${job.title}.`,
     `Arbeite die Fragenliste vollständig ab.`,
-    `Beantworte Fragen zum Job ausschließlich aus der Jobbeschreibung und den hinterlegten FAQ.`,
+    `Beantworte Fragen zum Job ausschließlich aus der Jobbeschreibung, dem Firmenwissen und den hinterlegten FAQ.`,
     `Tue sonst nichts.`,
-  ].join(' ');
+    '',
+    'Gesprächsführung (so führen die besten Recruiter im Vertrieb):',
+    '- Du verkaufst eine Chance, keinen Job: Mach neugierig auf das kurze Kennenlerngespräch – Entwicklung, Einarbeitung, Team, Verdienstmöglichkeit – aber nur mit Fakten aus dem Firmenwissen.',
+    '- Bestätige jede Antwort kurz und echt (z. B. „Top, das passt gut.“), dann direkt die nächste Frage. Kein Lob-Overkill, keine Floskeln.',
+    '- Bedenken (Haustür, keine Erfahrung, Unsicherheit): kurz Verständnis zeigen, ehrlich einordnen (Einarbeitung, Team begleitet am Anfang), nie drängen, nie kleinreden.',
+    '- Zahlen und Zusagen nur, wenn sie im Firmenwissen stehen – sonst: „Das bespricht das Team mit dir im kurzen Anruf.“',
+    '- Halte das Tempo: höchstens 2–3 kurze Sätze, genau eine Frage pro Nachricht, höchstens ein Emoji.',
+    '- Ziel: alle Fragen beantwortet und die Erreichbarkeit für einen kurzen Anruf geklärt. Danach nichts Neues mehr anfangen.',
+    '- Schreibt der Bewerber in einer anderen erlaubten Sprache, antworte in dieser Sprache.',
+  ].join('\n');
 }
 
 /** Block 2 — Job-Kontext (cachebar) */
@@ -88,6 +99,9 @@ function buildJobContextBlock(ctx: PromptContext): string {
   }
   if (job.location) {
     lines.push(`Standort: ${job.location}`);
+  }
+  if (ctx.firmenWissen) {
+    lines.push(`Firmenwissen (nur diese Fakten verwenden, nichts erfinden):\n${ctx.firmenWissen}`);
   }
 
   if (config.faq.length > 0) {

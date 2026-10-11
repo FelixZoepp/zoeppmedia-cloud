@@ -140,8 +140,14 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
     || msg.interactive?.button_reply?.title
     || msg.interactive?.list_reply?.title
     || '';
+  // Sprachnachricht → abschreiben, damit KI-Agent und Team sie lesen können (best effort)
+  let transkript = '';
+  if (msg.type === 'audio' && msg.audio?.id) {
+    transkript = await schreibeSprachnachrichtAb(svc, waAccount.id, msg.audio.id).catch(() => '');
+  }
   const bodyText = msg.text?.body
     || replyText
+    || (transkript ? `🎤 ${transkript}` : '')
     || msg.image?.caption || (msg.type === 'image' ? '[Bild]' : '')
     || msg.video?.caption || (msg.type === 'video' ? '[Video]' : '')
     || msg.document?.caption || (msg.type === 'document' ? '[Dokument]' : '')
@@ -206,6 +212,15 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
       .eq('id', conversationId);
 
     return;
+  }
+
+  // Antwort auf die Termin-Erinnerung („Ich komme“ / „Verschieben“)
+  {
+    const { terminAntwort, verarbeiteTerminAntwort } = await import('@/lib/appointments/antwort-buttons');
+    const antwort = terminAntwort(replyText ?? msg.text?.body);
+    if (antwort && (await verarbeiteTerminAntwort(svc, { agencyId: effectiveAgencyId, candidateId: candidate.id, conversationId, waAccountId: waAccount.id, telefon: senderPhone, antwort }))) {
+      return;
+    }
   }
 
   // Bewerber schreibt zuerst → KI-Agent übernimmt (offene Bewerbung, aktiver Agent, noch nicht qualifiziert, kein Mensch dran)
@@ -281,4 +296,21 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
       push_url: `/inbox?conversation=${conversationId}`,
     }).catch(() => {});
   }
+}
+
+/** Sprachnachricht laden und mit Whisper abschreiben (max. ~2 Min. Audio sinnvoll) */
+async function schreibeSprachnachrichtAb(svc: SupabaseClient, waAccountId: string, mediaId: string): Promise<string> {
+  const { data } = await svc.from('whatsapp_accounts').select('access_token_enc').eq('id', waAccountId).single();
+  const enc = (data as { access_token_enc: string } | null)?.access_token_enc;
+  if (!enc) return '';
+  const { decryptSecret } = await import('@/lib/crypto');
+  const { getProvider } = await import('@/lib/whatsapp/provider');
+  const token = decryptSecret(enc);
+  const url = await getProvider().getMediaUrl(mediaId, token);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return '';
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > 10 * 1024 * 1024) return '';
+  const { transcribeAudio } = await import('@/lib/recordings/transcribe');
+  return (await transcribeAudio(buf, 'sprachnachricht.ogg')).trim().slice(0, 2000);
 }

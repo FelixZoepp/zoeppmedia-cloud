@@ -186,6 +186,7 @@ export async function processBotTurn(
     questions: questionsWithStatus,
     currentQuestionKey,
     privacyUrl: (agency as { privacy_url?: string | null } | null)?.privacy_url ?? null,
+    firmenWissen: await (await import('@/lib/bot/firmen-wissen')).ladeFirmenWissen(svc, agencyId).catch(() => null),
   };
 
   const systemBlocks = buildSystemBlocks(promptCtx);

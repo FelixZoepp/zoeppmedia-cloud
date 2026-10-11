@@ -164,12 +164,8 @@ async function sendReminderTemplate(
         language: { code: 'de' },
         components: [{
           type: 'body',
-          parameters: [
-            { type: 'text', text: vorname },
-            { type: 'text', text: datum },
-            { type: 'text', text: uhrzeit },
-            { type: 'text', text: ortOderLink },
-          ],
+          // Variablen exakt wie in den Vorlagen: 24h = [Vorname, Datum, Uhrzeit], 2h = [Vorname, Uhrzeit, Ort/Link]
+          parameters: (presetKey === 'appointment_reminder_2h' ? [vorname, uhrzeit, ortOderLink] : [vorname, datum, uhrzeit]).map((text) => ({ type: 'text', text })),
         }],
       },
     },
