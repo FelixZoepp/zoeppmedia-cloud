@@ -197,6 +197,11 @@ export async function richteSetupEin(
     }
   }
 
+  // 2b. Rückruf-Frage (Erreichbarkeit für den Innendienst) sicherstellen
+  const { stelleAgentSicher } = await import('@/lib/bot/zoepp-agent');
+  const agent = await stelleAgentSicher(svc, agencyId).catch((e) => ({ angelegt: 0, ergaenzt: 0, hinweise: [String(e)] }));
+  erg.hinweise.push(...agent.hinweise);
+
   // 3. Verfügbarkeiten, falls die Stelle noch keine hat
   const { count: regeln } = await svc
     .from('availability_rules')

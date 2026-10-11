@@ -208,8 +208,15 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
     return;
   }
 
+  // Bewerber schreibt zuerst → KI-Agent übernimmt (offene Bewerbung, aktiver Agent, noch nicht qualifiziert, kein Mensch dran)
+  let state: string = conv.state;
+  if (state === 'waiting') {
+    const { starteAgentBeiNachricht } = await import('@/lib/bot/start-bei-nachricht');
+    if (await starteAgentBeiNachricht(svc, { agencyId: effectiveAgencyId, conversationId, candidateId: candidate.id, applicationId, zugewiesen: assignedTo, state })) state = 'bot_active';
+  }
+
   // Phase 3: Bot-Verarbeitung mit 8-Sekunden-Batching (P3-R3)
-  if (conv.state === 'bot_active') {
+  if (state === 'bot_active') {
     await cancelBotTimers(svc, { agencyId: effectiveAgencyId, conversationId });
     const { data: pendingJob } = await svc
       .from('scheduled_jobs')

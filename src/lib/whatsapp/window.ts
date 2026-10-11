@@ -89,7 +89,29 @@ export function nextAllowedTime(now: Date, timezone: string): Date {
   return now; // Fallback (sollte nie eintreten)
 }
 
-const STOP_WORDS = new Set(['stop', 'stopp', 'abmelden']);
+/**
+ * Gesprächszeiten für den KI-Agenten (erste Nachricht nach einer Bewerbung, Antworten im laufenden Gespräch):
+ * täglich 08:00–21:00 Ortszeit, auch am Wochenende – viele bewerben sich abends oder sonntags.
+ */
+export function isGespraechsRuhezeitAt(date: Date, timezone: string): boolean {
+  const hour = parseInt(new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }).formatToParts(date).find((p) => p.type === 'hour')?.value || '0', 10) % 24;
+  return hour < 8 || hour >= 21;
+}
+
+/** Nächster Zeitpunkt innerhalb der Gesprächszeiten (heute bzw. morgen 08:00 Ortszeit) */
+export function naechsteGespraechszeit(now: Date, timezone: string): Date {
+  if (!isGespraechsRuhezeitAt(now, timezone)) return now;
+  let t = new Date(Math.ceil(now.getTime() / 900_000) * 900_000);
+  for (let i = 0; i < 4 * 24; i++) {
+    if (!isGespraechsRuhezeitAt(t, timezone)) return t;
+    t = new Date(t.getTime() + 900_000);
+  }
+  return t;
+}
+
+const STOP_WORDS = new Set(['stop', 'stopp', 'abmelden', 'abbestellen', 'austragen', 'unsubscribe']);
+/** Längere Abmelde-Formulierungen (Teilstring) */
+const STOP_SAETZE = ['keine nachrichten mehr', 'nicht mehr schreiben', 'nicht mehr anschreiben', 'schreib mir nicht mehr', 'schreibt mir nicht mehr', 'lasst mich in ruhe'];
 
 /**
  * Prüft ob eine eingehende Nachricht ein Opt-out (STOP) ist.
@@ -97,7 +119,8 @@ const STOP_WORDS = new Set(['stop', 'stopp', 'abmelden']);
  */
 export function isStopMessage(text: string | null | undefined): boolean {
   if (!text) return false;
-  return STOP_WORDS.has(text.trim().toLowerCase());
+  const t = text.trim().toLowerCase().replace(/[.!]+$/, '');
+  return STOP_WORDS.has(t) || STOP_SAETZE.some((s) => t.includes(s));
 }
 
 export interface PreflightOpts {
@@ -110,6 +133,8 @@ export interface PreflightOpts {
   accountConnected: boolean;
   /** true => Ruhezeiten-Check wird übersprungen (P4-R6: reminder_2h) */
   bypassQuietHours?: boolean;
+  /** true => Gesprächszeiten des KI-Agenten (täglich 8–21 Uhr) statt der strengen Ruhezeiten */
+  gespraechsZeiten?: boolean;
 }
 
 export interface PreflightResult {
@@ -117,6 +142,7 @@ export interface PreflightResult {
   reason?: string;
   /** true wenn nur die Ruhezeit den Versand blockiert — Aufrufer sollen verschieben statt aufgeben */
   quietHours?: boolean;
+  naechsteZeit?: Date;
 }
 
 /**
@@ -124,9 +150,12 @@ export interface PreflightResult {
  * statt ihn als Fehler zu werten (sonst nach ~81 Minuten Retries "dead").
  */
 export class QuietHoursError extends Error {
-  constructor(message: string) {
+  /** Nächster erlaubter Zeitpunkt (bei Gesprächszeiten), sonst rechnet der Tick nextAllowedTime */
+  naechsteZeit?: Date;
+  constructor(message: string, naechsteZeit?: Date) {
     super(message);
     this.name = 'QuietHoursError';
+    this.naechsteZeit = naechsteZeit;
   }
 }
 
@@ -145,6 +174,12 @@ export function checkPreflight(opts: PreflightOpts): PreflightResult {
     return { ok: false, reason: '24-Stunden-Fenster geschlossen — nur Vorlagen erlaubt' };
   }
   // Ruhezeiten binden automatisierte Sends; manueller UI-Versand und bypassQuietHours sind ausgenommen
+  if (!opts.isHumanUiSend && !opts.bypassQuietHours && opts.gespraechsZeiten) {
+    if (isGespraechsRuhezeitAt(new Date(), opts.timezone)) {
+      return { ok: false, reason: 'Außerhalb der Gesprächszeiten (21:00–08:00) — automatischer Versand gesperrt', quietHours: true, naechsteZeit: naechsteGespraechszeit(new Date(), opts.timezone) };
+    }
+    return { ok: true };
+  }
   if (!opts.isHumanUiSend && !opts.bypassQuietHours && isQuietHours(opts.timezone)) {
     return { ok: false, reason: 'Ruhezeit (20:00–08:00 Mo–Sa, So ganztägig) — automatischer Versand gesperrt', quietHours: true };
   }

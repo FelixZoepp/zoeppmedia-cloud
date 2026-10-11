@@ -7,6 +7,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { armBotTimersV2 } from '@/lib/bot/timers';
 import { logActivity } from '@/lib/activity/log';
+import { starteAnrufErsatz } from '@/lib/cadence/ersatz';
 
 export async function processBotOpen(
   svc: SupabaseClient,
@@ -33,7 +34,11 @@ export async function processBotOpen(
     .eq('agency_id', agencyId)
     .maybeSingle();
 
-  if (!candidate?.whatsapp_opt_in || !candidate?.phone_e164) return;
+  if (!candidate) return;
+  // Agent kann nicht schreiben → Innendienst ruft an (statt dass der Bewerber liegen bleibt)
+  const ersatz = (grund: string) => starteAnrufErsatz(svc, agencyId, candidate.id, grund).then(() => undefined);
+  if (!candidate.whatsapp_opt_in) return ersatz('keine WhatsApp-Einwilligung');
+  if (!candidate.phone_e164) return ersatz('keine gültige Handynummer');
 
   // --- 3. Job laden ---
   const { data: job } = await svc
@@ -43,7 +48,7 @@ export async function processBotOpen(
     .eq('agency_id', agencyId)
     .maybeSingle();
 
-  if (!job?.bot_config_id) return;
+  if (!job?.bot_config_id) return ersatz('kein KI-Agent für die Stelle');
 
   // --- 4. BotConfig laden ---
   const { data: botConfig } = await svc
@@ -53,7 +58,7 @@ export async function processBotOpen(
     .eq('agency_id', agencyId)
     .maybeSingle();
 
-  if (!botConfig?.active) return;
+  if (!botConfig?.active) return ersatz('KI-Agent ist ausgeschaltet');
 
   // --- 5. WhatsApp-Account laden (connected) ---
   const { data: waAccount } = await svc
@@ -63,7 +68,7 @@ export async function processBotOpen(
     .eq('status', 'connected')
     .maybeSingle();
 
-  if (!waAccount) return;
+  if (!waAccount) return ersatz('keine WhatsApp-Nummer verbunden');
 
   // --- 6. Template laden (application_received, approved) ---
   const { data: template } = await svc
@@ -75,7 +80,7 @@ export async function processBotOpen(
     .eq('status', 'approved')
     .maybeSingle();
 
-  if (!template) return;
+  if (!template) return ersatz('Begrüßungsvorlage noch nicht von Meta freigegeben');
 
   // --- 7. Agentur-Name laden (für Template-Variable) ---
   const { data: agency } = await svc
@@ -158,6 +163,7 @@ export async function processBotOpen(
     waAccountId: waAccount.id,
     payload: templatePayload,
     senderType: 'bot',
+        gespraechsZeiten: true,
     templateId: template.id,
   });
 

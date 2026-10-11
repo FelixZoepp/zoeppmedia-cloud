@@ -26,6 +26,8 @@ export interface SendOpts {
   isHumanUiSend?: boolean;
   /** true => Ruhezeiten-Check wird übersprungen (P4-R6: reminder_2h) */
   bypassQuietHours?: boolean;
+  /** true => Gesprächszeiten des KI-Agenten (täglich 8–21 Uhr) statt der strengen Ruhezeiten */
+  gespraechsZeiten?: boolean;
 }
 
 export async function sendWhatsAppMessage(
@@ -86,13 +88,14 @@ export async function sendWhatsAppMessage(
     isTemplate,
     isHumanUiSend: opts.isHumanUiSend ?? false,
     bypassQuietHours: opts.bypassQuietHours ?? false,
+    gespraechsZeiten: opts.gespraechsZeiten ?? false,
     timezone,
     accountConnected: waAccount.status === 'connected',
   });
 
   if (!preflight.ok) {
     // C1: Preflight-Ablehnung als Error werfen mit dem reason als Nachricht
-    if (preflight.quietHours) throw new QuietHoursError(preflight.reason ?? 'Ruhezeit');
+    if (preflight.quietHours) throw new QuietHoursError(preflight.reason ?? 'Ruhezeit', preflight.naechsteZeit);
     throw new Error(preflight.reason ?? 'Preflight fehlgeschlagen');
   }
 

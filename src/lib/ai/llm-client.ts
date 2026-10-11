@@ -9,10 +9,10 @@ import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const DIALOG_MODEL: string =
-  process.env.BOT_DIALOG_MODEL || 'claude-haiku-4-5';
+  process.env.BOT_DIALOG_MODEL || 'claude-sonnet-5-5';
 
 export const SCORING_MODEL: string =
-  process.env.BOT_SCORING_MODEL || 'claude-sonnet-4-6';
+  process.env.BOT_SCORING_MODEL || 'claude-opus-5-5';
 
 export interface LlmSystemBlock {
   text: string;

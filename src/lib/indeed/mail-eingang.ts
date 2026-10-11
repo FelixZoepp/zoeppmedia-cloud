@@ -181,7 +181,8 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
   }
 
   const resumeSize = pdf?.content ? Math.ceil(pdf.content.length * 0.75) : 0;
-  const hinweis = (ag.settings ?? {}).indeed_whatsapp_hinweis === true;
+  // Indeed-Anzeigen enthalten den Hinweis auf WhatsApp-Kontakt (Standard an; pro Kunde mit settings.indeed_whatsapp_hinweis = false abschaltbar)
+  const hinweis = (ag.settings ?? {}).indeed_whatsapp_hinweis !== false;
   const result = await ingestApplication(svc, {
     agencyId,
     jobId: stelle.id,

@@ -10,6 +10,11 @@ import { processBotTurn } from '../bot-process';
 // Module mocks
 // ---------------------------------------------------------------------------
 
+vi.mock('@/lib/bot/rueckruf', () => ({
+  RUECKRUF_KEY: 'rueckruf_zeit',
+  leseRueckrufZeit: vi.fn(async () => ({ von: new Date('2026-10-13T08:00:00Z'), bis: new Date('2026-10-13T09:00:00Z'), text: 'morgen zwischen 10:00 und 11:00 Uhr' })),
+  planeRueckruf: vi.fn(async () => {}),
+}));
 vi.mock('@/lib/pipeline/get-stages', () => ({
   QUALIFIZIERT_TYPEN: ['qualified', 'qualifying'],
   stageVomTyp: vi.fn(async () => ({ id: 'stage-qualified', name: 'Qualifiziert', sort_order: 2, color: '#000', agency_id: null, stage_type: 'qualified', requires_documents: false })),
@@ -884,56 +889,33 @@ describe('processBotTurn', () => {
   // -------------------------------------------------------------------------
   // Phase 4 Task 7: Bei Score A/B → Termineinladung senden
   // -------------------------------------------------------------------------
-  it('Phase 4: Bei Score A/B wird createProposedAppointment aufgerufen und appointment_invite-Template gesendet', async () => {
-    // Setup: fuehrerschein bereits beantwortet (alle required beantwortet), Score A
+  it('Bei Score A/B wird ein Rückruf geplant statt eines Terminlinks', async () => {
     const existingAnswers = [{ question_key: 'fuehrerschein', answer_normalized: { value: true, confidence: 0.9 }, origin: 'bot' }];
     const { svc, enqueue } = makeHappySvc({ answers: existingAnswers });
-
-    // pipeline stage für qualified
     enqueue('pipeline_stages', { data: { id: 'stage-qualified', stage_type: 'qualified' }, error: null });
-    // whatsapp_templates für appointment_invite
-    enqueue('whatsapp_templates', { data: { id: 'tmpl-invite', name: 'appointment_invite_de' }, error: null });
 
     const { llmJsonCall } = await import('@/lib/ai/llm-client');
     (llmJsonCall as ReturnType<typeof vi.fn>).mockResolvedValue({
       ...stdDialogOutput,
       answers: [{ question_key: 'fuehrerschein', value: true, confidence: 0.9, evidence: 'ja' }],
     });
-
     const { computeScore } = await import('@/lib/bot/scoring');
     (computeScore as ReturnType<typeof vi.fn>).mockReturnValue({ score: 85, label: 'A', knockout: false, reasons: [] });
 
+    const { planeRueckruf } = await import('@/lib/bot/rueckruf');
     const { createProposedAppointment } = await import('@/lib/appointments/lifecycle');
     const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
     const { fireEvent } = await import('@/lib/automations/fire');
 
     await processBotTurn(svc, AGENCY_ID, { conversation_id: CONV_ID }, 0);
 
-    expect(createProposedAppointment).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ agencyId: AGENCY_ID }),
-    );
-    // appointment_invite Template muss gesendet werden, mit Buchungslink in den templateParams
+    expect(planeRueckruf).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ agencyId: AGENCY_ID, label: 'A' }));
+    expect(createProposedAppointment).not.toHaveBeenCalled();
+    // Abschlussnachricht nennt das Rückruf-Fenster
     expect(sendWhatsAppMessage).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({
-        senderType: 'system',
-        payload: expect.objectContaining({
-          template: expect.objectContaining({
-            components: expect.arrayContaining([
-              expect.objectContaining({
-                parameters: expect.arrayContaining([
-                  expect.objectContaining({
-                    text: expect.stringContaining('/book/tok-auto-1'),
-                  }),
-                ]),
-              }),
-            ]),
-          }),
-        }),
-      }),
+      expect.objectContaining({ payload: expect.objectContaining({ text: expect.objectContaining({ body: expect.stringContaining('morgen zwischen 10:00 und 11:00 Uhr') }) }) }),
     );
-    // fireEvent bot.completed muss aufgerufen werden
     expect(fireEvent).toHaveBeenCalledWith('bot.completed', AGENCY_ID, expect.anything());
   });
 

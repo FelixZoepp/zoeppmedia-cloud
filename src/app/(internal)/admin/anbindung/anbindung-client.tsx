@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { BewerberKontaktKarte } from './bewerber-kontakt-karte';
 import Link from 'next/link';
 import { AlertTriangle, ArrowRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -63,6 +64,8 @@ export function AnbindungClient() {
         <StatCard title="Indeed läuft" value={zähle((k) => k.indeed.status === 'aktiv')} note={`${zähle((k) => k.indeed.status === 'fehlt')} ohne Weiterleitung`} />
         <StatCard title="Werbekonto hinterlegt" value={zähle((k) => k.werbekonto.status !== 'fehlt')} note={d && !d.metaSync ? 'Meta-Abgleich nicht eingerichtet' : 'für Kosten & Ergebnisse'} />
       </div>
+
+      <BewerberKontaktKarte />
 
       <PerspectiveVerbindung />
 

@@ -16,7 +16,6 @@ import { createNotificationForAgency } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { handoverToHuman } from '@/lib/bot/handover';
 import type { BotConfig, BotQuestion, BotMeta } from '@/lib/types/database';
-import { insertDeduped } from '@/lib/jobs/insert-deduped';
 
 // ---------------------------------------------------------------------------
 // Öffentliche API
@@ -484,9 +483,35 @@ export async function processBotTurn(
       }).catch(() => {});
     }
 
+    // Rückruf statt Terminlink: bei A/B kurzer Anruf durch den Innendienst zur genannten Zeit
+    let rueckruf: { von: Date; bis: Date; text: string } | null = null;
+    if (scoreResult.label === 'A' || scoreResult.label === 'B') {
+      try {
+        const { leseRueckrufZeit, planeRueckruf, RUECKRUF_KEY } = await import('@/lib/bot/rueckruf');
+        const antwort = finalAnswers.find((a) => a.question_key === RUECKRUF_KEY)?.value;
+        rueckruf = await leseRueckrufZeit(svc, agencyId, conversationId, typeof antwort === 'string' ? antwort : antwort != null ? String(antwort) : '');
+        await planeRueckruf(svc, {
+          agencyId,
+          candidateId: conv.candidate_id,
+          conversationId,
+          von: rueckruf.von,
+          bis: rueckruf.bis,
+          text: rueckruf.text,
+          name: candidate.name,
+          label: scoreResult.label,
+        });
+      } catch (e) {
+        console.error('Rückruf nicht geplant', e);
+        rueckruf = null;
+      }
+    }
+    const { data: waNr } = await svc.from('whatsapp_accounts').select('display_number').eq('id', conv.wa_account_id).maybeSingle();
+    const anrufNummer = (waNr as { display_number: string | null } | null)?.display_number;
+
     // Abschlussnachricht OHNE Entscheidung an Bewerber
-    const abschlussText =
-      'Vielen Dank für deine Antworten! Wir haben alle Informationen erhalten und melden uns bald bei dir.';
+    const abschlussText = rueckruf
+      ? `Danke dir für deine Antworten! Wir rufen dich ${rueckruf.text} kurz an${anrufNummer ? `, und zwar von ${anrufNummer}` : ''}. Speicher dir die Nummer am besten direkt ein. Bis dann!`
+      : 'Vielen Dank für deine Antworten! Wir haben alle Informationen erhalten und melden uns bald bei dir.';
 
     try {
       await sendWhatsAppMessage(svc, {
@@ -500,6 +525,7 @@ export async function processBotTurn(
           text: { body: abschlussText },
         },
         senderType: 'bot',
+        gespraechsZeiten: true,
       });
     } catch (sendErr) {
       // Preflight-Fehler (Fenster zu) → ignorieren; andere Fehler rethrow
@@ -539,79 +565,7 @@ export async function processBotTurn(
       metadata: { score: scoreResult.score, label: scoreResult.label },
     });
 
-    // Phase 4 P4-R2: Bei A/B automatisch Termineinladung
-    if (scoreResult.label === 'A' || scoreResult.label === 'B') {
-      try {
-        const { createProposedAppointment } = await import('@/lib/appointments/lifecycle');
-
-        // Job-Daten für Terminart
-        const jobType = (job as { appointment_type?: string })?.appointment_type ?? 'call';
-        const jobLocation = (job as { appointment_location?: string })?.appointment_location ?? null;
-
-        const { appointmentId, bookingToken } = await createProposedAppointment(svc, {
-          agencyId,
-          applicationId: conv.application_id,
-          type: jobType as 'call' | 'video' | 'onsite',
-          location: jobLocation,
-        });
-
-        // Buchungslink zusammenbauen
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
-        const buchungslink = `${baseUrl}/book/${bookingToken}`;
-
-        // appointment_invite-Template senden
-        const { data: inviteTmpl } = await svc.from('whatsapp_templates')
-          .select('id, name')
-          .eq('wa_account_id', conv.wa_account_id)
-          .eq('preset_key', 'appointment_invite')
-          .eq('status', 'approved')
-          .eq('agency_id', agencyId)
-          .maybeSingle();
-
-        if (inviteTmpl && candidate.phone_e164) {
-          const vorname = (candidate.name || '').split(' ')[0] || 'Bewerber';
-          const jobTitle = (job as { title: string })?.title ?? '';
-
-          await sendWhatsAppMessage(svc, {
-            agencyId,
-            conversationId,
-            candidatePhone: candidate.phone_e164,
-            waAccountId: conv.wa_account_id,
-            payload: {
-              to: candidate.phone_e164,
-              type: 'template',
-              template: {
-                name: inviteTmpl.name,
-                language: { code: 'de' },
-                components: [{
-                  type: 'body',
-                  parameters: [
-                    { type: 'text', text: vorname },
-                    { type: 'text', text: jobTitle },
-                    { type: 'text', text: buchungslink },
-                  ],
-                }],
-              },
-            },
-            senderType: 'system',
-            templateId: inviteTmpl.id,
-          }).catch((e) => console.error('appointment_invite send failed', e));
-        }
-
-        // invite_followup +24h
-        await insertDeduped(svc, 'scheduled_jobs', {
-          agency_id: agencyId,
-          run_at: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
-          type: 'appointment.invite_followup',
-          payload: { appointment_id: appointmentId },
-          status: 'pending',
-          dedupe_key: `appt.invite_followup:${appointmentId}`,
-        });
-      } catch (e) {
-        // Termineinladung ist best effort — Bot-Abschluss bleibt intakt
-        console.error('Termineinladung fehlgeschlagen', e);
-      }
-    }
+    // Vorstellungsgespräch legt der Innendienst nach dem Kurz-Anruf (kein Terminlink per WhatsApp mehr)
 
     // fireEvent bot.completed
     const { fireEvent } = await import('@/lib/automations/fire');
@@ -644,6 +598,7 @@ export async function processBotTurn(
         text: { body: dialogOutput.reply_text },
       },
       senderType: 'bot',
+        gespraechsZeiten: true,
     });
   } catch (sendErr) {
     // Preflight-Fehler (Fenster zu) → Timer lassen, return

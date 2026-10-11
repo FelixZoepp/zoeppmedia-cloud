@@ -349,6 +349,11 @@ export async function GET(request: NextRequest) {
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
           break;
         }
+        case 'bot.rueckruf_erinnerung': {
+          const { erinnereRueckruf } = await import('@/lib/bot/rueckruf');
+          await erinnereRueckruf(svc, job.agency_id, payload as { conversation_id: string; candidate_id: string });
+          break;
+        }
         case 'indeed.nachholen': {
           const { holeIndeedMailsNach } = await import('@/lib/indeed/mail-eingang');
           console.log('[indeed-nachholen]', JSON.stringify(await holeIndeedMailsNach(svc)));
@@ -444,7 +449,7 @@ export async function GET(request: NextRequest) {
         await svc.from('scheduled_jobs')
           .update({
             status: 'pending',
-            run_at: nextAllowedTime(new Date(), timezone).toISOString(),
+            run_at: (err.naechsteZeit ?? nextAllowedTime(new Date(), timezone)).toISOString(),
             attempts: Math.max(0, job.attempts - 1),
             last_error: errorMsg,
             updated_at: new Date().toISOString(),

@@ -88,12 +88,12 @@ const baseOpts: LlmCallOpts<Schema> = {
 };
 
 describe('DIALOG_MODEL / SCORING_MODEL Konstanten', () => {
-  it('DIALOG_MODEL hat den Standardwert claude-haiku-4-5', () => {
-    expect(DIALOG_MODEL).toBe('claude-haiku-4-5');
+  it('DIALOG_MODEL hat den Standardwert claude-sonnet-5-5', () => {
+    expect(DIALOG_MODEL).toBe('claude-sonnet-5-5');
   });
 
-  it('SCORING_MODEL hat den Standardwert claude-sonnet-4-6', () => {
-    expect(SCORING_MODEL).toBe('claude-sonnet-4-6');
+  it('SCORING_MODEL hat den Standardwert claude-opus-5-5', () => {
+    expect(SCORING_MODEL).toBe('claude-opus-5-5');
   });
 });
 

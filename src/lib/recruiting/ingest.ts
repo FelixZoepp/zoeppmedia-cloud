@@ -334,6 +334,10 @@ export async function ingestApplication(
     } catch {
       // Best effort — Fehler beim Einreihen dürfen den Ingest nicht blockieren
     }
+  } else if (newApp?.id && phoneE164) {
+    // Ohne WhatsApp-Einwilligung: Innendienst ruft an (nach 15 Min. unter „Anrufe fällig“)
+    const { starteAnrufErsatz } = await import('@/lib/cadence/ersatz');
+    await starteAnrufErsatz(svc, input.agencyId, candidateId, 'keine WhatsApp-Einwilligung').catch(() => {});
   }
 
   return {

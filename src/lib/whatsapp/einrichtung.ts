@@ -115,6 +115,9 @@ export async function pruefeUndAktiviere(
 
   if (ok && a.status !== 'connected') {
     await seedTemplatesForAccount(svc, a.id, a.agency_id);
+    // Fertigen KI-Agenten für alle aktiven Stellen bereitstellen (schreibt niemanden an)
+    const { stelleAgentSicher } = await import('@/lib/bot/zoepp-agent');
+    await stelleAgentSicher(svc, a.agency_id).catch((e) => fehler.push(`KI-Agent: ${e instanceof Error ? e.message : String(e)}`));
     const { signalSafe } = await import('@/lib/fulfillment/engine');
     await signalSafe(svc, a.agency_id, 'whatsapp_verbunden');
     if (opts.userId) {
