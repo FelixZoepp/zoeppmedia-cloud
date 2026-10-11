@@ -96,5 +96,7 @@ export async function pflegeVorlagen(svc: SupabaseClient, jetzt: Date = new Date
       fehler.push(`${k.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
+  const { frischeNummernAuf } = await import('./einrichtung');
+  await frischeNummernAuf(svc).catch((e) => fehler.push(`Nummern-Infos: ${e instanceof Error ? e.message : String(e)}`));
   return { konten: (konten ?? []).length, aktualisiert, neu_eingereicht: neu, fehler };
 }

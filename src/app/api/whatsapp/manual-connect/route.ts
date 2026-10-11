@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getProvider } from '@/lib/whatsapp/provider';
-import { encryptSecret } from '@/lib/crypto';
-import { seedTemplatesForAccount } from '@/lib/whatsapp/template-presets';
-import { signalSafe } from '@/lib/fulfillment/engine';
+import { richteNummerEin } from '@/lib/whatsapp/einrichtung';
 import { z } from 'zod';
 
 const ManualSchema = z.object({
@@ -41,57 +38,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const svc = createAdminClient();
-    const tokenEnc = encryptSecret(parsed.data.accessToken);
-    const provider = getProvider();
-
-    // Cross-Agency-Schutz: prüfen ob phone_number_id bereits einer anderen Agentur gehört
-    const { data: existing } = await svc
-      .from('whatsapp_accounts')
-      .select('id, agency_id')
-      .eq('phone_number_id', parsed.data.phoneNumberId)
-      .maybeSingle();
-    if (existing && existing.agency_id !== agencyId) {
-      return NextResponse.json({ error: 'Diese Telefonnummer ist bereits mit einer anderen Agentur verbunden' }, { status: 409 });
-    }
-
-    const { data: waAccount, error: insertErr } = await svc
-      .from('whatsapp_accounts')
-      .upsert({
-        agency_id: agencyId,
-        waba_id: parsed.data.wabaId,
-        phone_number_id: parsed.data.phoneNumberId,
-        access_token_enc: tokenEnc,
-        provider: 'cloud_api',
-        status: 'connected',
-        connected_at: new Date().toISOString(),
-      }, { onConflict: 'phone_number_id' })
-      .select('id')
-      .single();
-
-    if (insertErr || !waAccount) {
-      return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
-    }
-
-    // Nummer registrieren + Webhook abonnieren
-    await provider.registerPhone(parsed.data.phoneNumberId, parsed.data.accessToken).catch(() => {});
-    await provider.subscribeWebhook(parsed.data.wabaId, parsed.data.accessToken).catch(() => {});
-
-    // Vorlagen seeden
-    await seedTemplatesForAccount(svc, waAccount.id, agencyId);
-    // Fulfillment v2: WhatsApp-Nummer verbunden
-    await signalSafe(svc, agencyId, 'whatsapp_verbunden');
-
-    // Audit-Log
-    await svc.from('audit_log').insert({
-      actor_id: user.id,
-      agency_id: agencyId,
-      action: 'whatsapp.connected',
-      target: waAccount.id,
-      data: { waba_id: parsed.data.wabaId, phone_number_id: parsed.data.phoneNumberId, method: 'manual' },
+    const r = await richteNummerEin(createAdminClient(), {
+      agencyId,
+      wabaId: parsed.data.wabaId,
+      phoneNumberId: parsed.data.phoneNumberId,
+      accessToken: parsed.data.accessToken,
+      userId: user.id,
+      methode: 'manual',
     });
-
-    return NextResponse.json({ ok: true, accountId: waAccount.id });
+    if (r.http && r.http >= 400) return NextResponse.json({ error: r.fehler.join(' · ') }, { status: r.http });
+    return NextResponse.json({ ok: r.ok, accountId: r.accountId, status: r.status, fehler: r.fehler });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unbekannter Fehler';
     return NextResponse.json({ error: msg }, { status: 500 });

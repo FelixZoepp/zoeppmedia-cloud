@@ -46,9 +46,20 @@ export interface WhatsAppProvider {
   getMediaUrl(mediaId: string, token: string): Promise<string>;
   createTemplate(wabaId: string, token: string, template: TemplateDefinition): Promise<{ id: string }>;
   listTemplates(wabaId: string, token: string): Promise<TemplateStatus[]>;
-  registerPhone(phoneNumberId: string, token: string): Promise<void>;
+  registerPhone(phoneNumberId: string, token: string, pin?: string): Promise<void>;
   subscribeWebhook(wabaId: string, token: string): Promise<void>;
-  exchangeCode(code: string, appId: string, appSecret: string): Promise<{ accessToken: string; wabaId: string; phoneNumberId: string }>;
+  exchangeCode(code: string, appId: string, appSecret: string, hinweis?: { wabaId?: string | null; phoneNumberId?: string | null }): Promise<{ accessToken: string; wabaId: string; phoneNumberId: string }>;
+  /** Anzeige-Nummer, Firmenname, Qualität und Limit einer Nummer */
+  getPhoneInfo?(phoneNumberId: string, token: string): Promise<PhoneInfo>;
+  /** IDs aller Nummern eines WhatsApp-Geschäftskontos */
+  listPhoneIds?(wabaId: string, token: string): Promise<string[]>;
+}
+
+export interface PhoneInfo {
+  displayNumber: string | null;
+  verifiedName: string | null;
+  qualityRating: string | null;
+  messagingLimit: string | null;
 }
 
 const BASE_URL = process.env.WHATSAPP_API_BASE_URL || 'https://graph.facebook.com/v23.0';
@@ -131,9 +142,9 @@ export class CloudApiProvider implements WhatsAppProvider {
     }));
   }
 
-  async registerPhone(phoneNumberId: string, token: string): Promise<void> {
-    // PIN wird über die Umgebungsvariable WHATSAPP_REGISTER_PIN gesetzt/geprüft
-    const pin = process.env.WHATSAPP_REGISTER_PIN || '000000';
+  async registerPhone(phoneNumberId: string, token: string, eigenePin?: string): Promise<void> {
+    // Eigene PIN je Nummer (verschlüsselt gespeichert); Umgebungsvariable nur noch als Rückfall
+    const pin = eigenePin || process.env.WHATSAPP_REGISTER_PIN || '000000';
     await metaFetch(`/${phoneNumberId}/register`, token, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -145,7 +156,24 @@ export class CloudApiProvider implements WhatsAppProvider {
     await metaFetch(`/${wabaId}/subscribed_apps`, token, { method: 'POST' });
   }
 
-  async exchangeCode(code: string, appId: string, appSecret: string): Promise<{ accessToken: string; wabaId: string; phoneNumberId: string }> {
+  async getPhoneInfo(phoneNumberId: string, token: string): Promise<PhoneInfo> {
+    const res = await metaFetch(`/${phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier`, token);
+    const d = await res.json();
+    return {
+      displayNumber: (d.display_phone_number as string | undefined) ?? null,
+      verifiedName: (d.verified_name as string | undefined) ?? null,
+      qualityRating: (d.quality_rating as string | undefined) ?? null,
+      messagingLimit: (d.messaging_limit_tier as string | undefined) ?? null,
+    };
+  }
+
+  async listPhoneIds(wabaId: string, token: string): Promise<string[]> {
+    const res = await metaFetch(`/${wabaId}/phone_numbers?fields=id`, token);
+    const d = await res.json();
+    return ((d.data ?? []) as Array<{ id: string }>).map((p) => p.id);
+  }
+
+  async exchangeCode(code: string, appId: string, appSecret: string, hinweis?: { wabaId?: string | null; phoneNumberId?: string | null }): Promise<{ accessToken: string; wabaId: string; phoneNumberId: string }> {
     // Step 1: Exchange code for short-lived token
     const tokenRes = await fetch(
       `${BASE_URL}/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&code=${code}`
@@ -156,15 +184,25 @@ export class CloudApiProvider implements WhatsAppProvider {
     const tokenData = await tokenRes.json();
     const shortToken = tokenData.access_token;
 
-    // Step 2: Exchange for long-lived token
-    const longRes = await fetch(
-      `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`
-    );
-    if (!longRes.ok) {
-      throw new Error(`Long-lived Token fehlgeschlagen (HTTP ${longRes.status})`);
+    // Step 2: Embedded Signup liefert i. d. R. bereits einen dauerhaften Business-Integration-Token.
+    // Langlebigen Token nur versuchen – schlägt das fehl, mit dem gelieferten Token weiterarbeiten.
+    let accessToken = shortToken as string;
+    try {
+      const longRes = await fetch(
+        `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortToken}`
+      );
+      if (longRes.ok) {
+        const longData = await longRes.json();
+        if (longData.access_token) accessToken = longData.access_token;
+      }
+    } catch {
+      // gelieferten Token behalten
     }
-    const longData = await longRes.json();
-    const accessToken = longData.access_token;
+
+    // Von Meta gemeldete Nummer + Konto (Embedded-Signup-Nachricht) haben Vorrang vor dem Raten
+    if (hinweis?.wabaId && hinweis.phoneNumberId) {
+      return { accessToken, wabaId: hinweis.wabaId, phoneNumberId: hinweis.phoneNumberId };
+    }
 
     // Step 3: Get debug token info to extract WABA and phone number
     // App-Access-Token (appId|appSecret) für /debug_token-Authentifizierung verwenden

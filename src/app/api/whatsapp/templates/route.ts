@@ -12,7 +12,7 @@ export async function GET() {
   const svc = createAdminClient();
   const { data } = await svc
     .from('whatsapp_templates')
-    .select('id, name, status, preset_key')
+    .select('id, name, status, preset_key, meta_fehler')
     .eq('agency_id', agencyId)
     .order('name');
 
