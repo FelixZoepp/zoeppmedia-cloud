@@ -67,3 +67,13 @@ describe('regelnFollowUp – Erstgespräch gelegt', () => {
     });
   });
 });
+
+describe('regelnFollowUp – Beratungsgespräch gelegt', () => {
+  it('setzt die Opportunity auf Closing – Terminiert', () => {
+    const F = FOLLOWUP_FELDER_IDS;
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Beratungsgespräch gelegt', [F.kalender]: '2026-10-14T13:00:00Z' }, new Date('2026-10-09T10:00:00Z'))).toEqual({
+      closingTerminiert: true,
+      termin: '2026-10-14T13:00:00Z',
+    });
+  });
+});

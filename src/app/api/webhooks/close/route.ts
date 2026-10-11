@@ -81,6 +81,17 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ ok: true, protokoll: 'geplant' });
   }
+  // Anruf → in 3 Min. prüfen, ob der Lead erreicht wurde (sonst 1 Tag gesperrt)
+  if (ev?.object_type === 'activity.call' && ev.object_id) {
+    try {
+      const { planeAnrufPruefung } = await import('@/lib/sales/anruf-sperre');
+      await planeAnrufPruefung(createAdminClient(), ev.object_id);
+      return NextResponse.json({ ok: true, anruf: 'geplant' });
+    } catch (err) {
+      console.error('[close-webhook] Anruf-Prüfung nicht geplant:', err);
+      return NextResponse.json({ error: 'Verarbeitung fehlgeschlagen' }, { status: 500 });
+    }
+  }
   if (ev?.object_type !== 'opportunity' || !ev.object_id) return NextResponse.json({ ok: true, action: 'ignored' });
   const svc = createAdminClient();
   const result: Record<string, unknown> = {};

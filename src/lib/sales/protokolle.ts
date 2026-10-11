@@ -16,6 +16,8 @@
  * - „Weiter Follow-up“ mit Kalender → gesperrt bis zum Kalender-Termin
  * - „Erstgespräch gelegt“ → Lead-Status „Setting“, Sperre aufgehoben, Opportunity aus „Setting – No Show“ /
  *   „Setting – Follow Up“ auf „Setting – Terminiert“ (ohne aktive Opportunity: neu angelegt)
+ * - „Beratungsgespräch gelegt“ → Lead-Status „Closing“, Sperre aufgehoben, Opportunity aus „Closing – No Show“ /
+ *   „Closing – Follow Up“ oder einer Setting-Stufe auf „Closing – Terminiert“ (ohne aktive Opportunity: neu angelegt)
  *
  * Jedes Protokoll (alle Typen) landet in close_protokolle – für Auswertungen je Person und Tag.
  * Ablauf: Close-Webhook activity.custom_activity → Job sales.protokoll (dedupe je Aktivität) → hier.
@@ -49,6 +51,17 @@ const LEAD_STATUS_UNQUALIFIZIERT = 'stat_rLRfgTDAiphn7YtSgZcMvw8dZcvgJy8Msi35wkS
 const LEAD_STATUS_BAD_DATA = 'stat_KOgUVO1WFOP8s8ONyvCrUMPgTeuplY3YH7nRqUhTUvO';
 const OPP_STATUS_VERLOREN = 'stat_843j170eWlP742evQCGjL4BRdczZY4hGTTiV7s0LVZe';
 const OPP_SETTING_TERMINIERT = 'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH';
+const OPP_CLOSING_TERMINIERT = 'stat_RjrZL3ifb4mKNiPEFFX1IQgse1fbI94R9XZgere2wZT';
+const LEAD_STATUS_CLOSING = 'stat_BqlpXrf3Xh0QnPwZ3ND2a9dbaola4XCIzmFRlgWFnXW';
+const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
+/** Closing – No Show, Closing – Follow Up, Setting – Terminiert / No Show / Follow Up */
+const OPP_CLOSING_ZURUECK = [
+  'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG',
+  'stat_qdOAuGHxRx66Mk45E58gOOXnceL04Iouh6nAuoEXyjy',
+  'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH',
+  'stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7',
+  'stat_EWpujNpwdtq5HSFAMO6c0awZUVgsz6TfO1ZXe5Ff8IT',
+];
 /** Setting – No Show, Setting – Follow Up */
 const OPP_SETTING_ZURUECK = ['stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7', 'stat_EWpujNpwdtq5HSFAMO6c0awZUVgsz6TfO1ZXe5Ff8IT'];
 
@@ -66,6 +79,8 @@ export interface Aktionen {
   settingOpportunity?: boolean;
   /** Follow-up: Erstgespräch neu gelegt → Opportunity zurück auf „Setting – Terminiert“ */
   settingTerminiert?: boolean;
+  /** Follow-up: Beratungsgespräch gelegt → Opportunity auf „Closing – Terminiert“ */
+  closingTerminiert?: boolean;
   /** Termin / Rückruf aus dem Kalenderfeld */
   termin?: string | null;
 }
@@ -109,6 +124,7 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
   const morgen = new Date(jetzt.getTime() + TAG).toISOString();
   const bisKalender = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : null;
   if (ergebnis.startsWith('Erstgespräch gelegt')) return { settingTerminiert: true, termin: kalender };
+  if (ergebnis.startsWith('Beratungsgespräch gelegt')) return { closingTerminiert: true, termin: kalender };
   if (erreicht.startsWith('Nein') || ergebnis.startsWith('Nicht erreicht')) return { gesperrtBis: bisKalender ?? morgen };
   if (ergebnis.startsWith('Weiter Follow-up') && bisKalender) return { gesperrtBis: bisKalender };
   return {};
@@ -168,6 +184,27 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
         : 'Termin laut Protokoll';
       // Legt nur an, wenn es gar keine aktive Opportunity gibt
       erledigt.opportunity = await legeSettingOpportunityAn(leadId, `Erstgespräch neu gelegt (Follow-up): ${termin}`);
+    }
+  }
+  if (a.closingTerminiert) {
+    await setzeLead(leadId, { status_id: LEAD_STATUS_CLOSING, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
+    const { data } = await closeJson<{ data: Array<{ id: string; status_id: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id`);
+    const zurueck = data.find((o) => OPP_CLOSING_ZURUECK.includes(o.status_id));
+    if (zurueck) {
+      await closeJson(`/opportunity/${zurueck.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: OPP_CLOSING_TERMINIERT }) });
+      erledigt.opportunity = 'auf_closing_terminiert';
+    } else if (data.length) {
+      // Andere aktive Opportunity (z. B. schon „Closing – Terminiert“ oder „Angebot“) nicht anfassen
+      erledigt.opportunity = 'vorhanden';
+    } else {
+      const termin = a.termin
+        ? new Date(a.termin).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr'
+        : 'Termin laut Protokoll';
+      await closeJson('/opportunity/', {
+        method: 'POST',
+        body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_CLOSING_TERMINIERT, note: `Beratungsgespräch gelegt (Follow-up): ${termin}` }),
+      });
+      erledigt.opportunity = 'angelegt';
     }
   }
   if (a.settingOpportunity) {

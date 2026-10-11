@@ -1,5 +1,5 @@
-/** Videos „So läuft das Gespräch ab“ (Supabase-Storage, öffentlich) – für Videoseite und Terminseite */
-export const VIDEO_BASIS = 'https://qfzqoxeocyuqfreihiok.supabase.co/storage/v1/object/public/videos';
+/** Öffentliche Videos (Ablauf-Videos, Fallstudien) im Bucket „medien“ – der Bucket „videos“ (Video-Freigabe) ist privat */
+export const VIDEO_BASIS = 'https://qfzqoxeocyuqfreihiok.supabase.co/storage/v1/object/public/medien';
 
 export const ABLAUF_VIDEO: Record<'setting' | 'beratung', { datei: string; titel: string }> = {
   setting: { datei: 'erstgespraech.mp4', titel: 'So läuft dein Erstgespräch ab' },

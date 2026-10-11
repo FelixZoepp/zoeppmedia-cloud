@@ -345,6 +345,9 @@ export const WEBHOOK_EVENTS = [
   // Gesprächsprotokolle → Automatik (Sperre, Status, Opportunity) + Auswertung
   { object_type: 'activity.custom_activity', action: 'created' },
   { object_type: 'activity.custom_activity', action: 'updated' },
+  // Anrufe → nicht erreicht = 1 Tag gesperrt (auch ohne Protokoll)
+  { object_type: 'activity.call', action: 'created' },
+  { object_type: 'activity.call', action: 'updated' },
 ];
 
 /** Webhook-Abo in Close anlegen bzw. auf die aktuellen Events bringen (idempotent). */

@@ -29,9 +29,9 @@ export interface Leistung {
 const BC: Kundenbeispiel = {
   kunde: 'B&C Direct Sales',
   branche: 'PV-Direktvertrieb',
-  kennzahl: '2 → 15',
-  kennzahlText: 'Vertriebler in 3 Monaten',
-  text: 'Mit sauberem Recruiting-Prozess von 2 auf 15 Leute gewachsen – heute mit 6-stelligen Monatsumsätzen.',
+  kennzahl: '2 → 14',
+  kennzahlText: 'Vertriebler in 90 Tagen',
+  text: 'Mit sauberem Recruiting-Prozess in 90 Tagen von 2 auf 14 Leute gewachsen – von 15.000 € auf 130.000 € Monatsumsatz.',
 };
 const CGMS: Kundenbeispiel = {
   kunde: 'CGMS GmbH',

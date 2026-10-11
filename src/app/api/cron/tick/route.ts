@@ -327,6 +327,11 @@ export async function GET(request: NextRequest) {
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
           break;
         }
+        case 'sales.anruf_sperre': {
+          const { pruefeAnruf } = await import('@/lib/sales/anruf-sperre');
+          console.log('[anruf-sperre]', await pruefeAnruf(svc, payload as { anruf_id: string; versuch?: number }));
+          break;
+        }
         case 'sales.eintrag_kette': {
           const { verarbeiteEintragKette } = await import('@/lib/sales/eintrag-kette');
           console.log('[eintrag-kette]', await verarbeiteEintragKette(svc, payload as { lead_id: string; schritt: 1 | 2 | 3 }));
