@@ -164,9 +164,14 @@ export function CockpitView() {
         title="Cockpit"
         description={`Alles für dein Wochen-Meeting · Stand ${new Date(d.stand).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
         action={
-          <Button variant="secondary" onClick={() => laden(true)} disabled={laedt}>
-            <RefreshCw className={`h-4 w-4 ${laedt ? 'animate-spin' : ''}`} /> Aktualisieren
-          </Button>
+          <div className="flex gap-2">
+            <Link href="/admin/briefing" className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+              ☀️ Briefing
+            </Link>
+            <Button variant="secondary" onClick={() => laden(true)} disabled={laedt}>
+              <RefreshCw className={`h-4 w-4 ${laedt ? 'animate-spin' : ''}`} /> Aktualisieren
+            </Button>
+          </div>
         }
       />
 

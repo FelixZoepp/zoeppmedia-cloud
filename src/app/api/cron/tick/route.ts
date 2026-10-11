@@ -237,6 +237,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Abendbericht nicht geplant:', err);
   }
 
+  // CEO-Briefing (Mo–Fr ab 7 Uhr Berlin, einmal pro Tag)
+  try {
+    const { planeCeoBriefing } = await import('@/lib/berichte/ceo-briefing');
+    await planeCeoBriefing(svc);
+  } catch (err) {
+    console.error('[tick] CEO-Briefing nicht geplant:', err);
+  }
+
   const { data: jobs } = await svc.rpc('claim_due_jobs', { batch_size: 100 });
 
   for (const job of jobs || []) {
@@ -412,6 +420,11 @@ export async function GET(request: NextRequest) {
         case 'sales.protokoll': {
           const { verarbeiteProtokoll } = await import('@/lib/sales/protokolle');
           await verarbeiteProtokoll(svc, (payload as { activity_id: string }).activity_id);
+          break;
+        }
+        case 'berichte.ceo': {
+          const { sendeCeoBriefing } = await import('@/lib/berichte/ceo-briefing');
+          await sendeCeoBriefing(svc, (payload as { tag: string }).tag);
           break;
         }
         case 'berichte.abend': {

@@ -2,9 +2,10 @@
  * Abendbericht (20 Uhr Berlin) für Marketing und Sales in Slack – Tag, Woche bis heute, Monat bis heute.
  * Jeder Tag landet zusätzlich in kennzahlen_tage (bereich 'marketing' / 'sales'). Bei jedem Lauf werden
  * Monat und Woche komplett neu berechnet, damit nachträglich gepflegte Daten (z. B. No-Show am Folgetag) stimmen.
- * Sonntags gilt die Nachricht als Wochenbericht, am Monatsletzten als Monatsbericht.
+ * Nur Mo–Fr (am Wochenende kein Slack-Post; die Wochenendtage rechnet der Montagslauf nach).
+ * Freitags gilt die Nachricht als Wochenbericht, am letzten Werktag des Monats als Monatsbericht.
  *
- * Ausgelöst über den Minuten-Tick: ab 20 Uhr wird einmal pro Tag der Job 'berichte.abend' geplant (dedupe je Tag).
+ * Ausgelöst über den Minuten-Tick: ab 20 Uhr wird Mo–Fr einmal pro Tag der Job 'berichte.abend' geplant (dedupe je Tag).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -14,6 +15,7 @@ import { META_FILTER } from '@/lib/sales-controlling/quellen';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { berlinTag } from '@/lib/zeit/berlin';
 import { slackKanal } from '@/lib/slack/kanaele';
+import { ZIEL } from '@/lib/sales-controlling/laden';
 
 export const ABEND_STUNDE = 20;
 const TAG = 864e5;
@@ -37,14 +39,26 @@ function berlinStunde(jetzt: Date): number {
   return Number(teil?.value ?? 0);
 }
 
-const plusTage = (tag: string, n: number) => new Date(new Date(`${tag}T12:00:00Z`).getTime() + n * TAG).toISOString().slice(0, 10);
-const wochenStart = (tag: string) => plusTage(tag, -((new Date(`${tag}T12:00:00Z`).getUTCDay() + 6) % 7));
-const monatsStart = (tag: string) => `${tag.slice(0, 8)}01`;
+export const plusTage = (tag: string, n: number) => new Date(new Date(`${tag}T12:00:00Z`).getTime() + n * TAG).toISOString().slice(0, 10);
+export const wochenStart = (tag: string) => plusTage(tag, -((new Date(`${tag}T12:00:00Z`).getUTCDay() + 6) % 7));
+export const monatsStart = (tag: string) => `${tag.slice(0, 8)}01`;
 
-/** Tick: ab 20 Uhr einmal täglich den Abendbericht einplanen */
+const wochentag = (tag: string) => new Date(`${tag}T12:00:00Z`).getUTCDay();
+export const istWerktag = (tag: string) => wochentag(tag) !== 0 && wochentag(tag) !== 6;
+
+/** Letzter Werktag (Mo–Fr) des Monats von `tag` */
+export function letzterWerktag(tag: string): string {
+  let t = plusTage(`${tag.slice(0, 7)}-01`, 40).slice(0, 7) + '-01';
+  t = plusTage(t, -1);
+  while (!istWerktag(t)) t = plusTage(t, -1);
+  return t;
+}
+
+/** Tick: ab 20 Uhr Mo–Fr einmal täglich den Abendbericht einplanen */
 export async function planeAbendbericht(svc: SupabaseClient, jetzt: Date = new Date()): Promise<void> {
   if (berlinStunde(jetzt) < ABEND_STUNDE) return;
   const tag = berlinTag(jetzt);
+  if (!istWerktag(tag)) return;
   const { error } = await svc.from('scheduled_jobs').insert({
     agency_id: SALES_AGENCY_ID,
     type: 'berichte.abend',
@@ -132,26 +146,30 @@ export async function erfasseKennzahlen(svc: SupabaseClient, tag: string) {
 
 /* ── Summen & Texte ────────────────────────────────────────────── */
 
-function summiere<T extends object>(werte: T[], leer: T): T {
+export function summiere<T extends object>(werte: T[], leer: T): T {
   const s = { ...leer } as Record<string, number>;
   for (const w of werte) for (const [k, v] of Object.entries(w)) if (typeof v === 'number') s[k] = (s[k] ?? 0) + v;
   return s as T;
 }
 
-const eur = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: n < 100 ? 2 : 0 });
+export const eur = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: n < 100 ? 2 : 0 });
 const z = (n: number) => n.toLocaleString('de-DE');
 const p = (n: number | null) => (n === null ? '–' : `${n.toLocaleString('de-DE')} %`);
 const teilen = (a: number, b: number) => (b > 0 ? a / b : null);
 
-export function marketingZeilen(m: MarketingTag): string[] {
+/** Marketing als Slack-Felder (je Feld: fette Überschrift mit Emoji, darunter die Werte) */
+export function marketingFelder(m: MarketingTag): string[] {
   const cpl = teilen(m.ausgaben, m.eintragungen || m.metaLeads);
   const ctr = teilen(m.linkKlicks, m.impressionen);
   const cpc = teilen(m.ausgaben, m.linkKlicks);
   const cpm = teilen(m.ausgaben * 1000, m.impressionen);
   return [
-    `Ausgaben *${eur(m.ausgaben)}* · Leads *${z(m.eintragungen)}* (Meta: ${z(m.metaLeads)}) · CPL *${cpl === null ? '–' : eur(cpl)}*`,
-    `Impressionen ${z(m.impressionen)} · Link-Klicks ${z(m.linkKlicks)} · CTR ${ctr === null ? '–' : p(Math.round(ctr * 1000) / 10)} · CPC ${cpc === null ? '–' : eur(cpc)} · CPM ${cpm === null ? '–' : eur(cpm)}`,
-    `Direkt gebucht ${p(quoten({ ...LEER_SALES, eintragungen: m.eintragungen, direktGebucht: m.direktGebucht }).direktQuote)}`,
+    `*💸 Ausgaben*\n${eur(m.ausgaben)}`,
+    `*🧲 Leads*\n${z(m.eintragungen)} (Meta: ${z(m.metaLeads)})`,
+    `*🎯 Kosten pro Lead*\n${cpl === null ? '–' : eur(cpl)}`,
+    `*⚡ Direkt gebucht*\n${p(quoten({ ...LEER_SALES, eintragungen: m.eintragungen, direktGebucht: m.direktGebucht }).direktQuote)}`,
+    `*👀 Reichweite*\n${z(m.impressionen)} Impressionen · CPM ${cpm === null ? '–' : eur(cpm)}`,
+    `*🖱️ Klicks*\n${z(m.linkKlicks)} · CTR ${ctr === null ? '–' : p(Math.round(ctr * 1000) / 10)} · CPC ${cpc === null ? '–' : eur(cpc)}`,
   ];
 }
 
@@ -172,23 +190,51 @@ const LEER_SALES: SalesTag = {
   eintragungen: 0,
   direktGebucht: 0,
 };
+export { LEER_SALES, LEER_MARKETING };
 
-export function salesZeilen(s: SalesTag): string[] {
+/** Sales als Slack-Felder: Ergebnis zuerst, dann Closing, Setting, Telefonie */
+export function salesFelder(s: SalesTag): string[] {
   const q = quoten(s);
   return [
-    `Settings geführt *${z(s.settingsGehalten)}* · No-Shows ${z(s.settingsNoShow)} · Show-up ${p(q.showUpSetting)} · neu gebucht ${z(s.settingsGebucht)}`,
-    `Closings geführt *${z(s.closingsGehalten)}* · No-Shows ${z(s.closingsNoShow)} · Show-up ${p(q.showUpClosing)} · Quali-Rate ${p(q.qualifizierung)}`,
-    `Abschlüsse *${z(s.abschluesse)}* · Volumen *${eur(s.volumen)}* · Closing-Rate ${p(q.closingRate)}`,
-    `Anwahlen ${z(s.anwahlen)} · Gespräche ${z(s.gespraeche)} · Protokolle fehlen ${z(s.protokolleFehlen)}`,
+    `*🏆 Abschlüsse*\n${z(s.abschluesse)} · ${eur(s.volumen)}`,
+    `*📈 Closing-Rate*\n${p(q.closingRate)}`,
+    `*🤝 Closings*\n${z(s.closingsGehalten)} geführt · ${z(s.closingsNoShow)} No-Show\nShow-up ${p(q.showUpClosing)}`,
+    `*🗓️ Settings*\n${z(s.settingsGehalten)} geführt · ${z(s.settingsNoShow)} No-Show\nShow-up ${p(q.showUpSetting)}`,
+    `*➕ Neu gebucht*\n${z(s.settingsGebucht)} Settings · ${z(s.closingsGebucht)} Closings\nQuali-Rate ${p(q.qualifizierung)}`,
+    `*📞 Telefonie*\n${z(s.anwahlen)} Anwahlen · ${z(s.gespraeche)} Gespräche`,
   ];
 }
 
-function abschnitte(titel: string, teile: Array<{ label: string; zeilen: string[] }>) {
-  return [
-    { type: 'header', text: { type: 'plain_text', text: titel } },
-    ...teile.flatMap((t) => [{ type: 'section', text: { type: 'mrkdwn', text: `*${t.label}*\n${t.zeilen.join('\n')}` } }]),
-    { type: 'context', elements: [{ type: 'mrkdwn', text: '<https://cloud.zoeppmedia.de/admin/vertrieb|Sales-Controlling> · Zahlen aus Close und Meta Ads' }] },
-  ];
+/** Hinweise unter einem Zeitraum (nur wenn etwas auffällt) */
+export function salesHinweise(s: SalesTag): string[] {
+  const h: string[] = [];
+  if (s.protokolleFehlen) h.push(`⚠️ ${z(s.protokolleFehlen)} Protokoll${s.protokolleFehlen === 1 ? '' : 'e'} fehlen in Close`);
+  if (s.settingsUnqualifiziert) h.push(`🚫 ${z(s.settingsUnqualifiziert)} unqualifiziert`);
+  return h;
+}
+
+export function fortschrittsBalken(anteil: number, breite = 10): string {
+  const voll = Math.max(0, Math.min(breite, Math.round(anteil * breite)));
+  return '▰'.repeat(voll) + '▱'.repeat(breite - voll);
+}
+
+interface Abschnitt {
+  titel: string;
+  felder: string[];
+  hinweise?: string[];
+}
+
+export function baueBlocks(titel: string, abschnitte_: Abschnitt[], fuss: string): unknown[] {
+  const blocks: unknown[] = [{ type: 'header', text: { type: 'plain_text', text: titel, emoji: true } }];
+  abschnitte_.forEach((a, i) => {
+    if (i > 0) blocks.push({ type: 'divider' });
+    blocks.push({ type: 'section', text: { type: 'mrkdwn', text: a.titel } });
+    // Slack erlaubt max. 10 Felder je Abschnitt
+    for (let j = 0; j < a.felder.length; j += 10) blocks.push({ type: 'section', fields: a.felder.slice(j, j + 10).map((f) => ({ type: 'mrkdwn', text: f })) });
+    if (a.hinweise?.length) blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: a.hinweise.join('   ') }] });
+  });
+  blocks.push({ type: 'context', elements: [{ type: 'mrkdwn', text: fuss }] });
+  return blocks;
 }
 
 async function postSlack(channel: string, blocks: unknown[], text: string): Promise<void> {
@@ -203,37 +249,50 @@ async function postSlack(channel: string, blocks: unknown[], text: string): Prom
   if (!data.ok) throw new Error(`Slack (${channel}): ${data.error ?? res.status}`);
 }
 
-/** Job 'berichte.abend': Kennzahlen speichern und Marketing + Sales nach Slack schicken */
+const kurzDatum = (tag: string) => new Date(`${tag}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+
+/** Job 'berichte.abend': Kennzahlen speichern und Marketing + Sales nach Slack schicken (nur Mo–Fr) */
 export async function sendeAbendbericht(svc: SupabaseClient, tag: string): Promise<void> {
   const d = await erfasseKennzahlen(svc, tag);
+  // Verspäteter Job am Wochenende: Kennzahlen sind gespeichert, aber kein Slack-Post
+  if (!istWerktag(tag) || !istWerktag(berlinTag())) return;
   const woche = tageZwischen(wochenStart(tag), tag);
   const monat = tageZwischen(monatsStart(tag), tag);
-  const istSonntag = new Date(`${tag}T12:00:00Z`).getUTCDay() === 0;
-  const istMonatsende = plusTage(tag, 1).slice(0, 7) !== tag.slice(0, 7);
+  const istWochenbericht = wochentag(tag) === 5;
+  const istMonatsbericht = letzterWerktag(tag) === tag;
 
-  const datum = new Date(`${tag}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+  const datum = kurzDatum(tag);
   const monatName = new Date(`${tag}T12:00:00Z`).toLocaleDateString('de-DE', { month: 'long', timeZone: 'UTC' });
-  const art = [istSonntag && 'Wochenbericht', istMonatsende && 'Monatsbericht'].filter(Boolean).join(' & ');
+  const art = [istWochenbericht && '📅 Wochenbericht', istMonatsbericht && '🗓️ Monatsbericht'].filter(Boolean).join(' & ');
   const zusatz = art ? ` · ${art}` : '';
-  const zeitraeume = (label: string) => [
-    { label: `Heute (${datum})`, tage: [tag] },
-    { label: `Woche bis heute (seit ${new Date(`${woche[woche.length - 1]}T12:00:00Z`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })})`, tage: woche },
-    { label: `${monatName} bis heute`, tage: monat },
-  ].map((x) => ({ ...x, label: x.label + label }));
+  const zeitraeume = [
+    { titel: `📍 *Heute* (${datum})`, tage: [tag] },
+    { titel: `📆 *Woche* (seit ${kurzDatum(woche[0] ?? tag)})`, tage: woche },
+    { titel: `🗓️ *${monatName}* bis heute`, tage: monat },
+  ];
 
   const fehler: string[] = [];
   const marketingKanal = await slackKanal('marketing');
   if (marketingKanal) {
-    const teile = d.metaVerbunden
-      ? zeitraeume('').map((x) => ({ label: x.label, zeilen: marketingZeilen(summiere(x.tage.map((t) => d.marketing.get(t) ?? LEER_MARKETING), LEER_MARKETING)) }))
-      : [{ label: 'Meta Ads nicht verbunden', zeilen: ['META_ACCESS_TOKEN / META_AD_ACCOUNT_ID fehlen in Vercel.'] }];
-    await postSlack(marketingKanal, abschnitte(`📣 Marketing – ${datum}${zusatz}`, teile), `Marketing ${datum}`).catch((e) => fehler.push(String(e)));
+    const teile: Abschnitt[] = d.metaVerbunden
+      ? zeitraeume.map((x) => ({ titel: x.titel, felder: marketingFelder(summiere(x.tage.map((t) => d.marketing.get(t) ?? LEER_MARKETING), LEER_MARKETING)) }))
+      : [{ titel: '⚠️ *Meta Ads nicht verbunden*', felder: ['META_ACCESS_TOKEN / META_AD_ACCOUNT_ID fehlen in Vercel.'] }];
+    const fuss = '🔗 <https://cloud.zoeppmedia.de/admin/marketing|Meta Ads> · Zahlen aus Meta Ads und den Funnel-Eintragungen';
+    await postSlack(marketingKanal, baueBlocks(`📣 Marketing · ${datum}${zusatz}`, teile, fuss), `Marketing ${datum}`).catch((e) => fehler.push(String(e)));
   }
 
   const salesKanal = await slackKanal('sales');
   if (salesKanal) {
-    const teile = zeitraeume('').map((x) => ({ label: x.label, zeilen: salesZeilen(summiere(x.tage.map((t) => d.sales.get(t) ?? LEER_SALES), LEER_SALES)) }));
-    await postSlack(salesKanal, abschnitte(`💼 Sales – ${datum}${zusatz}`, teile), `Sales ${datum}`).catch((e) => fehler.push(String(e)));
+    const teile: Abschnitt[] = zeitraeume.map((x) => {
+      const summe = summiere(x.tage.map((t) => d.sales.get(t) ?? LEER_SALES), LEER_SALES);
+      return { titel: x.titel, felder: salesFelder(summe), hinweise: salesHinweise(summe) };
+    });
+    // Monatsziel unter dem Monat
+    const monatSumme = summiere(monat.map((t) => d.sales.get(t) ?? LEER_SALES), LEER_SALES);
+    const anteil = monatSumme.volumen / ZIEL;
+    teile[2].hinweise = [`🎯 Monatsziel ${eur(ZIEL)}: ${fortschrittsBalken(anteil)} ${Math.round(anteil * 100)} %`, ...(teile[2].hinweise ?? [])];
+    const fuss = '🔗 <https://cloud.zoeppmedia.de/admin/vertrieb|Sales-Controlling> · Zahlen aus Close';
+    await postSlack(salesKanal, baueBlocks(`💼 Sales · ${datum}${zusatz}`, teile, fuss), `Sales ${datum}`).catch((e) => fehler.push(String(e)));
   }
 
   // Kein Retry bei Slack-Fehlern: sonst ginge der andere Bericht mehrfach raus. Kennzahlen sind gespeichert.
