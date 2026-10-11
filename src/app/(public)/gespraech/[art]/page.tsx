@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { VIDEO_BASIS } from '@/lib/sales/ablauf-videos';
+import { BOOKING_URLS } from '@/lib/sales/tracking';
 
-export const metadata: Metadata = { title: 'So läuft das Gespräch ab – Zoepp Media', robots: { index: false } };
+export const metadata: Metadata = { title: 'Zoepp Media', robots: { index: false } };
 
 /** Videos „So läuft das Gespräch ab“ – Ziel der Short-Links aus den WhatsApp-Terminbestätigungen */
 const GESPRAECHE: Record<string, { titel: string; text: string; datei: string }> = {
@@ -15,6 +16,12 @@ const GESPRAECHE: Record<string, { titel: string; text: string; datei: string }>
     titel: 'So läuft dein Strategiegespräch ab',
     text: 'In gut 3 Minuten: wie das Gespräch abläuft und wie du dich am besten vorbereitest.',
     datei: 'strategiegespraech.mp4',
+  },
+  // Fallstudie aus der WhatsApp-Kette „Eingetragen, aber kein Termin“ (Nachricht 2)
+  'fallstudie-bc': {
+    titel: 'B&C Direct Sales: von 2 auf 14 Leute in 90 Tagen',
+    text: 'Damian erzählt in 40 Sekunden, wie B&C mit uns von 15.000 € auf 130.000 € Monatsumsatz gewachsen ist.',
+    datei: 'fallstudie-bc.mp4',
   },
 };
 // Short-Link „beratungsgespraech“ zeigt auf dasselbe Video
@@ -41,7 +48,16 @@ export default async function GespraechSeite({ params }: { params: Promise<{ art
           playsInline
           preload="metadata"
         />
-        <p className="mt-4 text-[13.5px] text-gray-500">Fragen vorab? Antworte einfach auf unsere WhatsApp-Nachricht.</p>
+        {art === 'fallstudie-bc' ? (
+          <a
+            href={BOOKING_URLS.setting}
+            className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-b from-red-700 to-red-950 px-6 text-[15px] font-medium text-white sm:w-auto"
+          >
+            Jetzt Erstgespräch buchen
+          </a>
+        ) : (
+          <p className="mt-4 text-[13.5px] text-gray-500">Fragen vorab? Antworte einfach auf unsere WhatsApp-Nachricht.</p>
+        )}
       </div>
     </main>
   );

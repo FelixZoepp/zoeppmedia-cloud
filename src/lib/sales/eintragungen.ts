@@ -68,6 +68,20 @@ export async function markiereBuchung(svc: SupabaseClient, b: { email: string | 
     .eq('lead_id', treffer.lead_id);
 }
 
+/** Calendly-Buchung seit der Eintragung (über E-Mail oder Telefonnummer) – auch bei abweichender Schreibweise der Nummer */
+export async function findeBuchung(svc: SupabaseClient, e: { email: string | null; phone: string | null; eingetragen_am: string }): Promise<Date | null> {
+  const { data: evs } = await svc
+    .from('calendly_events')
+    .select('invitee_email, invitee_phone, created_at')
+    .eq('agency_id', SALES_AGENCY_ID)
+    .gte('created_at', e.eingetragen_am);
+  const tel = ziffern(e.phone);
+  const ev = ((evs ?? []) as Array<{ invitee_email: string | null; invitee_phone: string | null; created_at: string }>).find(
+    (x) => (e.email && x.invitee_email?.toLowerCase() === e.email.toLowerCase()) || (tel.length >= 6 && ziffern(x.invitee_phone) === tel),
+  );
+  return ev ? new Date(ev.created_at) : null;
+}
+
 /** Job sales.eintragung_check (10 Min. nach der Eintragung) */
 export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: string }, heute: string, jetzt: Date = new Date()): Promise<Ergebnis> {
   const { data } = await svc.from('sales_eintragungen').select('*').eq('lead_id', payload.lead_id).maybeSingle();
@@ -94,19 +108,7 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
   }
 
   // Buchung evtl. noch nicht zugeordnet (z. B. andere Schreibweise der Nummer) → in den Calendly-Buchungen nachsehen
-  let gebucht = e.gebucht_am ? new Date(e.gebucht_am) : null;
-  if (!gebucht) {
-    const { data: evs } = await svc
-      .from('calendly_events')
-      .select('invitee_email, invitee_phone, created_at')
-      .eq('agency_id', SALES_AGENCY_ID)
-      .gte('created_at', e.eingetragen_am);
-    const tel = ziffern(e.phone);
-    const ev = ((evs ?? []) as Array<{ invitee_email: string | null; invitee_phone: string | null; created_at: string }>).find(
-      (x) => (e.email && x.invitee_email?.toLowerCase() === e.email.toLowerCase()) || (tel.length >= 6 && ziffern(x.invitee_phone) === tel),
-    );
-    if (ev) gebucht = new Date(ev.created_at);
-  }
+  const gebucht = e.gebucht_am ? new Date(e.gebucht_am) : await findeBuchung(svc, e);
 
   const ergebnis = ergebnisFuer(new Date(e.eingetragen_am), gebucht, jetzt);
   await svc.from('sales_eintragungen').update({ ergebnis, gebucht_am: gebucht?.toISOString() ?? null }).eq('lead_id', e.lead_id);
@@ -116,6 +118,9 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
   const text = `Jetzt anrufen: ${e.name ?? 'Lead'} hat sich eingetragen, aber nach ${WARTEZEIT_MIN} Min. keinen Termin gebucht${e.phone ? ` – ${e.phone}` : ''}`;
   await addCloseTaskForLead(e.lead_id, text, heute).catch((err) => console.error('[sales] Aufgabe (Eintragung) fehlgeschlagen:', err));
   await svc.from('sales_eintragungen').update({ anruf_aufgabe_am: jetzt.toISOString() }).eq('lead_id', e.lead_id);
+  // WhatsApp-Kette „Eingetragen, aber kein Termin“ starten (15 Min. / nächster Tag / Tag 3)
+  const { planeSchritt } = await import('./eintrag-kette');
+  await planeSchritt(svc, e.lead_id, 1, new Date(e.eingetragen_am), jetzt).catch((err) => console.error('[sales] Eintrag-Kette nicht gestartet:', err));
   await notifySales(svc, {
     emoji: '📞',
     title: `${e.name ?? 'Neuer Lead'} – kein Termin nach ${WARTEZEIT_MIN} Min.`,

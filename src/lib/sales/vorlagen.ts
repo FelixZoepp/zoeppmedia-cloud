@@ -90,6 +90,49 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     ],
   },
   {
+    // Kette „Eingetragen, aber kein Termin“ (sales/eintrag-kette.ts) – 1) 15 Min. nach der Eintragung
+    name: 'eintrag_1_termin',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, schön, dass du dich eingetragen hast! Ein Schritt fehlt noch: Such dir kurz einen Termin für dein Erstgespräch aus.\n\n' +
+      'Das dauert nur 15 Minuten am Telefon, und danach weißt du genau, wie dein Vertriebsaufbau mit uns aussehen kann.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [{ type: 'URL', text: 'Termin buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] }],
+  },
+  {
+    // 2) Am nächsten Tag: Fallstudie B&C mit Damian-Video
+    name: 'eintrag_2_fallstudie',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, eine kurze Geschichte, die gut zu deinem Eintrag passt.\n\n' +
+      'B&C Direct Sales hat 12 Monate überlegt, ob sie den Vertriebsaufbau angehen. Gestartet sind sie dann mit 2 Mitarbeitern und 15.000 € Monatsumsatz. ' +
+      '90 Tage später: 14 Leute und 130.000 € Monatsumsatz. Investiert haben sie dafür einen vierstelligen Betrag.\n\n' +
+      'Die bloße Rechnung: Das Plus von 115.000 € im Monat hätten sie auch ein Jahr früher haben können. Allein für die 9 Monate nach dem Aufbau sind das über 1 Million € Umsatz, ' +
+      'die durchs Warten liegen geblieben sind. Und da ist noch nicht eingerechnet, dass neue Vertriebler selbst wieder neue werben.\n\n' +
+      'Damian erzählt dir in 40 Sekunden selbst, wie es gelaufen ist. Und wenn du nicht 12 Monate warten willst: Hol dir hier deinen Termin.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [
+      { type: 'URL', text: 'Damians Video ansehen', url: 'https://cloud.zoeppmedia.de/gespraech/fallstudie-bc' },
+      { type: 'URL', text: 'Termin buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] },
+    ],
+  },
+  {
+    // 3) Tag 3: letzter Anstoß
+    name: 'eintrag_3_letzte',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, ich melde mich ein letztes Mal zu deinem Eintrag. Wenn der Vertriebsaufbau bei dir gerade Thema ist, such dir hier einen Termin aus.\n\n' +
+      'Und falls es gerade nicht passt, tipp einfach unten auf den Button, dann lasse ich dich in Ruhe.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [
+      { type: 'URL', text: 'Termin buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] },
+      { type: 'QUICK_REPLY', text: 'Gerade kein Thema' },
+    ],
+  },
+  {
     // Interne Morgenliste für das Team (aufgaben/tagesliste.ts) – Antwort „erledigt 2“ hakt ab
     name: 'team_aufgaben_heute',
     category: 'UTILITY',

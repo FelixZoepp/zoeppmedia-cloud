@@ -327,6 +327,11 @@ export async function GET(request: NextRequest) {
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
           break;
         }
+        case 'sales.eintrag_kette': {
+          const { verarbeiteEintragKette } = await import('@/lib/sales/eintrag-kette');
+          console.log('[eintrag-kette]', await verarbeiteEintragKette(svc, payload as { lead_id: string; schritt: 1 | 2 | 3 }));
+          break;
+        }
         case 'aufgaben.tagesliste': {
           const { sendeTageslisten } = await import('@/lib/aufgaben/tagesliste');
           console.log('[tagesliste]', JSON.stringify(await sendeTageslisten(svc, new Date(), (payload as { tag?: string }).tag)));

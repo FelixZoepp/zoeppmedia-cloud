@@ -35,7 +35,7 @@ export const FOLLOWUP_SEQUENCE = ['fu_1', 'fu_2', 'fu_3', 'fu_4_slot', 'fu_5', '
  * Jeder Schritt nimmt einen anderen, damit ein Lead keinen doppelt bekommt.
  */
 export const SALES_ERFOLGE = [
-  'B&C Direct Sales, eine PV-D2D-Agentur, ist mit uns in 3 Monaten von 2 auf 15 Leute gewachsen und macht jetzt 6-stellige Monatsumsätze',
+  'B&C Direct Sales, eine PV-D2D-Agentur, ist mit uns in 90 Tagen von 2 auf 14 Leute gewachsen und macht jetzt 130.000 € Monatsumsatz',
   'die CGMS GmbH, eine Glasfaser-Agentur aus Köln, ist mit uns in unter 3 Monaten von 4 auf 12 Leute gewachsen',
   'Maxprom hat mit 10 bis 20 neuen Partnern pro Monat im besten Monat 1 Mio. € Umsatz gemacht',
 ];
