@@ -7,6 +7,9 @@ import {
   cancelAppointmentJobs,
 } from '../lifecycle';
 
+vi.mock('@/lib/pipeline/get-stages', () => ({
+  stageVomTyp: vi.fn(async () => ({ id: 'stage-interview', name: 'Termin', sort_order: 3, color: '#000', agency_id: null, stage_type: 'interview' })),
+}));
 vi.mock('@/lib/whatsapp/send', () => ({
   sendWhatsAppMessage: vi.fn().mockResolvedValue({ messageId: 'wamid.test', messageRowId: 'row-1' }),
 }));

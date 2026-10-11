@@ -453,12 +453,8 @@ export async function processBotTurn(
 
     // Stage-UPDATE bei A/B: auf pipeline_stage mit stage_type='qualified'
     if (scoreResult.label === 'A' || scoreResult.label === 'B') {
-      const { data: qualifiedStage } = await svc
-        .from('pipeline_stages')
-        .select('id, stage_type, requires_documents')
-        .eq('agency_id', agencyId)
-        .eq('stage_type', 'qualified')
-        .maybeSingle();
+      const { stageVomTyp, QUALIFIZIERT_TYPEN } = await import('@/lib/pipeline/get-stages');
+      const qualifiedStage = (await stageVomTyp(svc, agencyId, QUALIFIZIERT_TYPEN)) as { id: string; stage_type: string | null; requires_documents?: boolean | null } | null;
 
       if (qualifiedStage) {
         await svc
@@ -474,7 +470,7 @@ export async function processBotTurn(
           agencyId,
           conv.application_id,
           qualifiedStage.id,
-          qualifiedStage.stage_type,
+          qualifiedStage.stage_type ?? 'qualifying',
           qualifiedStage.requires_documents ?? false,
         ).catch((e) => console.error('scheduleStageReminders fehlgeschlagen', e));
       }

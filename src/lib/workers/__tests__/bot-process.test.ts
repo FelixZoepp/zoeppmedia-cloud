@@ -10,6 +10,10 @@ import { processBotTurn } from '../bot-process';
 // Module mocks
 // ---------------------------------------------------------------------------
 
+vi.mock('@/lib/pipeline/get-stages', () => ({
+  QUALIFIZIERT_TYPEN: ['qualified', 'qualifying'],
+  stageVomTyp: vi.fn(async () => ({ id: 'stage-qualified', name: 'Qualifiziert', sort_order: 2, color: '#000', agency_id: null, stage_type: 'qualified', requires_documents: false })),
+}));
 vi.mock('@/lib/ai/llm-client', () => ({
   llmJsonCall: vi.fn(),
   llmTextCall: vi.fn().mockResolvedValue('Begründung. Zusammenfassung.'),

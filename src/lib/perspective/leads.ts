@@ -73,6 +73,29 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
 
   await svc.from('candidate_stages').insert({ candidate_id: c.id, stage_id: firstStage.id, changed_by: null });
 
+  // Auch als Bewerbung anlegen – sonst fehlt der Lead in Kennzahlen, Phasen-Logik und Warnungen
+  const { data: stelle } = await svc
+    .from('jobs')
+    .select('id')
+    .eq('agency_id', agencyId)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (stelle) {
+    const { error: appErr } = await svc.from('applications').insert({
+      agency_id: agencyId,
+      candidate_id: c.id,
+      job_id: (stelle as { id: string }).id,
+      stage_id: firstStage.id,
+      source: 'meta',
+      source_ref: lead.externeId ? `perspective:${lead.externeId}` : null,
+      campaign: lead.funnelName ? { funnel: lead.funnelName } : null,
+      ...(lead.eingegangenAm ? { applied_at: lead.eingegangenAm } : {}),
+    });
+    if (appErr) console.error('[perspective] Bewerbung nicht angelegt:', appErr.message);
+  }
+
   if (lead.automationen) fireEvent('candidate_created', agencyId, { candidate_id: c.id }).catch(() => {});
 
   const blacklist = await checkBlacklist(svc, agencyId, lead.email, lead.phone);

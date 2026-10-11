@@ -197,6 +197,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Vorlagen-Pflege nicht geplant:', err);
   }
 
+  // Bewerber-Eingang: Abruf-Fehler stündlich nachholen, täglich auf ausbleibende Bewerber prüfen
+  try {
+    const { planeEingangsJobs } = await import('@/lib/ops/eingangs-waechter');
+    await planeEingangsJobs(svc);
+  } catch (err) {
+    console.error('[tick] Eingangs-Jobs nicht geplant:', err);
+  }
+
   // Morgens „Deine Aufgaben heute“ per WhatsApp (Mo–Fr 7:30–10 Uhr)
   try {
     const { planeTageslisten } = await import('@/lib/aufgaben/tagesliste');
@@ -339,6 +347,16 @@ export async function GET(request: NextRequest) {
         case 'aufgaben.whatsapp_diktat': {
           const { verarbeiteWhatsAppDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
+          break;
+        }
+        case 'indeed.nachholen': {
+          const { holeIndeedMailsNach } = await import('@/lib/indeed/mail-eingang');
+          console.log('[indeed-nachholen]', JSON.stringify(await holeIndeedMailsNach(svc)));
+          break;
+        }
+        case 'ops.eingangs_waechter': {
+          const { pruefeEingang } = await import('@/lib/ops/eingangs-waechter');
+          console.log('[eingangs-waechter]', JSON.stringify(await pruefeEingang(svc)));
           break;
         }
         case 'whatsapp.vorlagen_pflege': {

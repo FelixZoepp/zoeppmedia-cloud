@@ -184,8 +184,8 @@ export async function bookAppointment(svc: SupabaseClient, args: {
   }
 
   // 7. Stage-Move auf interview
-  const { data: interviewStage } = await svc.from('pipeline_stages')
-    .select('id').eq('agency_id', args.agencyId).eq('stage_type', 'interview').maybeSingle();
+  const { stageVomTyp } = await import('@/lib/pipeline/get-stages');
+  const interviewStage = await stageVomTyp(svc, args.agencyId, ['interview']);
   if (interviewStage) {
     await svc.from('applications').update({
       stage_id: interviewStage.id, updated_at: new Date().toISOString(),

@@ -351,38 +351,10 @@ export async function ingestApplication(
  * Fallback: erste Stufe nach sort_order/position.
  */
 async function getNewStageId(svc: SupabaseClient, agencyId: string): Promise<string> {
-  // Erst agency-spezifische Stufe mit type='new'
-  const { data: newStage } = await svc
-    .from('pipeline_stages')
-    .select('id')
-    .eq('agency_id', agencyId)
-    .eq('stage_type', 'new')
-    .limit(1)
-    .maybeSingle();
-
-  if (newStage) return newStage.id;
-
-  // Fallback: erste Stufe der Agentur nach sort_order
-  const { data: firstStage } = await svc
-    .from('pipeline_stages')
-    .select('id')
-    .eq('agency_id', agencyId)
-    .order('sort_order', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (firstStage) return firstStage.id;
-
-  // Letzter Fallback: globale Stufen
-  const { data: globalStage } = await svc
-    .from('pipeline_stages')
-    .select('id')
-    .is('agency_id', null)
-    .order('sort_order', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (globalStage) return globalStage.id;
-
+  // Eigene Phasen des Kunden, sonst Standard-Phasen: zuerst Typ „new“, sonst die erste Phase
+  const { getStagesForAgency } = await import('@/lib/pipeline/get-stages');
+  const stages = await getStagesForAgency(svc, agencyId);
+  const stufe = stages.find((s) => s.stage_type === 'new') ?? stages[0];
+  if (stufe) return stufe.id;
   throw new Error(`Keine Pipeline-Stufen fuer Agentur ${agencyId} gefunden`);
 }

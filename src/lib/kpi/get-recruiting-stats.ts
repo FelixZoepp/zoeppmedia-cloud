@@ -227,7 +227,7 @@ export async function getRecruitingStats(
     svc
       .from('pipeline_stages')
       .select('id, stage_type')
-      .eq('agency_id', agencyId) as unknown as Promise<{ data: DbPipelineStageRow[] | null }>,
+      .or(`agency_id.eq.${agencyId},agency_id.is.null`) as unknown as Promise<{ data: DbPipelineStageRow[] | null }>,
     ladeApps(from, to),
     ladeApps(prevFrom, prevTo),
   ]);

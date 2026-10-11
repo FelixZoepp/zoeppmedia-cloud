@@ -73,6 +73,7 @@ function buildMinimalMockClient() {
         return {
           select: () => ({
             eq: () => Promise.resolve({ data: [MOCK_STAGE], error: null }),
+            or: () => Promise.resolve({ data: [MOCK_STAGE], error: null }),
           }),
         };
       }

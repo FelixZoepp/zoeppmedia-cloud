@@ -43,3 +43,28 @@ export async function getStagesForAgency(
 
   return global ?? [];
 }
+
+/**
+ * Phase eines Typs für einen Kunden – eigene Phasen, sonst die Standard-Phasen.
+ * Mehrere Typen = Rangfolge (z. B. ['qualified', 'qualifying']: die Standard-Phasen kennen nur „qualifying“ = Kontaktiert).
+ */
+export async function stageVomTyp(supabase: SupabaseClient, agencyId: string, typen: string[]): Promise<(PipelineStage & Record<string, unknown>) | null> {
+  const stages = (await getStagesForAgency(supabase, agencyId)) as Array<PipelineStage & Record<string, unknown>>;
+  for (const t of typen) {
+    const s = stages.find((x) => x.stage_type === t);
+    if (s) return s;
+  }
+  return null;
+}
+
+/** Phase per ID – egal ob kundeneigen oder Standard (Standard-Phasen haben agency_id = null) */
+export async function stageVonId(supabase: SupabaseClient, stageId: string | null | undefined, agencyId: string): Promise<{ id: string; name: string; stage_type: string | null } | null> {
+  if (!stageId) return null;
+  const { data } = await supabase.from('pipeline_stages').select('id, name, stage_type, agency_id').eq('id', stageId).maybeSingle();
+  const s = data as { id: string; name: string; stage_type: string | null; agency_id: string | null } | null;
+  if (!s || (s.agency_id && s.agency_id !== agencyId)) return null;
+  return s;
+}
+
+/** Typen, die als „qualifiziert, wartet auf Kontakt durch Menschen“ gelten */
+export const QUALIFIZIERT_TYPEN = ['qualified', 'qualifying'];

@@ -28,13 +28,9 @@ export async function processSlaRecruiter24h(
   if (!app) return;
 
   // Stage-Typ prüfen: noch qualified?
-  const { data: stage } = await svc
-    .from('pipeline_stages')
-    .select('stage_type')
-    .eq('id', app.stage_id)
-    .eq('agency_id', agencyId)
-    .maybeSingle();
-  if (!stage || stage.stage_type !== 'qualified') return;
+  const { stageVonId, QUALIFIZIERT_TYPEN } = await import('@/lib/pipeline/get-stages');
+  const stage = await stageVonId(svc, app.stage_id, agencyId);
+  if (!stage || !QUALIFIZIERT_TYPEN.includes(stage.stage_type ?? '')) return;
 
   // Ausgehende Nachrichten seit Qualifizierung prüfen
   const { data: conv } = await svc
@@ -97,13 +93,9 @@ export async function processSlaRecruiter48h(
     .single();
   if (!app) return;
 
-  const { data: stage } = await svc
-    .from('pipeline_stages')
-    .select('stage_type')
-    .eq('id', app.stage_id)
-    .eq('agency_id', agencyId)
-    .maybeSingle();
-  if (!stage || stage.stage_type !== 'qualified') return;
+  const { stageVonId, QUALIFIZIERT_TYPEN } = await import('@/lib/pipeline/get-stages');
+  const stage = await stageVonId(svc, app.stage_id, agencyId);
+  if (!stage || !QUALIFIZIERT_TYPEN.includes(stage.stage_type ?? '')) return;
 
   const { data: conv } = await svc
     .from('conversations')
@@ -251,12 +243,8 @@ export async function processDocumentsRequest(
   if (!tmpl) return;
 
   // Stage-Name für Template-Variable laden
-  const { data: stageData } = await svc
-    .from('pipeline_stages')
-    .select('name')
-    .eq('id', payload.stage_id)
-    .eq('agency_id', agencyId)
-    .maybeSingle();
+  const { stageVonId } = await import('@/lib/pipeline/get-stages');
+  const stageData = await stageVonId(svc, payload.stage_id, agencyId);
 
   const vorname = (candidate.name || '').split(' ')[0];
 
@@ -313,7 +301,7 @@ export async function scheduleStageReminders(
   stageType: string,
   requiresDocuments: boolean,
 ): Promise<void> {
-  if (stageType === 'qualified') {
+  if (stageType === 'qualified' || stageType === 'qualifying') {
     await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: agencyId,
         run_at: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),

@@ -149,6 +149,7 @@ function buildMockClient(opts: {
               recordEqCalls.push({ table, col, val });
               return Promise.resolve({ data: stages, error: null });
             },
+            or: () => Promise.resolve({ data: stages, error: null }),
           }),
         };
       }

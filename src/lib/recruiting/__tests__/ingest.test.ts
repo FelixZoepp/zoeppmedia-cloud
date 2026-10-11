@@ -6,6 +6,10 @@ import { ingestApplication, type IngestInput } from '../ingest';
 // ---------------------------------------------------------------------------
 
 // Mock fireEvent — must be hoisted before any import resolution
+// Phasen-Suche (eigene oder Standard-Phasen) – hier fest die Eingangs-Phase
+vi.mock('@/lib/pipeline/get-stages', () => ({
+  getStagesForAgency: vi.fn(async () => [{ id: 'stage-new', name: 'Eingang', sort_order: 1, color: '#000', agency_id: null, stage_type: 'new' }]),
+}));
 vi.mock('@/lib/automations/fire', () => ({
   fireEvent: vi.fn().mockResolvedValue(undefined),
 }));
