@@ -525,6 +525,9 @@ async function executeSendEmail(
   const subject = resolveTemplate(String(params.subject ?? ''), ctx);
   const body = resolveTemplate(String(params.body ?? ''), ctx);
   if (!to || !subject) return;
+  // Automatische E-Mails an Bewerber erst nach Freigabe (Testadressen ausgenommen)
+  const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+  if (!darfKontakt(await ladeSchalter(_svc), { email: to })) return;
 
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY ?? '');

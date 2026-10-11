@@ -10,6 +10,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 // Provider-Mock — muss vor dem Import von send.ts registriert werden
 // ---------------------------------------------------------------------------
+// Bewerber-Kontakt-Schalter: in diesen Tests freigegeben (eigene Tests in kontakt-schalter.test.ts)
+vi.mock('@/lib/recruiting/kontakt-schalter', () => ({
+  pruefeKontakt: vi.fn(async () => {}),
+  ladeSchalter: vi.fn(async () => ({ aktiv: true, testnummern: [], testmails: [] })),
+  darfKontakt: vi.fn(() => true),
+}));
 vi.mock('@/lib/whatsapp/provider', () => ({
   getProvider: vi.fn(),
 }));

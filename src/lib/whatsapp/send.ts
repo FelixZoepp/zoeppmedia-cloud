@@ -32,6 +32,12 @@ export async function sendWhatsAppMessage(
   svc: SupabaseClient,
   opts: SendOpts
 ): Promise<{ messageId: string; messageRowId: string }> {
+  // 0. Bewerber-Kontakt freigegeben? (Kunden-Konten; manueller Versand aus der Oberfläche und Sales sind ausgenommen)
+  if (opts.agencyId !== SALES_AGENCY_ID && !opts.isHumanUiSend) {
+    const { pruefeKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+    await pruefeKontakt(svc, { telefon: opts.candidatePhone });
+  }
+
   // 1. WhatsApp-Account laden (I1: agency_id-Scoping, da Service-Role RLS umgeht)
   const { data: waAccount } = await svc
     .from('whatsapp_accounts')

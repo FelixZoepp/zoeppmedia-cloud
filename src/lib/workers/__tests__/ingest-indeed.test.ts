@@ -5,6 +5,12 @@ import { extractIndeedApplication, processIngestIndeed } from '@/lib/workers/ing
 // Module mocks
 // ---------------------------------------------------------------------------
 
+// Bewerber-Kontakt-Schalter: in diesen Tests freigegeben (eigene Tests in kontakt-schalter.test.ts)
+vi.mock('@/lib/recruiting/kontakt-schalter', () => ({
+  pruefeKontakt: vi.fn(async () => {}),
+  ladeSchalter: vi.fn(async () => ({ aktiv: true, testnummern: [], testmails: [] })),
+  darfKontakt: vi.fn(() => true),
+}));
 vi.mock('@/lib/recruiting/ingest', () => ({
   ingestApplication: vi.fn().mockResolvedValue({ candidateId: 'cand-1', phoneInvalid: false }),
 }));

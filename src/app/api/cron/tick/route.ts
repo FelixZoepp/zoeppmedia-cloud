@@ -412,6 +412,13 @@ export async function GET(request: NextRequest) {
       jobsProcessed++;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      // Bewerber-Kontakt noch nicht freigegeben: kein Fehler, nicht wiederholen (kein Nachholen nach der Freigabe)
+      if (err instanceof Error && err.name === 'KontaktGesperrtError') {
+        await svc.from('scheduled_jobs')
+          .update({ status: 'done', last_error: errorMsg, updated_at: new Date().toISOString() })
+          .eq('id', job.id);
+        continue;
+      }
       // Ruhezeit ist kein Fehler: auf den nächsten erlaubten Zeitpunkt verschieben, Versuch nicht zählen
       if (err instanceof QuietHoursError) {
         const { data: agency } = await svc.from('agencies').select('timezone').eq('id', job.agency_id).maybeSingle();
