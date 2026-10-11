@@ -64,11 +64,12 @@ async function findeStelle(svc: SupabaseClient, agencyId: string, jobTitel: stri
     const treffer = aktiv.find((j) => norm(j.title) === t) ?? aktiv.find((j) => norm(j.title) && (t.includes(norm(j.title)) || norm(j.title).includes(t)));
     if (treffer) return { id: treffer.id };
   }
-  const standard = liste.find((j) => j.is_default) ?? liste.find((j) => j.status === 'active');
+  const aktive = liste.filter((j) => j.status === 'active');
+  const standard = aktive.find((j) => j.is_default) ?? aktive[0];
   return standard ? { id: standard.id } : null;
 }
 
-export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<string, unknown>, opts: { platzhalterId?: string | null } = {}): Promise<MailErgebnis> {
+export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<string, unknown>, opts: { platzhalterId?: string | null; nachholen?: boolean } = {}): Promise<MailErgebnis> {
   const daten = body?.data as Record<string, unknown> | undefined;
   const payload = (daten && typeof daten === 'object' && (daten.to || daten.subject !== undefined) ? daten : body) as Record<string, unknown> & {
     headers?: Record<string, unknown>;
@@ -79,10 +80,15 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
   const subject = (payload.subject || payload.headers?.subject || '').toString();
   let htmlBody = ((payload.html || payload.text || '') as string) ?? '';
   let anhaenge: Anhang[] = (payload.attachments as Anhang[] | undefined) ?? [];
-  const emailId = payload.email_id as string | undefined;
+  const rohId = payload.email_id as string | undefined;
+  // Nur echte Resend-IDs (UUID) – sonst ließe sich der API-Pfad manipulieren
+  const emailId = rohId && /^[0-9a-f-]{36}$/i.test(rohId) ? rohId : undefined;
 
-  const log = (status: string, extra: Record<string, unknown> = {}) =>
-    svc.from('inbound_email_log').insert({ agency_id: extra.agency_id ?? null, from_address: from, to_address: to, subject, status, raw_payload: body, ...extra });
+  // Beim Nachholen keine neuen Log-Zeilen (die Ursprungszeile wird vom Aufrufer aktualisiert)
+  const log = async (status: string, extra: Record<string, unknown> = {}) => {
+    if (opts.nachholen) return;
+    await svc.from('inbound_email_log').insert({ agency_id: extra.agency_id ?? null, from_address: from, to_address: to, subject, status, raw_payload: body, ...extra });
+  };
 
   const agencyId = extractAgencyIdFromAddress(to);
   if (!agencyId) {
@@ -101,7 +107,7 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
     const r = await ladeVonResend(emailId);
     if (!r.ok) {
       const fehler = `Resend ${r.status}: ${r.text}`;
-      if (!opts.platzhalterId) await log('abruf_fehler', { agency_id: agencyId, error_message: fehler });
+      await log('abruf_fehler', { agency_id: agencyId, error_message: fehler });
       await alarmAnAdmins(svc, {
         titel: '🚨 Indeed-Bewerbungen kommen nicht an',
         text: `Die Cloud kann weitergeleitete Indeed-Mails nicht abrufen (${fehler.slice(0, 120)}). Bewerber werden NICHT angelegt, bis RESEND_RECEIVING_API_KEY (Full Access) gesetzt ist – danach werden sie automatisch nachgeholt.`,
@@ -120,7 +126,8 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
   let pfad: string | null = null;
   let cv: CvData = { full_name: null, email: null, phone: null, location: null, experience_summary: null, last_employer: null };
   const pdf = anhaenge.find(istPdf);
-  if (pdf?.content) {
+  // Lebensläufe über 8 MB nicht verarbeiten (Speicher/Laufzeit)
+  if (pdf?.content && pdf.content.length * 0.75 <= 8 * 1024 * 1024) {
     const buf = Buffer.from(pdf.content, 'base64');
     try {
       const safeName = (parsed.candidateName || 'bewerber').replace(/[^a-zA-Z0-9äöüÄÖÜß-]/g, '_').slice(0, 50);
@@ -196,6 +203,7 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
     consentWhatsapp: hinweis,
     consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
     resume: pfad ? { storagePath: pfad, mime: 'application/pdf', size: resumeSize } : null,
+    ohneAutomatik: !!opts.nachholen,
   });
 
   if (result.candidateCreated) {
@@ -222,41 +230,75 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
 
 /**
  * Job indeed.nachholen: Mails, deren Abruf fehlgeschlagen ist (oder die früher als Platzhalter ohne Kontaktdaten
- * angelegt wurden), erneut verarbeiten. Läuft nur, wenn der Abruf wieder funktioniert. Schreibt niemanden an.
+ * angelegt wurden), erneut verarbeiten. Läuft nur, wenn der Abruf wieder funktioniert.
+ * Schreibt niemanden an (kein Bot, keine Automationen) – der Innendienst bekommt nur einen Anruf-Auftrag.
+ * Erledigt = nur bei Erfolg; nach 5 Versuchen „aufgegeben“.
  */
 export async function holeIndeedMailsNach(svc: SupabaseClient, tage = 30): Promise<{ geprueft: number; nachgeholt: number; neu: number; fehler: number }> {
   const seit = new Date(Date.now() - tage * 864e5).toISOString();
-  const { data } = await svc
+  // 1. Offene Abruf-Fehler
+  const { data: offen } = await svc
     .from('inbound_email_log')
-    .select('id, status, candidate_id, raw_payload')
-    .in('status', ['abruf_fehler', 'processed'])
+    .select('id, candidate_id, raw_payload, versuche')
+    .eq('status', 'abruf_fehler')
     .gte('created_at', seit)
     .order('created_at')
-    .limit(200);
+    .limit(50);
+  // 2. Alte Platzhalter (verarbeitet, aber Abruf war fehlgeschlagen und Bewerber hat keine Kontaktdaten)
+  const { data: kandidaten } = await svc
+    .from('inbound_email_log')
+    .select('id, candidate_id, raw_payload, versuche')
+    .eq('status', 'processed')
+    .not('candidate_id', 'is', null)
+    .eq('raw_payload->fetch_debug->>ok', 'false')
+    .gte('created_at', seit)
+    .order('created_at')
+    .limit(50);
+  const zeilen = [
+    ...((offen ?? []) as Array<{ id: string; candidate_id: string | null; raw_payload: Record<string, unknown> | null; versuche: number }>).map((r) => ({ ...r, platzhalter: false })),
+    ...((kandidaten ?? []) as Array<{ id: string; candidate_id: string | null; raw_payload: Record<string, unknown> | null; versuche: number }>).map((r) => ({ ...r, platzhalter: true })),
+  ];
   let nachgeholt = 0;
   let neu = 0;
   let fehler = 0;
   let geprueft = 0;
-  for (const row of (data ?? []) as Array<{ id: string; status: string; candidate_id: string | null; raw_payload: Record<string, unknown> | null }>) {
-    const roh = row.raw_payload ?? {};
-    const debug = roh.fetch_debug as { ok?: boolean } | undefined;
-    const istPlatzhalter = row.status === 'processed' && debug && debug.ok === false && row.candidate_id;
-    if (row.status !== 'abruf_fehler' && !istPlatzhalter) continue;
-    if (istPlatzhalter) {
+  for (const row of zeilen) {
+    if (row.platzhalter) {
       const { data: c } = await svc.from('candidates').select('phone_e164, email').eq('id', row.candidate_id!).maybeSingle();
-      if (!c || (c as { phone_e164: string | null }).phone_e164 || (c as { email: string | null }).email) continue;
+      const k = c as { phone_e164: string | null; email: string | null } | null;
+      if (!k || k.phone_e164 || k.email) {
+        await svc.from('inbound_email_log').update({ status: 'nachgeholt' }).eq('id', row.id);
+        continue;
+      }
     }
     geprueft++;
-    const kopie = JSON.parse(JSON.stringify(roh)) as Record<string, unknown>;
+    const kopie = JSON.parse(JSON.stringify(row.raw_payload ?? {})) as Record<string, unknown>;
     delete kopie.fetch_debug;
+    const versuche = (row.versuche ?? 0) + 1;
     try {
-      const r = await verarbeiteIndeedMail(svc, kopie, { platzhalterId: istPlatzhalter ? row.candidate_id : null });
-      if (r.status === 'abruf_fehler') return { geprueft, nachgeholt, neu, fehler: fehler + 1 }; // Schlüssel noch nicht da → abbrechen
+      const r = await verarbeiteIndeedMail(svc, kopie, { platzhalterId: row.platzhalter ? row.candidate_id : null, nachholen: true });
+      if (r.status === 'abruf_fehler') {
+        // Schlüssel fehlt noch → abbrechen, nichts als Versuch zählen
+        return { geprueft, nachgeholt, neu, fehler: fehler + 1 };
+      }
+      const erfolg = r.status === 'nachgeholt' || r.status === 'processed';
       if (r.status === 'nachgeholt') nachgeholt++;
       if (r.status === 'processed') neu++;
-      await svc.from('inbound_email_log').update({ status: r.status === 'nachgeholt' ? 'nachgeholt' : row.status === 'abruf_fehler' ? 'nachgeholt' : row.status }).eq('id', row.id);
-    } catch {
+      await svc
+        .from('inbound_email_log')
+        .update({
+          status: erfolg ? 'nachgeholt' : versuche >= 5 ? 'aufgegeben' : row.platzhalter ? 'processed' : 'abruf_fehler',
+          versuche,
+          error_message: erfolg ? null : `Nachholen: ${r.status}`,
+          ...(r.candidateId && !row.platzhalter ? { candidate_id: r.candidateId } : {}),
+        })
+        .eq('id', row.id);
+    } catch (e) {
       fehler++;
+      await svc
+        .from('inbound_email_log')
+        .update({ versuche, status: versuche >= 5 ? 'aufgegeben' : row.platzhalter ? 'processed' : 'abruf_fehler', error_message: (e instanceof Error ? e.message : String(e)).slice(0, 300) })
+        .eq('id', row.id);
     }
   }
   return { geprueft, nachgeholt, neu, fehler };

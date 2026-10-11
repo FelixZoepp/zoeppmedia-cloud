@@ -17,10 +17,13 @@ interface SendJobPayload {
   template_id?: string;
 }
 
-export async function processSend(svc: SupabaseClient, jobPayload: SendJobPayload) {
+export async function processSend(svc: SupabaseClient, jobPayload: SendJobPayload, jobAgencyId?: string) {
+  // Agentur aus dem Job selbst – nie aus dem (frei befüllbaren) Payload
+  const agencyId = jobAgencyId ?? jobPayload.agency_id;
+  if (jobAgencyId && jobPayload.agency_id && jobPayload.agency_id !== jobAgencyId) throw new Error('Agentur im Versand-Job passt nicht');
   // R4: sendWhatsAppMessage wirft bei Fehler — kein result.ok-Check nötig
   await sendWhatsAppMessage(svc, {
-    agencyId: jobPayload.agency_id,
+    agencyId,
     conversationId: jobPayload.conversation_id,
     candidatePhone: jobPayload.candidate_phone,
     waAccountId: jobPayload.wa_account_id,

@@ -151,10 +151,13 @@ export async function bookAppointment(svc: SupabaseClient, args: {
       recruiterEmail = owner?.email ?? null;
       recruiterName = owner?.name ?? null;
     }
-    // Letzter Fallback: Bewerber-E-Mail (für Bestätigung an den Kandidaten)
-    if (!recruiterEmail) {
-      recruiterEmail = candidate.email ?? null;
-      isCandidateFallback = true;
+    // Letzter Fallback: Bewerber-E-Mail (für Bestätigung an den Kandidaten) – nur bei freigegebenem Bewerber-Kontakt
+    if (!recruiterEmail && candidate.email) {
+      const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+      if (darfKontakt(await ladeSchalter(svc), { email: candidate.email })) {
+        recruiterEmail = candidate.email;
+        isCandidateFallback = true;
+      }
     }
 
     if (recruiterEmail) {
@@ -181,6 +184,21 @@ export async function bookAppointment(svc: SupabaseClient, args: {
         'REQUEST',
       ).catch(() => {});
     }
+  }
+
+  // 6b. Verbundener Kundenkalender: Termin direkt eintragen (best effort)
+  try {
+    const { trageTerminEin } = await import('@/lib/kalender/kunden-kalender');
+    const ev = await trageTerminEin(svc, args.agencyId, {
+      start: args.startsAt,
+      ende: args.endsAt,
+      titel: `Termin: ${candidate.name || 'Bewerber'}`,
+      beschreibung: [`Gebucht über die Zoepp Cloud`, candidate.phone_e164 ? `Telefon: ${candidate.phone_e164}` : '', candidate.email ? `E-Mail: ${candidate.email}` : ''].filter(Boolean).join('\n'),
+      ort: appt.location ?? null,
+    });
+    if (ev) await svc.from('appointments').update({ kalender_event_id: ev.eventId, kalender_provider: ev.provider }).eq('id', args.appointmentId).eq('agency_id', args.agencyId);
+  } catch (e) {
+    console.error('[appointments] Kundenkalender nicht erreicht', e);
   }
 
   // 7. Stage-Move auf interview

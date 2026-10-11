@@ -525,9 +525,18 @@ async function executeSendEmail(
   const subject = resolveTemplate(String(params.subject ?? ''), ctx);
   const body = resolveTemplate(String(params.body ?? ''), ctx);
   if (!to || !subject) return;
-  // Automatische E-Mails an Bewerber erst nach Freigabe (Testadressen ausgenommen)
-  const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-  if (!darfKontakt(await ladeSchalter(_svc), { email: to })) return;
+  // Automatische E-Mails an Bewerber erst nach Freigabe (Testadressen ausgenommen); Mails an Kunde/Team bleiben erlaubt
+  if (ctx.candidate_id) {
+    const { data: c } = await _svc.from('candidates').select('email').eq('id', ctx.candidate_id).maybeSingle();
+    const bewerberMail = (c as { email: string | null } | null)?.email?.toLowerCase().trim();
+    if (bewerberMail && to.toLowerCase().trim() === bewerberMail) {
+      const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+      if (!darfKontakt(await ladeSchalter(_svc), { email: to })) {
+        console.warn('[automation] E-Mail an Bewerber gesperrt (Bewerber-Kontakt nicht freigegeben)', ctx.candidate_id);
+        return;
+      }
+    }
+  }
 
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY ?? '');

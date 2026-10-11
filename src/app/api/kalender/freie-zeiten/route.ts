@@ -7,7 +7,8 @@ import { belegteZeiten, freieZeiten } from '@/lib/kalender/kunden-kalender';
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
-  const intern = user.role === 'admin' || user.role === 'employee';
+  const { darfKundenCloud } = await import('@/lib/kunden-cloud/zugriff');
+  const intern = darfKundenCloud(user);
   const agencyId = (intern && req.nextUrl.searchParams.get('agency')) || (await getEffectiveAgencyId());
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   const minuten = Math.min(240, Math.max(15, Number(req.nextUrl.searchParams.get('minuten')) || 60));

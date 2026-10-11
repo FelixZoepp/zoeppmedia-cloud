@@ -200,7 +200,8 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
         text: { body: 'Du erhältst keine weiteren Nachrichten von uns. Falls du es dir anders überlegst, melde dich jederzeit.' },
       },
       senderType: 'system',
-      isHumanUiSend: true, // Ausnahme von Ruhezeiten — Pflichtbestätigung
+      bypassQuietHours: true, // Pflichtbestätigung einer Abmeldung – auch nachts
+      pflichtAntwort: true, // auch bei gesperrtem Bewerber-Kontakt
     }).catch(() => {}); // Best effort
 
     await svc.from('candidates')
@@ -217,14 +218,17 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   // Antwort auf die Termin-Erinnerung („Ich komme“ / „Verschieben“)
   {
     const { terminAntwort, verarbeiteTerminAntwort } = await import('@/lib/appointments/antwort-buttons');
-    const antwort = terminAntwort(replyText ?? msg.text?.body);
+    const antwort = terminAntwort(replyText || msg.text?.body);
     if (antwort && (await verarbeiteTerminAntwort(svc, { agencyId: effectiveAgencyId, candidateId: candidate.id, conversationId, waAccountId: waAccount.id, telefon: senderPhone, antwort }))) {
       return;
     }
   }
 
   // Bewerber schreibt zuerst → KI-Agent übernimmt (offene Bewerbung, aktiver Agent, noch nicht qualifiziert, kein Mensch dran)
-  let state: string = conv.state;
+  // Solange der Bewerber-Kontakt gesperrt ist, antwortet der Agent nicht (Nachricht liegt im Posteingang des Teams)
+  const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+  const agentDarf = darfKontakt(await ladeSchalter(svc), { telefon: senderPhone });
+  let state: string = agentDarf ? conv.state : 'gesperrt';
   if (state === 'waiting') {
     const { starteAgentBeiNachricht } = await import('@/lib/bot/start-bei-nachricht');
     if (await starteAgentBeiNachricht(svc, { agencyId: effectiveAgencyId, conversationId, candidateId: candidate.id, applicationId, zugewiesen: assignedTo, state })) state = 'bot_active';
@@ -307,8 +311,10 @@ async function schreibeSprachnachrichtAb(svc: SupabaseClient, waAccountId: strin
   const { getProvider } = await import('@/lib/whatsapp/provider');
   const token = decryptSecret(enc);
   const url = await getProvider().getMediaUrl(mediaId, token);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
   if (!res.ok) return '';
+  // Größe vor dem Laden prüfen (max. 10 MB ≈ mehrere Minuten Sprachnachricht)
+  if (Number(res.headers.get('content-length') ?? 0) > 10 * 1024 * 1024) return '';
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > 10 * 1024 * 1024) return '';
   const { transcribeAudio } = await import('@/lib/recordings/transcribe');

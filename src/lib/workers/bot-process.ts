@@ -514,48 +514,24 @@ export async function processBotTurn(
       ? `Danke dir für deine Antworten! Wir rufen dich ${rueckruf.text} kurz an${anrufNummer ? `, und zwar von ${anrufNummer}` : ''}. Speicher dir die Nummer am besten direkt ein. Bis dann!`
       : 'Vielen Dank für deine Antworten! Wir haben alle Informationen erhalten und melden uns bald bei dir.';
 
-    try {
-      await sendWhatsAppMessage(svc, {
-        agencyId,
-        conversationId,
-        candidatePhone: candidate.phone_e164 ?? '',
-        waAccountId: conv.wa_account_id,
-        payload: {
-          to: candidate.phone_e164 ?? '',
-          type: 'text',
-          text: { body: abschlussText },
-        },
-        senderType: 'bot',
-        gespraechsZeiten: true,
-      });
-    } catch (sendErr) {
-      // Preflight-Fehler (Fenster zu) → ignorieren; andere Fehler rethrow
-      const msg = sendErr instanceof Error ? sendErr.message : '';
-      if (
-        msg.includes('Fenster') ||
-        msg.includes('window') ||
-        msg.includes('opt_in') ||
-        msg.includes('Consent') ||
-        msg.includes('Preflight')
-      ) {
-        // Nudge-Template übernimmt — ignore
-      } else {
-        throw sendErr;
-      }
-    }
-
-    // state = 'waiting' (P3-R1), cancelBotTimers
+    // Erst den Abschluss speichern (state = 'waiting', Timer weg) – dann senden. So wird ein Abschluss nie doppelt
+    // ausgeführt, auch wenn der Versand wegen Ruhezeit verschoben wird.
     await svc
       .from('conversations')
       .update({
         state: 'waiting',
-        bot_meta: newBotMeta,
+        bot_meta: { ...newBotMeta, abgeschlossen_am: new Date().toISOString() },
         updated_at: new Date().toISOString(),
       })
       .eq('id', conversationId)
       .eq('agency_id', agencyId);
 
     await cancelBotTimers(svc, { agencyId, conversationId });
+
+    const { sendeOderPlane } = await import('@/lib/bot/textnachricht');
+    await sendeOderPlane(svc, { agencyId, conversationId, telefon: candidate.phone_e164 ?? '', waAccountId: conv.wa_account_id, text: abschlussText }).catch((e) =>
+      console.error('Abschlussnachricht nicht gesendet', e),
+    );
 
     // logActivity bot_completed
     await logActivity(svc, {

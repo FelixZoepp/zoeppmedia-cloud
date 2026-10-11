@@ -6,6 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processInbound } from '../whatsapp-inbound';
 
 // Stub-Module vor dem Import
+vi.mock('@/lib/recruiting/kontakt-schalter', () => ({
+  ladeSchalter: vi.fn(async () => ({ aktiv: true, testnummern: [], testmails: [] })),
+  darfKontakt: vi.fn(() => true),
+  pruefeKontakt: vi.fn(async () => {}),
+}));
 vi.mock('@/lib/whatsapp/window', () => ({
   isStopMessage: vi.fn((text: string | null | undefined) => {
     if (!text) return false;
@@ -189,7 +194,8 @@ describe('processInbound', () => {
       expect.anything(),
       expect.objectContaining({
         senderType: 'system',
-        isHumanUiSend: true,
+        pflichtAntwort: true,
+        bypassQuietHours: true,
       })
     );
   });

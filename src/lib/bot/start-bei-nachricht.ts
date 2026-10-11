@@ -22,11 +22,13 @@ export async function starteAgentBeiNachricht(
 
   // Wer selbst schreibt, möchte eine Antwort – Einwilligung mit Quelle vermerken
   await svc.from('candidates').update({ whatsapp_opt_in: true, consent_source: 'bewerber_schrieb_zuerst' }).eq('id', p.candidateId).eq('agency_id', p.agencyId).eq('whatsapp_opt_in', false);
-  const { error } = await svc
+  const { data: geaendert } = await svc
     .from('conversations')
     .update({ application_id: a.id, state: 'bot_active', bot_step: 0, bot_meta: {}, updated_at: new Date().toISOString() })
     .eq('id', p.conversationId)
     .eq('agency_id', p.agencyId)
-    .eq('state', 'waiting');
-  return !error;
+    .eq('state', 'waiting')
+    .is('assigned_to', null)
+    .select('id');
+  return !!geaendert?.length;
 }

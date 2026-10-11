@@ -28,6 +28,8 @@ export interface IngestInput {
     origin: 'indeed' | 'bot' | 'form';
   }>;
   resume?: { storagePath: string; mime: string; size: number } | null;
+  /** Nachholen alter Bewerbungen: keine Automationen, kein Bot – nur Anruf-Auftrag für den Innendienst */
+  ohneAutomatik?: boolean;
 }
 
 export interface IngestResult {
@@ -312,16 +314,16 @@ export async function ingestApplication(
   });
 
   // --- 9. fireEvent: neuer Kandidat + neue Application ---
-  if (candidateCreated) {
+  if (candidateCreated && !input.ohneAutomatik) {
     await fireEvent('candidate_created', input.agencyId, { candidate_id: candidateId }).catch(() => {});
   }
-  await fireEvent('application.created', input.agencyId, {
+  if (!input.ohneAutomatik) await fireEvent('application.created', input.agencyId, {
     candidate_id: candidateId, extra: { application_id: newApp.id, source: input.source },
   }, { application_id: newApp.id }).catch(() => {});
 
   // --- Phase 3: Bot-Eröffnung einreihen (Spec §8 Schritt 1). Worker prüft Config/Consent erneut. ---
   // Hier ist immer applicationCreated=true (wir sind im Happy-Path hinter der 30-Tage-Prüfung)
-  if (newApp?.id && input.consentWhatsapp && phoneE164) {
+  if (newApp?.id && input.consentWhatsapp && phoneE164 && !input.ohneAutomatik) {
     try {
       await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: input.agencyId,

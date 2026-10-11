@@ -22,25 +22,25 @@ export function providerBereit(p: KalenderProvider): boolean {
 /* ── State (gegen CSRF; bindet Kunde + Nutzer an den Rücksprung) ─────────────── */
 
 function signiere(daten: string): string {
-  const key = process.env.CRON_SECRET;
-  if (!key) throw new Error('CRON_SECRET fehlt');
+  const key = process.env.KALENDER_STATE_SECRET || process.env.CRON_SECRET;
+  if (!key) throw new Error('KALENDER_STATE_SECRET fehlt');
   return createHmac('sha256', key).update(daten).digest('base64url');
 }
 
-export function baueState(agencyId: string, userId: string, jetzt = Date.now()): string {
-  const daten = Buffer.from(JSON.stringify({ a: agencyId, u: userId, t: jetzt })).toString('base64url');
+export function baueState(agencyId: string, userId: string, jetzt = Date.now(), nonce = ''): string {
+  const daten = Buffer.from(JSON.stringify({ a: agencyId, u: userId, t: jetzt, n: nonce })).toString('base64url');
   return `${daten}.${signiere(daten)}`;
 }
 
-export function pruefeState(state: string, jetzt = Date.now()): { agencyId: string; userId: string } | null {
+export function pruefeState(state: string, jetzt = Date.now()): { agencyId: string; userId: string; nonce: string } | null {
   const [daten, sig] = state.split('.');
   if (!daten || !sig) return null;
   const soll = signiere(daten);
   if (sig.length !== soll.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(soll))) return null;
   try {
-    const o = JSON.parse(Buffer.from(daten, 'base64url').toString()) as { a: string; u: string; t: number };
+    const o = JSON.parse(Buffer.from(daten, 'base64url').toString()) as { a: string; u: string; t: number; n?: string };
     if (jetzt - o.t > 15 * 60_000) return null; // 15 Minuten gültig
-    return { agencyId: o.a, userId: o.u };
+    return { agencyId: o.a, userId: o.u, nonce: o.n ?? '' };
   } catch {
     return null;
   }
@@ -108,8 +108,9 @@ export async function verbindeKalender(svc: SupabaseClient, p: KalenderProvider,
   const t = await tokenAnfrage(p, { grant_type: 'authorization_code', code, redirect_uri: redirectUri(p) });
   if (!t.refresh_token) throw new Error('Kein dauerhafter Zugriff erteilt – bitte erneut verbinden und alle Berechtigungen bestätigen');
   const email = emailAusIdToken(t.id_token);
-  await svc.from('kalender_verbindungen').update({ aktiv: false, updated_at: new Date().toISOString() }).eq('agency_id', agencyId).eq('aktiv', true);
-  const { error } = await svc.from('kalender_verbindungen').insert({
+  // Wechsel ohne Lücke: neue Verbindung erst inaktiv speichern, dann umschalten
+  const { data: neu, error } = await svc.from('kalender_verbindungen').insert({
+    aktiv: false,
     agency_id: agencyId,
     provider: p,
     konto_email: email,
@@ -117,8 +118,11 @@ export async function verbindeKalender(svc: SupabaseClient, p: KalenderProvider,
     access_token_enc: encryptSecret(t.access_token),
     access_bis: new Date(Date.now() + (t.expires_in - 60) * 1000).toISOString(),
     verbunden_von: userId,
-  });
-  if (error) throw new Error(`Kalender nicht gespeichert: ${error.message}`);
+  }).select('id').single();
+  if (error || !neu) throw new Error(`Kalender nicht gespeichert: ${error?.message ?? ''}`);
+  await svc.from('kalender_verbindungen').update({ aktiv: false, updated_at: new Date().toISOString() }).eq('agency_id', agencyId).eq('aktiv', true);
+  const { error: aErr } = await svc.from('kalender_verbindungen').update({ aktiv: true, updated_at: new Date().toISOString() }).eq('id', (neu as { id: string }).id);
+  if (aErr) throw new Error(`Kalender nicht aktiviert: ${aErr.message}`);
   return { email };
 }
 
@@ -172,23 +176,37 @@ export async function belegteZeiten(svc: SupabaseClient, agencyId: string, von: 
       body: JSON.stringify({ timeMin: von.toISOString(), timeMax: bis.toISOString(), items: [{ id: v.kalender_id }] }),
     });
     if (!res.ok) throw new Error(`Google-Kalender ${res.status}`);
-    const j = (await res.json()) as { calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }> };
-    return (j.calendars?.[v.kalender_id]?.busy ?? []).map((b) => ({ starts_at: b.start, ends_at: b.end }));
+    const j = (await res.json()) as { calendars?: Record<string, { busy?: Array<{ start: string; end: string }>; errors?: unknown[] }> };
+    const kal = j.calendars?.[v.kalender_id];
+    if (!kal || kal.errors?.length) throw new Error('Google-Kalender liefert keine Belegung');
+    return (kal.busy ?? []).map((b) => ({ starts_at: b.start, ends_at: b.end }));
   }
   const q = new URLSearchParams({ startDateTime: von.toISOString(), endDateTime: bis.toISOString(), $select: 'start,end,showAs', $top: '500' });
-  const res = await fetch(`https://graph.microsoft.com/v1.0/me/calendarView?${q}`, { headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="UTC"' } });
-  if (!res.ok) throw new Error(`Outlook-Kalender ${res.status}`);
-  const j = (await res.json()) as { value?: Array<{ start: { dateTime: string }; end: { dateTime: string }; showAs?: string }> };
-  return (j.value ?? []).filter((e) => e.showAs !== 'free').map((e) => ({ starts_at: `${e.start.dateTime.replace(/Z?$/, 'Z')}`, ends_at: `${e.end.dateTime.replace(/Z?$/, 'Z')}` }));
+  const alle: Array<{ start: { dateTime: string }; end: { dateTime: string }; showAs?: string }> = [];
+  let url: string | null = `https://graph.microsoft.com/v1.0/me/calendarView?${q}`;
+  for (let seite = 0; url && seite < 10; seite++) {
+    const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="UTC"' } });
+    if (!res.ok) throw new Error(`Outlook-Kalender ${res.status}`);
+    const j = (await res.json()) as { value?: typeof alle; '@odata.nextLink'?: string };
+    alle.push(...(j.value ?? []));
+    url = j['@odata.nextLink'] ?? null;
+  }
+  return alle.filter((e) => e.showAs !== 'free').map((e) => ({ starts_at: `${e.start.dateTime.replace(/Z?$/, 'Z')}`, ends_at: `${e.end.dateTime.replace(/Z?$/, 'Z')}` }));
 }
 
 export async function trageTerminEin(
   svc: SupabaseClient,
   agencyId: string,
-  t: { start: Date; ende: Date; titel: string; beschreibung: string; ort?: string | null; gastEmail?: string | null; gastName?: string | null },
+  eingabe: { start: Date; ende: Date; titel: string; beschreibung: string; ort?: string | null; gastEmail?: string | null; gastName?: string | null },
 ): Promise<{ eventId: string; provider: KalenderProvider } | null> {
+  let t = eingabe;
   const v = await ladeVerbindung(svc, agencyId);
   if (!v) return null;
+  // Einladung an den Bewerber (Gast) nur bei freigegebenem Bewerber-Kontakt
+  if (t.gastEmail) {
+    const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+    if (!darfKontakt(await ladeSchalter(svc), { email: t.gastEmail })) t = { ...t, gastEmail: null };
+  }
   const token = await zugriff(svc, v);
   if (v.provider === 'google') {
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(v.kalender_id)}/events?sendUpdates=${t.gastEmail ? 'all' : 'none'}`, {
@@ -228,9 +246,29 @@ export async function loescheTermin(svc: SupabaseClient, agencyId: string, event
   const token = await zugriff(svc, v);
   const url =
     provider === 'google'
-      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(v.kalender_id)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`
+      ? `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(v.kalender_id)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`
       : `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(eventId)}`;
   await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+}
+
+/** Termin im Kundenkalender verschieben (neue Zeiten, ohne Mails an Gäste) */
+export async function aktualisiereTermin(svc: SupabaseClient, agencyId: string, eventId: string, provider: KalenderProvider, start: Date, ende: Date): Promise<void> {
+  const v = await ladeVerbindung(svc, agencyId);
+  if (!v || v.provider !== provider) return;
+  const token = await zugriff(svc, v);
+  const res =
+    provider === 'google'
+      ? await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(v.kalender_id)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start: { dateTime: start.toISOString() }, end: { dateTime: ende.toISOString() } }),
+        })
+      : await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(eventId)}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ start: { dateTime: start.toISOString().replace('Z', ''), timeZone: 'UTC' }, end: { dateTime: ende.toISOString().replace('Z', ''), timeZone: 'UTC' } }),
+        });
+  if (!res.ok) throw new Error(`Termin im Kundenkalender nicht verschoben (${res.status})`);
 }
 
 /**

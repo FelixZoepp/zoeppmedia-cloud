@@ -253,7 +253,7 @@ export async function GET(request: NextRequest) {
       const payload = job.payload as { [key: string]: unknown };
       switch (job.type) {
         case 'whatsapp.send':
-          await processSend(svc, payload as unknown as Parameters<typeof processSend>[1]);
+          await processSend(svc, payload as unknown as Parameters<typeof processSend>[1], job.agency_id);
           break;
         case 'media.download':
           await processMediaDownload(svc, job.agency_id, payload as unknown as Parameters<typeof processMediaDownload>[2]);
@@ -347,6 +347,13 @@ export async function GET(request: NextRequest) {
         case 'aufgaben.whatsapp_diktat': {
           const { verarbeiteWhatsAppDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
+          break;
+        }
+        case 'bot.textnachricht': {
+          // Verschobene Agent-Nachricht (z. B. Abschluss nach 21 Uhr) – Ruhezeit-Fehler verschiebt der Tick erneut
+          const p = payload as unknown as import('@/lib/bot/textnachricht').TextJob;
+          const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+          await sendWhatsAppMessage(svc, { agencyId: job.agency_id, conversationId: p.conversationId, candidatePhone: p.telefon, waAccountId: p.waAccountId, payload: { to: p.telefon, type: 'text', text: { body: p.text } }, senderType: 'bot', gespraechsZeiten: true });
           break;
         }
         case 'bot.rueckruf_erinnerung': {

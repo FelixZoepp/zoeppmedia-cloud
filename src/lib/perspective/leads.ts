@@ -78,11 +78,14 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
     .from('jobs')
     .select('id')
     .eq('agency_id', agencyId)
+    .eq('status', 'active')
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (stelle) {
+  const ref = lead.externeId ? `perspective:${lead.externeId}` : null;
+  const { count: schonDa } = ref ? await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', ref) : { count: 0 };
+  if (stelle && !schonDa) {
     const { error: appErr } = await svc.from('applications').insert({
       agency_id: agencyId,
       candidate_id: c.id,

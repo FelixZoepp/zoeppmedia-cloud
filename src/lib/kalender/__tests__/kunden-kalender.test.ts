@@ -9,7 +9,7 @@ describe('Kunden-Kalender', () => {
   it('State ist signiert und läuft nach 15 Min. ab', () => {
     const jetzt = Date.now();
     const s = baueState('ag-1', 'u-1', jetzt);
-    expect(pruefeState(s, jetzt + 60_000)).toEqual({ agencyId: 'ag-1', userId: 'u-1' });
+    expect(pruefeState(s, jetzt + 60_000)).toEqual({ agencyId: 'ag-1', userId: 'u-1', nonce: '' });
     expect(pruefeState(s, jetzt + 16 * 60_000)).toBeNull();
     expect(pruefeState(s.replace(/.$/, (c) => (c === 'a' ? 'b' : 'a')), jetzt)).toBeNull();
   });

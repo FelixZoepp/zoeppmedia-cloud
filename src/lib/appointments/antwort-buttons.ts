@@ -16,19 +16,20 @@ export async function verarbeiteTerminAntwort(
   svc: SupabaseClient,
   p: { agencyId: string; candidateId: string; conversationId: string; waAccountId: string; telefon: string; antwort: 'kommt' | 'verschieben' },
 ): Promise<boolean> {
+  // Nur Termine dieses Bewerbers (über seine Bewerbungen), der nächste anstehende
+  const { data: apps } = await svc.from('applications').select('id').eq('candidate_id', p.candidateId).eq('agency_id', p.agencyId);
+  const appIds = ((apps ?? []) as Array<{ id: string }>).map((a) => a.id);
+  if (!appIds.length) return false;
   const { data } = await svc
     .from('appointments')
     .select('id, starts_at, status, application_id')
     .eq('agency_id', p.agencyId)
+    .in('application_id', appIds)
     .in('status', ['booked', 'confirmed'])
     .gte('starts_at', new Date().toISOString())
     .order('starts_at')
-    .limit(10);
-  const termine = (data ?? []) as Array<{ id: string; starts_at: string; status: string; application_id: string | null }>;
-  // Termin dieses Bewerbers (über seine Bewerbungen)
-  const { data: apps } = await svc.from('applications').select('id').eq('candidate_id', p.candidateId).eq('agency_id', p.agencyId);
-  const appIds = new Set(((apps ?? []) as Array<{ id: string }>).map((a) => a.id));
-  const termin = termine.find((t) => t.application_id && appIds.has(t.application_id));
+    .limit(1);
+  const termin = ((data ?? []) as Array<{ id: string; starts_at: string; status: string; application_id: string | null }>)[0];
   if (!termin) return false;
 
   const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');

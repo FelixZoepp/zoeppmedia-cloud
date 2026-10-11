@@ -82,6 +82,10 @@ export async function processBotOpen(
 
   if (!template) return ersatz('Begrüßungsvorlage noch nicht von Meta freigegeben');
 
+  // Bewerber-Kontakt noch nicht freigegeben (Testnummern ausgenommen) → nichts anfassen, Innendienst ruft an
+  const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+  if (!darfKontakt(await ladeSchalter(svc), { telefon: candidate.phone_e164 })) return ersatz('Bewerber-Kontakt noch nicht freigegeben');
+
   // --- 7. Agentur-Name laden (für Template-Variable) ---
   const { data: agency } = await svc
     .from('agencies')
@@ -105,15 +109,14 @@ export async function processBotOpen(
         candidate_id: candidate.id,
         wa_account_id: waAccount.id,
         application_id: applicationId,
-        state: 'bot_active',
-        bot_step: 0,
-        bot_meta: {},
+        state: 'waiting',
         updated_at: now,
       },
       { onConflict: 'wa_account_id,candidate_id', ignoreDuplicates: true }
     );
 
-  // Schritt b: UPDATE bot-spezifischer Felder — anwendbar auf bestehende und neue Row
+  // Schritt b: Start atomar beanspruchen – nur aus „waiting“ und ohne zuständigen Menschen.
+  // Läuft der Agent schon (z. B. Bewerber hat zuerst geschrieben) oder hat ein Mensch übernommen → nichts tun.
   const { data: conv } = await svc
     .from('conversations')
     .update({
@@ -126,12 +129,12 @@ export async function processBotOpen(
     .eq('wa_account_id', waAccount.id)
     .eq('candidate_id', candidate.id)
     .eq('agency_id', agencyId)
+    .eq('state', 'waiting')
+    .is('assigned_to', null)
     .select('id')
-    .single();
+    .maybeSingle();
 
-  if (!conv) {
-    throw new Error('Konversation konnte nicht erstellt oder aktualisiert werden');
-  }
+  if (!conv) return;
 
   const conversationId: string = conv.id;
 
@@ -155,7 +158,7 @@ export async function processBotOpen(
     },
   };
 
-  // --- 10. Nachricht senden — wirft bei Fehler → tick-Retry übernimmt ---
+  // --- 10. Nachricht senden — wirft bei Fehler → Zustand zurück auf „waiting“, tick-Retry übernimmt ---
   await sendWhatsAppMessage(svc, {
     agencyId,
     conversationId,
@@ -165,6 +168,9 @@ export async function processBotOpen(
     senderType: 'bot',
         gespraechsZeiten: true,
     templateId: template.id,
+  }).catch(async (err) => {
+    await svc.from('conversations').update({ state: 'waiting', updated_at: new Date().toISOString() }).eq('id', conversationId).eq('state', 'bot_active');
+    throw err;
   });
 
   // --- 11. Timer anlegen ---

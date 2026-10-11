@@ -33,12 +33,38 @@ export function naechsterAnrufSlot(jetzt: Date): Date {
   return t;
 }
 
+/** ISO-Zeit ohne Zeitzone als Europe/Berlin lesen (sonst würde der Server sie als UTC deuten) */
+export function berlinIso(wert: string): Date {
+  if (/(z|[+-]\d{2}:?\d{2})$/i.test(wert.trim())) return new Date(wert);
+  const naiv = new Date(`${wert.trim()}Z`);
+  if (Number.isNaN(naiv.getTime())) return naiv;
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+      .formatToParts(naiv)
+      .map((x) => [x.type, x.value]),
+  );
+  const wand = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+  return new Date(naiv.getTime() - (wand - naiv.getTime()));
+}
+
+/** Liegt ein Zeitpunkt in der Anruf-Arbeitszeit (Mo–Fr 9–19, Sa 10–14)? */
+export function inArbeitszeit(d: Date): boolean {
+  const { wt, m } = berlin(d);
+  return wt === 'Sun' ? false : wt === 'Sat' ? m >= 600 && m < 840 : m >= 540 && m < 1140;
+}
+
 /** Fenster plausibilisieren: nicht in der Vergangenheit, max. 7 Tage, Ende nach Start (rein, testbar) */
-export function pruefeFenster(von: Date | null, bis: Date | null, jetzt: Date): { von: Date; bis: Date } {
+export function pruefeFenster(von: Date | null, bisEingabe: Date | null, jetzt: Date): { von: Date; bis: Date } {
+  let bis = bisEingabe;
   const frueh = new Date(jetzt.getTime() + 10 * MIN);
   let v = von && !Number.isNaN(von.getTime()) ? von : naechsterAnrufSlot(jetzt);
   if (v < frueh) v = naechsterAnrufSlot(jetzt);
   if (v.getTime() > jetzt.getTime() + 7 * 864e5) v = naechsterAnrufSlot(jetzt);
+  // Wunschzeit außerhalb der Arbeitszeit → nächster Arbeits-Slot ab dieser Zeit
+  if (!inArbeitszeit(v)) {
+    v = naechsterAnrufSlot(new Date(Math.max(v.getTime(), jetzt.getTime()) - 30 * MIN));
+    if (bis && bis <= v) bis = null;
+  }
   let b = bis && !Number.isNaN(bis.getTime()) && bis > v ? bis : new Date(v.getTime() + 60 * MIN);
   if (b.getTime() - v.getTime() > 6 * 60 * MIN) b = new Date(v.getTime() + 2 * 60 * MIN);
   return { von: v, bis: b };
@@ -81,8 +107,8 @@ export async function leseRueckrufZeit(svc: SupabaseClient, agencyId: string, co
       maxTokens: 200,
       schema: FensterSchema,
     });
-    von = r.von ? new Date(r.von) : null;
-    bis = r.bis ? new Date(r.bis) : null;
+    von = r.von ? berlinIso(r.von) : null;
+    bis = r.bis ? berlinIso(r.bis) : null;
   } catch {
     // Rückfall: nächster Arbeits-Slot
   }
@@ -115,25 +141,31 @@ export async function planeRueckruf(
       agency_id: p.agencyId,
       type: 'bot.rueckruf_erinnerung',
       run_at: erinnerung.toISOString(),
-      payload: { conversation_id: p.conversationId, candidate_id: p.candidateId },
+      payload: { conversation_id: p.conversationId, candidate_id: p.candidateId, von: p.von.toISOString() },
       status: 'pending',
       dedupe_key: `bot.rueckruf_erinnerung:${p.candidateId}:${p.von.toISOString()}`,
     });
   }
-  const { createNotificationForInternals } = await import('@/lib/notifications/create');
-  await createNotificationForInternals(svc, {
-    agency_id: p.agencyId,
-    title: `📞 Rückruf ${p.text}: ${p.name}`,
-    body: `Vorqualifiziert per WhatsApp${p.label ? ` (Bewertung ${p.label})` : ''}. Kurz-Check, dann Vorstellungsgespräch legen.`,
-    type: 'task_due',
-    entity_type: 'candidate',
-    entity_id: p.candidateId,
-    push_url: '/innendienst',
-  }).catch(() => {});
+  // Nur Innendienst, Kundenbetreuung und Admins – und ohne Bewerbernamen in der Push-Nachricht
+  const { data: empf } = await svc.from('users').select('id, role, funktion').in('role', ['admin', 'employee']);
+  const { data: ag } = await svc.from('agencies').select('name').eq('id', p.agencyId).maybeSingle();
+  const { createNotification } = await import('@/lib/notifications/create');
+  for (const u of ((empf ?? []) as Array<{ id: string; role: string; funktion: string | null }>).filter((x) => x.role === 'admin' || x.funktion === 'innendienst' || x.funktion === 'csm')) {
+    await createNotification(svc, {
+      user_id: u.id,
+      agency_id: p.agencyId,
+      title: `📞 Rückruf ${p.text}`,
+      body: `${(ag as { name: string } | null)?.name ?? 'Kunde'}: vorqualifiziert per WhatsApp${p.label ? ` (Bewertung ${p.label})` : ''}. Kurz-Check, dann Vorstellungsgespräch legen.`,
+      type: 'task_due',
+      entity_type: 'candidate',
+      entity_id: p.candidateId,
+      push_url: '/innendienst',
+    }).catch(() => {});
+  }
 }
 
 /** Job bot.rueckruf_erinnerung – nur innerhalb des 24-h-Fensters (freier Text), sonst still auslassen */
-export async function erinnereRueckruf(svc: SupabaseClient, agencyId: string, payload: { conversation_id: string; candidate_id: string }): Promise<string> {
+export async function erinnereRueckruf(svc: SupabaseClient, agencyId: string, payload: { conversation_id: string; candidate_id: string; von?: string }): Promise<string> {
   const [{ data: c }, { data: conv }] = await Promise.all([
     svc.from('candidates').select('name, phone_e164, rueckruf_von, rueckruf_text, first_contact_at').eq('id', payload.candidate_id).eq('agency_id', agencyId).maybeSingle(),
     svc.from('conversations').select('id, wa_account_id, window_expires_at').eq('id', payload.conversation_id).eq('agency_id', agencyId).maybeSingle(),
@@ -141,6 +173,8 @@ export async function erinnereRueckruf(svc: SupabaseClient, agencyId: string, pa
   const k = c as { name: string; phone_e164: string | null; rueckruf_von: string | null; rueckruf_text: string | null } | null;
   const v = conv as { id: string; wa_account_id: string; window_expires_at: string | null } | null;
   if (!k?.phone_e164 || !v || !k.rueckruf_von) return 'nichts';
+  // Rückruf inzwischen verschoben → diese Erinnerung ist veraltet
+  if (payload.von && new Date(payload.von).getTime() !== new Date(k.rueckruf_von).getTime()) return 'veraltet';
   if (!v.window_expires_at || new Date(v.window_expires_at).getTime() < Date.now()) return 'fenster_zu';
   const { data: acc } = await svc.from('whatsapp_accounts').select('display_number').eq('id', v.wa_account_id).maybeSingle();
   const nummer = (acc as { display_number: string | null } | null)?.display_number;

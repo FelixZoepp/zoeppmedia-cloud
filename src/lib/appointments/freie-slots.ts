@@ -44,7 +44,12 @@ export async function ladeFreieSlots(
   const durationMinutes = dauerMinuten(job.appointment_duration_minutes);
   // Belegte Zeiten aus dem verbundenen Kundenkalender (Google/Outlook) – Fehler dürfen die Buchung nicht verhindern
   const { belegteZeiten } = await import('@/lib/kalender/kunden-kalender');
-  const kalender = await belegteZeiten(svc, appt.agency_id, new Date(), new Date(Date.now() + 15 * 864e5)).catch(() => null);
+  let kalender: Awaited<ReturnType<typeof belegteZeiten>> = null;
+  try {
+    kalender = await belegteZeiten(svc, appt.agency_id, new Date(), new Date(Date.now() + 15 * 864e5));
+  } catch {
+    return { fehler: 'Der Kalender ist gerade nicht erreichbar – bitte in ein paar Minuten erneut versuchen.', status: 503 };
+  }
   const slots = computeSlots({
     rules: rules ?? [],
     bookedSlots: [

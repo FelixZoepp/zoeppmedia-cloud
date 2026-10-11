@@ -63,7 +63,7 @@ export async function PATCH(
 
   const { data: appointment } = await supabase
     .from('candidate_appointments')
-    .select('id, candidate_id, agency_id, type, scheduled_at, notes, ics_sequence')
+    .select('id, candidate_id, agency_id, type, scheduled_at, notes, ics_sequence, kalender_event_id, kalender_provider')
     .eq('id', id)
     .single();
 
@@ -147,6 +147,27 @@ export async function PATCH(
     });
   }
 
+  // Verbundener Kundenkalender: Termin dort verschieben bzw. löschen
+  let kalenderNachgezogen = false;
+  if ((rescheduled || cancelled) && appointment.kalender_event_id && appointment.kalender_provider) {
+    try {
+      const { createAdminClient } = await import('@/lib/supabase/admin');
+      const k = await import('@/lib/kalender/kunden-kalender');
+      const svc = createAdminClient();
+      const provider = appointment.kalender_provider as 'google' | 'microsoft';
+      if (cancelled) {
+        await k.loescheTermin(svc, appointment.agency_id, appointment.kalender_event_id, provider);
+      } else {
+        const start = new Date(body.scheduled_at);
+        const minuten = appointment.type === 'probetag' ? 240 : 60;
+        await k.aktualisiereTermin(svc, appointment.agency_id, appointment.kalender_event_id, provider, start, new Date(start.getTime() + minuten * 60_000));
+      }
+      kalenderNachgezogen = true;
+    } catch (e) {
+      console.error('[termin] Kundenkalender nicht nachgezogen – Einladung per Mail', e);
+    }
+  }
+
   // Verschiebung/Absage → Mail an Bewerber + Kalender-Update an den Kunden
   if (rescheduled || cancelled) {
     const kind = cancelled ? 'abgesagt' as const : 'verschoben' as const;
@@ -186,7 +207,7 @@ export async function PATCH(
         ).catch(() => {});
       }
 
-      if (agency?.email) {
+      if (agency?.email && !kalenderNachgezogen) {
         const dateStr = scheduledAt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
         const subject = cancelled
           ? `Termin abgesagt: ${typeLabelInvite} mit ${candidate.name}`

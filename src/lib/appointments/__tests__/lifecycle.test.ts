@@ -7,6 +7,12 @@ import {
   cancelAppointmentJobs,
 } from '../lifecycle';
 
+vi.mock('@/lib/recruiting/kontakt-schalter', () => ({
+  ladeSchalter: vi.fn(async () => ({ aktiv: true, testnummern: [], testmails: [] })),
+  darfKontakt: vi.fn(() => true),
+  pruefeKontakt: vi.fn(async () => {}),
+}));
+vi.mock('@/lib/kalender/kunden-kalender', () => ({ trageTerminEin: vi.fn(async () => null), belegteZeiten: vi.fn(async () => null), loescheTermin: vi.fn(async () => {}), aktualisiereTermin: vi.fn(async () => null) }));
 vi.mock('@/lib/pipeline/get-stages', () => ({
   stageVomTyp: vi.fn(async () => ({ id: 'stage-interview', name: 'Termin', sort_order: 3, color: '#000', agency_id: null, stage_type: 'interview' })),
 }));

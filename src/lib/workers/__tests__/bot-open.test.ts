@@ -12,6 +12,13 @@ import { processBotTimeout } from '../bot-timeout';
 // Module mocks
 // ---------------------------------------------------------------------------
 
+// Bewerber-Kontakt in diesen Tests freigegeben (Sperre hat eigene Tests)
+vi.mock('@/lib/recruiting/kontakt-schalter', () => ({
+  ladeSchalter: vi.fn(async () => ({ aktiv: true, testnummern: [], testmails: [] })),
+  darfKontakt: vi.fn(() => true),
+  pruefeKontakt: vi.fn(async () => {}),
+}));
+vi.mock('@/lib/cadence/ersatz', () => ({ starteAnrufErsatz: vi.fn(async () => true) }));
 vi.mock('@/lib/whatsapp/send', () => ({
   sendWhatsAppMessage: vi.fn().mockResolvedValue({ messageId: 'wamid.test', messageRowId: 'row-1' }),
 }));
@@ -77,10 +84,13 @@ function makeSvc(tableResponses: Record<string, unknown> = {}) {
     if (table === 'conversations') {
       (chain.upsert as ReturnType<typeof vi.fn>).mockResolvedValue({ data: null, error: null });
       const updateChain: Record<string, unknown> = {};
-      for (const m of ['eq', 'select', 'single', 'filter', 'not', 'in']) {
+      for (const m of ['eq', 'is', 'select', 'single', 'maybeSingle', 'filter', 'not', 'in']) {
         updateChain[m] = vi.fn(() => updateChain);
       }
       (updateChain.single as ReturnType<typeof vi.fn>).mockImplementation(() =>
+        Promise.resolve(dequeue('conversations'))
+      );
+      (updateChain.maybeSingle as ReturnType<typeof vi.fn>).mockImplementation(() =>
         Promise.resolve(dequeue('conversations'))
       );
       (chain.update as ReturnType<typeof vi.fn>).mockReturnValue(updateChain);
@@ -296,7 +306,7 @@ describe('processBotOpen', () => {
     expect(sendWhatsAppMessage).not.toHaveBeenCalled();
   });
 
-  it('Erfolgsfall: Conversation-Upsert wird aufgerufen mit application_id, state=bot_active, bot_step=0', async () => {
+  it('Erfolgsfall: Konversation wird angelegt und der Bot-Start atomar beansprucht', async () => {
     const { svc, fromMock } = makeHappySvc();
     await processBotOpen(svc, AGENCY_ID, { application_id: APPLICATION_ID });
 
@@ -312,11 +322,20 @@ describe('processBotOpen', () => {
         break;
       }
     }
+    // Neue Konversation startet „waiting“; der Bot-Start wird danach atomar beansprucht (waiting → bot_active)
     expect(upsertArgs).not.toBeNull();
     expect(upsertArgs?.application_id).toBe(APPLICATION_ID);
-    expect(upsertArgs?.state).toBe('bot_active');
-    expect(upsertArgs?.bot_step).toBe(0);
-    expect(upsertArgs?.bot_meta).toBeDefined();
+    expect(upsertArgs?.state).toBe('waiting');
+    let updateArgs: Record<string, unknown> | null = null;
+    for (const call of convCalls) {
+      const chain = fromMock.mock.results[fromMock.mock.calls.indexOf(call)].value as Record<string, ReturnType<typeof vi.fn>>;
+      if (chain.update?.mock?.calls?.length > 0) {
+        updateArgs = chain.update.mock.calls[0][0] as Record<string, unknown>;
+        break;
+      }
+    }
+    expect(updateArgs?.state).toBe('bot_active');
+    expect(updateArgs?.bot_step).toBe(0);
   });
 
   it('Erfolgsfall: sendWhatsAppMessage wird mit Template-Payload aufgerufen', async () => {

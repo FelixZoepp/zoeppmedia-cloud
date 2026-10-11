@@ -30,14 +30,19 @@ export async function richteNummerEin(
 ): Promise<EinrichtungsErgebnis> {
   const provider = getProvider();
   const fehler: string[] = [];
+  if (!/^\d{5,25}$/.test(p.wabaId) || !/^\d{5,25}$/.test(p.phoneNumberId)) {
+    return { ok: false, status: 'einrichtung', fehler: ['Ungültige Konto- oder Nummern-ID'], http: 400 };
+  }
 
-  // Nummer gehört wirklich zu diesem Geschäftskonto?
+  // Nummer gehört wirklich zu diesem Geschäftskonto? (fail-closed: ohne Nachweis nichts speichern)
   if (provider.listPhoneIds) {
-    const ids = await provider.listPhoneIds(p.wabaId, p.accessToken).catch((e) => {
-      fehler.push(`Nummern des Kontos nicht lesbar: ${kurz(e)}`);
-      return null;
-    });
-    if (ids && !ids.includes(p.phoneNumberId)) {
+    let ids: string[];
+    try {
+      ids = await provider.listPhoneIds(p.wabaId, p.accessToken);
+    } catch (e) {
+      return { ok: false, status: 'einrichtung', fehler: [`Nummern des WhatsApp-Kontos nicht lesbar: ${kurz(e)}`], http: 502 };
+    }
+    if (!ids.includes(p.phoneNumberId)) {
       return { ok: false, status: 'einrichtung', fehler: ['Die gewählte Nummer gehört nicht zu diesem WhatsApp-Geschäftskonto'], http: 400 };
     }
   }
@@ -101,7 +106,9 @@ export async function pruefeUndAktiviere(
   const info = provider.getPhoneInfo ? await provider.getPhoneInfo(a.phone_number_id, token).catch((e) => (fehler.push(`Nummern-Infos: ${kurz(e)}`), null)) : null;
 
   const ok = registriert && abonniert;
-  const status: 'connected' | 'einrichtung' = ok ? 'connected' : 'einrichtung';
+  // Eine laufende Nummer nur bei eindeutigen Fehlern zurückstufen (Token ungültig/abgelaufen) – sonst bleibt sie verbunden
+  const eindeutig = fehler.some((f) => /OAuthException|\b190\b|\b401\b|access token|invalid.*token/i.test(f));
+  const status: 'connected' | 'einrichtung' = ok || (a.status === 'connected' && !eindeutig) ? 'connected' : 'einrichtung';
   await svc
     .from('whatsapp_accounts')
     .update({
@@ -113,7 +120,7 @@ export async function pruefeUndAktiviere(
     })
     .eq('id', a.id);
 
-  if (ok && a.status !== 'connected') {
+  if (status === 'connected' && a.status !== 'connected') {
     await seedTemplatesForAccount(svc, a.id, a.agency_id);
     // Fertigen KI-Agenten für alle aktiven Stellen bereitstellen (schreibt niemanden an)
     const { stelleAgentSicher } = await import('@/lib/bot/zoepp-agent');
@@ -124,7 +131,7 @@ export async function pruefeUndAktiviere(
       await svc.from('audit_log').insert({ actor_id: opts.userId, agency_id: a.agency_id, action: 'whatsapp.connected', target: a.id, data: { waba_id: a.waba_id, phone_number_id: a.phone_number_id, method: opts.methode ?? 'pruefen' } });
     }
   }
-  return { ok, accountId: a.id, status, fehler };
+  return { ok: ok || status === 'connected', accountId: a.id, status, fehler };
 }
 
 /** Qualität/Limit aller verbundenen Kunden-Nummern auffrischen (stündliche Pflege) – sinkt die Qualität, Alarm */

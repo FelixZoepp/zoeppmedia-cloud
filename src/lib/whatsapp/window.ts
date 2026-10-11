@@ -120,7 +120,10 @@ const STOP_SAETZE = ['keine nachrichten mehr', 'nicht mehr schreiben', 'nicht me
 export function isStopMessage(text: string | null | undefined): boolean {
   if (!text) return false;
   const t = text.trim().toLowerCase().replace(/[.!]+$/, '');
-  return STOP_WORDS.has(t) || STOP_SAETZE.some((s) => t.includes(s));
+  if (STOP_WORDS.has(t)) return true;
+  // Sätze nur bei kurzen, eindeutigen Nachrichten – „kann heute nicht mehr schreiben“ ist keine Abmeldung
+  if (t.length > 60 || /\b(heute|morgen|gerade|später|spaeter|gleich|jetzt)\b/.test(t)) return false;
+  return STOP_SAETZE.some((s) => t.includes(s));
 }
 
 export interface PreflightOpts {

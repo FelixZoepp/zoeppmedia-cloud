@@ -28,6 +28,8 @@ export interface SendOpts {
   bypassQuietHours?: boolean;
   /** true => Gesprächszeiten des KI-Agenten (täglich 8–21 Uhr) statt der strengen Ruhezeiten */
   gespraechsZeiten?: boolean;
+  /** Gesetzlich gebotene Antwort (Bestätigung einer Abmeldung) – auch bei gesperrtem Bewerber-Kontakt */
+  pflichtAntwort?: boolean;
 }
 
 export async function sendWhatsAppMessage(
@@ -35,9 +37,13 @@ export async function sendWhatsAppMessage(
   opts: SendOpts
 ): Promise<{ messageId: string; messageRowId: string }> {
   // 0. Bewerber-Kontakt freigegeben? (Kunden-Konten; manueller Versand aus der Oberfläche und Sales sind ausgenommen)
-  if (opts.agencyId !== SALES_AGENCY_ID && !opts.isHumanUiSend) {
+  if (opts.agencyId !== SALES_AGENCY_ID && !opts.isHumanUiSend && !opts.pflichtAntwort) {
     const { pruefeKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-    await pruefeKontakt(svc, { telefon: opts.candidatePhone });
+    // Tatsächlicher Empfänger zählt (payload.to), nicht nur das Begleitfeld
+    await pruefeKontakt(svc, { telefon: opts.payload.to || opts.candidatePhone });
+    if (opts.payload.to && opts.candidatePhone && opts.payload.to.replace(/\D/g, '') !== opts.candidatePhone.replace(/\D/g, '')) {
+      throw new Error('Empfänger stimmt nicht mit dem Bewerber überein');
+    }
   }
 
   // 1. WhatsApp-Account laden (I1: agency_id-Scoping, da Service-Role RLS umgeht)
