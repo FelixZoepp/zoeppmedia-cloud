@@ -1,6 +1,8 @@
 /**
  * 10 Vorlagen-Presets aus Spec Abschn. 7.
  * Kategorie UTILITY, Sprache de, deutsche Bodies mit echten Umlauten.
+ * Meta-Regeln: Body darf nicht mit einer Variable beginnen oder enden, Beispielwerte müssen realistisch sein,
+ * keine Emojis in Buttons. Die erste Nachricht nennt die Abmeldung per STOP.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -14,6 +16,8 @@ export interface TemplatePreset {
   language: string;
   body: string;
   variables: string[];
+  /** Realistische Beispielwerte für die Prüfung durch Meta (gleiche Reihenfolge wie variables) */
+  beispiel: string[];
   buttons?: Array<{ type: string; text: string }>;
 }
 
@@ -23,8 +27,11 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     name: 'application_received',
     category: 'UTILITY',
     language: 'de',
-    body: 'Hallo {{1}}, danke für deine Bewerbung als {{2}} bei {{3}}. Damit wir dich schnell einordnen können, haben wir 3 bis 5 kurze Fragen an dich. Das dauert etwa 2 Minuten.',
+    body:
+      'Hallo {{1}}, danke für deine Bewerbung als {{2}} bei {{3}}. Damit wir dich schnell einordnen können, haben wir 3 bis 5 kurze Fragen an dich. Das dauert etwa 2 Minuten.\n\n' +
+      'Du möchtest keine Nachrichten mehr? Antworte einfach mit STOP.',
     variables: ['vorname', 'jobtitel', 'firmenname'],
+    beispiel: ['Mehmet', 'Vertriebsmitarbeiter im Außendienst', 'Solar Nord GmbH'],
     buttons: [{ type: 'QUICK_REPLY', text: "Los geht's" }],
   },
   {
@@ -34,6 +41,7 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     language: 'de',
     body: 'Hallo {{1}}, wir haben noch keine Antwort von dir erhalten. Hast du kurz Zeit für ein paar Fragen zu deiner Bewerbung als {{2}}? Dauert nur 2 Minuten.',
     variables: ['vorname', 'jobtitel'],
+    beispiel: ['Mehmet', 'Vertriebsmitarbeiter im Außendienst'],
   },
   {
     presetKey: 'qualification_resume',
@@ -42,14 +50,18 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     language: 'de',
     body: 'Hallo {{1}}, wir hatten neulich angefangen, ein paar Fragen zu klären. Magst du kurz weitermachen? Wir sind fast durch.',
     variables: ['vorname'],
+    beispiel: ['Mehmet'],
   },
   {
     presetKey: 'appointment_invite',
     name: 'appointment_invite',
     category: 'UTILITY',
     language: 'de',
-    body: 'Hallo {{1}}, super Profil! Wir würden dich gerne persönlich kennenlernen. Buch dir hier einen passenden Termin für ein kurzes Gespräch zur Stelle als {{2}}: {{3}}',
+    body:
+      'Hallo {{1}}, super Profil! Wir würden dich gerne persönlich kennenlernen. Buch dir hier einen passenden Termin für ein kurzes Gespräch zur Stelle als {{2}}: {{3}}\n\n' +
+      'Wir freuen uns auf dich!',
     variables: ['vorname', 'jobtitel', 'buchungslink'],
+    beispiel: ['Mehmet', 'Vertriebsmitarbeiter im Außendienst', 'https://cloud.zoeppmedia.de/book/abc123'],
   },
   {
     presetKey: 'appointment_confirmation',
@@ -58,6 +70,7 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     language: 'de',
     body: 'Hallo {{1}}, dein Termin ist bestätigt: {{2}} um {{3}} Uhr, {{4}}. Wir freuen uns auf dich!',
     variables: ['vorname', 'datum', 'uhrzeit', 'ort_oder_link'],
+    beispiel: ['Mehmet', 'Dienstag, 14.10.', '10:30', 'Hauptstraße 5 in Hamburg'],
   },
   {
     presetKey: 'appointment_reminder_24h',
@@ -66,6 +79,7 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     language: 'de',
     body: 'Hallo {{1}}, kurze Erinnerung: Morgen am {{2}} um {{3}} Uhr ist dein Vorstellungsgespräch. Bist du dabei?',
     variables: ['vorname', 'datum', 'uhrzeit'],
+    beispiel: ['Mehmet', '14.10.', '10:30'],
     buttons: [
       { type: 'QUICK_REPLY', text: 'Ich komme' },
       { type: 'QUICK_REPLY', text: 'Verschieben' },
@@ -78,14 +92,18 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     language: 'de',
     body: 'Hallo {{1}}, in 2 Stunden (um {{2}} Uhr) ist dein Gespräch. Ort/Link: {{3}}. Bis gleich!',
     variables: ['vorname', 'uhrzeit', 'ort_oder_link'],
+    beispiel: ['Mehmet', '10:30', 'Hauptstraße 5 in Hamburg'],
   },
   {
     presetKey: 'no_show_followup',
     name: 'no_show_followup',
     category: 'UTILITY',
     language: 'de',
-    body: 'Hallo {{1}}, schade, dass es heute nicht geklappt hat. Kein Problem — buch dir einfach einen neuen Termin: {{2}}',
+    body:
+      'Hallo {{1}}, schade, dass es heute nicht geklappt hat. Kein Problem, buch dir einfach einen neuen Termin: {{2}}\n\n' +
+      'Falls etwas dazwischengekommen ist, antworte gern kurz hier.',
     variables: ['vorname', 'buchungslink'],
+    beispiel: ['Mehmet', 'https://cloud.zoeppmedia.de/book/abc123'],
   },
   {
     presetKey: 'documents_request',
@@ -94,14 +112,16 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     language: 'de',
     body: 'Hallo {{1}}, für die nächsten Schritte benötigen wir noch: {{2}}. Kannst du das bitte hier per Nachricht schicken?',
     variables: ['vorname', 'unterlage'],
+    beispiel: ['Mehmet', 'eine Kopie deines Führerscheins'],
   },
   {
     presetKey: 'status_update',
     name: 'status_update',
     category: 'UTILITY',
     language: 'de',
-    body: 'Hallo {{1}}, ein kurzes Update zu deiner Bewerbung als {{2}}: {{3}}',
+    body: 'Hallo {{1}}, ein kurzes Update zu deiner Bewerbung als {{2}}: {{3}}\n\nBei Fragen antworte einfach hier.',
     variables: ['vorname', 'jobtitel', 'freitext'],
+    beispiel: ['Mehmet', 'Vertriebsmitarbeiter im Außendienst', 'Dein Probetag ist für Donnerstag eingeplant'],
   },
 ];
 
@@ -112,7 +132,8 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
 export async function seedTemplatesForAccount(
   svc: SupabaseClient,
   waAccountId: string,
-  agencyId: string
+  agencyId: string,
+  nurPresets?: string[],
 ): Promise<void> {
   const { data: waAccount } = await svc
     .from('whatsapp_accounts')
@@ -125,7 +146,7 @@ export async function seedTemplatesForAccount(
   const token = decryptSecret(waAccount.access_token_enc);
   const provider = getProvider();
 
-  for (const preset of TEMPLATE_PRESETS) {
+  for (const preset of TEMPLATE_PRESETS.filter((p) => !nurPresets || nurPresets.includes(p.presetKey))) {
     // Row anlegen mit status pending — idempotent via Unique-Index auf (wa_account_id, preset_key)
     const { data: tmplRow, error: insertError } = await svc
       .from('whatsapp_templates')
@@ -161,7 +182,7 @@ export async function seedTemplatesForAccount(
           type: 'BODY',
           text: preset.body,
           example: {
-            body_text: [preset.variables.map((_, i) => `Beispiel${i + 1}`)],
+            body_text: [preset.beispiel],
           },
         },
       ];
@@ -186,10 +207,13 @@ export async function seedTemplatesForAccount(
       const { id: metaId } = await provider.createTemplate(waAccount.waba_id, token, definition);
 
       await svc.from('whatsapp_templates')
-        .update({ meta_template_id: metaId })
+        .update({ meta_template_id: metaId, meta_fehler: null, eingereicht_am: new Date().toISOString() })
         .eq('id', tmplRow.id);
-    } catch {
-      // Fehler beim Submit — bleibt pending, Sync-Cron holt es nach
+    } catch (err) {
+      // Fehler sichtbar machen – die stündliche Vorlagen-Pflege reicht fehlende Vorlagen erneut ein
+      await svc.from('whatsapp_templates')
+        .update({ meta_fehler: (err instanceof Error ? err.message : String(err)).slice(0, 500), eingereicht_am: new Date().toISOString() })
+        .eq('id', tmplRow.id);
     }
   }
 }

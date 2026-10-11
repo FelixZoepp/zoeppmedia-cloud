@@ -114,6 +114,11 @@ export async function GET(request: NextRequest) {
         case 'whatsapp.status':
           await processStatus(svc, event.agency_id, payload as unknown as Parameters<typeof processStatus>[2]);
           break;
+        case 'whatsapp.template_status': {
+          const { verarbeiteVorlagenStatus } = await import('@/lib/whatsapp/vorlagen-pflege');
+          await verarbeiteVorlagenStatus(svc, payload as { message_template_id?: string; event?: string; reason?: string | null });
+          break;
+        }
         case 'ingest.indeed':
           await processIngestIndeed(svc, event.agency_id, payload as unknown as Parameters<typeof processIngestIndeed>[2]);
           break;
@@ -181,6 +186,15 @@ export async function GET(request: NextRequest) {
     await planeSerien(svc);
   } catch (err) {
     console.error('[tick] Serien nicht geplant:', err);
+  }
+
+  // WhatsApp-Vorlagen aller Konten stündlich abgleichen (Status, Ablehnungsgrund, Neueinreichung)
+  try {
+    const { planeVorlagenPflege } = await import('@/lib/whatsapp/vorlagen-pflege');
+    const { SALES_AGENCY_ID } = await import('@/lib/sales/calendly-chain');
+    await planeVorlagenPflege(svc, SALES_AGENCY_ID);
+  } catch (err) {
+    console.error('[tick] Vorlagen-Pflege nicht geplant:', err);
   }
 
   // Morgens „Deine Aufgaben heute“ per WhatsApp (Mo–Fr 7:30–10 Uhr)
@@ -325,6 +339,11 @@ export async function GET(request: NextRequest) {
         case 'aufgaben.whatsapp_diktat': {
           const { verarbeiteWhatsAppDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');
           await verarbeiteWhatsAppDiktat(svc, payload as unknown as import('@/lib/aufgaben/whatsapp-diktat').DiktatJob);
+          break;
+        }
+        case 'whatsapp.vorlagen_pflege': {
+          const { pflegeVorlagen } = await import('@/lib/whatsapp/vorlagen-pflege');
+          console.log('[vorlagen-pflege]', JSON.stringify(await pflegeVorlagen(svc)));
           break;
         }
         case 'sales.anruf_sperre': {
