@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
+import { StartAnimation } from '@/components/start-animation';
 import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -37,8 +38,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" className={jakarta.variable}>
+    <html lang="de" className={jakarta.variable} suppressHydrationWarning>
       <body className={jakarta.className}>
+        <StartAnimation />
         {children}
         <Toaster position="bottom-right" richColors mobileOffset={{ bottom: 96 }} />
         <ServiceWorkerRegister />
