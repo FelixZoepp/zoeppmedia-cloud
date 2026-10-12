@@ -165,6 +165,15 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     ],
     buttons: [{ type: 'URL', text: 'Briefing öffnen', url: 'https://cloud.zoeppmedia.de/admin/briefing' }],
   },
+  {
+    // Interner Sales-Alarm an die Geschäftsführung (src/lib/sales/speed-to-lead.ts) – nie an Leads
+    name: 'sales_alarm',
+    category: 'UTILITY',
+    body: '⚠️ Sales-Alarm: {{1}}\n\n{{2}}\n\nBitte direkt in Close erledigen.',
+    variables: ['titel', 'details'],
+    beispiel: ['Neue Eintragung seit 30 Min. nicht angerufen', 'Max Muster (Muster GmbH), eingetragen um 09:12 Uhr über Instagram – Telefon +49 151 2345678'],
+    buttons: [{ type: 'URL', text: 'Sales-Controlling', url: 'https://cloud.zoeppmedia.de/admin/vertrieb' }],
+  },
 ];
 
 async function zugang(svc: SupabaseClient): Promise<{ wabaId: string; token: string }> {

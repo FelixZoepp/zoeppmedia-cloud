@@ -121,6 +121,9 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
   // WhatsApp-Kette „Eingetragen, aber kein Termin“ starten (15 Min. / nächster Tag / Tag 3)
   const { planeSchritt } = await import('./eintrag-kette');
   await planeSchritt(svc, e.lead_id, 1, new Date(e.eingetragen_am), jetzt).catch((err) => console.error('[sales] Eintrag-Kette nicht gestartet:', err));
+  // 30 Min. nach der Eintragung prüfen, ob wirklich angerufen wurde (Speed-to-Lead-Alarm)
+  const { planeAnrufCheck } = await import('./speed-to-lead');
+  await planeAnrufCheck(svc, e.lead_id, new Date(e.eingetragen_am), jetzt).catch((err) => console.error('[sales] Anruf-Check nicht geplant:', err));
   await notifySales(svc, {
     emoji: '📞',
     title: `${e.name ?? 'Neuer Lead'} – kein Termin nach ${WARTEZEIT_MIN} Min.`,

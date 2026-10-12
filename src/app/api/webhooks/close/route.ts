@@ -24,8 +24,8 @@ interface CloseWebhookBody {
     object_id?: string;
     lead_id?: string;
     changed_fields?: string[];
-    data?: { status_id?: string; lead_id?: string };
-    previous_data?: { status_id?: string };
+    data?: { status_id?: string; status_type?: string; lead_id?: string };
+    previous_data?: { status_id?: string; status_type?: string };
   };
 }
 
@@ -105,6 +105,13 @@ export async function POST(request: NextRequest) {
   if (istGewonnen(ev)) {
     await planeDealFeier(svc, ev.object_id).catch((err) => console.error('[close-webhook] Deal-Feier:', err));
     result.feier = 'geplant';
+  }
+
+  // Deal verloren → in 30 Min. prüfen, ob ein Verlustgrund eingetragen ist
+  const { istVerloren, planeVerlustgrundCheck } = await import('@/lib/sales/close-aufraeumen');
+  if (istVerloren(ev)) {
+    await planeVerlustgrundCheck(svc, ev.object_id).catch((err) => console.error('[close-webhook] Verlustgrund:', err));
+    result.verlustgrund = 'geplant';
   }
 
   try {

@@ -422,6 +422,21 @@ export async function GET(request: NextRequest) {
           await verarbeiteProtokoll(svc, (payload as { activity_id: string }).activity_id);
           break;
         }
+        case 'sales.termin_check': {
+          const { pruefeTermin } = await import('@/lib/sales/termin-check');
+          await pruefeTermin(svc, payload as unknown as { lead_id: string; termin: string; art: string });
+          break;
+        }
+        case 'sales.verlustgrund': {
+          const { pruefeVerlustgrund } = await import('@/lib/sales/close-aufraeumen');
+          await pruefeVerlustgrund(svc, (payload as { opp_id: string }).opp_id);
+          break;
+        }
+        case 'sales.anruf_check': {
+          const { pruefeAnruf } = await import('@/lib/sales/speed-to-lead');
+          await pruefeAnruf(svc, payload as unknown as { lead_id: string });
+          break;
+        }
         case 'sales.protokoll_pflicht': {
           const { pruefeProtokollPflicht } = await import('@/lib/sales/protokoll-pflicht');
           await pruefeProtokollPflicht(svc, (payload as { anruf_id: string }).anruf_id);

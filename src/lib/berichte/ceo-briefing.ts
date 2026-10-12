@@ -55,6 +55,8 @@ export interface BriefingDaten {
   protokolle?: Array<{ name: string; anzahl: number }>;
   /** Anzeigen, die Geld verbrennen und noch laufen (letzte 14 Tage) */
   anzeigen?: Array<{ name: string; grund: string; ausgabenGestern: number }>;
+  /** Aktive Deals ohne Bewegung seit 7+ Tagen (Close) */
+  stehend?: { anzahl: number; summe: number; top: Array<{ firma: string; wert: number; tage: number }> };
   /** Forderungen aus dem Mahnwesen (fehlt bei älteren Briefings) */
   finanzen?: { offen: number; ueberfaellig: number; ueberfaelligAnzahl: number; ausfallRisiko: number; anwalt: number; zugesagt: number; bezahltGestern: number };
   ausnahmen: Array<{ stufe: AlarmStufe; bereich: string; text: string; link?: string }>;
@@ -188,6 +190,10 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
     .then((r) => r.zeilen.filter((z) => z.status === 'verlierer' && z.ausgabenGestern > 0).map((z) => ({ name: z.name, grund: z.grund, ausgabenGestern: z.ausgabenGestern })))
     .catch(() => []);
   const protokolleSumme = protokolle.reduce((a, p) => a + p.anzahl, 0);
+  const { ladeStehendeDeals } = await import('@/lib/sales/stehende-deals');
+  const stehend = await ladeStehendeDeals(jetzt)
+    .then((r) => ({ anzahl: r.deals.length, summe: r.summe, top: r.deals.slice(0, 3).map((d) => ({ firma: d.firma, wert: d.wert, tage: d.tage })) }))
+    .catch(() => null);
 
   const q = quoten(sales);
   const leads = marketing ? marketing.eintragungen || marketing.metaLeads : 0;
@@ -201,11 +207,15 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
       ...geschaeftsAlarme({ sales, sales7, marketing, cplSchnitt14, monatVolumen: monatSales.volumen, prognose, werktageVorbei: wt.vorbei, roteKunden: cockpit.kunden.ampel.rot, beendet }),
       ...(protokolleSumme >= 3 ? [{ stufe: 'gelb' as const, text: `${protokolleSumme} Gespräche ohne Protokoll (${protokolle.map((p) => `${p.name} ${p.anzahl}`).join(', ')})`, link: '/admin/vertrieb' }] : []),
       ...anzeigen.map((a) => ({ stufe: 'gelb' as const, text: `Anzeige „${a.name}“ verbrennt Geld: ${a.grund} – gestern ${eur(a.ausgabenGestern)}`, link: '/admin/anzeigen' })),
+      ...(stehend && stehend.anzahl >= 3
+        ? [{ stufe: (stehend.summe >= 20000 ? 'rot' : 'gelb') as 'rot' | 'gelb', text: `${stehend.anzahl} Deals stehen seit 7+ Tagen (${eur(stehend.summe)}) – zuerst ${stehend.top.map((d) => `${d.firma} ${eur(d.wert)}`).join(', ')}`, link: '/admin/vertrieb' }]
+        : []),
       ...(finanzen.ausfallRisiko > 0 ? [{ stufe: 'rot' as const, text: `${eur(finanzen.ausfallRisiko)} Zahlungsausfall-Risiko (Mahnung 3+, Anwalt, Ausfall droht)`, link: '/buchhaltung?tab=mahnwesen' }] : []),
     ].sort((x, y) => Number(x.stufe === 'gelb') - Number(y.stufe === 'gelb')),
     finanzen,
     protokolle,
     anzeigen,
+    ...(stehend ? { stehend } : {}),
     sales: {
       abschluesse: sales.abschluesse,
       volumen: sales.volumen,

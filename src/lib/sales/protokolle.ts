@@ -359,6 +359,12 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? regelnClosing : null;
   if (regeln && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
     let plan = regeln(felder, jetzt);
+    // Termin nur im Protokoll gelegt? → prüfen, ob er in Calendly steht (sonst keine Erinnerung an den Lead)
+    const { istLeadTermin, planeTerminCheck } = await import('./termin-check');
+    if (istLeadTermin(plan, jetzt)) {
+      const art = typ === 'closing' && plan.oppStatus === 'cc2' ? 'CC2' : plan.closingTerminiert || typ === 'closing' ? 'Closing' : 'Setting';
+      await planeTerminCheck(svc, a.lead_id, plan.termin!, art).catch((err) => console.error('[sales] Termin-Check nicht geplant:', err));
+    }
     // Closing: nur „Abgeschlossen“ läuft immer – alles andere erst nach Freigabe (/admin/freigaben)
     if (typ === 'closing' && !plan.abgeschlossen && Object.keys(plan).length) {
       const { ladeFreigaben } = await import('@/lib/freigaben');

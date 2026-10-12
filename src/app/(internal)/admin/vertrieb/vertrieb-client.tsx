@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, 
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
 import { GespraecheBereich } from './gespraeche-bereich';
 import { EintragungenBereich } from './eintragungen-bereich';
+import { StehendeDealsBereich } from './stehende-deals-bereich';
 import type { SalesControlling } from '@/lib/sales-controlling/compute';
 import type { SalesDetails } from '@/lib/sales-controlling/detail';
 import { WhatsAppBereich } from './whatsapp-bereich';
@@ -231,6 +232,7 @@ export function VertriebClient() {
               <ShowDetail s={d.details.shows} durchlauf={d.details.durchlauf} />
               <Funnel d={d} />
               <PipelineBereich d={d} />
+              <StehendeDealsBereich />
               <Personen d={d} />
             </>
           )}

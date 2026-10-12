@@ -7,9 +7,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const FREIGABEN = {
+  speed_alarm: {
+    titel: '🚨 Speed-to-Lead-Alarm',
+    was: 'Neue Eintragung ohne Termin und 30 Minuten nach der Eintragung noch kein Anruf in Close → Push + Slack #03-sales und WhatsApp an dich (Nummer aus dem CEO-Briefing). Nachts erst um 8:30 Uhr.',
+    wirkt: 'Nur intern an dich und das Team (keine Nachricht an Leads)',
+  },
   protokoll_aufgaben: {
     titel: '📝 Protokoll-Pflicht',
     was: 'Ein Gespräch über 60 Sekunden ohne Gesprächsprotokoll innerhalb von 20 Minuten → der Mitarbeiter bekommt in Close die Aufgabe „Protokoll fehlt“.',
+    wirkt: 'Close-Aufgaben für das Team (keine Nachricht an Leads)',
+  },
+  termin_check: {
+    titel: '📅 Termin nicht in Calendly',
+    was: 'Ein Setting, Closing oder CC2 wird nur im Gesprächsprotokoll gelegt und steht 15 Minuten später nicht in Calendly → Hinweis ans Team (Push + Slack): bitte über Calendly einbuchen, sonst bekommt der Lead keine Bestätigung und keine Erinnerung.',
+    wirkt: 'Nur intern (keine Nachricht an Leads)',
+  },
+  verlustgrund_aufgabe: {
+    titel: '❓ Verlustgrund-Pflicht',
+    was: 'Eine Opportunity geht in Close auf „verloren“ und 30 Minuten später ist kein Verlustgrund eingetragen → der Verantwortliche bekommt in Close die Aufgabe „Verlustgrund eintragen“.',
     wirkt: 'Close-Aufgaben für das Team (keine Nachricht an Leads)',
   },
   closing_ergebnisse: {
