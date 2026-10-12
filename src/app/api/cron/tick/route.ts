@@ -422,6 +422,11 @@ export async function GET(request: NextRequest) {
           await verarbeiteProtokoll(svc, (payload as { activity_id: string }).activity_id);
           break;
         }
+        case 'sales.deal_feier': {
+          const { feiereDeal } = await import('@/lib/sales/deal-feier');
+          await feiereDeal(svc, (payload as { opp_id: string }).opp_id);
+          break;
+        }
         case 'berichte.ceo': {
           const { sendeCeoBriefing } = await import('@/lib/berichte/ceo-briefing');
           await sendeCeoBriefing(svc, (payload as { tag: string }).tag);

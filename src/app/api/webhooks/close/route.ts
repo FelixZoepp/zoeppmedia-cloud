@@ -10,6 +10,7 @@ import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 /**
  * Close-Webhook (Sales-Bot). Abo: opportunity.created / opportunity.updated / lead.created / activity.custom_activity.
  * - Gesprächsprotokoll → speichern + Automatik (src/lib/sales/protokolle.ts)
+ * - Opportunity gewonnen → Deal-Feier (src/lib/sales/deal-feier.ts)
  * - Neuer Lead → Eintragung merken, nach 10 Min. prüfen, ob ein Termin gebucht wurde
  * - Wechsel auf "Setting - No Show" → WhatsApp noshow_1_anruf
  * - Status "… - Follow Up" + Feld "Follow-up-Rhythmus" → Follow-up-Kette starten/umplanen/stoppen
@@ -95,6 +96,13 @@ export async function POST(request: NextRequest) {
   if (ev?.object_type !== 'opportunity' || !ev.object_id) return NextResponse.json({ ok: true, action: 'ignored' });
   const svc = createAdminClient();
   const result: Record<string, unknown> = {};
+
+  // Deal gewonnen → Feier (Slack-GIF + Animation in der Cloud), einmal je Opportunity
+  const { istGewonnen, planeDealFeier } = await import('@/lib/sales/deal-feier');
+  if (istGewonnen(ev)) {
+    await planeDealFeier(svc, ev.object_id).catch((err) => console.error('[close-webhook] Deal-Feier:', err));
+    result.feier = 'geplant';
+  }
 
   try {
     if (isNoShow) {
