@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, PhoneCall, Mail, MessageCircle, Power, Lightbulb, Scale, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { MahnwesenTab, type MahnDaten } from './mahnwesen-tab';
 
 interface Zeile {
   agency_id: string; name: string; typ: 'setup' | 'retainer'; periode: string; faellig_am: string;
@@ -15,16 +16,9 @@ interface Fehlend {
   id: string; name: string; vertragsstart: string | null; mrr: number | null; setup_betrag: number | null; lex_contact_id: string | null;
   vorschlag: { contactId: string; contactName: string; letzteRechnung: string; ersteRechnung: string; letzterBetragBrutto: number; anzahl: number } | null;
 }
-interface Fall {
-  id: string; kunde: string | null; kontakt_name: string | null; rechnungsnummer: string | null; betrag_offen: number | null;
-  rechnungsdatum: string; zahlungsziel: string; typ: string; schritt: number; status: string; zugesagt_bis: string | null;
-  telefon: string | null; kunden_mail: string | null;
-  faellig: { schritt: number; titel: string; telefon: string | null; mail: { an: string | null; betreff: string; text: string } | null; whatsapp: string | null } | null;
-  naechster: { titel: string; datum: string } | null;
-}
 interface Daten {
   monat: string; rechnungen: Zeile[]; fehlend: Fehlend[];
-  mahn: { aktiv: boolean; ab: string; faelle: Fall[] };
+  mahn: MahnDaten;
 }
 
 const euro = (n: number | null) => (n == null ? '–' : `${Number(n).toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`);
@@ -101,94 +95,23 @@ function FehlendRow({ a, onSave }: { a: Fehlend; onSave: (p: Record<string, unkn
   );
 }
 
-function FallCard({ f, aktiv, onAktion }: { f: Fall; aktiv: boolean; onAktion: (body: Record<string, unknown>) => Promise<void> }) {
-  const [zusage, setZusage] = useState('');
-  const [notiz, setNotiz] = useState('');
-  const s = f.faellig;
-  return (
-    <Card padding="none" className="p-4 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold text-gray-900">{f.kunde ?? f.kontakt_name}</span>
-        <span className="text-xs text-gray-500">{f.rechnungsnummer} · {euro(f.betrag_offen)} offen · fällig seit {datum(f.zahlungsziel)}</span>
-        {f.status === 'anwalt' && <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-800 text-white">beim Anwalt</span>}
-        {f.zugesagt_bis && <span className="text-[11px] px-1.5 py-0.5 rounded bg-green-50 text-green-700">Zahlung zugesagt bis {datum(f.zugesagt_bis)}</span>}
-      </div>
-
-      {s ? (
-        <>
-          <p className="text-sm font-bold text-red-700 flex items-center gap-2">
-            {s.schritt === 7 ? <Scale className="w-4 h-4" /> : <PhoneCall className="w-4 h-4" />} Schritt {s.schritt}: {s.titel}
-            {f.telefon && <a href={`tel:${f.telefon}`} className="text-xs font-semibold text-red-600 underline ml-2">{f.telefon}</a>}
-          </p>
-          {s.telefon && (
-            <details open>
-              <summary className="text-xs font-semibold text-gray-500 cursor-pointer">Telefonleitfaden</summary>
-              <p className="text-sm text-gray-700 whitespace-pre-line mt-1 bg-gray-50 rounded-lg p-3">{s.telefon}</p>
-            </details>
-          )}
-          {s.schritt === 7 && s.mail && (
-            <div className="text-sm bg-gray-50 rounded-lg p-3 space-y-1">
-              <p className="text-xs text-gray-500">An: {s.mail.an} · Betreff: {s.mail.betreff}</p>
-              <p className="whitespace-pre-line text-gray-700">{s.mail.text}</p>
-              <a
-                href={`mailto:${s.mail.an}?subject=${encodeURIComponent(s.mail.betreff)}&body=${encodeURIComponent(s.mail.text)}`}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-red-600"
-              >
-                <Mail className="w-3.5 h-3.5" /> Im Mailprogramm öffnen (Vertrag anhängen!)
-              </a>
-            </div>
-          )}
-
-          {aktiv && s.schritt < 7 && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <input className={`${inputCls} w-56`} placeholder="Notiz (optional)" value={notiz} onChange={(e) => setNotiz(e.target.value)} />
-              <label className="text-xs text-gray-600 flex items-center gap-1.5">
-                zahlt bis <input type="date" className={inputCls} value={zusage} onChange={(e) => setZusage(e.target.value)} />
-              </label>
-              <button
-                onClick={() => onAktion({ case_id: f.id, schritt: s.schritt, ergebnis: 'erreicht', notiz, zugesagt_bis: zusage || null })}
-                className="h-9 px-3 rounded-lg bg-green-600 text-white text-xs font-semibold"
-              >
-                Erreicht
-              </button>
-              <button
-                onClick={() => {
-                  const an = f.kunden_mail;
-                  if (s.mail && !an) toast.warning('Keine Rechnungsmail beim Kunden hinterlegt – Mail wird nicht gesendet.');
-                  void onAktion({
-                    case_id: f.id, schritt: s.schritt, ergebnis: 'nicht_erreicht', notiz,
-                    mail: s.mail && an ? { an, betreff: s.mail.betreff, text: s.mail.text } : null,
-                  });
-                }}
-                className="h-9 px-3 rounded-lg border border-gray-300 bg-white text-xs font-semibold"
-              >
-                Nicht erreicht → Mail{f.kunden_mail ? '' : ' (keine Adresse)'}
-              </button>
-            </div>
-          )}
-          {aktiv && s.schritt === 7 && (
-            <button onClick={() => onAktion({ case_id: f.id, schritt: 7, ergebnis: 'abgegeben' })} className="h-9 px-3 rounded-lg bg-gray-900 text-white text-xs font-semibold">
-              An Anwalt abgegeben → Kunde pausieren
-            </button>
-          )}
-          {s.whatsapp && (
-            <p className="text-[11px] text-gray-400 flex items-center gap-1">
-              <MessageCircle className="w-3 h-3" /> WhatsApp-Vorlage folgt, sobald die Mahn-Nummer verbunden ist.
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="text-xs text-gray-500">{f.naechster ? `Nächster Schritt: ${f.naechster.titel} am ${datum(f.naechster.datum)}` : 'Kein weiterer Schritt.'}</p>
-      )}
-    </Card>
-  );
-}
-
 export default function BuchhaltungPage() {
   const [tab, setTab] = useState<'rechnungen' | 'vertragsdaten' | 'mahnwesen'>('rechnungen');
   const [monat, setMonat] = useState(() => new Date().toISOString().slice(0, 7));
   const [d, setD] = useState<Daten | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [fallId, setFallId] = useState<string | null>(null);
+
+  // Link aus einer Aufgabe: /buchhaltung?fall=<id> bzw. ?tab=mahnwesen
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const q = new URLSearchParams(window.location.search);
+      const fall = q.get('fall');
+      if (fall && /^[0-9a-f-]{36}$/i.test(fall)) setFallId(fall);
+      if (fall || q.get('tab') === 'mahnwesen') setTab('mahnwesen');
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const load = (m = monat) =>
     fetch(`/api/buchhaltung?monat=${m}`).then(async (r) => {
@@ -214,11 +137,12 @@ export default function BuchhaltungPage() {
     };
   }, [monat]);
 
-  const post = async (body: Record<string, unknown>) => {
+  const post = async (body: Record<string, unknown>): Promise<boolean> => {
     const res = await fetch('/api/buchhaltung', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!res.ok) toast.error((await res.json().catch(() => ({}))).error ?? 'Fehler');
     else toast.success('Gespeichert');
     await load();
+    return res.ok;
   };
 
   if (fehler) return <Card padding="lg" className="text-center text-gray-700">{fehler}</Card>;
@@ -262,7 +186,7 @@ export default function BuchhaltungPage() {
           </div>
           <div className="px-4 divide-y divide-gray-100">
             {d.rechnungen.map((z) => (
-              <RechnungRow key={`${z.agency_id}-${z.typ}-${z.periode}`} z={z} onDone={(nr) => post({ aktion: 'geschrieben', zeile: z, rechnungsnummer: nr })} />
+              <RechnungRow key={`${z.agency_id}-${z.typ}-${z.periode}`} z={z} onDone={async (nr) => void (await post({ aktion: 'geschrieben', zeile: z, rechnungsnummer: nr }))} />
             ))}
             {!d.rechnungen.length && (
               <p className="py-6 text-sm text-gray-500 text-center">
@@ -278,32 +202,12 @@ export default function BuchhaltungPage() {
           <p className="py-3 text-sm text-gray-600">
             Damit die Rechnungsliste stimmt, braucht jeder Kunde <strong>Vertragsstart</strong> (= Rechnungstag), <strong>Retainer</strong> und den <strong>Lexoffice-Kontakt</strong>. Vorschläge kommen aus Lexoffice.
           </p>
-          {d.fehlend.map((a) => <FehlendRow key={a.id} a={a} onSave={(p) => post({ aktion: 'vertragsdaten', agency_id: a.id, ...p })} />)}
+          {d.fehlend.map((a) => <FehlendRow key={a.id} a={a} onSave={async (p) => void (await post({ aktion: 'vertragsdaten', agency_id: a.id, ...p }))} />)}
           {!d.fehlend.length && <p className="py-6 text-sm text-gray-500 text-center">Alle Vertragsdaten sind vollständig.</p>}
         </Card>
       )}
 
-      {tab === 'mahnwesen' && (
-        <div className="space-y-3">
-          <Card padding="none" className={`p-4 flex items-center gap-3 ${d.mahn.aktiv ? 'bg-green-50' : 'bg-gray-50'}`}>
-            <Power className={`w-5 h-5 ${d.mahn.aktiv ? 'text-green-600' : 'text-gray-400'}`} />
-            <div className="flex-1 text-sm">
-              {d.mahn.aktiv ? (
-                <>Mahnwesen ist <strong>eingeschaltet</strong> – für Rechnungen ab {datum(d.mahn.ab)}.</>
-              ) : (
-                <>Mahnwesen ist <strong>ausgeschaltet</strong>. Es werden keine Fälle angelegt, keine Mails verschickt. Einschalten, sobald Lexoffice aufgeräumt ist.</>
-              )}
-            </div>
-            {d.mahn.aktiv && (
-              <button onClick={() => post({ aktion: 'mahn_sync' })} className="h-9 px-3 rounded-lg border border-gray-300 bg-white text-xs font-semibold">
-                Mit Lexoffice abgleichen
-              </button>
-            )}
-          </Card>
-          {d.mahn.faelle.map((f) => <FallCard key={f.id} f={f} aktiv={d.mahn.aktiv} onAktion={(b) => post({ aktion: 'mahn_aktion', ...b })} />)}
-          {!d.mahn.faelle.length && <p className="text-sm text-gray-500 text-center py-6">Keine offenen Mahnfälle.</p>}
-        </div>
-      )}
+      {tab === 'mahnwesen' && <MahnwesenTab d={d.mahn} post={post} fallId={fallId} />}
     </div>
   );
 }

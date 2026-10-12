@@ -5,7 +5,7 @@ import { loadMyTodos, today } from '@/lib/fulfillment/views';
 import { STEP_BY_KEY } from '@/lib/fulfillment/catalog';
 import { agencyLogo } from '@/lib/branding/logo';
 import { loadRechnungsliste } from '@/lib/billing/rechnungsliste';
-import { mahnwesenAktiv, faelligerSchritt, type MahnFall } from '@/lib/billing/mahnwesen';
+import { faelligerSchritt, type MahnFall } from '@/lib/billing/mahnwesen';
 
 /** Meine Aufgaben: Fulfillment-Schritte + meine Ads (Idee, Material, Bearbeitung, Bereit zum Launch). */
 export async function GET() {
@@ -37,7 +37,7 @@ export async function GET() {
     const { data: faelle } = await svc.from('dunning_cases').select('*').eq('status', 'offen');
     buchhaltung = {
       rechnungen: rechnungen.filter((z) => !z.geschrieben_am && z.faellig_am <= heute).length,
-      mahnanrufe: mahnwesenAktiv() ? ((faelle ?? []) as MahnFall[]).filter((f) => faelligerSchritt(f, heute)).length : 0,
+      mahnanrufe: ((faelle ?? []) as MahnFall[]).filter((f) => faelligerSchritt(f, heute)).length,
     };
   }
 

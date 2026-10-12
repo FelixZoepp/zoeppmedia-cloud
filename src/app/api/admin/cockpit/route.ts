@@ -56,7 +56,20 @@ export async function PATCH(req: NextRequest) {
   if (b.notiz !== undefined) patch.notiz = b.notiz.trim().slice(0, 2000) || null;
   if (b.owner_user_id !== undefined) patch.owner_user_id = b.owner_user_id || null;
   if (b.faellig_am !== undefined) patch.faellig_am = b.faellig_am || null;
-  const { error } = await createAdminClient().from('cockpit_punkte').update(patch).eq('id', b.id);
+  const svc = createAdminClient();
+  const { data: geaendert, error } = await svc.from('cockpit_punkte').update(patch).eq('id', b.id).select('titel, status, notiz, dunning_case_id').maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Entscheidung zu einem Mahnfall → im Verlauf festhalten und der Buchhaltung Bescheid geben
+  const p = geaendert as { titel: string; status: string; notiz: string | null; dunning_case_id: string | null } | null;
+  if (p?.dunning_case_id && b.status !== undefined && b.status !== 'offen') {
+    const text = { ja: '✅ Ja', nein: '❌ Nein', erledigt: '✔️ Erledigt', verschoben: '⏸️ Verschoben' }[b.status] ?? b.status;
+    const { aktionErfassen } = await import('@/lib/billing/mahnwesen');
+    await aktionErfassen(svc, p.dunning_case_id, 0, 'entscheidung', { userId: user.id, kanal: 'entscheidung', notiz: `Entscheidung: ${text}${p.notiz ? ` – ${p.notiz}` : ''}`, details: { status: b.status } }).catch(() => {});
+    const { data: bo } = await svc.from('users').select('id').eq('funktion', 'backoffice');
+    const { createNotification } = await import('@/lib/notifications/create');
+    for (const u of (bo ?? []) as Array<{ id: string }>) {
+      await createNotification(svc, { user_id: u.id, title: `🧭 Felix hat entschieden: ${text}`, body: `${p.titel}${p.notiz ? ` – ${p.notiz}` : ''}`.slice(0, 200), type: 'system', push_url: `/buchhaltung?fall=${p.dunning_case_id}` }).catch(() => {});
+    }
+  }
   return NextResponse.json({ ok: true });
 }

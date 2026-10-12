@@ -51,6 +51,8 @@ export interface BriefingDaten {
   };
   marketing: { verbunden: boolean; ausgaben: number; leads: number; cpl: number | null; cplSchnitt14: number | null; direktQuote: number | null };
   kunden: { aktiv: number; mrr: number; ampel: { gruen: number; gelb: number; rot: number }; neu: string[]; beendet: string[]; bewerber: number; bewerberWoche: number; bewerberVorwoche: number; starts7: Array<{ name: string; datum: string }> };
+  /** Forderungen aus dem Mahnwesen (fehlt bei älteren Briefings) */
+  finanzen?: { offen: number; ueberfaellig: number; ueberfaelligAnzahl: number; ausfallRisiko: number; anwalt: number; zugesagt: number; bezahltGestern: number };
   ausnahmen: Array<{ stufe: AlarmStufe; bereich: string; text: string; link?: string }>;
   entscheidungen: Array<{ titel: string; owner: string | null; faellig: string | null }>;
   prioritaeten: Array<{ titel: string; owner: string | null; faellig: string | null }>;
@@ -166,6 +168,14 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
   const neu = ((neuAg ?? []) as Array<{ name: string }>).map((a) => a.name);
   const beendet = ((endAg ?? []) as Array<{ name: string }>).map((a) => a.name);
 
+  // Forderungen (Mahnwesen)
+  const { berechneMahnBericht } = await import('@/lib/billing/mahnwesen');
+  const { data: mahn } = await svc.from('dunning_cases').select('*');
+  const mahnFaelle = (mahn ?? []) as import('@/lib/billing/mahnwesen').MahnFall[];
+  const mb = berechneMahnBericht(mahnFaelle, tag);
+  const bezahltGestern = mahnFaelle.filter((f) => f.status === 'bezahlt' && f.bezahlt_am && f.bezahlt_am >= vonIso && f.bezahlt_am < bisIso).reduce((a, f) => a + Number(f.betrag_offen ?? 0), 0);
+  const finanzen = { offen: mb.offen.summe, ueberfaellig: mb.ueberfaellig.summe, ueberfaelligAnzahl: mb.ueberfaellig.anzahl, ausfallRisiko: mb.ausfallRisiko, anwalt: mb.anwalt.summe, zugesagt: mb.zugesagt.summe, bezahltGestern };
+
   const q = quoten(sales);
   const leads = marketing ? marketing.eintragungen || marketing.metaLeads : 0;
   const offen = (p: { status: string }) => p.status === 'offen';
@@ -174,7 +184,11 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
   return {
     tag,
     zeitraum,
-    alarme: geschaeftsAlarme({ sales, sales7, marketing, cplSchnitt14, monatVolumen: monatSales.volumen, prognose, werktageVorbei: wt.vorbei, roteKunden: cockpit.kunden.ampel.rot, beendet }),
+    alarme: [
+      ...geschaeftsAlarme({ sales, sales7, marketing, cplSchnitt14, monatVolumen: monatSales.volumen, prognose, werktageVorbei: wt.vorbei, roteKunden: cockpit.kunden.ampel.rot, beendet }),
+      ...(finanzen.ausfallRisiko > 0 ? [{ stufe: 'rot' as const, text: `${eur(finanzen.ausfallRisiko)} Zahlungsausfall-Risiko (Mahnung 3+, Anwalt, Ausfall droht)`, link: '/buchhaltung?tab=mahnwesen' }] : []),
+    ].sort((x, y) => Number(x.stufe === 'gelb') - Number(y.stufe === 'gelb')),
+    finanzen,
     sales: {
       abschluesse: sales.abschluesse,
       volumen: sales.volumen,
@@ -292,6 +306,20 @@ export function briefingInhalt(b: BriefingDaten): string {
         ...(b.kunden.starts7.length ? [zeile('🚀 Starts in 7 Tagen', esc(b.kunden.starts7.map((x) => x.name).join(', ')))] : []),
       ].join('')}</table>`,
     ),
+    ...(b.finanzen
+      ? [
+          block(
+            '💶 Forderungen',
+            `<table style="width:100%;border-collapse:collapse">${[
+              zeile('Offen gesamt', eur(b.finanzen.offen)),
+              zeile('⏰ Überfällig', `${eur(b.finanzen.ueberfaellig)} (${z(b.finanzen.ueberfaelligAnzahl)} Rechnungen)`),
+              zeile('🔴 Ausfallrisiko', eur(b.finanzen.ausfallRisiko)),
+              zeile('🤝 Zahlung zugesagt', eur(b.finanzen.zugesagt)),
+              ...(b.finanzen.bezahltGestern ? [zeile('✅ Eingegangen', eur(b.finanzen.bezahltGestern))] : []),
+            ].join('')}</table>`,
+          ),
+        ]
+      : []),
     ...(b.ausnahmen.length
       ? [block('⚠️ Ausnahmen aus dem Cockpit', b.ausnahmen.map((a) => `<div style="padding:4px 0;font-size:14px">${a.stufe === 'rot' ? '🔴' : '🟡'} <span style="color:#6b7280">${esc(a.bereich)}:</span> ${esc(a.text)}</div>`).join(''))]
       : []),
@@ -351,7 +379,7 @@ export function waTeile(b: BriefingDaten) {
     alarme,
     sales: `${z(s.abschluesse)} Abschlüsse (${eur(s.volumen)}) · ${z(s.closingsGehalten)} Closings · ${z(s.settingsGehalten)} Settings · Show-up ${pz(s.showUpSetting)} · ${monat}`,
     marketing: m.verbunden ? `${eur(m.ausgaben)} Ausgaben · ${z(m.leads)} Leads · ${m.cpl === null ? '–' : eur(m.cpl)} pro Lead${m.cplSchnitt14 !== null ? ` (Ø ${eur(m.cplSchnitt14)})` : ''}` : 'Meta Ads nicht verbunden',
-    kunden: `${z(k.bewerber)} Bewerber · ${z(k.aktiv)} Kunden 🟢 ${k.ampel.gruen} 🟡 ${k.ampel.gelb} 🔴 ${k.ampel.rot}${k.neu.length ? ` · neu: ${k.neu.join(', ')}` : ''}${k.beendet.length ? ` · beendet: ${k.beendet.join(', ')}` : ''}`,
+    kunden: `${z(k.bewerber)} Bewerber · ${z(k.aktiv)} Kunden 🟢 ${k.ampel.gruen} 🟡 ${k.ampel.gelb} 🔴 ${k.ampel.rot}${k.neu.length ? ` · neu: ${k.neu.join(', ')}` : ''}${k.beendet.length ? ` · beendet: ${k.beendet.join(', ')}` : ''}${b.finanzen?.ueberfaellig ? ` · 💶 ${eur(b.finanzen.ueberfaellig)} überfällig` : ''}`,
   };
 }
 
@@ -383,6 +411,7 @@ export function waLangtext(b: BriefingDaten, vorname: string): string {
     '',
     '👥 *Kunden & Bewerber*',
     t.kunden,
+    ...(b.finanzen ? ['', '💶 *Forderungen*', `Offen ${eur(b.finanzen.offen)} · überfällig ${eur(b.finanzen.ueberfaellig)} · Ausfallrisiko ${eur(b.finanzen.ausfallRisiko)}`] : []),
     ...(b.entscheidungen.length ? ['', '🧭 *Offene Entscheidungen*', ...b.entscheidungen.map((p) => `• ${p.titel}`)] : []),
     '',
     '🔗 cloud.zoeppmedia.de/admin/briefing',

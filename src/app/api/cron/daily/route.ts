@@ -329,10 +329,13 @@ async function runDailyJobs() {
     overdueTasksCreated = await checkOverdueBillingRuns(supabase);
   } catch { /* silent */ }
 
-  // 14b. Mahnwesen (Zoepp System): offene Rechnungen aus Lexoffice abgleichen – nur wenn eingeschaltet
+  // 14b. Mahnwesen (Zoepp System): offene Rechnungen aus Lexoffice lesen (ab Stichtag) und fällige Schritte
+  // als Aufgabe für die Buchhaltung vorschlagen. Es wird nichts verschickt – das macht die Buchhaltung selbst.
   try {
-    const { mahnwesenAktiv, syncMahnfaelle } = await import('@/lib/billing/mahnwesen');
-    if (mahnwesenAktiv()) await syncMahnfaelle(supabase);
+    const { syncMahnfaelle, planeMahnAufgaben } = await import('@/lib/billing/mahnwesen');
+    const { today } = await import('@/lib/fulfillment/views');
+    await syncMahnfaelle(supabase);
+    await planeMahnAufgaben(supabase, today());
   } catch (err) {
     console.error('[cron/daily] Mahnwesen-Abgleich fehlgeschlagen:', err);
   }

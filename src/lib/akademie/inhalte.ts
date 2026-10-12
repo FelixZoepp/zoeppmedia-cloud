@@ -450,11 +450,23 @@ const SOPS: ArtikelDef[] = [
   },
   {
     slug: 'mahnwesen', typ: 'sop', titel: 'Mahnwesen und offene Rechnungen', modul: 'Finanzen', positionen: ['backoffice'], status: 'entwurf', prioritaet: 3, reihenfolge: 71,
-    zusammenfassung: 'Offene Rechnungen nachhalten – Ablauf noch vom Inhaber zu bestätigen.',
+    zusammenfassung: 'Jeden Morgen die vorgeschlagenen Mahnschritte prüfen, anrufen, Mail/WhatsApp selbst senden, alles im Verlauf festhalten, Grundsatzfragen an Felix geben.',
     abschnitte: {
-      automatisch: ['Für überfällige Rechnungen legt die Cloud Aufgaben an (Zahlungserinnerung, Mahnung, Eskalation); Mahn-Mails nur bei eingeschaltetem Mahnwesen.'],
-      schritte: [ERGAENZT('Ab wie vielen Tagen erinnern, mahnen, eskalieren? Wer ruft an, was wird gesagt? Wann Inkasso/Anwalt?')],
-      links: [L('Rechnungen & Mahnwesen', '/buchhaltung')],
+      automatisch: [
+        'Die Cloud liest täglich offene Rechnungen aus Lexoffice (ab dem Stichtag) und legt für jeden fälligen Schritt eine Aufgabe „💶 …“ an.',
+        'Es wird NICHTS automatisch verschickt – jede Mail und jede WhatsApp geht erst auf deinen Klick raus.',
+        'Bezahlte Rechnungen (in Lexoffice nicht mehr offen) werden automatisch geschlossen, die Aufgabe abgehakt.',
+      ],
+      schritte: [
+        'Aufgabe öffnen → Fall in /buchhaltung (Reiter Mahnwesen, „Heute dran“).',
+        'Telefonleitfaden des Schritts nutzen und anrufen. Ergebnis eintragen: „Erreicht“ (mit „zahlt bis“, wenn zugesagt) oder „Nicht erreicht“.',
+        'Bei „nicht erreicht“: Mail-Vorschlag prüfen, ggf. anpassen, „Geprüft – jetzt senden“. Optional WhatsApp-Text prüfen und über „In WhatsApp öffnen“ selbst senden.',
+        'Zahlt der Kunde nicht und gibt es Probleme: „Krisengespräch“ führen und festhalten (Grund, Vereinbarung wie Raten/Teilzahlung, nächster Kontakt, Einschätzung zahlt/unsicher/Ausfall).',
+        'Alles, was eine Entscheidung braucht (Raten annehmen, Leistung pausieren, Anwalt, Erlass): „An Felix zur Entscheidung“ mit Empfehlung. Die Antwort erscheint im Fall.',
+        'Schritt 7 (Anwalt) erst nach Freigabe durch Felix: Mail im Mailprogramm öffnen, Vertrag anhängen, „An Anwalt abgegeben“.',
+        'Reiter „Bericht“: Überblick über offene, überfällige und gefährdete Beträge – Felix sieht die Zahlen zusätzlich im Morgen-Briefing.',
+      ],
+      links: [L('Rechnungen & Mahnwesen', '/buchhaltung?tab=mahnwesen')],
     },
   },
 
