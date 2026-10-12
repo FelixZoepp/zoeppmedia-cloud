@@ -87,6 +87,9 @@ export async function POST(request: NextRequest) {
     try {
       const { planeAnrufPruefung } = await import('@/lib/sales/anruf-sperre');
       await planeAnrufPruefung(createAdminClient(), ev.object_id);
+      // Gespräch ohne Protokoll? (20 Min. später prüfen)
+      const { planeProtokollPruefung } = await import('@/lib/sales/protokoll-pflicht');
+      await planeProtokollPruefung(createAdminClient(), ev.object_id);
       return NextResponse.json({ ok: true, anruf: 'geplant' });
     } catch (err) {
       console.error('[close-webhook] Anruf-Prüfung nicht geplant:', err);

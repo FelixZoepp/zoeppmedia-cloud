@@ -17,6 +17,7 @@ export const ADMIN_BEREICHE: Bereich[] = [
       { label: 'Kunden-Board', href: '/clients' },
       { label: 'Ergebnisse', href: '/ergebnisse' },
       { label: 'Anfragen', href: '/admin/support' },
+      { label: 'Empfehlungen', href: '/admin/empfehlungen' },
       { label: 'Wochenberichte & Erinnerungen', href: '/admin/wochenberichte' },
       { label: 'Start-Analyse', href: '/start-analyse' },
     ],
@@ -53,6 +54,7 @@ export const ADMIN_BEREICHE: Bereich[] = [
     label: 'Marketing',
     tabs: [
       { label: 'Wochenbericht', href: '/admin/wochenbericht' },
+      { label: 'Anzeigen', href: '/admin/anzeigen' },
       { label: 'Meta Ads', href: '/admin/marketing' },
       { label: 'Funnel Report', href: '/admin/report' },
     ],

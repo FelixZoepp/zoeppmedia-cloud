@@ -51,6 +51,10 @@ export interface BriefingDaten {
   };
   marketing: { verbunden: boolean; ausgaben: number; leads: number; cpl: number | null; cplSchnitt14: number | null; direktQuote: number | null };
   kunden: { aktiv: number; mrr: number; ampel: { gruen: number; gelb: number; rot: number }; neu: string[]; beendet: string[]; bewerber: number; bewerberWoche: number; bewerberVorwoche: number; starts7: Array<{ name: string; datum: string }> };
+  /** Gespräche ohne Protokoll im Zeitraum je Mitarbeiter (fehlt bei älteren Briefings) */
+  protokolle?: Array<{ name: string; anzahl: number }>;
+  /** Anzeigen, die Geld verbrennen und noch laufen (letzte 14 Tage) */
+  anzeigen?: Array<{ name: string; grund: string; ausgabenGestern: number }>;
   /** Forderungen aus dem Mahnwesen (fehlt bei älteren Briefings) */
   finanzen?: { offen: number; ueberfaellig: number; ueberfaelligAnzahl: number; ausfallRisiko: number; anwalt: number; zugesagt: number; bezahltGestern: number };
   ausnahmen: Array<{ stufe: AlarmStufe; bereich: string; text: string; link?: string }>;
@@ -176,6 +180,15 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
   const bezahltGestern = mahnFaelle.filter((f) => f.status === 'bezahlt' && f.bezahlt_am && f.bezahlt_am >= vonIso && f.bezahlt_am < bisIso).reduce((a, f) => a + Number(f.betrag_offen ?? 0), 0);
   const finanzen = { offen: mb.offen.summe, ueberfaellig: mb.ueberfaellig.summe, ueberfaelligAnzahl: mb.ueberfaellig.anzahl, ausfallRisiko: mb.ausfallRisiko, anwalt: mb.anwalt.summe, zugesagt: mb.zugesagt.summe, bezahltGestern };
 
+  // Fehlende Protokolle + Anzeigen, die Geld verbrennen
+  const { lueckenJePerson } = await import('@/lib/sales/protokoll-pflicht');
+  const protokolle = await lueckenJePerson(svc, vonIso, bisIso).catch(() => []);
+  const { ladeAnzeigen } = await import('@/lib/marketing/anzeigen');
+  const anzeigen = await ladeAnzeigen(svc, 14, jetzt)
+    .then((r) => r.zeilen.filter((z) => z.status === 'verlierer' && z.ausgabenGestern > 0).map((z) => ({ name: z.name, grund: z.grund, ausgabenGestern: z.ausgabenGestern })))
+    .catch(() => []);
+  const protokolleSumme = protokolle.reduce((a, p) => a + p.anzahl, 0);
+
   const q = quoten(sales);
   const leads = marketing ? marketing.eintragungen || marketing.metaLeads : 0;
   const offen = (p: { status: string }) => p.status === 'offen';
@@ -186,9 +199,13 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
     zeitraum,
     alarme: [
       ...geschaeftsAlarme({ sales, sales7, marketing, cplSchnitt14, monatVolumen: monatSales.volumen, prognose, werktageVorbei: wt.vorbei, roteKunden: cockpit.kunden.ampel.rot, beendet }),
+      ...(protokolleSumme >= 3 ? [{ stufe: 'gelb' as const, text: `${protokolleSumme} Gespräche ohne Protokoll (${protokolle.map((p) => `${p.name} ${p.anzahl}`).join(', ')})`, link: '/admin/vertrieb' }] : []),
+      ...anzeigen.map((a) => ({ stufe: 'gelb' as const, text: `Anzeige „${a.name}“ verbrennt Geld: ${a.grund} – gestern ${eur(a.ausgabenGestern)}`, link: '/admin/anzeigen' })),
       ...(finanzen.ausfallRisiko > 0 ? [{ stufe: 'rot' as const, text: `${eur(finanzen.ausfallRisiko)} Zahlungsausfall-Risiko (Mahnung 3+, Anwalt, Ausfall droht)`, link: '/buchhaltung?tab=mahnwesen' }] : []),
     ].sort((x, y) => Number(x.stufe === 'gelb') - Number(y.stufe === 'gelb')),
     finanzen,
+    protokolle,
+    anzeigen,
     sales: {
       abschluesse: sales.abschluesse,
       volumen: sales.volumen,

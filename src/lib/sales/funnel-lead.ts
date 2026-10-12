@@ -37,7 +37,7 @@ export interface FunnelLead {
   email: string | null;
   phone: string | null;
   funnelName: string | null;
-  utm: { source: string | null; medium: string | null; campaign: string | null; content: string | null };
+  utm: { source: string | null; medium: string | null; campaign: string | null; content: string | null; term?: string | null };
   /** Weitere Antworten aus dem Funnel (Frage → Antwort) */
   antworten: Array<{ frage: string; antwort: string }>;
 }
@@ -59,7 +59,8 @@ function sucheUtm(body: unknown, key: string, tiefe = 0): string | null {
     const norm = k.toLowerCase().replace(/[^a-z]/g, '');
     if (norm === `utm${key}`) {
       const w = wert(v);
-      if (w) return w;
+      // Perspective schickt die Feldbeschriftung („UTM Content“) mit – die ist kein Wert
+      if (w && !/^utm[\s_]/i.test(w)) return w;
     }
     if (typeof v === 'string' && /^https?:\/\//.test(v) && v.includes('utm_')) {
       try {
@@ -111,7 +112,7 @@ export function leseFunnelLead(body: Record<string, unknown>, query?: URLSearchP
     email: feld('email', 'e-mail', 'mail'),
     phone: feld('phone', 'telefon', 'telefonnummer', 'phoneNumber'),
     funnelName: wert(body.funnelName) ?? wert(body.funnel_name) ?? query?.get('funnel') ?? null,
-    utm: { source: utm('source'), medium: utm('medium'), campaign: utm('campaign'), content: utm('content') },
+    utm: { source: utm('source'), medium: utm('medium'), campaign: utm('campaign'), content: utm('content'), term: utm('term') },
     antworten,
   };
 }

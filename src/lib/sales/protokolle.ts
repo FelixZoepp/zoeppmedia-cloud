@@ -24,6 +24,9 @@
  * „3 - Gesprächsprotokoll (Closing)“:
  * - Nächster Schritt „1. Abgeschlossen“ → Lead-Status „Kunde“, Sperre aufgehoben, aktive Opportunity auf „Close“ (gewonnen).
  *   Ohne aktive Opportunity wird eine gewonnene angelegt. Fehlt das Auftragsvolumen, bekommt der Closer eine Close-Aufgabe.
+ * - Nur mit Freigabe „closing_ergebnisse“: Angebot → „Angebot verschickt“ (+ Nachfass-Aufgaben Tag 1/3/7 mit Freigabe
+ *   „angebot_nachfassen“), CC2 → „CC2 – Terminiert“, No-Show → „Closing – No Show“, Verschoben → „Closing – Terminiert“,
+ *   Verloren → Opportunities verloren, Unqualifiziert → Lead „Unqualifiziert“ (3 Monate gesperrt), Disqualifiziert → Lead „Disqualifiziert“.
  *
  * Jedes Protokoll (alle Typen) landet in close_protokolle – für Auswertungen je Person und Tag.
  * Ablauf: Close-Webhook activity.custom_activity → Job sales.protokoll (dedupe je Aktivität) → hier.
@@ -61,6 +64,10 @@ const OPP_CLOSING_TERMINIERT = 'stat_RjrZL3ifb4mKNiPEFFX1IQgse1fbI94R9XZgere2wZT
 const LEAD_STATUS_CLOSING = 'stat_BqlpXrf3Xh0QnPwZ3ND2a9dbaola4XCIzmFRlgWFnXW';
 const LEAD_STATUS_KUNDE = 'stat_p7s3wz4JnH4ftamYyGTIHf8I3Gy9fBuxqhIfKufqmGG';
 const OPP_GEWONNEN = 'stat_BFVJiIlomolS2JMTSHc49cHnvh2Rl1IuWnudLEYRh0n';
+const OPP_ANGEBOT = 'stat_rfJv0gUGFIaEo2LQc7CkKKjSjabGuE509yRR0gZjozP';
+const OPP_CC2 = 'stat_TTFBUyYC71TwPVSrEmD0pa0GbqRowRt71e5xI5LFMTN';
+const OPP_CLOSING_NO_SHOW = 'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG';
+const LEAD_STATUS_DISQUALIFIZIERT = 'stat_8dSmRG4WxUrYGItFQyAy0B4lksHZYeaxnkmUiqKbuCu';
 
 export const CLOSING_FELDER = {
   naechsterSchritt: 'cf_BhCW7idf0P9fl8ba0D6OZJIwuUDqiiBhHwgJCJbScuJ',
@@ -87,7 +94,11 @@ const TYP_NAME: Record<string, string> = {
 
 export interface Aktionen {
   gesperrtBis?: string;
-  leadStatus?: 'setting' | 'unqualifiziert' | 'bad_data';
+  leadStatus?: 'setting' | 'unqualifiziert' | 'bad_data' | 'disqualifiziert';
+  /** Closing: aktive Opportunity auf diesen Status (Angebot, CC2, No-Show, Verschoben) */
+  oppStatus?: 'angebot' | 'cc2' | 'closing_no_show' | 'closing_terminiert';
+  /** Closing: Angebot verschickt → Nachfass-Aufgaben für den Closer */
+  angebotNachfassen?: boolean;
   oppsVerloren?: boolean;
   settingOpportunity?: boolean;
   /** Follow-up: Erstgespräch neu gelegt → Opportunity zurück auf „Setting – Terminiert“ */
@@ -146,10 +157,18 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
   return {};
 }
 
-/** Regeln für das Closing-Protokoll (rein, testbar) */
-export function regelnClosing(felder: Record<string, string | null>): Aktionen {
+/** Regeln für das Closing-Protokoll (rein, testbar). Alles außer „Abgeschlossen“ braucht die Freigabe closing_ergebnisse. */
+export function regelnClosing(felder: Record<string, string | null>, jetzt: Date = new Date()): Aktionen {
   const schritt = (felder[CLOSING_FELDER.naechsterSchritt] ?? '').replace(/^\d+\.\s*/, '');
+  const kalender = felder[CLOSING_FELDER.kalender] || null;
   if (schritt.startsWith('Abgeschlossen')) return { abgeschlossen: true };
+  if (schritt.startsWith('Angebot')) return { oppStatus: 'angebot', angebotNachfassen: true };
+  if (schritt.startsWith('Unqualifiziert')) return { leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: plusMonate(jetzt, 3).toISOString() };
+  if (schritt.startsWith('Disqualifiziert')) return { leadStatus: 'disqualifiziert', oppsVerloren: true };
+  if (schritt.startsWith('CC2')) return { oppStatus: 'cc2', termin: kalender };
+  if (schritt.startsWith('No-Show')) return { oppStatus: 'closing_no_show' };
+  if (schritt.startsWith('Verschoben')) return { oppStatus: 'closing_terminiert', termin: kalender };
+  if (schritt.startsWith('Verloren')) return { oppsVerloren: true };
   return {};
 }
 
@@ -179,7 +198,7 @@ async function oppsVerloren(leadId: string): Promise<number> {
 export async function fuehreAus(leadId: string, a: Aktionen, userId: string | null): Promise<Record<string, unknown>> {
   const erledigt: Record<string, unknown> = {};
   if (a.leadStatus) {
-    const status = { setting: LEAD_STATUS_SETTING, unqualifiziert: LEAD_STATUS_UNQUALIFIZIERT, bad_data: LEAD_STATUS_BAD_DATA }[a.leadStatus];
+    const status = { setting: LEAD_STATUS_SETTING, unqualifiziert: LEAD_STATUS_UNQUALIFIZIERT, bad_data: LEAD_STATUS_BAD_DATA, disqualifiziert: LEAD_STATUS_DISQUALIFIZIERT }[a.leadStatus];
     await setzeLead(leadId, {
       status_id: status,
       ...(a.leadStatus === 'setting' && userId ? { [`custom.${LEAD_FELD_OPENER}`]: userId } : {}),
@@ -229,6 +248,31 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
       });
       erledigt.opportunity = 'angelegt';
     }
+  }
+  if (a.oppStatus) {
+    const ziel = { angebot: OPP_ANGEBOT, cc2: OPP_CC2, closing_no_show: OPP_CLOSING_NO_SHOW, closing_terminiert: OPP_CLOSING_TERMINIERT }[a.oppStatus];
+    const { data: aktiv } = await closeJson<{ data: Array<{ id: string; status_id: string; date_created: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id,date_created`);
+    const opp = [...aktiv].sort((x, y) => y.date_created.localeCompare(x.date_created))[0];
+    if (opp && opp.status_id !== ziel) {
+      await closeJson(`/opportunity/${opp.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: ziel }) });
+      erledigt.opportunity = a.oppStatus;
+    } else if (!opp) {
+      await closeJson('/opportunity/', { method: 'POST', body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: ziel, note: 'Laut Closing-Protokoll' }) });
+      erledigt.opportunity = `${a.oppStatus}_angelegt`;
+    }
+  }
+  if (a.angebotNachfassen) {
+    // Nachfassen per Anruf durch den Closer – keine automatische Nachricht an den Lead
+    const heute = new Date();
+    for (const [tage, text] of [
+      [1, '📨 Angebot nachfassen (Tag 1): Ist das Angebot angekommen? Offene Fragen klären'],
+      [3, '📨 Angebot nachfassen (Tag 3): Entscheidung abfragen, Einwände klären'],
+      [7, '📨 Angebot nachfassen (Tag 7): Letzter Anstoß – zusagen oder sauber abschließen'],
+    ] as const) {
+      const datum = new Date(heute.getTime() + tage * TAG).toISOString().slice(0, 10);
+      await closeJson('/task/', { method: 'POST', body: JSON.stringify({ lead_id: leadId, ...(userId ? { assigned_to: userId } : {}), text, date: datum }) });
+    }
+    erledigt.nachfassAufgaben = 3;
   }
   if (a.abgeschlossen) {
     await setzeLead(leadId, { status_id: LEAD_STATUS_KUNDE, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
@@ -312,9 +356,17 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   const schluessel = schluesselFelder.map((f) => felder[f] ?? '').join('|');
 
   let aktionen: Record<string, unknown> | null = null;
-  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? (f: Record<string, string | null>) => regelnClosing(f) : null;
+  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? regelnClosing : null;
   if (regeln && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
-    aktionen = { ...(await fuehreAus(a.lead_id, regeln(felder, jetzt), a.user_id)), schluessel };
+    let plan = regeln(felder, jetzt);
+    // Closing: nur „Abgeschlossen“ läuft immer – alles andere erst nach Freigabe (/admin/freigaben)
+    if (typ === 'closing' && !plan.abgeschlossen && Object.keys(plan).length) {
+      const { ladeFreigaben } = await import('@/lib/freigaben');
+      const f = await ladeFreigaben(svc);
+      if (!f.closing_ergebnisse) plan = {};
+      else if (!f.angebot_nachfassen) plan = { ...plan, angebotNachfassen: false };
+    }
+    aktionen = { ...(await fuehreAus(a.lead_id, plan, a.user_id)), schluessel };
   }
 
   const { error } = await svc.from('close_protokolle').upsert({
@@ -328,5 +380,9 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
     aktualisiert_am: jetzt.toISOString(),
   });
   if (error) throw new Error(`Protokoll nicht gespeichert: ${error.message}`);
+  if (a.lead_id) {
+    const { schliesseLuecken } = await import('./protokoll-pflicht');
+    await schliesseLuecken(svc, a.lead_id).catch(() => {});
+  }
   return aktionen ? 'ausgefuehrt' : 'gespeichert';
 }

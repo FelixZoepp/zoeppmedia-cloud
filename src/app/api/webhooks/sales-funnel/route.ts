@@ -54,6 +54,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const ergebnis = await uebernehmeFunnelLead(lead);
+    // Herkunft je Anzeige merken (Auswertung Marketing → Anzeigen)
+    if (ergebnis.neu) {
+      await svc
+        .from('lead_herkunft')
+        .upsert(
+          { lead_id: ergebnis.leadId, quelle: 'funnel', utm_source: lead.utm.source, utm_medium: lead.utm.medium, utm_campaign: lead.utm.campaign, utm_term: lead.utm.term ?? null, utm_content: lead.utm.content },
+          { onConflict: 'lead_id', ignoreDuplicates: true },
+        )
+        .then(({ error }) => error && console.error('[sales-funnel] Herkunft:', error.message));
+    }
     if (externalId) await svc.from('sales_funnel_eingaenge').update({ status: 'fertig', erledigt_am: new Date().toISOString(), lead_id: ergebnis.leadId }).eq('external_id', externalId);
     await protokoll('done', null);
     return NextResponse.json({ ok: true, lead_id: ergebnis.leadId, neu: ergebnis.neu });

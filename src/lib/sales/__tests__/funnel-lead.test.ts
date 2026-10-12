@@ -19,7 +19,7 @@ describe('leseFunnelLead', () => {
     expect(l.email).toBe('rudi@example.at');
     expect(l.phone).toBe('+43 676 1234567');
     expect(l.funnelName).toBe('Recruiting-Funnel');
-    expect(l.utm).toEqual({ source: 'ig', medium: 'paid', campaign: '123456789', content: null });
+    expect(l.utm).toMatchObject({ source: 'ig', medium: 'paid', campaign: '123456789', content: null });
     expect(l.antworten).toEqual([{ frage: 'Was ist aktuell dein größtes Problem?', antwort: 'Zu wenig Bewerbungen' }]);
   });
 
@@ -29,5 +29,13 @@ describe('leseFunnelLead', () => {
     expect(l.utm.source).toBe('fb');
     expect(l.utm.medium).toBe('paid');
     expect(l.antworten).toEqual([]);
+  });
+});
+
+describe('UTM-Platzhalter', () => {
+  it('überspringt Feldbeschriftungen wie „UTM Content“', async () => {
+    const { leseFunnelLead } = await import('../funnel-lead');
+    const l = leseFunnelLead({ email: 'a@b.de', felder: { utm_content: 'UTM Content' }, meta: { utm_content: '250propartner' } }, new URLSearchParams());
+    expect(l.utm.content).toBe('250propartner');
   });
 });

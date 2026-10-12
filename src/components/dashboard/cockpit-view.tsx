@@ -168,6 +168,9 @@ export function CockpitView() {
             <Link href="/admin/briefing" className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
               ☀️ Briefing
             </Link>
+            <Link href="/admin/freigaben" className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+              🔐 Freigaben
+            </Link>
             <Button variant="secondary" onClick={() => laden(true)} disabled={laedt}>
               <RefreshCw className={`h-4 w-4 ${laedt ? 'animate-spin' : ''}`} /> Aktualisieren
             </Button>

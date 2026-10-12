@@ -340,6 +340,15 @@ async function runDailyJobs() {
     console.error('[cron/daily] Mahnwesen-Abgleich fehlgeschlagen:', err);
   }
 
+  // 14c. Empfehlungen: neue Kandidaten → Aufgabe für den Kundenbetreuer (nur mit Freigabe, nie Nachricht an Kunden)
+  try {
+    const { planeEmpfehlungsAufgaben } = await import('@/lib/empfehlungen/kandidaten');
+    const { today } = await import('@/lib/fulfillment/views');
+    await planeEmpfehlungsAufgaben(supabase, today());
+  } catch (err) {
+    console.error('[cron/daily] Empfehlungen fehlgeschlagen:', err);
+  }
+
   // 15. Slack-Berichte Marketing + Sales: siehe Abendbericht (20 Uhr, src/lib/berichte/abendbericht.ts) im Minuten-Tick
 
   // 16. Eingangs-Monitoring: Feed-Abrufe ohne Bewerbungen + Fehlerquote (Phase 5 Task 8)

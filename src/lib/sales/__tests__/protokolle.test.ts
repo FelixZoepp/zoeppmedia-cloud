@@ -79,14 +79,27 @@ describe('regelnFollowUp – Beratungsgespräch gelegt', () => {
 });
 
 describe('Abschluss', () => {
-  it('Closing-Protokoll „1. Abgeschlossen“ → Kunde + gewonnen, andere Schritte nichts', async () => {
+  it('Closing-Protokoll „1. Abgeschlossen“ → Kunde + gewonnen', async () => {
     const { regelnClosing, CLOSING_FELDER } = await import('../protokolle');
     expect(regelnClosing({ [CLOSING_FELDER.naechsterSchritt]: '1. Abgeschlossen' })).toEqual({ abgeschlossen: true });
-    expect(regelnClosing({ [CLOSING_FELDER.naechsterSchritt]: '2. Angebot versendet' })).toEqual({});
     expect(regelnClosing({})).toEqual({});
   });
 
   it('Follow-up „Abgeschlossen“ → Kunde + gewonnen', () => {
     expect(regelnFollowUp({ [FOLLOWUP_FELDER_IDS.ergebnis]: 'Abgeschlossen' }, jetzt)).toEqual({ abgeschlossen: true });
+  });
+});
+
+describe('Closing-Ergebnisse', () => {
+  it('ordnet alle Schritte zu', async () => {
+    const { regelnClosing, CLOSING_FELDER: C } = await import('../protokolle');
+    const r = (v: string, k: string | null = null) => regelnClosing({ [C.naechsterSchritt]: v, [C.kalender]: k }, jetzt);
+    expect(r('2. Angebot versendet')).toEqual({ oppStatus: 'angebot', angebotNachfassen: true });
+    expect(r('3. Unqualifiziert')).toMatchObject({ leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: '2027-01-08T10:00:00.000Z' });
+    expect(r('4. Disqualifiziert')).toEqual({ leadStatus: 'disqualifiziert', oppsVerloren: true });
+    expect(r('5. CC2 vereinbart am:', '2026-10-15T08:00:00Z')).toEqual({ oppStatus: 'cc2', termin: '2026-10-15T08:00:00Z' });
+    expect(r('6. No-Show')).toEqual({ oppStatus: 'closing_no_show' });
+    expect(r('7. Verschoben auf:')).toEqual({ oppStatus: 'closing_terminiert', termin: null });
+    expect(r('8. Verloren')).toEqual({ oppsVerloren: true });
   });
 });
