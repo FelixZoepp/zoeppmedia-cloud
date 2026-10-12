@@ -28,6 +28,16 @@ const KONFETTI = Array.from({ length: 70 }, (_, i) => ({
 }));
 
 const SPEICHER = 'zm_deal_feier_seit';
+const GESEHEN = 'zm_deal_feier_gesehen';
+
+/** IDs bereits gezeigter Feiern (jede Feier nur einmal je Gerät) */
+function gesehen(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(GESEHEN) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+}
 
 function gifPfad(url: string): string {
   // In der Cloud selbst den lokalen Pfad nutzen (Slack braucht die volle URL)
@@ -47,9 +57,11 @@ export function DealFeier() {
       /* ohne Speicher: ab jetzt */
     }
     let aus = false;
+    let laeuft = false;
     const zeigeNaechste = () => setFeier((aktuell) => aktuell ?? warteschlange.current.shift() ?? null);
     const abfragen = async () => {
-      if (aus || document.visibilityState !== 'visible') return;
+      if (aus || laeuft || document.visibilityState !== 'visible') return;
+      laeuft = true;
       try {
         const r = await fetch(`/api/deal-feier?seit=${encodeURIComponent(seit.current)}`, { cache: 'no-store' });
         if (!r.ok) return;
@@ -61,12 +73,21 @@ export function DealFeier() {
         } catch {
           /* egal */
         }
-        if (d.feiern.length) {
-          warteschlange.current.push(...d.feiern);
+        const schon = new Set([...gesehen(), ...warteschlange.current.map((f) => f.id)]);
+        const neu = d.feiern.filter((f) => !schon.has(f.id));
+        if (neu.length) {
+          try {
+            localStorage.setItem(GESEHEN, JSON.stringify([...gesehen(), ...neu.map((f) => f.id)].slice(-30)));
+          } catch {
+            /* egal */
+          }
+          warteschlange.current.push(...neu);
           zeigeNaechste();
         }
       } catch {
         /* nächster Versuch */
+      } finally {
+        laeuft = false;
       }
     };
     const start = setTimeout(abfragen, 1500);

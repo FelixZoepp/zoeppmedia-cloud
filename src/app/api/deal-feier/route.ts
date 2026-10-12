@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user || !isInternal(user.role)) return NextResponse.json({ feiern: [] }, { status: 403 });
   const seit = req.nextUrl.searchParams.get('seit');
-  const ab = seit && !Number.isNaN(Date.parse(seit)) ? new Date(seit) : new Date();
+  // +1 ms: Postgres speichert Mikrosekunden, JS nur Millisekunden – sonst käme die letzte Feier immer wieder
+  const ab = seit && !Number.isNaN(Date.parse(seit)) ? new Date(Date.parse(seit) + 1) : new Date();
   // Nie ältere Feiern als 15 Minuten nachholen (z. B. nach dem Wochenende)
   const frueheste = new Date(Date.now() - 15 * 60_000);
   const { data } = await createAdminClient()
