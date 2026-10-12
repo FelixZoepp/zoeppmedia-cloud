@@ -54,7 +54,7 @@ describe('regelnFollowUp', () => {
   it('weiter Follow-up mit Kalender → bis Kalender, ohne Kalender keine Sperre', () => {
     expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Weiter Follow-up', [F.kalender]: '2026-10-15T08:00:00Z' }, jetzt)).toEqual({ gesperrtBis: '2026-10-15T08:00:00.000Z' });
     expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Weiter Follow-up' }, jetzt)).toEqual({});
-    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Abgeschlossen' }, jetzt)).toEqual({});
+    expect(regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Abgeschlossen' }, jetzt)).toEqual({ abgeschlossen: true });
   });
 });
 
@@ -75,5 +75,18 @@ describe('regelnFollowUp – Beratungsgespräch gelegt', () => {
       closingTerminiert: true,
       termin: '2026-10-14T13:00:00Z',
     });
+  });
+});
+
+describe('Abschluss', () => {
+  it('Closing-Protokoll „1. Abgeschlossen“ → Kunde + gewonnen, andere Schritte nichts', async () => {
+    const { regelnClosing, CLOSING_FELDER } = await import('../protokolle');
+    expect(regelnClosing({ [CLOSING_FELDER.naechsterSchritt]: '1. Abgeschlossen' })).toEqual({ abgeschlossen: true });
+    expect(regelnClosing({ [CLOSING_FELDER.naechsterSchritt]: '2. Angebot versendet' })).toEqual({});
+    expect(regelnClosing({})).toEqual({});
+  });
+
+  it('Follow-up „Abgeschlossen“ → Kunde + gewonnen', () => {
+    expect(regelnFollowUp({ [FOLLOWUP_FELDER_IDS.ergebnis]: 'Abgeschlossen' }, jetzt)).toEqual({ abgeschlossen: true });
   });
 });

@@ -19,6 +19,12 @@
  * - „Beratungsgespräch gelegt“ → Lead-Status „Closing“, Sperre aufgehoben, Opportunity aus „Closing – No Show“ /
  *   „Closing – Follow Up“ oder einer Setting-Stufe auf „Closing – Terminiert“ (ohne aktive Opportunity: neu angelegt)
  *
+ * - „Abgeschlossen“ → wie im Closing-Protokoll (siehe unten)
+ *
+ * „3 - Gesprächsprotokoll (Closing)“:
+ * - Nächster Schritt „1. Abgeschlossen“ → Lead-Status „Kunde“, Sperre aufgehoben, aktive Opportunity auf „Close“ (gewonnen).
+ *   Ohne aktive Opportunity wird eine gewonnene angelegt. Fehlt das Auftragsvolumen, bekommt der Closer eine Close-Aufgabe.
+ *
  * Jedes Protokoll (alle Typen) landet in close_protokolle – für Auswertungen je Person und Tag.
  * Ablauf: Close-Webhook activity.custom_activity → Job sales.protokoll (dedupe je Aktivität) → hier.
  */
@@ -53,6 +59,13 @@ const OPP_STATUS_VERLOREN = 'stat_843j170eWlP742evQCGjL4BRdczZY4hGTTiV7s0LVZe';
 const OPP_SETTING_TERMINIERT = 'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH';
 const OPP_CLOSING_TERMINIERT = 'stat_RjrZL3ifb4mKNiPEFFX1IQgse1fbI94R9XZgere2wZT';
 const LEAD_STATUS_CLOSING = 'stat_BqlpXrf3Xh0QnPwZ3ND2a9dbaola4XCIzmFRlgWFnXW';
+const LEAD_STATUS_KUNDE = 'stat_p7s3wz4JnH4ftamYyGTIHf8I3Gy9fBuxqhIfKufqmGG';
+const OPP_GEWONNEN = 'stat_BFVJiIlomolS2JMTSHc49cHnvh2Rl1IuWnudLEYRh0n';
+
+export const CLOSING_FELDER = {
+  naechsterSchritt: 'cf_BhCW7idf0P9fl8ba0D6OZJIwuUDqiiBhHwgJCJbScuJ',
+  kalender: 'cf_8gj9WdroQPN5i1M8IhpQ8s30fL4pOF1fRW25kbIrGNU',
+} as const;
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 /** Closing – No Show, Closing – Follow Up, Setting – Terminiert / No Show / Follow Up */
 const OPP_CLOSING_ZURUECK = [
@@ -81,6 +94,8 @@ export interface Aktionen {
   settingTerminiert?: boolean;
   /** Follow-up: Beratungsgespräch gelegt → Opportunity auf „Closing – Terminiert“ */
   closingTerminiert?: boolean;
+  /** Closing / Follow-up: abgeschlossen → Lead „Kunde“, Opportunity gewonnen */
+  abgeschlossen?: boolean;
   /** Termin / Rückruf aus dem Kalenderfeld */
   termin?: string | null;
 }
@@ -123,10 +138,18 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
   const kalender = felder[FOLLOWUP_FELDER_IDS.kalender] || null;
   const morgen = new Date(jetzt.getTime() + TAG).toISOString();
   const bisKalender = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : null;
+  if (ergebnis.startsWith('Abgeschlossen')) return { abgeschlossen: true };
   if (ergebnis.startsWith('Erstgespräch gelegt')) return { settingTerminiert: true, termin: kalender };
   if (ergebnis.startsWith('Beratungsgespräch gelegt')) return { closingTerminiert: true, termin: kalender };
   if (erreicht.startsWith('Nein') || ergebnis.startsWith('Nicht erreicht')) return { gesperrtBis: bisKalender ?? morgen };
   if (ergebnis.startsWith('Weiter Follow-up') && bisKalender) return { gesperrtBis: bisKalender };
+  return {};
+}
+
+/** Regeln für das Closing-Protokoll (rein, testbar) */
+export function regelnClosing(felder: Record<string, string | null>): Aktionen {
+  const schritt = (felder[CLOSING_FELDER.naechsterSchritt] ?? '').replace(/^\d+\.\s*/, '');
+  if (schritt.startsWith('Abgeschlossen')) return { abgeschlossen: true };
   return {};
 }
 
@@ -207,6 +230,38 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
       erledigt.opportunity = 'angelegt';
     }
   }
+  if (a.abgeschlossen) {
+    await setzeLead(leadId, { status_id: LEAD_STATUS_KUNDE, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
+    erledigt.leadStatus = 'kunde';
+    const { data: aktiv } = await closeJson<{ data: Array<{ id: string; status_id: string; value: number | null; date_created: string }> }>(
+      `/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id,value,date_created`,
+    );
+    const { data: gewonnen } = await closeJson<{ data: Array<{ id: string; value: number | null }> }>(`/opportunity/?lead_id=${leadId}&status_type=won&_fields=id,value`);
+    let opp: { id: string; value: number | null } | null = null;
+    if (aktiv.length) {
+      // Die jüngste aktive Opportunity ist der Abschluss
+      opp = [...aktiv].sort((x, y) => y.date_created.localeCompare(x.date_created))[0];
+      await closeJson(`/opportunity/${opp.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: OPP_GEWONNEN }) });
+      erledigt.opportunity = 'gewonnen';
+    } else if (gewonnen.length) {
+      opp = gewonnen[0];
+      erledigt.opportunity = 'schon_gewonnen';
+    } else {
+      opp = await closeJson<{ id: string; value: number | null }>('/opportunity/', {
+        method: 'POST',
+        body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_GEWONNEN, note: 'Abschluss laut Gesprächsprotokoll' }),
+      });
+      erledigt.opportunity = 'gewonnen_angelegt';
+    }
+    // Ohne Auftragsvolumen zählt der Abschluss im Controlling mit 0 € → Closer erinnern
+    if (opp && !opp.value) {
+      await closeJson('/task/', {
+        method: 'POST',
+        body: JSON.stringify({ lead_id: leadId, ...(userId ? { assigned_to: userId } : {}), text: '💰 Abschluss: Auftragsvolumen in der Opportunity eintragen', date: new Date().toISOString().slice(0, 10) }),
+      }).catch(() => {});
+      erledigt.volumenAufgabe = true;
+    }
+  }
   if (a.settingOpportunity) {
     const termin = a.termin
       ? new Date(a.termin).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr'
@@ -251,11 +306,13 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   const schluesselFelder =
     typ === 'follow_up'
       ? [FOLLOWUP_FELDER_IDS.erreicht, FOLLOWUP_FELDER_IDS.ergebnis, FOLLOWUP_FELDER_IDS.kalender]
-      : [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender];
+      : typ === 'closing'
+        ? [CLOSING_FELDER.naechsterSchritt, CLOSING_FELDER.kalender]
+        : [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender];
   const schluessel = schluesselFelder.map((f) => felder[f] ?? '').join('|');
 
   let aktionen: Record<string, unknown> | null = null;
-  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : null;
+  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? (f: Record<string, string | null>) => regelnClosing(f) : null;
   if (regeln && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
     aktionen = { ...(await fuehreAus(a.lead_id, regeln(felder, jetzt), a.user_id)), schluessel };
   }
