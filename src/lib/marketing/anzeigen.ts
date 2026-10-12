@@ -43,7 +43,24 @@ export interface AnzeigeZeile {
   roas: number | null;
   status: AnzeigenStatus;
   grund: string;
+  /** Vorschaubild des Creatives (Meta) */
+  bild?: string | null;
 }
+
+export interface PlattformZeile {
+  plattform: string;
+  ausgaben: number;
+  impressionen: number;
+  linkKlicks: number;
+  leads: number;
+  termine: number;
+  abschluesse: number;
+  umsatz: number;
+  cpl: number | null;
+}
+
+const PLATTFORM: Record<string, string> = { fb: 'Facebook', facebook: 'Facebook', ig: 'Instagram', instagram: 'Instagram', an: 'Audience Network', audience_network: 'Audience Network', messenger: 'Messenger', threads: 'Threads' };
+export const plattformName = (s: string | null | undefined) => (s ? PLATTFORM[s.toLowerCase()] ?? s : 'Unbekannt');
 
 export const normName = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
 
@@ -84,6 +101,25 @@ async function metaAnzeigen(von: string, bis: string, tageweise = false): Promis
   return out;
 }
 
+async function metaGet<T>(pfad: string, params: Record<string, string>): Promise<T[] | null> {
+  const token = process.env.META_ACCESS_TOKEN;
+  const account = process.env.META_AD_ACCOUNT_ID;
+  if (!token || !account) return null;
+  const u = new URL(`https://graph.facebook.com/v21.0/${account}/${pfad}`);
+  u.searchParams.set('access_token', token);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  const out: T[] = [];
+  let url: string | null = u.toString();
+  for (let i = 0; url && i < 5; i++) {
+    const res: Response = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Meta ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const d = (await res.json()) as { data?: T[]; paging?: { next?: string } };
+    out.push(...(d.data ?? []));
+    url = d.paging?.next ?? null;
+  }
+  return out;
+}
+
 const aktion = (r: MetaAnzeigeRoh, typen: string[]) => (r.actions ?? []).filter((a) => typen.includes(a.action_type)).reduce((s, a) => s + Number(a.value), 0);
 
 /** Status je Anzeige (rein, testbar) */
@@ -101,16 +137,24 @@ export function bewerte(z: Pick<AnzeigeZeile, 'ausgaben' | 'leads' | 'cpl'>, sch
 }
 
 /** Anzeigen-Auswertung für die letzten `tage` Tage (bis gestern + heute) */
-export async function ladeAnzeigen(svc: SupabaseClient, tage = 30, jetzt: Date = new Date()): Promise<{ zeilen: AnzeigeZeile[]; summe: Omit<AnzeigeZeile, 'schluessel' | 'name' | 'kampagne' | 'aktiv' | 'status' | 'grund'>; schnittCpl: number | null; von: string; bis: string; metaVerbunden: boolean }> {
+export async function ladeAnzeigen(svc: SupabaseClient, tage = 30, jetzt: Date = new Date()): Promise<{ zeilen: AnzeigeZeile[]; plattformen: PlattformZeile[]; summe: Omit<AnzeigeZeile, 'schluessel' | 'name' | 'kampagne' | 'aktiv' | 'status' | 'grund'>; schnittCpl: number | null; von: string; bis: string; metaVerbunden: boolean }> {
   const bis = jetzt.toISOString().slice(0, 10);
   const von = new Date(jetzt.getTime() - (tage - 1) * 864e5).toISOString().slice(0, 10);
   const gestern = new Date(jetzt.getTime() - 864e5).toISOString().slice(0, 10);
 
-  const [meta, metaGestern, { data: herkunft }, opps] = await Promise.all([
+  const [meta, metaGestern, { data: herkunft }, opps, plattformMeta, creatives] = await Promise.all([
     metaAnzeigen(von, bis).catch((e) => (console.error('[anzeigen] Meta', e), null)),
     metaAnzeigen(gestern, gestern).catch(() => null),
-    svc.from('lead_herkunft').select('lead_id, utm_content, utm_campaign').gte('eingetragen_am', `${von}T00:00:00Z`),
+    svc.from('lead_herkunft').select('lead_id, utm_content, utm_campaign, utm_source').gte('eingetragen_am', `${von}T00:00:00Z`),
     closeAll<{ id: string; lead_id: string; status_id: string; value: number | null }>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=id,lead_id,status_id,value`).catch(() => []),
+    metaGet<MetaAnzeigeRoh & { publisher_platform: string }>('insights', {
+      level: 'account',
+      fields: 'spend,impressions,inline_link_clicks,actions',
+      breakdowns: 'publisher_platform',
+      filtering: META_FILTER,
+      time_range: JSON.stringify({ since: von, until: bis }),
+    }).catch(() => null),
+    metaGet<{ id: string; name: string; creative?: { thumbnail_url?: string; image_url?: string } }>('ads', { fields: 'id,name,creative{thumbnail_url,image_url}', limit: '200' }).catch(() => null),
   ]);
 
   const proLead = new Map<string, { termin: boolean; closing: boolean; won: number; abschluss: boolean }>();
@@ -162,6 +206,34 @@ export async function ladeAnzeigen(svc: SupabaseClient, tage = 30, jetzt: Date =
   }
 
   const teilen = (a: number, b: number) => (b > 0 ? a / b : null);
+
+  // Plattformen: Ausgaben laut Meta, Leads/Termine/Abschlüsse laut utm_source
+  const plattformen = new Map<string, PlattformZeile>();
+  const pz = (name: string) => plattformen.get(name) ?? { plattform: name, ausgaben: 0, impressionen: 0, linkKlicks: 0, leads: 0, termine: 0, abschluesse: 0, umsatz: 0, cpl: null };
+  for (const r of plattformMeta ?? []) {
+    const p = pz(plattformName(r.publisher_platform));
+    p.ausgaben += Number(r.spend ?? 0);
+    p.impressionen += Number(r.impressions ?? 0);
+    p.linkKlicks += Number(r.inline_link_clicks ?? 0);
+    plattformen.set(p.plattform, p);
+  }
+  for (const h of (herkunft ?? []) as Array<{ lead_id: string; utm_source: string | null }>) {
+    const p = pz(plattformName(h.utm_source));
+    p.leads++;
+    const l = proLead.get(h.lead_id);
+    if (l?.termin) p.termine++;
+    if (l?.abschluss) {
+      p.abschluesse++;
+      p.umsatz += l.won;
+    }
+    plattformen.set(p.plattform, p);
+  }
+  for (const p of plattformen.values()) p.cpl = teilen(p.ausgaben, p.leads);
+
+  // Vorschaubilder der Creatives
+  const bilder = new Map((creatives ?? []).map((c) => [normName(c.name), c.creative?.thumbnail_url ?? c.creative?.image_url ?? null]));
+  for (const z of zeilen.values()) z.bild = bilder.get(z.schluessel) ?? null;
+
   const alle = [...zeilen.values()];
   for (const z of alle) {
     // Leads: Funnel-Eintragungen (zugeordnet), sonst Meta-Leads (Lead-Formulare)
@@ -192,6 +264,7 @@ export async function ladeAnzeigen(svc: SupabaseClient, tage = 30, jetzt: Date =
   const reihenfolge: Record<AnzeigenStatus, number> = { verlierer: 0, gewinner: 1, test: 2, ohne_daten: 3 };
   return {
     zeilen: alle.sort((a, b) => reihenfolge[a.status] - reihenfolge[b.status] || b.ausgaben - a.ausgaben),
+    plattformen: [...plattformen.values()].sort((a, b) => b.ausgaben - a.ausgaben || b.leads - a.leads),
     summe,
     schnittCpl,
     von,

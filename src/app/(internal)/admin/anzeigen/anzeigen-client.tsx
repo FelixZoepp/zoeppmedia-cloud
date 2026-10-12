@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button, Card, PageHeader } from '@/components/ui';
-import type { AnzeigeZeile, AnzeigenStatus } from '@/lib/marketing/anzeigen';
+import type { AnzeigeZeile, AnzeigenStatus, PlattformZeile } from '@/lib/marketing/anzeigen';
 
 interface Daten {
   zeilen: AnzeigeZeile[];
+  plattformen: PlattformZeile[];
   summe: Omit<AnzeigeZeile, 'schluessel' | 'name' | 'kampagne' | 'aktiv' | 'status' | 'grund'>;
   schnittCpl: number | null;
   von: string;
@@ -91,6 +92,17 @@ export function AnzeigenClient() {
             {kachel('🏆 Abschlüsse', z(d.summe.abschluesse), `${eur(d.summe.kostenProAbschluss)} pro Abschluss`)}
             {kachel('💰 Umsatz / ROAS', eur(d.summe.umsatz), d.summe.roas === null ? '' : `${d.summe.roas.toLocaleString('de-DE', { maximumFractionDigits: 1 })}× Werbebudget`)}
           </div>
+          {!!d.plattformen.length && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {d.plattformen.map((p) => (
+                <Card key={p.plattform} padding="none" className="p-4">
+                  <p className="text-sm font-bold text-gray-900">{p.plattform === 'Instagram' ? '📸' : p.plattform === 'Facebook' ? '📘' : '📡'} {p.plattform}</p>
+                  <p className="mt-1 text-xs text-gray-600">💸 {eur(p.ausgaben)} · 🧲 {z(p.leads)} Leads · {eur(p.cpl)}/Lead</p>
+                  <p className="text-xs text-gray-600">🗓️ {z(p.termine)} Termine · 🏆 {z(p.abschluesse)} Abschlüsse{p.umsatz ? ` · ${eur(p.umsatz)}` : ''}</p>
+                </Card>
+              ))}
+            </div>
+          )}
           <Card padding="none" className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-sm">
               <thead className="bg-gray-50 text-left text-xs text-gray-500">
@@ -111,9 +123,15 @@ export function AnzeigenClient() {
               <tbody>
                 {d.zeilen.map((x) => (
                   <tr key={x.schluessel} className="border-t border-gray-100 align-top">
-                    <td className="px-3 py-2">
+                    <td className="flex gap-2 px-3 py-2">
+                      {x.bild && (
+                        // eslint-disable-next-line @next/next/no-img-element -- Meta-Vorschaubild
+                        <img src={x.bild} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                      )}
+                      <div>
                       <p className="font-semibold text-gray-900">{x.name}{x.aktiv && <span className="ml-1.5 text-[10px] font-semibold text-green-600">● läuft</span>}</p>
                       {x.kampagne && <p className="text-[11px] text-gray-400">{x.kampagne}</p>}
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[x.status].cls}`}>{STATUS[x.status].label}</span>
