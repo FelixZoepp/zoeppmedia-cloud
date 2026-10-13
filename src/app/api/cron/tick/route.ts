@@ -457,6 +457,18 @@ export async function GET(request: NextRequest) {
           await sendeAbendbericht(svc, (payload as { tag: string }).tag);
           break;
         }
+        case 'gespraeche.nachholen':
+        case 'marketing.feedback': {
+          // Läuft in eigener Funktion (maxDuration 300), hier nur anstoßen
+          const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin}/api/cron/gespraeche`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${cronSecret}`, 'content-type': 'application/json' },
+            body: JSON.stringify({ aktion: job.type === 'marketing.feedback' ? 'feedback' : 'nachholen', tage: (payload as { tage?: number }).tage }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!res.ok) throw new Error(`Gespräche-Route ${res.status}`);
+          break;
+        }
         case 'sales.close_buchung': {
           const { bucheSettingInClose, bucheBeratungInClose } = await import('@/lib/sales/funnel-lead');
           const buchung = payload as unknown as import('@/lib/sales/funnel-lead').BuchungFuerClose;
