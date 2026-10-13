@@ -64,7 +64,7 @@ export default async function GespraechSeite({ params }: { params: Promise<{ art
             preload="metadata"
           />
         )}
-        {art.startsWith('fallstudie-') ? (
+        {art === 'fallstudie-bc' ? (
           <a
             href={BOOKING_URLS.setting}
             className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-b from-red-700 to-red-950 px-6 text-[15px] font-medium text-white sm:w-auto"
