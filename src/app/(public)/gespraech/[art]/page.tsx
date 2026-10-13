@@ -26,8 +26,8 @@ const GESPRAECHE: Record<string, { titel: string; text: string; datei?: string; 
   // Fallstudie aus der WhatsApp nach No-Show im Beratungsgespräch (noshow_closing_rueckfrage)
   'fallstudie-david': {
     titel: 'SalesWinner Direktvertrieb: von 2 auf 24 Vertriebler',
-    text: 'David Hamid erzählt, wie er mit uns sein Vertriebsteam aufgebaut hat.',
-    youtube: 'qLZK2CCDRao',
+    text: 'David Hamid erzählt, wie er mit uns sein Vertriebsteam von 2 auf 24 Vertriebler aufgebaut hat.',
+    datei: 'fallstudie-david.mp4',
   },
 };
 // Short-Link „beratungsgespraech“ zeigt auf dasselbe Video
