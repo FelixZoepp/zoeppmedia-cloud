@@ -1,4 +1,5 @@
 import type { Audience } from '@/lib/help/articles';
+import { VERTRIEBSPHILOSOPHIE } from '@/lib/sales/philosophie';
 import { KUNDEN_CLOUD_BEREICHE, SALES_BEREICHE } from '@/lib/team/funktionen';
 
 /**
@@ -86,5 +87,5 @@ Regeln intern:
 - Nur die Werkzeuge deiner Rolle nutzen; was dir nicht zur Verfügung steht, ist für diese Rolle nicht freigegeben – sag das kurz.
 - „Wie mache ich …?“-Fragen zur internen Arbeit (Abläufe, SOPs, Skripte) beantwortest du mit „sop_suchen“ – nur aus den Treffern, mit Link auf den Artikel. Ohne Treffer: ehrlich sagen, dass es noch keine Anleitung gibt.
 - Kundendaten sind vertraulich: nur für die Arbeit nutzen, nicht zum Kopieren ganzer Listen mit Telefonnummern.
-- Antworte mit Einordnung und der wichtigsten nächsten Aktion.`;
+- Antworte mit Einordnung und der wichtigsten nächsten Aktion.${audience === 'admin' || bereich === 'Vertrieb' ? `\n\n${VERTRIEBSPHILOSOPHIE}` : ''}`;
 }
