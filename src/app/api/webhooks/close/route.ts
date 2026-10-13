@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { CLOSE_STATUS_SETTING_NO_SHOW, closeWebhookToken } from '@/lib/sales/close';
-import { handleCloseSettingNoShow } from '@/lib/sales/noshow';
+import { CLOSE_STATUS_CLOSING_NO_SHOW, CLOSE_STATUS_SETTING_NO_SHOW, closeWebhookToken } from '@/lib/sales/close';
+import { handleCloseNoShow } from '@/lib/sales/noshow';
 import { syncFollowupForOpportunity } from '@/lib/sales/followup';
 import { erfasseEintragung } from '@/lib/sales/eintragungen';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
@@ -12,7 +12,7 @@ import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
  * - Gesprächsprotokoll → speichern + Automatik (src/lib/sales/protokolle.ts)
  * - Opportunity gewonnen → Deal-Feier (src/lib/sales/deal-feier.ts)
  * - Neuer Lead → Eintragung merken, nach 10 Min. prüfen, ob ein Termin gebucht wurde
- * - Wechsel auf "Setting - No Show" → WhatsApp noshow_1_anruf
+ * - Wechsel auf "Setting - No Show" / "Closing - No Show" → WhatsApp-Rückfrage (src/lib/sales/noshow.ts)
  * - Status "… - Follow Up" + Feld "Follow-up-Rhythmus" → Follow-up-Kette starten/umplanen/stoppen
  * Auth: geheimer Token in der URL (?token=…, abgeleitet aus CRON_SECRET).
  */
@@ -50,12 +50,14 @@ export async function POST(request: NextRequest) {
   }
 
   const ev = body.event;
-  const isNoShow =
-    ev?.object_type === 'opportunity' &&
-    ev.action === 'updated' &&
-    (ev.changed_fields ?? []).includes('status_id') &&
-    ev.data?.status_id === CLOSE_STATUS_SETTING_NO_SHOW &&
-    ev.previous_data?.status_id !== CLOSE_STATUS_SETTING_NO_SHOW;
+  const noShowArt =
+    ev?.object_type === 'opportunity' && ev.action === 'updated' && (ev.changed_fields ?? []).includes('status_id') && ev.data?.status_id !== ev.previous_data?.status_id
+      ? ev.data?.status_id === CLOSE_STATUS_SETTING_NO_SHOW
+        ? ('setting' as const)
+        : ev.data?.status_id === CLOSE_STATUS_CLOSING_NO_SHOW
+          ? ('closing' as const)
+          : null
+      : null;
 
   if (ev?.object_type === 'lead' && ev.action === 'created' && ev.object_id) {
     try {
@@ -115,9 +117,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (isNoShow) {
+    if (noShowArt) {
       const leadId = ev.lead_id ?? ev.data?.lead_id;
-      if (leadId) result.noshow = await handleCloseSettingNoShow(svc, { opportunityId: ev.object_id, leadId });
+      if (leadId) result.noshow = await handleCloseNoShow(svc, { opportunityId: ev.object_id, leadId, art: noShowArt });
     }
     if (ev.action === 'created' || ev.action === 'updated') {
       result.followup = await syncFollowupForOpportunity(svc, ev.object_id);

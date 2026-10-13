@@ -9,6 +9,10 @@ vi.mock('@/lib/notifications/create', () => ({
 vi.mock('@/lib/activity/log', () => ({
   logActivity: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('../noshow-antwort', () => ({
+  offeneNoShowRueckfrage: vi.fn().mockResolvedValue(null),
+  verarbeiteNoShowAntwort: vi.fn(),
+}));
 vi.mock('../close', () => ({
   addCloseNoteByEmail: vi.fn().mockResolvedValue(true),
 }));

@@ -7,6 +7,8 @@
  *   als Freitext senden — das 24h-Fenster ist durch die Antwort gerade offen.
  * "Ruf mich heute an" (Quick-Reply aus noshow_1_anruf) →
  *   Aufgabe "Heute anrufen" am Close-Lead + Slack #03-sales.
+ * Antwort auf die No-Show-Rückfrage („Wann kann ich dich besser erreichen?“) →
+ *   KI liest die Wunschzeit → Aufgabe in Close + Slack (noshow-antwort.ts).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -77,13 +79,20 @@ export function todayBerlin(now: Date = new Date()): string {
   return now.toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
 }
 
-export type SalesReplyKind = 'confirmed' | 'callback' | null;
+export type SalesReplyKind = 'confirmed' | 'callback' | 'noshow_antwort' | null;
 
 /**
  * Antwort eines Prospects auswerten. Gibt zurück, was erkannt wurde — bei null
  * meldet der Inbound-Handler die Nachricht als normale Antwort ans Team.
  */
 export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInput): Promise<SalesReplyKind> {
+  // Offene No-Show-Rückfrage hat Vorrang (auch „ruf mich morgen um 10 an“ soll die Wunschzeit bekommen)
+  const { offeneNoShowRueckfrage, verarbeiteNoShowAntwort } = await import('./noshow-antwort');
+  const offen = await offeneNoShowRueckfrage(svc, input.candidateId).catch(() => null);
+  if (offen) {
+    await verarbeiteNoShowAntwort(svc, input, offen);
+    return 'noshow_antwort';
+  }
   if (isCallbackReply(input.text)) {
     await handleCallback(svc, input);
     return 'callback';

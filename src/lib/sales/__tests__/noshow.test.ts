@@ -15,8 +15,8 @@ vi.mock('../close', async (orig) => ({
   addCloseNoteByEmail: vi.fn().mockResolvedValue(true),
 }));
 
-import { handleCloseSettingNoShow } from '../noshow';
-import { getCloseLeadContacts, closeWebhookToken, CLOSE_STATUS_SETTING_NO_SHOW } from '../close';
+import { handleCloseSettingNoShow, waehleNoShowVorlage } from '../noshow';
+import { getCloseLeadContacts, closeWebhookToken, CLOSE_STATUS_CLOSING_NO_SHOW, CLOSE_STATUS_SETTING_NO_SHOW } from '../close';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
@@ -138,10 +138,10 @@ describe('Close-Webhook-Route', () => {
 
   async function post(token: string | null, event: Record<string, unknown>) {
     vi.doMock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn(() => ({})) }));
-    vi.doMock('../noshow', () => ({ handleCloseSettingNoShow: vi.fn().mockResolvedValue('sent') }));
+    vi.doMock('../noshow', () => ({ handleCloseNoShow: vi.fn().mockResolvedValue('sent') }));
     vi.doMock('../followup', () => ({ syncFollowupForOpportunity: vi.fn().mockResolvedValue('inactive') }));
     const { POST } = await import('@/app/api/webhooks/close/route');
-    const { handleCloseSettingNoShow: handler } = await import('../noshow');
+    const { handleCloseNoShow: handler } = await import('../noshow');
     const url = new URL(`https://cloud.zoeppmedia.de/api/webhooks/close${token ? `?token=${token}` : ''}`);
     const res = await POST({ nextUrl: url, json: async () => ({ event }) } as never);
     return { res, handler: handler as ReturnType<typeof vi.fn> };
@@ -162,11 +162,35 @@ describe('Close-Webhook-Route', () => {
   it('Wechsel auf "Setting - No Show" → No-Show-Versand', async () => {
     const { res, handler } = await post(closeWebhookToken(), noShowEvent);
     expect(res.status).toBe(200);
-    expect(handler).toHaveBeenCalledWith(expect.anything(), { opportunityId: 'oppo_1', leadId: 'lead_1' });
+    expect(handler).toHaveBeenCalledWith(expect.anything(), { opportunityId: 'oppo_1', leadId: 'lead_1', art: 'setting' });
+  });
+
+  it('Wechsel auf "Closing - No Show" → No-Show-Versand (closing)', async () => {
+    const { res, handler } = await post(closeWebhookToken(), { ...noShowEvent, data: { status_id: CLOSE_STATUS_CLOSING_NO_SHOW } });
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalledWith(expect.anything(), { opportunityId: 'oppo_1', leadId: 'lead_1', art: 'closing' });
   });
 
   it('andere Status-Wechsel werden ignoriert', async () => {
     const { handler } = await post(closeWebhookToken(), { ...noShowEvent, data: { status_id: 'stat_closing' } });
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe('waehleNoShowVorlage', () => {
+  const v = (k: string) => ({ preset_key: k });
+  const alle = [v('noshow_1_anruf'), v('noshow_1_anruf_v2'), v('noshow_setting_rueckfrage'), v('noshow_closing_rueckfrage')];
+  it('Freigabe an → neue Rückfrage je Art', () => {
+    expect(waehleNoShowVorlage('setting', true, alle)?.preset_key).toBe('noshow_setting_rueckfrage');
+    expect(waehleNoShowVorlage('closing', true, alle)?.preset_key).toBe('noshow_closing_rueckfrage');
+  });
+  it('Freigabe aus → Setting alte Vorlage, Closing nichts', () => {
+    expect(waehleNoShowVorlage('setting', false, alle)?.preset_key).toBe('noshow_1_anruf_v2');
+    expect(waehleNoShowVorlage('closing', false, alle)).toBeNull();
+  });
+  it('Freigabe an, neue Vorlage noch nicht bei Meta freigegeben → Setting alt, Closing nichts', () => {
+    const alt = [v('noshow_1_anruf')];
+    expect(waehleNoShowVorlage('setting', true, alt)?.preset_key).toBe('noshow_1_anruf');
+    expect(waehleNoShowVorlage('closing', true, alt)).toBeNull();
   });
 });

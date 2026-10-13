@@ -39,6 +39,13 @@ export const FREIGABEN = {
     was: 'Nach „Angebot versendet“ bekommt der Closer in Close Aufgaben zum Nachfassen an Tag 1, 3 und 7. Kein automatischer Versand an den Lead – der Closer ruft an.',
     wirkt: 'Close-Aufgaben für den Closer',
   },
+  noshow_rueckfrage: {
+    titel: '👻 No-Show-Rückfrage (Setting + Closing)',
+    was:
+      'Du setzt in Close „Setting - No Show“ oder „Closing - No Show“ → WhatsApp „Wann kann ich dich besser erreichen?“ mit Fallstudie (Setting: B&C/Damian, Closing: David Hamid, dort zusätzlich: wer entscheidet mit). ' +
+      'Antwortet der Lead, liest die KI Tag/Uhrzeit aus → Aufgabe in Close + Slack #03-sales. Die Vorlagen müssen vorher bei Meta freigegeben sein. Aus: Setting bleibt bei der alten Vorlage noshow_1_anruf, Closing schickt nichts (nur Hinweis an dich).',
+    wirkt: 'WhatsApp an den Lead – einmal je Opportunity, ausgelöst durch deinen Status-Wechsel in Close',
+  },
   empfehlung_aufgaben: {
     titel: '🌟 Empfehlungen anfragen',
     was: 'Kunden mit Zufriedenheit ≥ 8/10 und guten Ergebnissen erscheinen unter Kunden → Empfehlungen. Eingeschaltet bekommt der Kundenbetreuer zusätzlich eine Aufgabe „Empfehlung/Video anfragen“ (Anruf, keine automatische Nachricht).',

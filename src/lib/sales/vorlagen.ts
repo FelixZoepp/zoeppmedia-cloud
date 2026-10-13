@@ -133,6 +133,32 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     ],
   },
   {
+    // No-Show Erstgespräch (sales/noshow.ts): Rückfrage nach besserer Erreichbarkeit + Dringlichkeit mit Fallstudie B&C.
+    // Die Antwort liest die Cloud aus (sales/noshow-antwort.ts) → Close-Aufgabe + Slack.
+    name: 'noshow_setting_rueckfrage',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, wir hatten heute dein Erstgespräch eingeplant, leider haben wir dich nicht erreicht.\n\n' +
+      'Wann kann ich dich besser erreichen? Schreib mir einfach Tag und Uhrzeit, dann rufe ich genau dann an.\n\n' +
+      'Warum ich dranbleibe: B&C Direct Sales hat 12 Monate gewartet, bevor sie mit uns gestartet sind. In 90 Tagen haben wir sie dann auf über 130.000 € Monatsumsatz gebracht. ' +
+      'Die 12 Monate davor haben sie viel Geld gekostet, und genau das soll bei dir nicht passieren. Damian erzählt es dir in 40 Sekunden selbst.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [{ type: 'URL', text: 'Damians Video ansehen', url: 'https://cloud.zoeppmedia.de/gespraech/fallstudie-bc' }],
+  },
+  {
+    // No-Show Beratungsgespräch (sales/noshow.ts): Rückfrage + alle Entscheider + Dringlichkeit mit Fallstudie David Hamid
+    name: 'noshow_closing_rueckfrage',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, wir waren heute zu deinem Beratungsgespräch verabredet, leider bist du nicht in den Call gekommen.\n\n' +
+      'Wann passt es dir besser? Schreib mir Tag und Uhrzeit und wer bei euch mitentscheidet, dann lege ich den Termin so, dass alle dabei sind.\n\n' +
+      'Warum ich dranbleibe: David Hamid ist mit uns von 2 auf 24 Vertriebler gewachsen. Jeder Monat, den du wartest, ist ein Monat ohne diese Leute. Wie es bei ihm gelaufen ist, siehst du im Video.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [{ type: 'URL', text: 'Davids Video ansehen', url: 'https://cloud.zoeppmedia.de/gespraech/fallstudie-david' }],
+  },
+  {
     // Interne Morgenliste für das Team (aufgaben/tagesliste.ts) – Antwort „erledigt 2“ hakt ab
     name: 'team_aufgaben_heute',
     category: 'UTILITY',

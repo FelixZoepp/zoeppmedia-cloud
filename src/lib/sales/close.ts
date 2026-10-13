@@ -300,6 +300,9 @@ export async function addCloseNoteByEmail(email: string | null, note: string, ph
 /** Opportunity-Status "Setting - No Show" in der Pipeline "D2D Sales". */
 export const CLOSE_STATUS_SETTING_NO_SHOW = 'stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7';
 
+/** Opportunity-Status "Closing - No Show" in der Pipeline "D2D Sales". */
+export const CLOSE_STATUS_CLOSING_NO_SHOW = 'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG';
+
 /** Geheimer URL-Token für den Close-Webhook, abgeleitet aus CRON_SECRET (keine extra Env-Variable). */
 export function closeWebhookToken(): string | null {
   const secret = process.env.CRON_SECRET;

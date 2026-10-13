@@ -6,7 +6,7 @@ import { BOOKING_URLS } from '@/lib/sales/tracking';
 export const metadata: Metadata = { title: 'Zoepp Media', robots: { index: false } };
 
 /** Videos „So läuft das Gespräch ab“ – Ziel der Short-Links aus den WhatsApp-Terminbestätigungen */
-const GESPRAECHE: Record<string, { titel: string; text: string; datei: string }> = {
+const GESPRAECHE: Record<string, { titel: string; text: string; datei?: string; youtube?: string }> = {
   erstgespraech: {
     titel: 'So läuft dein Erstgespräch ab',
     text: 'In knapp 2 Minuten: was dich im Gespräch erwartet und wie du dich am besten vorbereitest.',
@@ -22,6 +22,12 @@ const GESPRAECHE: Record<string, { titel: string; text: string; datei: string }>
     titel: 'B&C Direct Sales: von 2 auf 14 Leute in 90 Tagen',
     text: 'Damian erzählt in 40 Sekunden, wie B&C mit uns von 15.000 € auf 130.000 € Monatsumsatz gewachsen ist.',
     datei: 'fallstudie-bc.mp4',
+  },
+  // Fallstudie aus der WhatsApp nach No-Show im Beratungsgespräch (noshow_closing_rueckfrage)
+  'fallstudie-david': {
+    titel: 'SalesWinner Direktvertrieb: von 2 auf 24 Vertriebler',
+    text: 'David Hamid erzählt, wie er mit uns sein Vertriebsteam aufgebaut hat.',
+    youtube: 'qLZK2CCDRao',
   },
 };
 // Short-Link „beratungsgespraech“ zeigt auf dasselbe Video
@@ -41,14 +47,24 @@ export default async function GespraechSeite({ params }: { params: Promise<{ art
         </div>
         <h1 className="mt-6 text-[clamp(22px,4vw,28px)] font-semibold leading-tight tracking-[-0.03em]">{g.titel}</h1>
         <p className="mt-2 text-[15px] text-gray-600">{g.text}</p>
-        <video
-          className="mt-5 aspect-video w-full rounded-xl bg-black"
-          src={`${VIDEO_BASIS}/${g.datei}`}
-          controls
-          playsInline
-          preload="metadata"
-        />
-        {art === 'fallstudie-bc' ? (
+        {g.youtube ? (
+          <iframe
+            className="mt-5 aspect-video w-full rounded-xl bg-black"
+            src={`https://www.youtube-nocookie.com/embed/${g.youtube}?rel=0`}
+            title={g.titel}
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        ) : (
+          <video
+            className="mt-5 aspect-video w-full rounded-xl bg-black"
+            src={`${VIDEO_BASIS}/${g.datei}`}
+            controls
+            playsInline
+            preload="metadata"
+          />
+        )}
+        {art.startsWith('fallstudie-') ? (
           <a
             href={BOOKING_URLS.setting}
             className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-b from-red-700 to-red-950 px-6 text-[15px] font-medium text-white sm:w-auto"
