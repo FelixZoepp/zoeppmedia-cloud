@@ -7,6 +7,8 @@
  *   als Freitext senden — das 24h-Fenster ist durch die Antwort gerade offen.
  * "Ruf mich heute an" (Quick-Reply aus noshow_1_anruf) →
  *   Aufgabe "Heute anrufen" am Close-Lead + Slack #03-sales.
+ * Verschiebungswunsch (Termin in −24 h…+48 h oder offene Terminklärung) →
+ *   KI erkennt ihn → Aufgabe „neu legen“ in Close + Slack (verschiebung.ts).
  * Antwort auf die No-Show-Rückfrage („Wann kann ich dich besser erreichen?“) →
  *   KI liest die Wunschzeit → Aufgabe in Close + Slack (noshow-antwort.ts).
  */
@@ -79,7 +81,7 @@ export function todayBerlin(now: Date = new Date()): string {
   return now.toLocaleDateString('sv-SE', { timeZone: TIMEZONE });
 }
 
-export type SalesReplyKind = 'confirmed' | 'callback' | 'noshow_antwort' | null;
+export type SalesReplyKind = 'confirmed' | 'callback' | 'noshow_antwort' | 'verschiebung' | null;
 
 /**
  * Antwort eines Prospects auswerten. Gibt zurück, was erkannt wurde — bei null
@@ -99,6 +101,10 @@ export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInp
   }
   if (isConfirmationReply(input.text)) {
     return (await handleConfirmation(svc, input)) ? 'confirmed' : null;
+  }
+  const { verarbeiteMoeglicheVerschiebung } = await import('./verschiebung');
+  if (await verarbeiteMoeglicheVerschiebung(svc, input).catch((err) => (console.error('[sales] Verschiebung fehlgeschlagen:', err), false))) {
+    return 'verschiebung';
   }
   return null;
 }

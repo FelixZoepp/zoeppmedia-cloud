@@ -9,6 +9,9 @@ vi.mock('@/lib/notifications/create', () => ({
 vi.mock('@/lib/activity/log', () => ({
   logActivity: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('../verschiebung', () => ({
+  verarbeiteMoeglicheVerschiebung: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../noshow-antwort', () => ({
   offeneNoShowRueckfrage: vi.fn().mockResolvedValue(null),
   verarbeiteNoShowAntwort: vi.fn(),
