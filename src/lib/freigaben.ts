@@ -51,6 +51,11 @@ export const FREIGABEN = {
     was: 'Kunden mit Zufriedenheit ≥ 8/10 und guten Ergebnissen erscheinen unter Kunden → Empfehlungen. Eingeschaltet bekommt der Kundenbetreuer zusätzlich eine Aufgabe „Empfehlung/Video anfragen“ (Anruf, keine automatische Nachricht).',
     wirkt: 'Aufgaben in der Cloud für das Team',
   },
+  kunden_warnungen: {
+    titel: '⚠️ Kunden-Warnungen (Problem-Erkennung)',
+    was: 'Täglich prüfen, ob bei Kunden Bewerber, Meta-Leads, Indeed-Bewerber, Anrufe oder Pipeline-Bewegung fehlen → Warnung beim Kunden + Playbook-Aufgaben fürs Team. Erst einschalten, wenn die Kunden die Cloud aktiv nutzen – sonst lauter Fehlalarme.',
+    wirkt: 'Warnungen und Aufgaben intern (keine Nachricht an Kunden)',
+  },
   telefonie: {
     titel: '📞 Telefonieren über die Cloud',
     was:

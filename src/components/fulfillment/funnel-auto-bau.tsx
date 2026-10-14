@@ -32,6 +32,8 @@ export function FunnelAutoBau({ agencyId }: { agencyId: string }) {
   const [konfiguriert, setKonfiguriert] = useState(true);
   const [direktLive, setDirektLive] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [vorhanden, setVorhanden] = useState<string | null>(null);
+  const [automatik, setAutomatik] = useState(false);
 
   const laden = useCallback(async (weiter = false) => {
     const res = await fetch(`/api/admin/agencies/${agencyId}/funnel-bau${weiter ? '?weiter=1' : ''}`);
@@ -39,6 +41,8 @@ export function FunnelAutoBau({ agencyId }: { agencyId: string }) {
     const j = await res.json();
     setBau(j.bau);
     setKonfiguriert(j.konfiguriert);
+    setVorhanden(j.vorhanden ?? null);
+    setAutomatik(j.automatik === true);
   }, [agencyId]);
 
   useEffect(() => {
@@ -49,6 +53,8 @@ export function FunnelAutoBau({ agencyId }: { agencyId: string }) {
         if (!aktiv || !j) return;
         setBau(j.bau);
         setKonfiguriert(j.konfiguriert);
+        setVorhanden(j.vorhanden ?? null);
+        setAutomatik(j.automatik === true);
       })
       .catch(() => {});
     return () => {
@@ -80,6 +86,19 @@ export function FunnelAutoBau({ agencyId }: { agencyId: string }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  // Bisherige Kunden (ohne Automatik) bekommen den Funnel von Hand – kein automatischer Bau
+  if (!bau && !automatik) return null;
+
+  // Funnel schon von Hand verbunden → nichts zu bauen, keine Aufforderung zum Verbinden
+  if (!bau && vorhanden) {
+    return (
+      <Card padding="none" className="p-4 mb-4">
+        <p className="text-sm font-bold text-gray-900">Funnel verbunden ✓</p>
+        <p className="text-xs text-gray-500">„{vorhanden}“ ist in Perspective hinterlegt – Leads kommen über den Webhook an. Automatischer Bau nicht nötig.</p>
+      </Card>
+    );
   }
 
   return (

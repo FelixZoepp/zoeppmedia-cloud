@@ -30,7 +30,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     await treibeFunnelBauVoran(createAdminClient(), bau.id);
     bau = await letzterBau(id);
   }
-  return NextResponse.json({ bau, konfiguriert: await istPerspectiveVerbunden(createAdminClient()) });
+  // Schon ein Funnel mit Perspective-ID (von Hand verbunden)? Dann läuft der Lead-Eingang – kein Bau nötig
+  const { data: vorhanden } = await createAdminClient().from('perspective_funnels').select('name').eq('agency_id', id).not('perspective_funnel_id', 'is', null).limit(1).maybeSingle();
+  const { data: ag } = await createAdminClient().from('agencies').select('automatik').eq('id', id).maybeSingle();
+  return NextResponse.json({ bau, automatik: (ag as { automatik?: boolean } | null)?.automatik === true, konfiguriert: await istPerspectiveVerbunden(createAdminClient()), vorhanden: (vorhanden as { name: string | null } | null)?.name ?? (vorhanden ? 'Funnel' : null) });
 }
 
 /** aktion: 'start' (Standard) | 'veroeffentlichen' | 'neu_versuchen' */

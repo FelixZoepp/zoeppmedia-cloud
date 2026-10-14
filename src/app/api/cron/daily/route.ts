@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { detectProblemsForAgency } from '@/lib/problems/detect';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
+import { istFreigegeben } from '@/lib/freigaben';
 
 // Vercel Cron: GET /api/cron/daily at 08:00 UTC daily
 
@@ -42,11 +43,15 @@ async function runDailyJobs() {
     if (!ownerByAgency.has(o.agency_id)) ownerByAgency.set(o.agency_id, { email: o.email, name: o.name });
   }
 
+  // Problem-Erkennung erst, wenn freigegeben (Kunden nutzen die Cloud noch nicht aktiv)
+  const warnungenAn = await istFreigegeben(supabase, 'kunden_warnungen');
   for (const agency of agencies ?? []) {
     try {
       // 1. Problem Detection
-      const { detected } = await detectProblemsForAgency(supabase, agency.id);
-      problemsDetected += detected;
+      if (warnungenAn) {
+        const { detected } = await detectProblemsForAgency(supabase, agency.id);
+        problemsDetected += detected;
+      }
 
       // 2. Recurring Fulfillment Tasks
       if (agency.onboarding_completed) {
