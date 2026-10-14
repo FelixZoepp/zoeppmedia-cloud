@@ -10,6 +10,7 @@
 import { STANDARD_SCHWELLEN as S } from '@/lib/sales-controlling/auslastung';
 import { mitBausteinen } from './bausteine';
 import { ARTIKEL_A_Z, VIDEOS_A_Z } from './inhalte-a-z';
+import { KUNDEN_SKRIPTE } from './skripte-kunde';
 
 export type ArtikelTyp = 'sop' | 'skript' | 'wissen' | 'faq' | 'rolle';
 export type ArtikelStatus = 'entwurf' | 'freigegeben';
@@ -254,7 +255,7 @@ const SOPS: ArtikelDef[] = [
     zusammenfassung: 'Erster gemeinsamer Termin: Erwartungen, Zugänge, Inhalte.',
     abschnitte: {
       automatisch: ['„Kick-off gebucht“ hakt sich ab, sobald der Kunde den Termin bucht.', 'Fireflies zeichnet auf; das Transkript-Signal hakt „Transkript hochgeladen“ ab.'],
-      schritte: ['Vorher Close-Notizen und Gesprächsprotokoll des Abschlusses lesen.', 'Call nach Skript „Onboarding-Call“ führen.', 'Zugänge möglichst live im Call freigeben lassen.', 'Danach „Kick-off durchgeführt“ abhaken und Besonderheiten kommentieren.'],
+      schritte: ['Vorher Close-Notizen und Gesprächsprotokoll des Abschlusses lesen.', 'Call nach dem Kick-off-Skript führen (Akademie → Skripte).', 'Zugänge möglichst live im Call freigeben lassen.', 'Danach „Kick-off durchgeführt“ abhaken und Besonderheiten kommentieren.'],
       links: [L('Kalender', '/kalender')],
     },
   },
@@ -573,13 +574,10 @@ const SKRIPTE: ArtikelDef[] = [
     zusammenfassung: 'Leitfaden für das Abschlussgespräch.',
     inhalt: ['## Rahmen setzen', ERGAENZT('Agenda, Zeit, Entscheider dabei?'), '## Analyse', ERGAENZT('Welche Fragen klären Ist-Situation und Schmerz?'), '## Lösung & Garantie', ERGAENZT('Wie präsentierst du das Angebot und die Garantie?'), '## Preis & Abschluss', ERGAENZT('Wie nennst du den Preis, wie fragst du nach dem Abschluss?')].join('\n'),
   },
+  // Kick-off, Onboarding-Call, Service-Call: ausgeschrieben in skripte-kunde.ts
+  ...KUNDEN_SKRIPTE,
   {
-    slug: 'skript-onboarding-call', typ: 'skript', titel: 'Onboarding-Call-Skript (Kick-off)', modul: 'Skripte', positionen: ['csm'], status: 'entwurf', reihenfolge: 3,
-    zusammenfassung: 'Leitfaden für den Kick-off mit neuen Kunden.',
-    inhalt: ['## Ablauf', '- Erwartungen und Garantie klären', '- Zugänge live freigeben (Meta, Indeed, WhatsApp)', '- Inhalte: Stelle, Region, Verdienst, Bilder', '- Nächste Schritte und Termine', '', ERGAENZT('Konkrete Formulierungen, Reihenfolge, typische Rückfragen der Kunden.')].join('\n'),
-  },
-  {
-    slug: 'skript-einwaende', typ: 'skript', titel: 'Einwandbehandlung', modul: 'Skripte', positionen: ['setting', 'closing'], status: 'entwurf', reihenfolge: 4,
+    slug: 'skript-einwaende', typ: 'skript', titel: 'Einwandbehandlung', modul: 'Skripte', positionen: ['setting', 'closing'], status: 'entwurf', reihenfolge: 6,
     zusammenfassung: 'Häufige Einwände und Antworten.',
     inhalt: ['| Einwand | Antwort |', '|---|---|', '| „Zu teuer“ | Felix ergänzt |', '| „Keine Zeit“ | Felix ergänzt |', '| „Muss ich mir überlegen“ | Felix ergänzt |', '| „Haben schon eine Agentur“ | Felix ergänzt |'].join('\n'),
   },
