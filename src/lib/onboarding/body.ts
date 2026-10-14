@@ -2,7 +2,11 @@
  * Felder, die der Kunde im Onboarding-Formular nie selbst setzen darf.
  * Mandant, Status und Zeitstempel setzt ausschließlich der Server.
  */
-const GESCHUETZTE_FELDER = new Set(['id', 'agency_id', 'status', 'created_at', 'updated_at', 'submitted_by']);
+const GESCHUETZTE_FELDER = new Set([
+  'id', 'agency_id', 'status', 'created_at', 'updated_at', 'submitted_by',
+  // Handelsregisterauszug nur über /api/onboarding/handelsregister (Pfad wird dort geprüft)
+  'handelsregister_pfad', 'handelsregister_dateiname', 'handelsregister_am',
+]);
 
 /** Entfernt geschützte und unplausible Schlüssel aus dem Request-Body des Onboarding-Formulars. */
 export function bereinigeOnboardingBody(body: unknown): Record<string, unknown> {

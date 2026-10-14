@@ -13,6 +13,7 @@ import { KundenZugaengeCard } from '@/components/clients/kunden-zugaenge-card';
 import { LeistungenCard } from '@/components/clients/leistungen-card';
 import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
 import { TestleadCard } from '@/components/clients/testlead-card';
+import { HandelsregisterCard } from '@/components/clients/handelsregister-card';
 import { GeneratorCard } from '@/components/clients/generator-card';
 import { agencyLogo } from '@/lib/branding/logo';
 import {
@@ -599,6 +600,8 @@ export default function ClientDetailPage() {
       <TestleadCard agencyId={id} onFertig={load} />
 
       <KundenZugaengeCard agencyId={id} />
+
+      <HandelsregisterCard agencyId={id} />
 
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (

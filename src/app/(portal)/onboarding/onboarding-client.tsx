@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
 import { FileUpload } from '@/components/file-upload';
+import { HandelsregisterUpload } from '@/components/onboarding/handelsregister-upload';
 import {
   Briefcase, MapPin, Palette, Phone, User, ChevronRight, ChevronLeft, Check,
   ShieldCheck, DollarSign, Building2, Sparkles, Video,
@@ -252,6 +253,9 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
     contact_name: '',
     contact_phone: '',
     preferred_contact_time: '',
+    firmen_strasse: '',
+    firmen_plz: '',
+    firmen_ort: '',
     // Step 5 — Meta & Indeed
     meta_daily_budget: '',
     indeed_daily_budget: '',
@@ -281,6 +285,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
             'commission_per_unit', 'employment_type', 'company_car_from', 'training_type',
             'client_name', 'start_date', 'tone', 'logo_url', 'primary_color',
             'contact_name', 'contact_phone', 'preferred_contact_time', 'dankevideo_url',
+            'firmen_strasse', 'firmen_plz', 'firmen_ort',
           ];
           fields.forEach(f => { if (data[f]) restored[f] = data[f]; });
           // Numbers
@@ -352,6 +357,9 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
           contact_name: form.contact_name || null,
           contact_phone: form.contact_phone || null,
           preferred_contact_time: form.preferred_contact_time || null,
+          firmen_strasse: form.firmen_strasse || null,
+          firmen_plz: form.firmen_plz || null,
+          firmen_ort: form.firmen_ort || null,
           meta_access_steps: form.meta_access_steps,
         }),
       }).catch(() => {});
@@ -414,6 +422,9 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
         contact_name: form.contact_name || null,
         contact_phone: form.contact_phone || null,
         preferred_contact_time: form.preferred_contact_time || null,
+        firmen_strasse: form.firmen_strasse || null,
+        firmen_plz: form.firmen_plz || null,
+        firmen_ort: form.firmen_ort || null,
         meta_access_steps: form.meta_access_steps,
       }),
     });
@@ -691,6 +702,28 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
                 { value: 'evening', label: 'Abends (17-20 Uhr)' },
                 { value: 'anytime', label: 'Jederzeit' },
               ]} />
+            </div>
+
+            <div className="pt-4 border-t border-gray-200 space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-gray-900">Firmensitz & Handelsregister</p>
+                <p className="text-xs text-gray-400 mt-0.5">Für eure eigene Festnetznummer im WhatsApp-Bot – Adresse genau wie im Handelsregister.</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Straße & Hausnummer *</label>
+                <Input value={form.firmen_strasse} onChange={(e) => update('firmen_strasse', e.target.value)} icon={<MapPin className="w-4 h-4" />} placeholder="Musterstraße 1" />
+              </div>
+              <div className="grid grid-cols-[120px_1fr] gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">PLZ *</label>
+                  <Input value={form.firmen_plz} onChange={(e) => update('firmen_plz', e.target.value.replace(/\D/g, '').slice(0, 5))} inputMode="numeric" placeholder="12345" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Ort *</label>
+                  <Input value={form.firmen_ort} onChange={(e) => update('firmen_ort', e.target.value)} placeholder="Berlin" />
+                </div>
+              </div>
+              <HandelsregisterUpload />
             </div>
 
             {error && (
