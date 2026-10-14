@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
-import { AvatarUpload } from '@/components/avatar-upload';
 import { KundenZugaengeCard } from '@/components/clients/kunden-zugaenge-card';
 import { LeistungenCard } from '@/components/clients/leistungen-card';
 import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
@@ -213,7 +212,7 @@ function OnboardingProgressSection({ agencyId }: { agencyId: string }) {
 
 /* ── KPI Progress Bar ────────────────────────────────────── */
 
-function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, current: number) => void }) {
+function KpiBar({ kpi }: { kpi: KpiItem; onOverride: (key: string, current: number) => void }) {
   const ratio = kpi.defaultValue > 0 ? kpi.value / kpi.defaultValue : 0;
   const isGood =
     kpi.direction === 'higher_is_better' ? ratio >= 1 : ratio <= 1;
@@ -233,12 +232,7 @@ function KpiBar({ kpi, onOverride }: { kpi: KpiItem; onOverride: (key: string, c
           {kpi.isOverride && (
             <Badge tone="softAccent" className="text-xs py-0.5 px-2">Individuell</Badge>
           )}
-          <button
-            onClick={() => onOverride(kpi.key, kpi.value)}
-            className="text-xs font-semibold text-red-600 hover:text-red-700 uppercase tracking-wide transition-colors"
-          >
-            Ziel anpassen
-          </button>
+          {/* Ziele werden je Branche/Plattform/Vertragsart festgelegt, nicht je Kunde */}
         </div>
       </div>
       <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
@@ -572,23 +566,17 @@ export default function ClientDetailPage() {
         }
       />
 
+      {/* Logo legt der Kunde selbst fest (Portal → Einstellungen) – hier nur Anzeige */}
       <Card className="mb-6">
-        <AvatarUpload
-          name={agency.name}
-          src={agencyLogo((agency as { settings?: unknown }).settings)}
-          folder={`avatars/agencies/${id}`}
-          size={72}
-          label="Kunden-Logo ändern"
-          onChange={async (url) => {
-            const res = await fetch('/api/agency/logo', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ agency_id: id, logo_url: url }),
-            });
-            if (!res.ok) throw new Error('Logo konnte nicht gespeichert werden');
-            load();
-          }}
-        />
+        <div className="flex items-center gap-4">
+          {agencyLogo((agency as { settings?: unknown }).settings) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={agencyLogo((agency as { settings?: unknown }).settings)!} alt={agency.name} className="h-[72px] w-[72px] rounded-full object-cover" />
+          ) : (
+            <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-500">{agency.name.slice(0, 2).toUpperCase()}</div>
+          )}
+          <p className="text-sm text-gray-500">Das Logo legt der Kunde selbst in seinen Einstellungen fest.</p>
+        </div>
       </Card>
 
       <LeistungenCard agencyId={id} onGeaendert={load} />
