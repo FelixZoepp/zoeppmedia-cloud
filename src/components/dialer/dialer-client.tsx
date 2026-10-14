@@ -18,6 +18,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { Badge, Button, Card, PageHeader } from '@/components/ui';
+import { BrowserAnruf } from './browser-anruf';
 import type { DialerQueueItem, QueueReason } from '@/lib/dialer/queue';
 
 /* ------------------------------------------------------------------ */
@@ -432,6 +433,7 @@ function Fokus({
   const [verlauf, setVerlauf] = useState<CallLog[] | null>(null);
   const [speichert, setSpeichert] = useState(false);
   const [fehler, setFehler] = useState('');
+  const [dauer, setDauer] = useState<number | null>(null);
   const g = GRUND[item.reason];
 
   useEffect(() => {
@@ -462,6 +464,7 @@ function Fokus({
           notes: notiz.trim() || null,
           next_step: ergebnis === 'rueckruf' ? 'erneut_anrufen' : null,
           next_contact_date: ergebnis === 'rueckruf' ? rückrufAm : null,
+          duration_seconds: dauer,
         }),
       });
       if (!res.ok) {
@@ -489,7 +492,7 @@ function Fokus({
       setFehler(e instanceof Error ? e.message : 'Unbekannter Fehler');
       setSpeichert(false);
     }
-  }, [ergebnis, speichert, terminAm, item, notiz, rückrufAm, terminArt, onErledigt]);
+  }, [ergebnis, speichert, terminAm, item, notiz, rückrufAm, terminArt, onErledigt, dauer]);
 
   // Tastatur: 1–6 Ergebnis, ⌘/Strg+Enter speichern & weiter
   useEffect(() => {
@@ -542,6 +545,12 @@ function Fokus({
         {item.reason === 'rueckruf' && item.callback_date && ` · Rückruf fällig ${new Date(item.callback_date).toLocaleDateString('de-DE')}`}
       </p>
       {item.callback_note && <p className="mt-2 rounded-[12px] bg-panel px-3 py-2 text-[13.5px] text-gray-700">„{item.callback_note}“</p>}
+
+      {item.phone && schreiben && (
+        <div className="mt-5">
+          <BrowserAnruf candidateId={item.candidate_id} onEnde={(sek) => setDauer(sek || null)} />
+        </div>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         {item.phone ? (

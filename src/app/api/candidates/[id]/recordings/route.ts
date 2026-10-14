@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { transcribeAudio } from '@/lib/recordings/transcribe';
-import { analyzeCallRecording } from '@/lib/recordings/analyze';
+import { verarbeiteAufnahme } from '@/lib/recordings/verarbeiten';
 import { logActivity } from '@/lib/activity/log';
 import { getCurrentUser } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
@@ -91,7 +90,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // 3. Transcribe in background (don't block response)
-  processRecording(admin, recording.id, buffer, file.name, candidate.agency_id, recordingType).catch(() => {});
+  // after(): läuft nach der Antwort weiter, ohne dass die Funktion vorher beendet wird
+  after(() => verarbeiteAufnahme(admin, recording.id, buffer, file.name, candidate.agency_id, recordingType).catch(() => {}));
 
   await logActivity(supabase, {
     agency_id: candidate.agency_id,
@@ -104,59 +104,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const [mitLink] = await mitFrischenAufnahmeLinks(admin, [recording]);
   return NextResponse.json(mitLink, { status: 201 });
-}
-
-async function processRecording(
-  supabase: ReturnType<typeof createAdminClient>,
-  recordingId: string,
-  audioBuffer: Buffer,
-  fileName: string,
-  agencyId: string,
-  recordingType: string
-) {
-  // Step 1: Transcribe
-  let transcript = '';
-  try {
-    transcript = await transcribeAudio(audioBuffer, fileName);
-    await supabase
-      .from('call_recordings')
-      .update({ transcript, transcript_status: 'done', analysis_status: 'processing' })
-      .eq('id', recordingId);
-  } catch {
-    await supabase
-      .from('call_recordings')
-      .update({ transcript_status: 'failed' })
-      .eq('id', recordingId);
-    return;
-  }
-
-  // Step 2: Get phone script for comparison
-  let phoneScript: string | null = null;
-  try {
-    const { data: scripts } = await supabase
-      .from('content_library')
-      .select('content')
-      .eq('agency_id', agencyId)
-      .eq('content_type', 'phone_script')
-      .in('status', ['approved_internal', 'approved', 'deployed'])
-      .order('created_at', { ascending: false })
-      .limit(1);
-    phoneScript = scripts?.[0]?.content || null;
-  } catch {
-    // No script available — analysis will note this
-  }
-
-  // Step 3: Analyze
-  try {
-    const analysis = await analyzeCallRecording(transcript, phoneScript, recordingType);
-    await supabase
-      .from('call_recordings')
-      .update({ analysis, analysis_status: 'done' })
-      .eq('id', recordingId);
-  } catch {
-    await supabase
-      .from('call_recordings')
-      .update({ analysis_status: 'failed' })
-      .eq('id', recordingId);
-  }
 }

@@ -51,6 +51,14 @@ export const FREIGABEN = {
     was: 'Kunden mit Zufriedenheit ≥ 8/10 und guten Ergebnissen erscheinen unter Kunden → Empfehlungen. Eingeschaltet bekommt der Kundenbetreuer zusätzlich eine Aufgabe „Empfehlung/Video anfragen“ (Anruf, keine automatische Nachricht).',
     wirkt: 'Aufgaben in der Cloud für das Team',
   },
+  telefonie: {
+    titel: '📞 Telefonieren über die Cloud',
+    was:
+      'Im Anruf-Modus rufen Team und Kunden direkt im Browser an. Absender ist die Nummer aus der Anruf-Einrichtung des Kunden. ' +
+      'Mit Aufnahme hört der Angerufene beim Abheben zuerst „Dieses Gespräch wird zur Qualitätssicherung aufgezeichnet“. Die Aufnahme wird transkribiert und ausgewertet und danach bei Twilio gelöscht. ' +
+      'Aus: nur Admins können zum Testen telefonieren.',
+    wirkt: 'Nur Anrufe, die jemand selbst startet – nichts läuft automatisch',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;
