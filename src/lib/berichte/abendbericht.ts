@@ -9,6 +9,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { metaAdAccountId } from '@/lib/meta/ad-account';
 import { quoten, type Tageszeile } from '@/lib/sales-controlling/tagesbericht';
 import { ladeTagesbericht, tageZwischen } from '@/lib/sales-controlling/tagesbericht-laden';
 import { META_FILTER } from '@/lib/sales-controlling/quellen';
@@ -84,7 +85,7 @@ interface MetaTagRoh {
 /** Meta Ads je Tag (Sales-Werbekonto, gleiche Filter wie im Sales-Controlling) */
 async function ladeMetaTage(von: string, bis: string): Promise<Map<string, Omit<MarketingTag, 'eintragungen' | 'direktGebucht'>> | null> {
   const token = process.env.META_ACCESS_TOKEN;
-  const account = process.env.META_AD_ACCOUNT_ID;
+  const account = metaAdAccountId();
   if (!token || !account) return null;
   const url = new URL(`https://graph.facebook.com/v21.0/${account}/insights`);
   url.searchParams.set('access_token', token);

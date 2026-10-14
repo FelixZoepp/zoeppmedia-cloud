@@ -1,4 +1,5 @@
 import type { CloseStatus, MetaZahlen, Opp, StatusEvent } from './compute';
+import { metaAdAccountId } from '@/lib/meta/ad-account';
 import type { Anruf, Aufgabe } from './detail';
 
 /** Datenquellen für das Sales-Controlling: Close (Pipeline „D2D Sales“) und Meta Ads (Sales-Werbekonto). */
@@ -150,7 +151,7 @@ function metaLeads(i: MetaInsight): number {
 
 async function metaInsights(params: Record<string, string>): Promise<MetaInsight[]> {
   const token = process.env.META_ACCESS_TOKEN;
-  const account = process.env.META_AD_ACCOUNT_ID;
+  const account = metaAdAccountId();
   if (!token || !account) return [];
   const url = new URL(`${META_BASE}/${account}/insights`);
   url.searchParams.set('access_token', token);

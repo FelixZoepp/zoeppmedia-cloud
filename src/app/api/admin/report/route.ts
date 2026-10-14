@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { metaAdAccountId } from '@/lib/meta/ad-account';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { closeAll, type CloseOppRoh } from '@/lib/sales-controlling/quellen';
@@ -230,7 +231,7 @@ export async function GET(request: NextRequest) {
   const range = (searchParams.get('range') ?? '30d') as Range;
 
   const token = process.env.META_ACCESS_TOKEN;
-  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const adAccountId = metaAdAccountId();
 
   const { since, until } = getDateRange(range);
 
