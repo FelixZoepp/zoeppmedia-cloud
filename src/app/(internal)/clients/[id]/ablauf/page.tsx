@@ -189,48 +189,82 @@ export default function AblaufPage({ params }: { params: Promise<{ id: string }>
         }}
       />
 
-      <div className="space-y-4">
+      {/* Phasen-Leiste: erledigt ✓ · aktuell · kommend */}
+      <div className="mb-4 flex flex-wrap items-center gap-1.5">
         {data.phases.map((p, i) => {
-          const isCurrent = p.key === data.phase;
+          const fertig = i < currentIndex || data.phase === 'beendet';
+          const aktuell = p.key === data.phase;
+          return (
+            <div key={p.key} className="flex items-center gap-1.5">
+              {i > 0 && <span className="h-px w-4 bg-gray-300" />}
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ${
+                  aktuell ? `${p.farbe} text-white` : fertig ? 'bg-green-50 text-green-800' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {fertig && '✓'} {p.label}
+              </span>
+              {i === currentIndex + 1 && p.key !== 'offboarding' && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Phase "${p.label}" jetzt starten?`)) void patchAgency({ phase: p.key });
+                  }}
+                  className="text-xs font-semibold text-red-600 hover:underline"
+                >
+                  starten
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Nur die aktuelle Phase mit Schritten */}
+      {data.phases
+        .filter((p) => p.key === data.phase)
+        .map((p) => {
           const offen = p.schritte.filter((s) => s.status !== 'erledigt' && s.status !== 'nicht_noetig').length;
           return (
-            <Card key={p.key} padding="none" className={`overflow-hidden ${isCurrent ? 'ring-2 ring-red-200' : ''}`}>
-              <div className={`${p.farbe} px-4 py-2.5 text-white flex items-center justify-between`}>
+            <Card key={p.key} padding="none" className="overflow-hidden mb-4">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <div>
-                  <span className="font-bold">{p.label}</span>
-                  {isCurrent && <span className="ml-2 text-xs bg-white/25 rounded-full px-2 py-0.5">aktuell</span>}
+                  <span className="font-semibold text-gray-900">{p.label}</span>
                   {p.key === 'continuity' && data.agency?.launch_datum && (
-                    <span className="ml-2 text-xs opacity-90">Kampagnenstart {new Date(data.agency.launch_datum).toLocaleDateString('de-DE')}</span>
+                    <span className="ml-2 text-xs text-gray-500">Kampagnenstart {new Date(data.agency.launch_datum).toLocaleDateString('de-DE')}</span>
                   )}
                 </div>
-                <span className="text-xs opacity-90">
-                  {p.schritte.length ? `${p.schritte.length - offen}/${p.schritte.length} erledigt` : ''}
-                </span>
+                <span className="text-xs text-gray-500">{p.schritte.length ? (offen ? `${offen} offen · ${p.schritte.length - offen}/${p.schritte.length} erledigt` : 'alles erledigt ✓') : ''}</span>
               </div>
               <div className="px-4 divide-y divide-gray-100">
                 {p.schritte.map((s) => (
                   <StepRow key={s.id} step={s} team={data.team} onChange={(patch) => patchStep(s.id, patch)} />
                 ))}
-                {!p.schritte.length && (
-                  <div className="py-4 text-sm text-gray-500 flex items-center justify-between">
-                    <span>{i < currentIndex ? 'Vor der Umstellung abgeschlossen.' : 'Startet, sobald die vorherige Phase fertig ist.'}</span>
-                    {i > currentIndex && p.key !== 'offboarding' && (
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Phase "${p.label}" jetzt starten?`)) void patchAgency({ phase: p.key });
-                        }}
-                        className="text-xs font-semibold text-red-600 hover:underline"
-                      >
-                        Jetzt starten
-                      </button>
-                    )}
-                  </div>
-                )}
+                {!p.schritte.length && <p className="py-4 text-sm text-gray-500">Keine offenen Schritte in dieser Phase.</p>}
               </div>
             </Card>
           );
         })}
-      </div>
+
+      {/* Abgeschlossene Phasen eingeklappt */}
+      {data.phases.some((p, i) => i < currentIndex && p.schritte.length) && (
+        <details className="rounded-xl border border-gray-200 bg-white">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-gray-700">Abgeschlossene Phasen anzeigen</summary>
+          <div className="px-4 pb-2">
+            {data.phases
+              .filter((p, i) => i < currentIndex && p.schritte.length)
+              .map((p) => (
+                <div key={p.key} className="py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{p.label}</p>
+                  <div className="divide-y divide-gray-100">
+                    {p.schritte.map((s) => (
+                      <StepRow key={s.id} step={s} team={data.team} onChange={(patch) => patchStep(s.id, patch)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
