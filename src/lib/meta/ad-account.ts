@@ -5,6 +5,14 @@ export function normalisiereAdAccount(wert: string | undefined | null): string |
   return v.startsWith('act_') ? v : `act_${v.replace(/\D/g, '')}`;
 }
 
+/** Werbekonto von Zoepp Media – kein Geheimnis, gilt, solange META_AD_ACCOUNT_ID in Vercel fehlt */
+const ZOEPP_AD_ACCOUNT = 'act_773153438539782';
+
 export function metaAdAccountId(): string | undefined {
-  return normalisiereAdAccount(process.env.META_AD_ACCOUNT_ID);
+  return normalisiereAdAccount(process.env.META_AD_ACCOUNT_ID) ?? ZOEPP_AD_ACCOUNT;
+}
+
+/** Schlüssel für die Werbezahlen: eigener Ads-Token, sonst der Systembenutzer-Token (braucht ads_read) */
+export function metaAdsToken(): string | undefined {
+  return process.env.META_ACCESS_TOKEN || process.env.META_SYSTEM_USER_TOKEN || undefined;
 }

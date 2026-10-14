@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { metaAdAccountId } from '@/lib/meta/ad-account';
+import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = metaAdsToken();
   const adAccountId = metaAdAccountId();
   if (!token || !adAccountId) {
     return NextResponse.json({ error: 'Meta credentials not configured' }, { status: 500 });

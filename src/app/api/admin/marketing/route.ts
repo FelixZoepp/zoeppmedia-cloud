@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { metaAdAccountId } from '@/lib/meta/ad-account';
+import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import { isAdmin } from '@/lib/admin';
 import { closeAll } from '@/lib/sales-controlling/quellen';
 import { NextRequest, NextResponse } from 'next/server';
@@ -315,7 +315,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid range' }, { status: 400 });
   }
 
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = metaAdsToken();
   const adAccountId = metaAdAccountId();
 
   if (!token || !adAccountId) {

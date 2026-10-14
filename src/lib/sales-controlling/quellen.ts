@@ -1,5 +1,5 @@
 import type { CloseStatus, MetaZahlen, Opp, StatusEvent } from './compute';
-import { metaAdAccountId } from '@/lib/meta/ad-account';
+import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import type { Anruf, Aufgabe } from './detail';
 
 /** Datenquellen für das Sales-Controlling: Close (Pipeline „D2D Sales“) und Meta Ads (Sales-Werbekonto). */
@@ -150,7 +150,7 @@ function metaLeads(i: MetaInsight): number {
 }
 
 async function metaInsights(params: Record<string, string>): Promise<MetaInsight[]> {
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = metaAdsToken();
   const account = metaAdAccountId();
   if (!token || !account) return [];
   const url = new URL(`${META_BASE}/${account}/insights`);
@@ -169,7 +169,7 @@ export async function ladeMetaZeitraum(von: string, bis: string): Promise<MetaZa
   const ende = new Date(new Date(bis).getTime() - 864e5).toISOString().slice(0, 10);
   if (ende < von) return { spend: 0, leads: 0 };
   const rows = await metaInsights({ time_range: JSON.stringify({ since: von, until: ende }) });
-  if (!process.env.META_ACCESS_TOKEN) return null;
+  if (!metaAdsToken()) return null;
   return rows.reduce((s, r) => ({ spend: s.spend + Number(r.spend ?? 0), leads: s.leads + metaLeads(r) }), { spend: 0, leads: 0 });
 }
 

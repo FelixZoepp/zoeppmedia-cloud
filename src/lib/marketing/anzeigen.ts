@@ -6,7 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { metaAdAccountId } from '@/lib/meta/ad-account';
+import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import { META_FILTER, closeAll, CLOSE_PIPELINE_ID } from '@/lib/sales-controlling/quellen';
 
 const CLOSING_STUFEN = new Set([
@@ -77,7 +77,7 @@ interface MetaAnzeigeRoh {
 }
 
 async function metaAnzeigen(von: string, bis: string, tageweise = false): Promise<MetaAnzeigeRoh[] | null> {
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = metaAdsToken();
   const account = metaAdAccountId();
   if (!token || !account) return null;
   const out: MetaAnzeigeRoh[] = [];
@@ -103,7 +103,7 @@ async function metaAnzeigen(von: string, bis: string, tageweise = false): Promis
 }
 
 async function metaGet<T>(pfad: string, params: Record<string, string>): Promise<T[] | null> {
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = metaAdsToken();
   const account = metaAdAccountId();
   if (!token || !account) return null;
   const u = new URL(`https://graph.facebook.com/v21.0/${account}/${pfad}`);

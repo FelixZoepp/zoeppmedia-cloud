@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { metaAdAccountId } from '@/lib/meta/ad-account';
+import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { closeAll, type CloseOppRoh } from '@/lib/sales-controlling/quellen';
@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
     weekRanges.push({ since: fmt(monday), until: fmt(sunday), monday });
   }
 
-  const token = process.env.META_ACCESS_TOKEN;
+  const token = metaAdsToken();
   const adAccountId = metaAdAccountId();
 
   // Fetch Meta + Close in parallel
