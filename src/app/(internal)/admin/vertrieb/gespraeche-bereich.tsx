@@ -11,7 +11,7 @@ interface Gespraech {
   titel: string | null;
   datum: string | null;
   dauer_min: number | null;
-  status: 'offen' | 'in_close' | 'kein_lead' | 'fehler' | 'uebersprungen';
+  status: 'offen' | 'in_close' | 'kein_lead' | 'fehler' | 'uebersprungen' | 'kunde';
   punkte: number | null;
   zuordnung: string | null;
   close_lead_id: string | null;

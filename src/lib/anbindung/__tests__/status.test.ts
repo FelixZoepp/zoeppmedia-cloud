@@ -41,3 +41,10 @@ describe('berechneAnbindung mit Manatal', () => {
     expect(k.offen).not.toContain('Indeed-Weiterleitung einrichten');
   });
 });
+
+describe('berechneAnbindung mit pausiertem Indeed', () => {
+  it('Indeed noch nicht geschaltet → keine Weiterleitungs-Aufgabe', () => {
+    const [k] = berechneAnbindung([ag('oemer', { settings: { indeed_pausiert: true } })], [], [], [], [], [], [{ agency_id: 'oemer', status: 'active' }], jetzt);
+    expect(k.offen).not.toContain('Indeed-Weiterleitung einrichten');
+  });
+});

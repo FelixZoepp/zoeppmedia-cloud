@@ -56,6 +56,11 @@ export const FREIGABEN = {
     was: 'Täglich prüfen, ob bei Kunden Bewerber, Meta-Leads, Indeed-Bewerber, Anrufe oder Pipeline-Bewegung fehlen → Warnung beim Kunden + Playbook-Aufgaben fürs Team. Erst einschalten, wenn die Kunden die Cloud aktiv nutzen – sonst lauter Fehlalarme.',
     wirkt: 'Warnungen und Aufgaben intern (keine Nachricht an Kunden)',
   },
+  kunden_gespraech_todos: {
+    titel: '🎥 To-dos aus Kundengesprächen',
+    was: 'Kick-offs, Onboardings und Service-Calls aus Fireflies werden immer dem Kunden zugeordnet und ausgewertet (Stimmung, Zusagen, Risiken). Eingeschaltet legt die Cloud aus jedem Gespräch die To-dos als Aufgaben beim zuständigen Mitarbeiter an (Kundenbetreuer, Media Buyer, Innendienst) und meldet kritische Stimmung sofort.',
+    wirkt: 'Interne Aufgaben und Hinweise (keine Nachricht an Kunden)',
+  },
   telefonie: {
     titel: '📞 Telefonieren über die Cloud',
     was:

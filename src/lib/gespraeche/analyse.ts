@@ -209,7 +209,7 @@ export async function verarbeiteGespraech(
   opts: { erneut?: boolean; leadId?: string | null } = {},
 ): Promise<string> {
   const { data: schon } = await svc.from('gespraech_analysen').select('status').eq('fireflies_id', firefliesId).maybeSingle();
-  if ((schon as { status: string } | null)?.status === 'in_close' && !opts.erneut) return 'schon_in_close';
+  if (['in_close', 'kunde'].includes((schon as { status: string } | null)?.status ?? '') && !opts.erneut) return 'schon_in_close';
 
   const merke = (patch: Record<string, unknown>) =>
     svc.from('gespraech_analysen').upsert({ fireflies_id: firefliesId, updated_at: new Date().toISOString(), ...patch }, { onConflict: 'fireflies_id' });
@@ -224,6 +224,16 @@ export async function verarbeiteGespraech(
     if ((t.duration ?? 0) < 1 || !(t.sentences ?? []).length) {
       await merke({ ...basis, status: 'uebersprungen', fehler: 'zu kurz oder ohne Transkript' });
       return 'uebersprungen';
+    }
+    // Gespräch mit einem bestehenden Kunden (Kick-off, Onboarding, Service) → Kundenakte statt Close
+    if (!opts.leadId) {
+      const { findeKunde, verarbeiteKundengespraech } = await import('./kunde');
+      const kunde = await findeKunde(svc, t);
+      if (kunde) {
+        await verarbeiteKundengespraech(svc, t, kunde);
+        await merke({ ...basis, status: 'kunde', zuordnung: `Kunde ${kunde.name} (${kunde.zuordnung})`, fehler: null });
+        return 'kunde';
+      }
     }
     // Close-Telefonat: Lead steht schon fest (aus client_reference_id)
     const { leadId, zuordnung } = opts.leadId ? { leadId: opts.leadId, zuordnung: 'Close-Telefonat' } : await findeLead(svc, t);

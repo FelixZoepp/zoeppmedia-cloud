@@ -56,7 +56,9 @@ export function berechneAnbindung(
 
     const offen: string[] = [];
     if (metaStatus === 'fehlt') offen.push('Meta-Leads/Funnel anbinden');
-    if (indeedStatus === 'fehlt') offen.push('Indeed-Weiterleitung einrichten');
+    // Indeed bewusst pausiert / noch nicht geschaltet (settings.indeed_pausiert) → keine Aufgabe
+    const indeedPausiert = !!(a.settings as { indeed_pausiert?: boolean } | null)?.indeed_pausiert;
+    if (indeedStatus === 'fehlt' && !indeedPausiert) offen.push('Indeed-Weiterleitung einrichten');
     if (werbekonto === 'fehlt') offen.push('Meta-Werbekonto-ID hinterlegen');
     if (jobsAktiv === 0) offen.push('Aktive Stelle anlegen');
 

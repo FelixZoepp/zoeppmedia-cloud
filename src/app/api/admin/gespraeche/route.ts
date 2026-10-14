@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     // Fertig = schon in Close oder bewusst übersprungen; „kein Lead“ und Fehler werden erneut versucht (z. B. Lead inzwischen angelegt)
     const fertig = new Set(
       ((vorhanden ?? []) as Array<{ fireflies_id: string; status: string }>)
-        .filter((v) => (b.erneut ? false : v.status === 'in_close' || v.status === 'uebersprungen'))
+        .filter((v) => (b.erneut ? false : v.status === 'in_close' || v.status === 'uebersprungen' || v.status === 'kunde'))
         .map((v) => v.fireflies_id),
     );
     const offen = liste.filter((t) => !fertig.has(t.id)).slice(0, max);

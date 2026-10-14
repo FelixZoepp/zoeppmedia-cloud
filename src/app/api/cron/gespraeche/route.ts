@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
         const liste = await listeTranskripte(seit, 30);
         const { data: da } = await svc.from('gespraech_analysen').select('fireflies_id, status').in('fireflies_id', liste.map((t) => t.id));
         const fertig = new Set(
-          ((da ?? []) as Array<{ fireflies_id: string; status: string }>).filter((x) => x.status === 'in_close' || x.status === 'uebersprungen').map((x) => x.fireflies_id),
+          ((da ?? []) as Array<{ fireflies_id: string; status: string }>).filter((x) => x.status === 'in_close' || x.status === 'uebersprungen' || x.status === 'kunde').map((x) => x.fireflies_id),
         );
         for (const t of liste.filter((x) => !fertig.has(x.id)).slice(0, 8)) await verarbeiteGespraech(svc, t.id);
       } catch (err) {
