@@ -198,7 +198,9 @@ const problemChecks: ProblemCheck[] = [
     kpiKey: 'min_indeed_per_2days',
     severity: 'warning',
     check: async (supabase, agencyId, target) => {
-      // Check: min 10 Indeed-Bewerber in 3 Tagen
+      // Check: min 10 Indeed-Bewerber in 3 Tagen – nicht, wenn Indeed beim Kunden pausiert ist (agencies.settings.indeed_pausiert)
+      const { data: ag } = await supabase.from('agencies').select('settings').eq('id', agencyId).maybeSingle();
+      if ((ag?.settings as { indeed_pausiert?: boolean } | null)?.indeed_pausiert) return { triggered: false, currentValue: 0 };
       const { count } = await supabase
         .from('candidates')
         .select('*', { count: 'exact', head: true })
