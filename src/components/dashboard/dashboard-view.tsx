@@ -166,9 +166,9 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, 
       </div>
 
       {/* ── Werbekosten ──────────────────────────────────── */}
-      {((data.metaDailyBudget != null && data.metaDailyBudget > 0) || (data.indeedDailyBudget != null && data.indeedDailyBudget > 0)) && (
+      {((data.metaDailyBudget != null && data.metaDailyBudget > 0) || (data.indeedDailyBudget != null && data.indeedDailyBudget > 0) || data.indeed30) && (
         <DashCard>
-          <CardTitle sub="Tagesbudget hochgerechnet auf 30 Tage">Werbekosten</CardTitle>
+          <CardTitle sub={data.indeed30 ? "Letzte 30 Tage aus dem hinterlegten Tagesbudget" : "Tagesbudget hochgerechnet auf 30 Tage"}>Werbekosten</CardTitle>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {data.metaDailyBudget != null && data.metaDailyBudget > 0 && (() => {
               const daily = data.metaDailyBudget!;
@@ -182,7 +182,13 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, 
                 </>
               );
             })()}
-            {data.indeedDailyBudget != null && data.indeedDailyBudget > 0 && (() => {
+            {data.indeed30 && (
+              <>
+                <MoneyStat label="Indeed Kosten (30 Tage)" value={data.indeed30.kosten} sub={data.indeed30.tagesbudget != null ? `${data.indeed30.tagesbudget.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € / Tag` : 'pausiert'} />
+                <MoneyStat label="Indeed Kosten pro Bewerber" value={data.indeed30.leadpreis ?? 0} sub={`${data.indeed30.bewerber} Bewerber in 30 Tagen`} />
+              </>
+            )}
+            {!data.indeed30 && data.indeedDailyBudget != null && data.indeedDailyBudget > 0 && (() => {
               const daily = data.indeedDailyBudget!;
               const monthly = daily * 30;
               const indeedCandidates = data.sourceBreakdown.find((s) => s.name === 'Indeed')?.count ?? 0;

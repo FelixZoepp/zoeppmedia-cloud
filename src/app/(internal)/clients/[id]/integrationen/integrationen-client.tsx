@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { toast } from 'sonner';
 import { PersonaKarte } from './persona-karte';
+import { IndeedBudgetKarte } from './indeed-budget-karte';
 import {
   ArrowLeft,
   Check,
@@ -336,6 +337,8 @@ export function IntegrationenClient({ agencyId }: { agencyId: string }) {
             )}
           </div>
         </Card>
+
+        <IndeedBudgetKarte agencyId={agencyId} />
       </div>
 
       <PersonaKarte agencyId={agencyId} origin={origin} />

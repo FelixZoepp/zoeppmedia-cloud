@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { fetchAll } from '@/lib/supabase/fetch-all';
 import { getStagesForAgency, istEingestelltStage } from '@/lib/pipeline/get-stages';
 import { berlinMonatsStart, berlinWochenStart } from '@/lib/zeit/berlin';
+import { indeedKosten, laufendePhase, leadpreis, type BudgetPhase } from '@/lib/werbekosten/indeed-budget';
 
 export interface DashboardData {
   totalCandidates: number;
@@ -16,6 +17,8 @@ export interface DashboardData {
   recentCandidates: { id: string; name: string; source: string; created_at: string }[];
   indeedDailyBudget: number | null;
   metaDailyBudget: number | null;
+  /** Indeed letzte 30 Tage aus dem hinterlegten Tagesbudget (null = kein Budget hinterlegt) */
+  indeed30: { kosten: number; bewerber: number; leadpreis: number | null; tagesbudget: number | null } | null;
 }
 
 export async function getDashboardData(agencyId: string): Promise<DashboardData> {
@@ -117,6 +120,19 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
     ? parseFloat(onboarding.meta_daily_budget)
     : null;
 
+  // Indeed-Kosten aus dem Budget (Tagesbudget × Tage) und Indeed-Bewerber derselben 30 Tage
+  let indeed30: DashboardData['indeed30'] = null;
+  const { data: budget } = await supabase.from('indeed_budget').select('tagesbudget, start, ende').eq('agency_id', agencyId);
+  const phasen = ((budget ?? []) as BudgetPhase[]).map((p) => ({ ...p, tagesbudget: Number(p.tagesbudget) }));
+  if (phasen.length) {
+    const tag = (n: number) => new Date(Date.now() - n * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+    const von = tag(29);
+    const bis = tag(0);
+    const { count } = await supabase.from('candidates').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source', 'indeed').is('deleted_at', null).gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString());
+    const { kosten } = indeedKosten(phasen, von, bis);
+    indeed30 = { kosten, bewerber: count ?? 0, leadpreis: leadpreis(kosten, count ?? 0), tagesbudget: laufendePhase(phasen, bis)?.tagesbudget ?? null };
+  }
+
   return {
     totalCandidates: totalCandidates ?? 0,
     newThisWeek: newThisWeek ?? 0,
@@ -135,5 +151,6 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
     })),
     indeedDailyBudget,
     metaDailyBudget,
+    indeed30,
   };
 }
