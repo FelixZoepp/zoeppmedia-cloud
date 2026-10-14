@@ -54,7 +54,7 @@ async function ladeVonResend(emailId: string): Promise<{ ok: true; html: string;
 }
 
 /** Passende Stelle: Jobtitel aus der Mail ↔ aktive Stellen (genau, dann enthält), sonst Standard-Stelle */
-async function findeStelle(svc: SupabaseClient, agencyId: string, jobTitel: string | null): Promise<{ id: string } | null> {
+export async function findeStelle(svc: SupabaseClient, agencyId: string, jobTitel: string | null): Promise<{ id: string } | null> {
   const { data: jobs } = await svc.from('jobs').select('id, title, is_default, status').eq('agency_id', agencyId);
   const liste = (jobs ?? []) as Array<{ id: string; title: string | null; is_default: boolean | null; status: string | null }>;
   const norm = (s: string | null) => (s ?? '').toLowerCase().replace(/\(m\/w\/d\)|\(w\/m\/d\)|[^a-zäöüß0-9 ]/gi, ' ').replace(/\s+/g, ' ').trim();

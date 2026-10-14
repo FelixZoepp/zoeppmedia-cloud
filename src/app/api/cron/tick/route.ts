@@ -245,6 +245,14 @@ export async function GET(request: NextRequest) {
     console.error('[tick] CEO-Briefing nicht geplant:', err);
   }
 
+  // Manatal: neue Bewerber der zugeordneten Kunden abholen (nur mit MANATAL_API_TOKEN)
+  try {
+    const { holeManatalBewerber, manatalAktiv } = await import('@/lib/manatal/abgleich');
+    if (manatalAktiv()) await holeManatalBewerber(svc);
+  } catch (err) {
+    console.error('[tick] Manatal-Abgleich fehlgeschlagen:', err);
+  }
+
   const { data: jobs } = await svc.rpc('claim_due_jobs', { batch_size: 100 });
 
   for (const job of jobs || []) {

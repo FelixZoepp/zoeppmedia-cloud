@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { BewerberKontaktKarte } from './bewerber-kontakt-karte';
+import { ManatalKarte } from './manatal-karte';
 import Link from 'next/link';
 import { AlertTriangle, ArrowRight, Copy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -66,6 +67,8 @@ export function AnbindungClient() {
       </div>
 
       <BewerberKontaktKarte />
+
+      <ManatalKarte />
 
       <PerspectiveVerbindung />
 
