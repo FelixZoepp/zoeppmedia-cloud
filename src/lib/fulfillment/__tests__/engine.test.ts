@@ -34,7 +34,7 @@ describe('Katalog', () => {
 
   it('Zahlung ist immer die erste Phase, Continuity hat die Checks bis Tag 90', () => {
     expect(stepsForPhase('zahlung').map((s) => s.key)).toContain('z_zahlung_setup');
-    expect(stepsForPhase('continuity').map((s) => s.key)).toEqual(['c_check_7', 'c_check_14', 'c_check_30', 'c_check_45', 'c_check_60', 'c_check_75', 'c_testimonial_termin', 'c_testimonial', 'c_check_90']);
+    expect(stepsForPhase('continuity').map((s) => s.key)).toEqual([]);
   });
 
   it('alte Pipeline-Phasen werden sinnvoll übernommen', () => {
@@ -74,11 +74,11 @@ describe('startPhase', () => {
     expect(tables.client_steps.find((s) => s.step_key === 'o_bilder')).toMatchObject({ status: 'offen' });
   });
 
-  it('Continuity: Fristen zählen ab Kampagnenstart', async () => {
+  it('Continuity: keine festen Schritte (Testimonial/Upsell laufen über Ergebnisse)', async () => {
     const { client, tables } = db();
     tables.agencies[0].launch_datum = '2026-10-01';
     await startPhase(client, AG, 'continuity', now);
-    expect(tables.client_steps.find((s) => s.step_key === 'c_check_90')).toMatchObject({ faellig_am: '2026-12-30' });
+    expect((tables.client_steps ?? []).filter((s) => s.phase === 'continuity')).toEqual([]);
   });
 });
 
@@ -160,20 +160,12 @@ describe('Signale und Bestandskunden', () => {
     const { client, tables } = db();
     tables.agencies[0].phase_override = 'bestandskunde';
     expect(await ensureFulfillment(client, AG, now)).toBe('continuity');
-    expect(tables.client_steps.every((s) => s.phase === 'continuity')).toBe(true);
+    expect((tables.client_steps ?? []).every((s) => s.phase === 'continuity')).toBe(true);
     expect(await ensureFulfillment(client, AG, now)).toBe('continuity'); // idempotent
   });
 });
 
-describe('Testimonial und Systemnutzer', () => {
-  it('Testimonial-Termin gebucht (Calendly) → Schritt automatisch erledigt', async () => {
-    const { client, tables } = db();
-    await startPhase(client, AG, 'continuity', now);
-    expect(await completeBySignal(client, AG, 'testimonial_gebucht')).toBe(true);
-    expect(tables.client_steps.find((s) => s.step_key === 'c_testimonial_termin')).toMatchObject({ status: 'erledigt', wer: 'kunde' });
-    expect(tables.client_steps.find((s) => s.step_key === 'c_testimonial')).toMatchObject({ status: 'offen', owner_user_id: 'felix' });
-  });
-
+describe('Systemnutzer', () => {
   it('Werbekonto-ID schon hinterlegt → Systemnutzer-Schritt beim Onboarding-Start erledigt', async () => {
     const { client, tables } = db();
     tables.agencies[0].meta_ad_account_id = 'act_123';

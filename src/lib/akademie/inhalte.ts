@@ -356,7 +356,7 @@ const SOPS: ArtikelDef[] = [
 
   // Laufende Betreuung
   {
-    slug: 'continuity-check', typ: 'sop', titel: 'Anzeigen + Tracking prüfen (Tag 7 bis 75)', modul: 'Laufende Betreuung', positionen: ['media_buyer'], step_keys: ['c_check_7', 'c_check_14', 'c_check_30', 'c_check_45', 'c_check_60', 'c_check_75'], status: 'freigegeben', video_key: 'continuity_check', prioritaet: 2, reihenfolge: 40,
+    slug: 'continuity-check', typ: 'sop', titel: 'Anzeigen + Tracking prüfen (Tag 7 bis 75)', modul: 'Laufende Betreuung', positionen: ['media_buyer'], step_keys: [], status: 'freigegeben', video_key: 'continuity_check', prioritaet: 2, reihenfolge: 40,
     zusammenfassung: 'Regelmäßiger Blick auf Kampagne und Tracking-Kette.',
     abschnitte: {
       automatisch: ['Meta-Zahlen synchronisiert die Cloud täglich.', 'Tag-7- und Tag-14-Report geht bei Automatik-Kunden automatisch raus.'],
@@ -373,7 +373,7 @@ const SOPS: ArtikelDef[] = [
     },
   },
   {
-    slug: 'testimonial-verlaengerung', typ: 'sop', titel: 'Testimonial, Tag-90-Check und Verlängerung', modul: 'Laufende Betreuung', positionen: ['csm', 'closing'], step_keys: ['c_testimonial_termin', 'c_testimonial', 'c_check_90'], status: 'freigegeben', video_key: 'garantie_verlaengerung', prioritaet: 2, reihenfolge: 42,
+    slug: 'testimonial-verlaengerung', typ: 'sop', titel: 'Testimonial, Tag-90-Check und Verlängerung', modul: 'Laufende Betreuung', positionen: ['csm', 'closing'], step_keys: [], status: 'freigegeben', video_key: 'garantie_verlaengerung', prioritaet: 2, reihenfolge: 42,
     zusammenfassung: 'Ergebnisse sichern und rechtzeitig über die Fortsetzung sprechen.',
     abschnitte: {
       automatisch: ['Testimonial-Termin hakt sich bei Buchung ab.', 'Bei Automatik-Kunden 30 und 14 Tage vor Laufzeitende Aufgabe „Verlängerung/Upsell-Gespräch“ mit Kennzahlen.'],

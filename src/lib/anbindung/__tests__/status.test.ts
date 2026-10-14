@@ -33,3 +33,11 @@ describe('berechneAnbindung', () => {
     expect(r[0].id).toBe('neu');
   });
 });
+
+describe('berechneAnbindung mit Manatal', () => {
+  it('Kunde mit Manatal-Zuordnung braucht keine Indeed-Weiterleitung', () => {
+    const [k] = berechneAnbindung([ag('saleswinner')], [], [], [], [], [], [{ agency_id: 'saleswinner', status: 'active' }], jetzt, ['saleswinner']);
+    expect(k.indeed.status).toBe('eingerichtet');
+    expect(k.offen).not.toContain('Indeed-Weiterleitung einrichten');
+  });
+});

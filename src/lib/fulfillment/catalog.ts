@@ -59,7 +59,7 @@ export const PHASES: Array<{ key: Phase; label: string; farbe: string; beschreib
   { key: 'zahlung', label: 'Zahlungsabwicklung', farbe: 'bg-yellow-400', beschreibung: 'Einrichtungsgebühr ist immer der erste Schritt' },
   { key: 'onboarding', label: 'Onboarding', farbe: 'bg-orange-500', beschreibung: 'Kick-off, Inhalte und Zugänge vom Kunden' },
   { key: 'setup', label: 'Setup-Phase', farbe: 'bg-stone-500', beschreibung: 'Skripte, Grafiken, Funnel, Werbemanager, Launch' },
-  { key: 'continuity', label: 'Continuity', farbe: 'bg-rose-600', beschreibung: 'Kampagne läuft: Ads + Tracking prüfen, Tag 7 bis 90' },
+  { key: 'continuity', label: 'Continuity', farbe: 'bg-rose-600', beschreibung: 'Kampagne läuft – Testimonial und Upsell nach Ergebnissen (Empfehlungen)' },
   { key: 'offboarding', label: 'Offboarding', farbe: 'bg-teal-700', beschreibung: 'Sauber beenden, Testimonial sichern' },
 ];
 
@@ -196,17 +196,9 @@ export const STEPS: StepDef[] = [
   { key: 's_launch', phase: 'setup', titel: 'Kampagne live', beschreibung: 'Ads und Indeed-Anzeige gestartet, Kunde informiert.', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 8 },
 
   // ── 4 · Continuity (Fristen ab Kampagnenstart) ───────────────────────────
-  ...[7, 14, 30, 45, 60, 75].map((tag): StepDef => ({
-    key: `c_check_${tag}`, phase: 'continuity', titel: `Anzeigen + Tracking prüfen (Tag ${tag})`,
-    wer: 'zoepp', funktion: 'media_buyer', frist_tage: tag,
-  })),
-  {
-    key: 'c_testimonial_termin', phase: 'continuity', titel: 'Testimonial-Termin gebucht',
-    beschreibung: 'Bitte buch dir einen kurzen Termin für dein Testimonial – wir nehmen es gemeinsam auf.',
-    wer: 'kunde', funktion: 'csm', frist_tage: 30, auto: 'testimonial_gebucht',
-  },
-  { key: 'c_testimonial', phase: 'continuity', titel: 'Testimonial aufgenommen', wer: 'zoepp', funktion: 'csm', frist_tage: 45 },
-  { key: 'c_check_90', phase: 'continuity', titel: 'Anzeigen + Tracking prüfen + Upsell (Tag 90)', beschreibung: 'Spätestens hier Upsell/Verlängerung ansprechen.', wer: 'zoepp', funktion: 'csm', frist_tage: 90 },
+  // Anzeigen + Tracking prüft das Team täglich bzw. im Wochenreport – keine Einzelschritte je Kunde
+  // Testimonial und Upsell hängen an Ergebnissen (Zufriedenheit ≥ 8/10 + Einstellung oder ≥ 10 Bewerber in 30 Tagen):
+  // Empfehlungen-Seite (Video-Testimonial) und Close-Feld „Upsell-Potenzial“ – keine festen Termine je Kunde
 
   // ── 5 · Offboarding (manuell gestartet) ──────────────────────────────────
   { key: 'off_kuendigung', phase: 'offboarding', titel: 'Kündigung erfasst', wer: 'zoepp', funktion: 'csm', frist_tage: 0 },

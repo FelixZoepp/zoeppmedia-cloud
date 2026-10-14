@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 import { agencyLogo } from '@/lib/branding/logo';
+import { ladeZuordnung } from '@/lib/manatal/abgleich';
 
 /** Bewerber-Anbindung je Kunde: Kommen über Meta/Funnel und Indeed Bewerber an? Ist das Werbekonto hinterlegt? */
 
@@ -32,6 +33,8 @@ export function berechneAnbindung(
   wa: Array<{ agency_id: string; status: string | null }>,
   jobs: Array<{ agency_id: string; status: string | null }>,
   jetzt: Date,
+  /** Kunden mit Manatal-Zuordnung: Indeed läuft über Manatal → gilt als eingerichtet */
+  manatalKunden: string[] = [],
 ): KundeAnbindung[] {
   const vor14 = new Date(jetzt.getTime() - 14 * 864e5).toISOString();
   const letzter = (xs: K[]) => xs.map((x) => x.created_at).sort().pop() ?? null;
@@ -44,7 +47,7 @@ export function berechneAnbindung(
     const funnel = funnels.some((f) => f.agency_id === a.id && f.perspective_funnel_id);
     const metaEingerichtet = funnel || metaQuellen.includes(a.id);
     const metaStatus: KanalStatus = meta.some((x) => x.created_at >= vor14) ? 'aktiv' : metaEingerichtet || meta.length ? 'eingerichtet' : 'fehlt';
-    const indeedStatus: KanalStatus = indeed.some((x) => x.created_at >= vor14) ? 'aktiv' : indeed.length ? 'eingerichtet' : 'fehlt';
+    const indeedStatus: KanalStatus = indeed.some((x) => x.created_at >= vor14) ? 'aktiv' : indeed.length || manatalKunden.includes(a.id) ? 'eingerichtet' : 'fehlt';
     const rep = reports.filter((r) => r.agency_id === a.id).map((r) => r.date).sort().pop() ?? null;
     const werbekonto: KanalStatus = a.meta_ad_account_id ? (rep ? 'aktiv' : 'eingerichtet') : 'fehlt';
     const waStatus = wa.find((w) => w.agency_id === a.id)?.status;
@@ -85,6 +88,7 @@ export async function ladeAnbindung(svc: SupabaseClient, jetzt: Date = new Date(
     svc.from('whatsapp_accounts').select('agency_id, status'),
     svc.from('jobs').select('agency_id, status'),
   ]);
+  const manatal = await ladeZuordnung(svc).catch(() => ({}) as Record<string, string>);
   return berechneAnbindung(
     ((ags ?? []) as Parameters<typeof berechneAnbindung>[0]).filter((a) => a.fulfillment_phase !== 'beendet'),
     (kand ?? []) as K[],
@@ -94,5 +98,6 @@ export async function ladeAnbindung(svc: SupabaseClient, jetzt: Date = new Date(
     (wa ?? []) as Array<{ agency_id: string; status: string | null }>,
     (jobs ?? []) as Array<{ agency_id: string; status: string | null }>,
     jetzt,
+    Object.values(manatal),
   );
 }
