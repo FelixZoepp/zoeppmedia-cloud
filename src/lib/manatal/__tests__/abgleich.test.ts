@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { manatalTelefon, manatalQuelle, schlageKundenVor } from '../abgleich';
+import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches } from '../abgleich';
 import { normalizePhoneE164 } from '@/lib/phone';
 
 describe('Manatal: Telefonnummern', () => {
@@ -42,5 +42,14 @@ describe('Manatal: Kunden-Vorschlag über den Namen', () => {
   it('kein Vorschlag bei mehreren oder keinem Treffer', () => {
     expect(schlageKundenVor('Sales', kunden)).toBeNull();
     expect(schlageKundenVor('Unbekannt GmbH', kunden)).toBeNull();
+  });
+});
+
+describe('offeneMatches', () => {
+  const m = (id: number, created_at: string) => ({ id, organization: 1, job: 1, candidate: id, created_at });
+  it('überspringt bereits erledigte Matches auf dem Stand, nicht aber neue mit gleicher Zeit', () => {
+    const t = '2026-10-14T10:00:00Z';
+    const r = offeneMatches([m(3, '2026-10-14T10:05:00Z'), m(1, t), m(2, t)], { seit: t, erledigt: new Set([1]) });
+    expect(r.map((x) => x.id)).toEqual([2, 3]);
   });
 });

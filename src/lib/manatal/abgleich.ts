@@ -156,10 +156,10 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
   const ergebnis: AbgleichErgebnis = { neu: 0, ignoriert: 0, fehler: 0 };
   if (!manatalAktiv()) return ergebnis;
 
-  const stand = await ladeJson<{ seit: string }>(svc, CURSOR_KEY);
+  const stand = await ladeJson<{ seit: string; erledigt?: number[] }>(svc, CURSOR_KEY);
   if (!stand?.seit) {
     // Erster Lauf: keine alten Bewerber nachholen
-    await speichereJson(svc, CURSOR_KEY, { seit: jetzt.toISOString() });
+    await speichereJson(svc, CURSOR_KEY, { seit: jetzt.toISOString(), erledigt: [] });
     return ergebnis;
   }
 
@@ -174,19 +174,25 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
 
   const zuordnung = await ladeZuordnung(svc);
   const jobs = new Map<number, ManatalJob>();
-  let neuerStand = stand.seit;
+  // Der Abruf ist „ab Stand“: Matches genau auf dem Stand kommen im nächsten Tick erneut → über ihre IDs überspringen
+  const stand0 = { seit: stand.seit, erledigt: new Set(stand.erledigt ?? []) };
+  let neu = { seit: stand0.seit, erledigt: new Set(stand0.erledigt) };
+  const abhaken = (m: ManatalMatch) => {
+    if (m.created_at > neu.seit) neu = { seit: m.created_at, erledigt: new Set([m.id]) };
+    else if (m.created_at === neu.seit) neu.erledigt.add(m.id);
+  };
 
-  for (const m of matches.sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+  for (const m of offeneMatches(matches, stand0)) {
     const agencyId = zuordnung[String(m.organization)];
     if (!agencyId || GESPERRTE_KUNDEN.has(agencyId)) {
       ergebnis.ignoriert++;
-      if (m.created_at > neuerStand) neuerStand = m.created_at;
+      abhaken(m);
       continue;
     }
     // Schon übernommen (der Stand ist „ab“, der letzte Bewerber kommt im nächsten Tick erneut)
     const { count: schon } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', `manatal:${m.id}`);
     if (schon) {
-      if (m.created_at > neuerStand) neuerStand = m.created_at;
+      abhaken(m);
       continue;
     }
     try {
@@ -235,9 +241,18 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
       ergebnis.fehler++;
       break;
     }
-    if (m.created_at > neuerStand) neuerStand = m.created_at;
+    abhaken(m);
   }
 
-  if (neuerStand !== stand.seit) await speichereJson(svc, CURSOR_KEY, { seit: neuerStand });
+  if (neu.seit !== stand0.seit || neu.erledigt.size !== stand0.erledigt.size) {
+    await speichereJson(svc, CURSOR_KEY, { seit: neu.seit, erledigt: [...neu.erledigt] });
+  }
   return ergebnis;
+}
+
+/** Noch nicht verarbeitete Matches in zeitlicher Reihenfolge (rein, testbar) */
+export function offeneMatches(matches: ManatalMatch[], stand: { seit: string; erledigt: Set<number> }): ManatalMatch[] {
+  return [...matches]
+    .filter((m) => !(m.created_at <= stand.seit && stand.erledigt.has(m.id)))
+    .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
 }
