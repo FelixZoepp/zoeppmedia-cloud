@@ -1,7 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { computeSlots, type SlotInput } from '../slots';
 
 describe('computeSlots', () => {
+  // Feste Uhrzeit: die Slots liegen ab 05.10.2026, sonst fällt der Test je nach Tag durch
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-05T06:00:00Z'));
+  });
+  afterAll(() => vi.useRealTimers());
+
   const baseInput: SlotInput = {
     rules: [
       { weekday: 1, start_time: '09:00:00', end_time: '12:00:00' }, // Montag
