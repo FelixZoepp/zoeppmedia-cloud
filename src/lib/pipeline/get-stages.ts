@@ -46,7 +46,7 @@ export async function getStagesForAgency(
 
 /**
  * Phase eines Typs für einen Kunden – eigene Phasen, sonst die Standard-Phasen.
- * Mehrere Typen = Rangfolge (z. B. ['qualified', 'qualifying']: die Standard-Phasen kennen nur „qualifying“ = Kontaktiert).
+ * Mehrere Typen = Rangfolge (z. B. ['qualified', 'qualifying']: Standard-Phase „Qualifiziert“ = qualified, ältere Kunden-Phasen evtl. „qualifying“).
  */
 export async function stageVomTyp(supabase: SupabaseClient, agencyId: string, typen: string[]): Promise<(PipelineStage & Record<string, unknown>) | null> {
   const stages = (await getStagesForAgency(supabase, agencyId)) as Array<PipelineStage & Record<string, unknown>>;
