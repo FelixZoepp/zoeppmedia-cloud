@@ -13,6 +13,7 @@ import { NeueBewerber } from '@/components/live/neue-bewerber';
 import { siehtLiveBewerber } from '@/lib/live/bewerber';
 import type { UserRole } from '@/lib/auth';
 import { AnsichtLeiste, AnsichtWechsler } from '@/components/ansicht/ansicht-wechsler';
+import { ZeitPill } from '@/components/zeiten/zeit-pill';
 
 interface ShellUser {
   name: string;
@@ -131,7 +132,8 @@ export function LayoutShell({ user, children }: { user: ShellUser; children: Rea
           </span>
           <span className="flex-1 text-[17px] font-semibold tracking-[-0.03em] md:hidden">Zoepp Cloud</span>
           {internal && <GlobalSearch />}
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-3">
+            {internal && <ZeitPill />}
             {user.istAdmin && !user.vorschau && <AnsichtWechsler />}
             <NotificationBell />
             <Link
