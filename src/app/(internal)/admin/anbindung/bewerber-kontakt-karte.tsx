@@ -9,6 +9,7 @@ interface Schalter {
   aktiv: boolean;
   testnummern: string[];
   testmails: string[];
+  kunden: string[];
 }
 
 /** Freigabe „Bewerber-Kontakt“: bis zur Freigabe schreibt die Cloud keinen Bewerber automatisch an (Testnummern ausgenommen) */
@@ -51,7 +52,7 @@ export function BewerberKontaktKarte() {
           <p className="text-[13.5px] text-gray-600">
             {s.aktiv
               ? 'Der KI-Agent und alle Automatiken schreiben Bewerber an (WhatsApp, Erinnerungen, E-Mails).'
-              : 'Kein Bewerber wird automatisch angeschrieben – außer den Testnummern unten. Manuelle Nachrichten aus der Inbox gehen weiterhin. Aufgaben für den Innendienst entstehen trotzdem.'}
+              : `Kein Bewerber wird automatisch angeschrieben – außer den Testnummern unten${s.kunden.length ? ` und bei ${s.kunden.length} einzeln freigegebenen Kunden (Kundenakte)` : ''}. Manuelle Nachrichten aus der Inbox gehen weiterhin. Aufgaben für den Innendienst entstehen trotzdem.`}
           </p>
         </div>
         <Button

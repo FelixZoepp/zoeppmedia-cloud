@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import { KundenZugaengeCard } from '@/components/clients/kunden-zugaenge-card';
+import { StartklarCard } from '@/components/clients/startklar-card';
 import { MasterclassFuehrungCard } from '@/components/clients/masterclass-fuehrung-card';
 import { LeistungenCard } from '@/components/clients/leistungen-card';
 import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
@@ -592,7 +593,10 @@ export default function ClientDetailPage() {
 
       <TestleadCard agencyId={id} onFertig={load} />
 
-      <KundenZugaengeCard agencyId={id} />
+      <StartklarCard agencyId={id} />
+      <div id="kunden-logins" className="scroll-mt-6">
+        <KundenZugaengeCard agencyId={id} />
+      </div>
       <MasterclassFuehrungCard agencyId={id} />
 
       <HandelsregisterCard agencyId={id} />

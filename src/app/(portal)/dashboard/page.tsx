@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { DashboardView } from '@/components/dashboard/dashboard-view';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ladeRoiUebersicht } from '@/lib/roi/laden';
+import { ladeStartklar } from '@/lib/startklar/laden';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export default async function DashboardPage() {
   if (!agencyId) redirect(isInternal(user.role) ? '/innendienst' : '/login');
 
   const supabase = await createServerClient();
-  const [data, roi, { count: pendingSurveys }] = await Promise.all([
+  const [data, roi, { count: pendingSurveys }, startklar] = await Promise.all([
     getDashboardData(agencyId),
     ladeRoiUebersicht(createAdminClient(), agencyId).catch((err) => {
       console.error('[dashboard] Kennzahlen', err);
@@ -27,6 +28,10 @@ export default async function DashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('agency_id', agencyId)
       .is('completed_at', null),
+    ladeStartklar(createAdminClient(), agencyId).catch((err) => {
+      console.error('[dashboard] Startklar', err);
+      return null;
+    }),
   ]);
   const { data: g } = await createAdminClient()
     .from('agencies')
@@ -41,6 +46,7 @@ export default async function DashboardPage() {
       agencyId={agencyId}
       agencyName={user.name}
       pendingSurveys={pendingSurveys ?? 0}
+      startklar={startklar}
       garantie={gz?.garantie_ziel_starter && gz.garantie_ampel ? { ampel: gz.garantie_ampel, ist: gz.garantie_ist ?? 0, ziel: gz.garantie_ziel_starter } : null}
       kennzahlen={
         roi && {

@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
   try {
     const expiresAt = new Date(Date.now() + 7 * 86400000).toLocaleDateString('de-DE');
-    await sendInviteEmail(email, name, invite_url, expiresAt);
+    await sendInviteEmail(email, name, invite_url, expiresAt, 'inhaber');
     await admin
       .from('invite_tokens')
       .update({ email_sent_at: new Date().toISOString() })

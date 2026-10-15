@@ -154,7 +154,7 @@ export async function bookAppointment(svc: SupabaseClient, args: {
     // Letzter Fallback: Bewerber-E-Mail (für Bestätigung an den Kandidaten) – nur bei freigegebenem Bewerber-Kontakt
     if (!recruiterEmail && candidate.email) {
       const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-      if (darfKontakt(await ladeSchalter(svc), { email: candidate.email })) {
+      if (darfKontakt(await ladeSchalter(svc), { email: candidate.email, agencyId: args.agencyId })) {
         recruiterEmail = candidate.email;
         isCandidateFallback = true;
       }

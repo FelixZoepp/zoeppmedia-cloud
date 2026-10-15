@@ -40,7 +40,7 @@ export async function sendWhatsAppMessage(
   if (opts.agencyId !== SALES_AGENCY_ID && !opts.isHumanUiSend && !opts.pflichtAntwort) {
     const { pruefeKontakt } = await import('@/lib/recruiting/kontakt-schalter');
     // Tatsächlicher Empfänger zählt (payload.to), nicht nur das Begleitfeld
-    await pruefeKontakt(svc, { telefon: opts.payload.to || opts.candidatePhone });
+    await pruefeKontakt(svc, { telefon: opts.payload.to || opts.candidatePhone, agencyId: opts.agencyId });
     if (opts.payload.to && opts.candidatePhone && opts.payload.to.replace(/\D/g, '') !== opts.candidatePhone.replace(/\D/g, '')) {
       throw new Error('Empfänger stimmt nicht mit dem Bewerber überein');
     }

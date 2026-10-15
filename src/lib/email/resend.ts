@@ -10,6 +10,7 @@ import {
   vertragBestaetigtTemplate,
   zahlungEingegangenTemplate,
 } from './templates';
+import type { InviteAnleitung } from './templates';
 import { reportTemplate } from './report-template';
 
 let _resend: Resend | null = null;
@@ -26,12 +27,14 @@ export async function sendInviteEmail(
   agencyName: string,
   registerUrl: string,
   expiresAt: string,
+  /** Nur bei Kunden-Einladungen: „So startest du“-Liste (interne Mitarbeiter bekommen keine) */
+  anleitung?: InviteAnleitung | null,
 ) {
   return getResend().emails.send({
     from: FROM,
     to,
     subject: `Einladung: ${agencyName} — Zoepp Media Cloud`,
-    html: inviteTemplate(agencyName, registerUrl, expiresAt),
+    html: inviteTemplate(agencyName, registerUrl, expiresAt, anleitung),
   });
 }
 

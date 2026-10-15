@@ -205,7 +205,7 @@ export async function trageTerminEin(
   // Einladung an den Bewerber (Gast) nur bei freigegebenem Bewerber-Kontakt
   if (t.gastEmail) {
     const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-    if (!darfKontakt(await ladeSchalter(svc), { email: t.gastEmail })) t = { ...t, gastEmail: null };
+    if (!darfKontakt(await ladeSchalter(svc), { email: t.gastEmail, agencyId })) t = { ...t, gastEmail: null };
   }
   const token = await zugriff(svc, v);
   if (v.provider === 'google') {

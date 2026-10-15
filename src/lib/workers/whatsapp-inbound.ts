@@ -227,7 +227,7 @@ export async function processInbound(svc: SupabaseClient, agencyId: string, payl
   // Bewerber schreibt zuerst → KI-Agent übernimmt (offene Bewerbung, aktiver Agent, noch nicht qualifiziert, kein Mensch dran)
   // Solange der Bewerber-Kontakt gesperrt ist, antwortet der Agent nicht (Nachricht liegt im Posteingang des Teams)
   const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-  const agentDarf = darfKontakt(await ladeSchalter(svc), { telefon: senderPhone });
+  const agentDarf = darfKontakt(await ladeSchalter(svc), { telefon: senderPhone, agencyId: effectiveAgencyId });
   let state: string = agentDarf ? conv.state : 'gesperrt';
   if (state === 'waiting') {
     const { starteAgentBeiNachricht } = await import('@/lib/bot/start-bei-nachricht');

@@ -11,6 +11,8 @@ import { KundenKennzahlen, type KundenKennzahlenDaten } from './kunden-kennzahle
 import { Wochenstand } from './wochenstand';
 import { Fahrplan } from './fahrplan';
 import { GarantieBalken } from '@/components/garantie/garantie-balken';
+import { StartklarListe } from '@/components/startklar/startklar-liste';
+import type { Startklar } from '@/lib/startklar/schritte';
 import { Avatar, Badge, CountUp, SplitText, StatCard } from '@/components/ui';
 
 // recharts nur bei Bedarf laden, damit die Startseite des Kundenportals schlank bleibt
@@ -92,9 +94,11 @@ interface DashboardViewProps {
   kennzahlen?: KundenKennzahlenDaten | null;
   /** Garantieziel-Fortschritt (null = kein Ziel hinterlegt) */
   garantie?: { ampel: string; ist: number; ziel: number } | null;
+  /** Startklar-Checkliste – sichtbar, bis alle Schritte erledigt sind */
+  startklar?: Startklar | null;
 }
 
-export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null, garantie = null }: DashboardViewProps) {
+export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null, garantie = null, startklar = null }: DashboardViewProps) {
   const now = new Date();
   const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' });
   const kw = getISOWeek(now);
@@ -134,6 +138,14 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, 
         <SplitText as="h1" text="Dashboard" className="text-[clamp(30px,3vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]" />
         <p className="fx-fade mt-2 text-[15px] text-gray-600">Dein Recruiting bei {agencyName} – alles an einem ruhigen Ort.</p>
       </div>
+
+      {/* ── Startklar ────────────────────────────────────── */}
+      {startklar && !startklar.fertig && (
+        <DashCard>
+          <CardTitle sub="Einmal einrichten, dann läuft dein Recruiting in der Cloud. Erledigtes hakt sich von selbst ab.">Startklar</CardTitle>
+          <StartklarListe startklar={startklar} />
+        </DashCard>
+      )}
 
       {/* ── Garantieziel ─────────────────────────────────── */}
       {garantie && (

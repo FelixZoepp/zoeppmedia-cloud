@@ -531,7 +531,7 @@ async function executeSendEmail(
     const bewerberMail = (c as { email: string | null } | null)?.email?.toLowerCase().trim();
     if (bewerberMail && to.toLowerCase().trim() === bewerberMail) {
       const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-      if (!darfKontakt(await ladeSchalter(_svc), { email: to })) {
+      if (!darfKontakt(await ladeSchalter(_svc), { email: to, agencyId: ctx.agency_id })) {
         console.warn('[automation] E-Mail an Bewerber gesperrt (Bewerber-Kontakt nicht freigegeben)', ctx.candidate_id);
         return;
       }

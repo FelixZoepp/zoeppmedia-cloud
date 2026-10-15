@@ -108,6 +108,9 @@ describe('sendWhatsAppMessage', () => {
     await expect(sendWhatsAppMessage(svc, BASE_OPTS)).rejects.toThrow('Einwilligung');
     // Keine Message-Row darf angelegt worden sein
     expect(insertSpy).not.toHaveBeenCalled();
+    // Kontakt-Schalter bekommt die Agentur (Freigabe pro Kunde)
+    const { pruefeKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+    expect(pruefeKontakt).toHaveBeenCalledWith(svc, { telefon: '+491701234567', agencyId: 'agency-1' });
   });
 
   it('(2) Provider-Erfolg → löst mit { messageId, messageRowId } auf, Row auf status sent gesetzt', async () => {

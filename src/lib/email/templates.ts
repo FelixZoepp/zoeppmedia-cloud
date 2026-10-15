@@ -1,4 +1,29 @@
-export function inviteTemplate(agencyName: string, registerUrl: string, expiresAt: string): string {
+/** Wer bekommt welche Startanleitung? Inhaber richtet ein, Team-Mitglieder legen direkt los. */
+export type InviteAnleitung = 'inhaber' | 'team';
+
+/** „So startest du“ – kurze Schrittliste für Kunden-Einladungen (rein, testbar) */
+export function startSchritte(anleitung: InviteAnleitung): string[] {
+  const anlegen = 'Konto anlegen über den Button oben';
+  const anrufen = 'Bewerber im Anruf-Modus anrufen (Menü „Anrufen“)';
+  if (anleitung === 'team') return [anlegen, anrufen];
+  return [
+    anlegen,
+    'Onboarding-Formular ausfüllen',
+    'WhatsApp verbinden: Einstellungen → WhatsApp, dort führt dich eine Schritt-für-Schritt-Anleitung',
+    'Team einladen: Einstellungen → Team & Zugänge',
+    anrufen,
+  ];
+}
+
+function startAnleitungHtml(anleitung: InviteAnleitung): string {
+  const punkte = startSchritte(anleitung).map((s) => `<li>${s}</li>`).join('');
+  return `
+      <p style="font-size:15px;font-weight:600;color:#111;margin:28px 0 8px;">So startest du</p>
+      <ol style="font-size:14px;color:#444;line-height:1.8;margin:0;padding-left:20px;">${punkte}</ol>
+      <p style="font-size:13px;color:#888;margin:8px 0 0;">Im Dashboard zeigt dir die Checkliste „Startklar“, was noch fehlt.</p>`;
+}
+
+export function inviteTemplate(agencyName: string, registerUrl: string, expiresAt: string, anleitung?: InviteAnleitung | null): string {
   return `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -15,7 +40,7 @@ export function inviteTemplate(agencyName: string, registerUrl: string, expiresA
       </p>
       <a href="${registerUrl}" style="display:inline-block;padding:14px 32px;background:#E0354B;color:#fff;text-decoration:none;border-radius:12px;font-size:15px;font-weight:600;">
         Account erstellen
-      </a>
+      </a>${anleitung ? startAnleitungHtml(anleitung) : ''}
       <p style="font-size:13px;color:#999;margin:24px 0 0;">
         Dieser Link ist gültig bis ${expiresAt}. Falls er abgelaufen ist, bitte deinen Ansprechpartner um einen neuen.
       </p>

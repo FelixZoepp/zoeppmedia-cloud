@@ -84,7 +84,7 @@ export async function processBotOpen(
 
   // Bewerber-Kontakt noch nicht freigegeben (Testnummern ausgenommen) → nichts anfassen, Innendienst ruft an
   const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-  if (!darfKontakt(await ladeSchalter(svc), { telefon: candidate.phone_e164 })) return ersatz('Bewerber-Kontakt noch nicht freigegeben');
+  if (!darfKontakt(await ladeSchalter(svc), { telefon: candidate.phone_e164, agencyId })) return ersatz('Bewerber-Kontakt noch nicht freigegeben');
 
   // --- 7. Agentur-Name laden (für Template-Variable) ---
   const { data: agency } = await svc

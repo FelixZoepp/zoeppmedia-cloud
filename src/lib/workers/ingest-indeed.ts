@@ -152,7 +152,7 @@ export async function processIngestIndeed(
         .single();
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
       const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
-      if (agency?.slug && darfKontakt(await ladeSchalter(svc), { email: x.email })) {
+      if (agency?.slug && darfKontakt(await ladeSchalter(svc), { email: x.email, agencyId: jobRow.agency_id })) {
         await sendOptInFallbackEmail(
           x.email,
           x.firstName,
