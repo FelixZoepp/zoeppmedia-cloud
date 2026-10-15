@@ -3,6 +3,9 @@ import { createServerClient } from '@/lib/supabase/server';
 import { logActivity } from '@/lib/activity/log';
 import { handleCallResultForCadence } from '@/lib/cadence/on-call-result';
 import { fireEvent } from '@/lib/automations/fire';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { istFreigegeben } from '@/lib/freigaben';
+import { gueltigeZeit, rueckrufAufgabe, rueckrufNotiz } from '@/lib/dialer/rueckruf';
 
 const CONTACT_RESULTS = ['termin_vereinbart', 'kein_interesse', 'rueckruf', 'sonstiges'];
 
@@ -37,11 +40,16 @@ export async function POST(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await request.json();
+  const svc = createAdminClient();
+  // Freigabe „Anruf-Modus wie Close“: Nicht erreicht → morgen 8 Uhr, Rückruf mit Uhrzeit + Aufgabe
+  const wieClose = await istFreigegeben(svc, 'anruf_modus_wie_close');
+  const rueckrufMitZeit = wieClose && body.result === 'rueckruf';
+  const zeit = rueckrufMitZeit ? gueltigeZeit(body.rueckruf_zeit) : null;
 
   // Get candidate to verify it exists and retrieve agency_id + TTFC fields
   const { data: candidate } = await supabase
     .from('candidates')
-    .select('agency_id, first_dial_at, first_contact_at, created_at')
+    .select('agency_id, name, first_dial_at, first_contact_at, created_at')
     .eq('id', id)
     .single();
 
@@ -54,7 +62,8 @@ export async function POST(
       agency_id: candidate.agency_id,
       user_id: user.id,
       result: body.result,
-      notes: body.notes || null,
+      // Uhrzeit ohne neue Spalte: als Vorsatz in der Notiz (call_logs.next_contact_date ist nur ein Datum)
+      notes: rueckrufMitZeit ? rueckrufNotiz(zeit, body.notes ?? null) : body.notes || null,
       next_step: body.next_step || null,
       next_contact_date: body.next_contact_date || null,
       duration_seconds: body.duration_seconds || null,
@@ -103,7 +112,21 @@ export async function POST(
   });
 
   // Handle cadence logic based on call result
-  await handleCallResultForCadence(supabase, id, candidate.agency_id, body.result);
+  await handleCallResultForCadence(supabase, id, candidate.agency_id, body.result, { wieClose });
+
+  // Rückruf wie in Close: interne Aufgabe am Wunschtag (nur intern, keine Nachricht an den Bewerber)
+  if (rueckrufMitZeit && typeof body.next_contact_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.next_contact_date)) {
+    const { error: taskErr } = await svc.from('internal_tasks').insert(
+      rueckrufAufgabe({
+        name: candidate.name ?? 'Bewerber',
+        agencyId: candidate.agency_id,
+        datum: body.next_contact_date,
+        zeit,
+        notiz: body.notes ?? null,
+      }),
+    );
+    if (taskErr) console.error('[calls] Rückruf-Aufgabe nicht angelegt', id, taskErr.message);
+  }
 
   fireEvent('call_logged', candidate.agency_id, { candidate_id: id, extra: { result: body.result } }).catch(() => {});
 

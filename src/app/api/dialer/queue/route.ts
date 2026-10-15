@@ -4,6 +4,8 @@ import { dialerScope } from '@/lib/dialer/scope';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 import { fetchAll, fetchAllIn } from '@/lib/supabase/fetch-all';
 import { berlinTag } from '@/lib/zeit/berlin';
+import { istFreigegeben } from '@/lib/freigaben';
+import { rueckrufFaellig } from '@/lib/dialer/rueckruf';
 
 // Interne Sales-Agentur (Sales-WhatsApp-Kontakte) sind keine Bewerber
 const NICHT_INTERN = `(${HIDDEN_AGENCY_IDS.join(',')})`;
@@ -33,7 +35,9 @@ export async function GET(req: NextRequest) {
   const scope = await dialerScope(svc, { intern: req.nextUrl.searchParams.get('modus') === 'intern' });
   if (!scope) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const leer = { queue: [], agencies: {}, scripts: {}, stats: queueStats([]), einKunde: scope.einKunde, schreiben: scope.schreiben };
+  // Freigabe „Anruf-Modus wie Close“ – der Client braucht sie für Rückruf-Uhrzeit und Skript
+  const wieClose = await istFreigegeben(svc, 'anruf_modus_wie_close');
+  const leer = { queue: [], agencies: {}, scripts: {}, stats: queueStats([]), einKunde: scope.einKunde, schreiben: scope.schreiben, wieClose };
   if (scope.agencyIds && scope.agencyIds.length === 0) return NextResponse.json(leer);
 
   const ids = scope.agencyIds;
@@ -120,7 +124,10 @@ export async function GET(req: NextRequest) {
       }
     }
   }
-  const offen = offeneRueckrufe(callbacks, letzterLog).slice(0, 100);
+  // Wie Close: Rückruf mit Uhrzeit erst ab dieser Uhrzeit (Berlin) zeigen
+  const offen = offeneRueckrufe(callbacks, letzterLog)
+    .filter((c) => !wieClose || rueckrufFaellig(c, now))
+    .slice(0, 100);
 
   const extraIds = [...new Set([...reminders.map((r) => r.candidate_id), ...offen.map((c) => c.candidate_id)])];
   const kandidaten: Record<string, QueueCandidate> = {};

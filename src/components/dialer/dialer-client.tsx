@@ -20,6 +20,7 @@ import {
 import { Badge, Button, Card, PageHeader } from '@/components/ui';
 import { BrowserAnruf } from './browser-anruf';
 import type { DialerQueueItem, QueueReason } from '@/lib/dialer/queue';
+import { rueckrufZeit, zerlegeRueckruf } from '@/lib/dialer/rueckruf';
 
 /* ------------------------------------------------------------------ */
 /*  Typen & Konstanten                                                 */
@@ -37,6 +38,8 @@ interface DialerData {
   stats: { total: number; erinnerungen: number; kadenz: number; rueckrufe: number; neue: number };
   einKunde: boolean;
   schreiben: boolean;
+  /** Freigabe „Anruf-Modus wie Close“ */
+  wieClose?: boolean;
 }
 
 interface CallLog {
@@ -57,6 +60,8 @@ const ERGEBNISSE: { value: string; label: string }[] = [
   { value: 'sonstiges', label: 'Sonstiges' },
 ];
 const ERGEBNIS_LABEL: Record<string, string> = Object.fromEntries(ERGEBNISSE.map((e) => [e.value, e.label]));
+/** Jemand ist rangegangen → Erstgespräch läuft direkt, Skript aufklappen (wie Close) */
+const ERREICHT = new Set(['termin_vereinbart', 'kein_interesse', 'rueckruf', 'sonstiges']);
 
 const GRUND: Record<QueueReason, { tone: 'accent' | 'softAccent' | 'neutral' | 'warning'; label: string }> = {
   erinnerung: { tone: 'accent', label: 'Termin-Erinnerung' },
@@ -302,6 +307,7 @@ export function DialerClient({ modus = 'intern' }: { modus?: DialerModus }) {
               skript={skriptFür(aktuell, data.scripts)}
               schreiben={data.schreiben}
               modus={modus}
+              wieClose={data.wieClose === true}
               jetzt={jetzt}
               onErledigt={erledigt}
               onÜberspringen={überspringen}
@@ -410,6 +416,7 @@ function Fokus({
   skript,
   schreiben,
   modus,
+  wieClose,
   jetzt,
   onErledigt,
   onÜberspringen,
@@ -420,6 +427,7 @@ function Fokus({
   skript: string | null;
   schreiben: boolean;
   modus: DialerModus;
+  wieClose: boolean;
   jetzt: number;
   onErledigt: (id: string) => void;
   onÜberspringen: () => void;
@@ -427,9 +435,12 @@ function Fokus({
   const [ergebnis, setErgebnis] = useState('');
   const [notiz, setNotiz] = useState('');
   const [rückrufAm, setRückrufAm] = useState(morgen);
+  // Wie Close: Rückruf mit Datum und Uhrzeit (datetime-local, bewusst leer → muss gewählt werden)
+  const [rückrufUm, setRückrufUm] = useState('');
   const [terminArt, setTerminArt] = useState<'vorstellungsgespraech' | 'probetag'>('vorstellungsgespraech');
   const [terminAm, setTerminAm] = useState('');
-  const [skriptOffen, setSkriptOffen] = useState(false);
+  // Wie Close: Skript während des Anrufs offen – das Erstgespräch passiert direkt beim Rangehen
+  const [skriptOffen, setSkriptOffen] = useState(wieClose);
   const [verlauf, setVerlauf] = useState<CallLog[] | null>(null);
   const [speichert, setSpeichert] = useState(false);
   const [fehler, setFehler] = useState('');
@@ -447,10 +458,23 @@ function Fokus({
     };
   }, [item.candidate_id]);
 
+  const wähleErgebnis = useCallback(
+    (wert: string) => {
+      setErgebnis(wert);
+      if (wieClose && ERREICHT.has(wert)) setSkriptOffen(true);
+    },
+    [wieClose],
+  );
+
   const speichern = useCallback(async () => {
     if (!ergebnis || speichert) return;
     if (ergebnis === 'termin_vereinbart' && !terminAm) {
       setFehler('Bitte Datum und Uhrzeit für den Termin angeben.');
+      return;
+    }
+    const rückruf = wieClose && ergebnis === 'rueckruf' ? zerlegeRueckruf(rückrufUm) : null;
+    if (wieClose && ergebnis === 'rueckruf' && !rückruf) {
+      setFehler('Bitte Datum und Uhrzeit für den Rückruf angeben.');
       return;
     }
     setSpeichert(true);
@@ -463,7 +487,8 @@ function Fokus({
           result: ergebnis,
           notes: notiz.trim() || null,
           next_step: ergebnis === 'rueckruf' ? 'erneut_anrufen' : null,
-          next_contact_date: ergebnis === 'rueckruf' ? rückrufAm : null,
+          next_contact_date: ergebnis === 'rueckruf' ? (rückruf?.datum ?? rückrufAm) : null,
+          ...(rückruf ? { rueckruf_zeit: rückruf.zeit } : {}),
           duration_seconds: dauer,
         }),
       });
@@ -486,13 +511,15 @@ function Fokus({
           body: JSON.stringify({ reminder_done: true }),
         }).catch(() => {});
       }
-      toast.success(`${item.name}: ${ERGEBNIS_LABEL[ergebnis]}`);
+      toast.success(
+        `${item.name}: ${ERGEBNIS_LABEL[ergebnis]}${wieClose && ergebnis === 'nicht_erreicht' ? ' – morgen ab 8 Uhr wieder in der Liste' : ''}`,
+      );
       onErledigt(item.candidate_id);
     } catch (e) {
       setFehler(e instanceof Error ? e.message : 'Unbekannter Fehler');
       setSpeichert(false);
     }
-  }, [ergebnis, speichert, terminAm, item, notiz, rückrufAm, terminArt, onErledigt, dauer]);
+  }, [ergebnis, speichert, terminAm, item, notiz, rückrufAm, rückrufUm, wieClose, terminArt, onErledigt, dauer]);
 
   // Tastatur: 1–6 Ergebnis, ⌘/Strg+Enter speichern & weiter
   useEffect(() => {
@@ -507,11 +534,11 @@ function Fokus({
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const n = Number(e.key);
-      if (n >= 1 && n <= ERGEBNISSE.length) setErgebnis(ERGEBNISSE[n - 1].value);
+      if (n >= 1 && n <= ERGEBNISSE.length) wähleErgebnis(ERGEBNISSE[n - 1].value);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [schreiben, speichern]);
+  }, [schreiben, speichern, wähleErgebnis]);
 
   return (
     <Card padding="lg" className="fx-rise">
@@ -543,6 +570,7 @@ function Fokus({
         ) : null}
         {item.reason === 'kadenz' && item.cadence_window && ` · am besten ${FENSTER[item.cadence_window] ?? item.cadence_window}`}
         {item.reason === 'rueckruf' && item.callback_date && ` · Rückruf fällig ${new Date(item.callback_date).toLocaleDateString('de-DE')}`}
+        {item.reason === 'rueckruf' && rueckrufZeit(item.callback_note) && ` um ${rueckrufZeit(item.callback_note)} Uhr`}
       </p>
       {item.callback_note && <p className="mt-2 rounded-[12px] bg-panel px-3 py-2 text-[13.5px] text-gray-700">„{item.callback_note}“</p>}
 
@@ -582,6 +610,7 @@ function Fokus({
 
       {skriptOffen && skript && (
         <div className="mt-4 rounded-[16px] bg-panel p-4">
+          {wieClose && item.reason !== 'erinnerung' && <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.06em] text-gray-500">Erstgespräch – direkt im Anruf</p>}
           <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-gray-800">{skript}</p>
         </div>
       )}
@@ -608,7 +637,7 @@ function Fokus({
             {ERGEBNISSE.map((e, i) => (
               <button
                 key={e.value}
-                onClick={() => setErgebnis(e.value)}
+                onClick={() => wähleErgebnis(e.value)}
                 className={`flex items-center gap-2.5 rounded-[14px] px-3 py-2.5 text-left text-[14px] transition-colors ${
                   ergebnis === e.value
                     ? 'bg-gradient-to-b from-red-700 to-red-950 font-medium text-red-50'
@@ -646,7 +675,19 @@ function Fokus({
               />
             </div>
           )}
-          {ergebnis === 'rueckruf' && (
+          {ergebnis === 'rueckruf' && wieClose && (
+            <label className="mt-3 flex flex-wrap items-center gap-2 rounded-[14px] bg-panel p-3 text-[14px] text-gray-700">
+              Rückruf am
+              <input
+                type="datetime-local"
+                value={rückrufUm}
+                onChange={(e) => setRückrufUm(e.target.value)}
+                className="h-10 min-w-0 rounded-[12px] bg-card px-3 text-[14px] shadow-[inset_0_0_0_1.5px_var(--hair)]"
+              />
+              <span className="text-[12.5px] text-gray-500">Bis dahin nicht in der Liste, dazu eine Aufgabe.</span>
+            </label>
+          )}
+          {ergebnis === 'rueckruf' && !wieClose && (
             <label className="mt-3 flex flex-wrap items-center gap-2 rounded-[14px] bg-panel p-3 text-[14px] text-gray-700">
               Rückruf am
               <input

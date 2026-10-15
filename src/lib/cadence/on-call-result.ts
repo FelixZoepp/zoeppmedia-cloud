@@ -7,12 +7,14 @@ import { startCadence, advanceCadence, stopCadence } from './engine';
  * Cadence STOPS when: candidate answers (any contact result), wrong number, or opt-out.
  * Cadence STARTS on first "nicht_erreicht" if not already active.
  * Cadence ADVANCES on subsequent "nicht_erreicht" results.
+ * wieClose (Freigabe anruf_modus_wie_close): nächster Versuch erst morgen 08:00 Berlin.
  */
 export async function handleCallResultForCadence(
   supabase: SupabaseClient,
   candidateId: string,
   agencyId: string,
-  result: string
+  result: string,
+  opts: { wieClose?: boolean } = {},
 ) {
   // Fetch current cadence state
   const { data: candidate } = await supabase
@@ -45,7 +47,7 @@ export async function handleCallResultForCadence(
     if (!candidate.cadence_active) {
       await startCadence(supabase, candidateId, agencyId);
     }
-    await advanceCadence(supabase, candidateId);
+    await advanceCadence(supabase, candidateId, opts);
     return;
   }
 }

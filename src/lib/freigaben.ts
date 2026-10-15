@@ -106,6 +106,15 @@ export const FREIGABEN = {
       'Eine Anfrage legt bei uns eine Aufgabe an (höchstens eine pro Kunde und Woche).',
     wirkt: 'Nur Anzeige im Portal und eine interne Aufgabe – keine Nachricht an den Kunden',
   },
+  anruf_modus_wie_close: {
+    titel: '📞 Anruf-Modus wie Close',
+    was:
+      'Im Anruf-Modus: „Nicht erreicht / Mailbox“ sperrt den Bewerber bis morgen 8:00 Uhr (kein zweiter Versuch am selben Tag, nach dem 6. Versuch ist Schluss). ' +
+      '„Rückruf gewünscht“ braucht Datum und Uhrzeit – der Bewerber taucht erst dann wieder in der Liste auf, dazu kommt eine interne Aufgabe mit der Notiz. ' +
+      'Das Erstgespräch-Skript ist während des Anrufs direkt aufgeklappt. Bewerber werden beim Anrufen nicht nach „Kontaktiert“ verschoben, bestehende Phasen bleiben unverändert. ' +
+      'Aus: wie bisher (zweiter Versuch nach 3 Stunden, Rückruf nur mit Datum).',
+    wirkt: 'Nur Anruf-Liste und interne Aufgaben – keine Nachricht an Bewerber',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;
