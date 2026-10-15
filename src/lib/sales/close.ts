@@ -325,6 +325,8 @@ export async function getCloseLeadContacts(leadId: string): Promise<CloseLeadCon
   const res = await fetch(`${CLOSE_BASE}/lead/${encodeURIComponent(leadId)}/?_fields=display_name,contacts`, {
     headers: closeHeaders(apiKey),
   });
+  // Gelöschter/zusammengeführter Lead: nichts zu tun (sonst wiederholt Close den Webhook endlos)
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Close-Lead ${leadId} nicht lesbar (${res.status})`);
 
   const lead = (await res.json()) as {
