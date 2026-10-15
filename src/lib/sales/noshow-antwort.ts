@@ -16,7 +16,7 @@ const TZ = 'Europe/Berlin';
 const OFFEN_TAGE = 7;
 
 export interface OffeneRueckfrage {
-  art: 'setting' | 'closing';
+  art: 'setting' | 'closing' | 'nicht_erreicht';
   closeLeadId: string | null;
   gesendetAm: string;
 }
@@ -33,7 +33,7 @@ export async function offeneNoShowRueckfrage(svc: SupabaseClient, candidateId: s
     .limit(1);
   const letzte = ((data ?? []) as Array<{ created_at: string; metadata: Record<string, string | undefined> }>)[0];
   if (!letzte || letzte.metadata.kind !== 'sales_noshow_sent' || !letzte.metadata.vorlage?.endsWith('_rueckfrage')) return null;
-  return { art: letzte.metadata.art === 'closing' ? 'closing' : 'setting', closeLeadId: letzte.metadata.close_lead_id ?? null, gesendetAm: letzte.created_at };
+  return { art: letzte.metadata.art === 'closing' ? 'closing' : letzte.metadata.art === 'nicht_erreicht' ? 'nicht_erreicht' : 'setting', closeLeadId: letzte.metadata.close_lead_id ?? null, gesendetAm: letzte.created_at };
 }
 
 const WunschSchema = z.object({
@@ -64,7 +64,7 @@ export async function liesWunsch(text: string, jetzt: Date = new Date()): Promis
 
 /** Fälligkeit und Aufgabentext (rein, testbar). Wunschtag in der Vergangenheit oder ohne Angabe → heute. */
 export function baueRueckrufAufgabe(
-  p: { name: string; phone: string; text: string; art: 'setting' | 'closing' },
+  p: { name: string; phone: string; text: string; art: OffeneRueckfrage['art'] },
   w: Wunsch | null,
   heute: string,
 ): { datum: string; text: string } {
@@ -72,9 +72,9 @@ export function baueRueckrufAufgabe(
   const wann = [w?.tag ? new Date(`${w.tag}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : null, w?.uhrzeit]
     .filter(Boolean)
     .join(' ');
-  const gespraech = p.art === 'closing' ? 'Beratungsgespräch neu legen (alle Entscheider)' : 'Erstgespräch nachholen';
+  const gespraech = p.art === 'closing' ? 'Beratungsgespräch neu legen (alle Entscheider)' : p.art === 'nicht_erreicht' ? 'Erstgespräch legen' : 'Erstgespräch nachholen';
   const teile = [
-    `📞 No-Show-Rückruf: ${p.name} – ${gespraech}`,
+    `📞 ${p.art === 'nicht_erreicht' ? 'Rückruf (vorher nicht erreicht)' : 'No-Show-Rückruf'}: ${p.name} – ${gespraech}`,
     wann ? `Wunschzeit: ${wann}` : 'Keine Zeit genannt – heute anrufen',
     w?.mitentscheider ? `Mitentscheider: ${w.mitentscheider}` : null,
     `WhatsApp: „${p.text.trim().slice(0, 300)}“`,
@@ -113,7 +113,7 @@ export async function verarbeiteNoShowAntwort(
 
   await notifySales(svc, {
     emoji: '📅',
-    title: `${input.candidateName} hat auf die No-Show-Nachricht geantwortet`,
+    title: `${input.candidateName} hat auf die ${offen.art === 'nicht_erreicht' ? 'Nicht-erreicht' : 'No-Show'}-Nachricht geantwortet`,
     body: `${wunsch?.kurz ?? input.text.slice(0, 300)}\n${aufgabe.text.split(' · ').slice(1, 3).join(' · ')}\n${inClose ? `Aufgabe in Close für ${aufgabe.datum.split('-').reverse().join('.')} angelegt.` : '⚠️ Lead nicht in Close gefunden – bitte von Hand eintragen.'}`,
     type: 'task_due',
     phone: input.candidatePhone,
@@ -123,7 +123,7 @@ export async function verarbeiteNoShowAntwort(
   await logActivity(svc, {
     agency_id: input.agencyId,
     candidate_id: input.candidateId,
-    action: `Antwort auf No-Show-Rückfrage (${offen.art === 'closing' ? 'Beratungsgespräch' : 'Erstgespräch'})`,
+    action: `Antwort auf ${offen.art === 'nicht_erreicht' ? 'Nicht-erreicht' : 'No-Show'}-Rückfrage (${offen.art === 'closing' ? 'Beratungsgespräch' : 'Erstgespräch'})`,
     action_type: 'other',
     metadata: { kind: 'sales_noshow_antwort', art: offen.art, termin: aufgabe.datum, in_close: inClose },
   });

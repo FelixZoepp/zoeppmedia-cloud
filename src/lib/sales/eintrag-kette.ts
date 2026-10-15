@@ -7,6 +7,7 @@
  * Stopp vor jedem Versand: Termin gebucht, aktive Opportunity in Close (z. B. telefonisch gelegt),
  * Antwort des Leads, STOP (whatsapp_opt_in = false). Ruhezeiten 20:30–8:00 Uhr → verschoben auf 8:30 Uhr.
  * Nicht freigegebene Vorlagen werden übersprungen.
+ * Freigabe „eintrag_personalisiert“: Schritt 1 als eintrag_1_termin_v2 mit der Funnel-Angabe („3 bis 5 Vertriebler pro Monat“).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -68,6 +69,30 @@ async function hatAktiveOpportunity(leadId: string): Promise<boolean> {
   return ((await res.json()) as { data: unknown[] }).data.length > 0;
 }
 
+/** Funnel-Antwort „Wie viele Vertriebler möchtest du pro Monat onboarden?“ aus der Eintragungs-Notiz (rein, testbar) */
+export function onboardingZiel(notiz: string): string | null {
+  const m = notiz.match(/pro Monat onboarden\?:\s*([^\n]+?)(?=\s+(?:Was|Wor|Wie|Dein|Ich)\s|\n|$)/);
+  const wert = m?.[1]?.trim();
+  if (!wert || !/\d/.test(wert) || wert.length > 40) return null;
+  return /vertriebler/i.test(wert) ? wert : `${wert} Vertriebler`;
+}
+
+async function funnelZiel(leadId: string): Promise<string | null> {
+  const key = process.env.CLOSE_API_KEY;
+  if (!key) return null;
+  const res = await fetch(`${CLOSE_BASE}/activity/note/?lead_id=${leadId}&_fields=note`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const { data } = (await res.json()) as { data: Array<{ note?: string }> };
+  for (const n of data) {
+    const ziel = n.note ? onboardingZiel(n.note) : null;
+    if (ziel) return ziel;
+  }
+  return null;
+}
+
 export type KettenErgebnis = 'gesendet' | 'gebucht' | 'opportunity' | 'geantwortet' | 'abgemeldet' | 'keine_nummer' | 'vorlage_fehlt' | 'unbekannt' | 'verschoben';
 
 /** Job sales.eintrag_kette */
@@ -123,14 +148,23 @@ export async function verarbeiteEintragKette(svc: SupabaseClient, payload: { lea
   if (antworten) return 'geantwortet';
 
   const k = KETTE[payload.schritt - 1];
-  const { data: t } = await svc
-    .from('whatsapp_templates')
-    .select('id, name')
-    .eq('wa_account_id', SALES_WA_ACCOUNT_ID)
-    .eq('preset_key', k.vorlage)
-    .eq('status', 'approved')
-    .maybeSingle();
-  const tmpl = t as { id: string; name: string } | null;
+  // Schritt 1 personalisiert (Freigabe eintrag_personalisiert): Funnel-Angabe „pro Monat onboarden“ in der Nachricht
+  let ziel: string | null = null;
+  let vorlage = k.vorlage;
+  if (payload.schritt === 1) {
+    const { istFreigegeben } = await import('@/lib/freigaben');
+    if (await istFreigegeben(svc, 'eintrag_personalisiert')) {
+      ziel = await funnelZiel(e.lead_id).catch(() => null);
+      if (ziel) vorlage = 'eintrag_1_termin_v2';
+    }
+  }
+  const ladeVorlage = async (key: string) =>
+    (await svc.from('whatsapp_templates').select('id, name').eq('wa_account_id', SALES_WA_ACCOUNT_ID).eq('preset_key', key).eq('status', 'approved').maybeSingle()).data as { id: string; name: string } | null;
+  let tmpl = await ladeVorlage(vorlage);
+  if (!tmpl && vorlage !== k.vorlage) {
+    ziel = null;
+    tmpl = await ladeVorlage(k.vorlage);
+  }
   if (!tmpl) {
     await weiter();
     return 'vorlage_fehlt';
@@ -149,7 +183,7 @@ export async function verarbeiteEintragKette(svc: SupabaseClient, payload: { lea
         name: tmpl.name,
         language: { code: 'de' },
         components: [
-          { type: 'body', parameters: [{ type: 'text', text: vorname }] },
+          { type: 'body', parameters: [{ type: 'text', text: vorname }, ...(ziel ? [{ type: 'text', text: ziel }] : [])] },
           { type: 'button', sub_type: 'url', index: k.buttonIndex, parameters: [{ type: 'text', text: buildClickToken(prospectId, 'setting', `eintrag_${k.schritt}`) }] },
         ],
       },

@@ -119,6 +119,29 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     ],
   },
   {
+    // 1) personalisiert (Freigabe eintrag_personalisiert): {{2}} = Funnel-Antwort „Wie viele Vertriebler möchtest du pro Monat onboarden?“
+    name: 'eintrag_1_termin_v2',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, schön, dass du dich eingetragen hast! Du willst pro Monat {{2}} onboarden. ' +
+      'Wie wir das bei dir konkret umsetzen, zeigen wir dir im Erstgespräch: 15 Minuten am Telefon.\n\n' +
+      'Ein Schritt fehlt noch: Such dir kurz einen Termin aus.',
+    variables: ['vorname', 'ziel'],
+    beispiel: ['David', '3 bis 5 Vertriebler'],
+    buttons: [{ type: 'URL', text: 'Termin buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] }],
+  },
+  {
+    // Terminierung „Niemand / Mailbox“ (sales/nicht-erreicht.ts) – Antwort wertet sales/noshow-antwort.ts aus
+    name: 'nicht_erreicht_rueckfrage',
+    category: 'MARKETING',
+    body:
+      'Hey {{1}}, Felix Zoepp hier. Ich habe gerade versucht, dich wegen deiner Anfrage zu erreichen, leider ohne Erfolg.\n\n' +
+      'Wann kann ich dich besser erreichen? Schreib mir einfach Tag und Uhrzeit, dann rufe ich genau dann an.',
+    variables: ['vorname'],
+    beispiel: ['David'],
+    buttons: [],
+  },
+  {
     // 3) Tag 3: letzter Anstoß
     name: 'eintrag_3_letzte',
     category: 'MARKETING',
@@ -221,7 +244,7 @@ export async function reicheSalesVorlageEin(svc: SupabaseClient, name: string): 
     category: v.category,
     components: [
       { type: 'BODY', text: v.body, example: { body_text: [v.beispiel] } },
-      { type: 'BUTTONS', buttons: v.buttons },
+      ...(v.buttons.length ? [{ type: 'BUTTONS', buttons: v.buttons }] : []),
     ],
   };
   const res = await fetch(`${GRAPH}/${wabaId}/message_templates`, {

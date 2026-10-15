@@ -61,6 +61,21 @@ export const FREIGABEN = {
     was: 'Kick-offs, Onboardings und Service-Calls aus Fireflies werden immer dem Kunden zugeordnet und ausgewertet (Stimmung, Zusagen, Risiken). Eingeschaltet legt die Cloud aus jedem Gespräch die To-dos als Aufgaben beim zuständigen Mitarbeiter an (Kundenbetreuer, Media Buyer, Innendienst) und meldet kritische Stimmung sofort.',
     wirkt: 'Interne Aufgaben und Hinweise (keine Nachricht an Kunden)',
   },
+  nicht_erreicht_rueckfrage: {
+    titel: '📵 Nicht erreicht → WhatsApp-Rückfrage',
+    was:
+      'Du trägst im Terminierungs-Protokoll „Niemand / Mailbox“ ein → WhatsApp „Hey …, Felix Zoepp hier. Ich habe gerade versucht, dich zu erreichen … Wann kann ich dich besser erreichen?“. ' +
+      'Nur an Leads, die sich selbst über einen Funnel eingetragen haben (keine Kaltakquise), höchstens einmal in 7 Tagen, nicht bei gebuchtem Termin oder aktiver Opportunity, nicht 20:30–8:00 Uhr. ' +
+      'Die Antwort liest die KI aus → Aufgabe in Close am Wunschtag + Slack. Die Vorlage nicht_erreicht_rueckfrage muss bei Meta freigegeben sein.',
+    wirkt: 'WhatsApp an den Lead – ausgelöst durch dein Protokoll',
+  },
+  eintrag_personalisiert: {
+    titel: '🎯 „Kein Termin gebucht“ mit Funnel-Antwort',
+    was:
+      'Die erste Nachricht der Kette „Eingetragen, aber kein Termin“ nennt die Angabe aus dem Funnel: „Du willst pro Monat 3 bis 5 Vertriebler onboarden. Wie das bei dir konkret geht, zeigen wir dir im Erstgespräch …“. ' +
+      'Ohne Angabe im Funnel oder ohne freigegebene Vorlage eintrag_1_termin_v2 geht wie bisher eintrag_1_termin raus.',
+    wirkt: 'Ersetzt nur den Text der ersten Nachricht der bestehenden Kette – nicht mehr Nachrichten',
+  },
   telefonie: {
     titel: '📞 Telefonieren über die Cloud',
     was:

@@ -411,6 +411,11 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
       else if (!f.angebot_nachfassen) plan = { ...plan, angebotNachfassen: false };
     }
     aktionen = { ...(await fuehreAus(a.lead_id, plan, a.user_id)), schluessel };
+    // Terminierung „Niemand / Mailbox“ → WhatsApp-Rückfrage planen (nur mit Freigabe nicht_erreicht_rueckfrage)
+    if (typ === 'terminierung' && (felder[TERMINIERUNG_FELDER.wenErreicht] ?? '').startsWith('Niemand')) {
+      const { planeNichtErreicht } = await import('./nicht-erreicht');
+      aktionen.nichtErreichtWhatsapp = await planeNichtErreicht(svc, a.lead_id, jetzt).catch((err) => (console.error('[sales] Nicht-erreicht nicht geplant:', err), false));
+    }
   }
 
   const { error } = await svc.from('close_protokolle').upsert({

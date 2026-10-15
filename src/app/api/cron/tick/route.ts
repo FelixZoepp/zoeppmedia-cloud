@@ -425,6 +425,11 @@ export async function GET(request: NextRequest) {
           console.log('[reaktivierung]', JSON.stringify(await reaktiviereUnqualifizierte(svc, new Date(), startTime + WALL_CLOCK_LIMIT_MS - 8_000)));
           break;
         }
+        case 'sales.nicht_erreicht': {
+          const { sendeNichtErreicht } = await import('@/lib/sales/nicht-erreicht');
+          console.log('[nicht-erreicht]', await sendeNichtErreicht(svc, payload as { lead_id: string }));
+          break;
+        }
         case 'sales.protokoll': {
           const { verarbeiteProtokoll } = await import('@/lib/sales/protokolle');
           await verarbeiteProtokoll(svc, (payload as { activity_id: string }).activity_id);
