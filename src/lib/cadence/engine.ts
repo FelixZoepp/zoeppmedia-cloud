@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { berlinTag, berlinUhrzeit } from '@/lib/zeit/berlin';
 
 type CallWindow = 'morning' | 'afternoon' | 'evening';
 
@@ -10,7 +11,11 @@ const BERLIN_TZ = 'Europe/Berlin';
  * Returns the current time-of-day window based on Europe/Berlin time.
  */
 export function getCurrentWindow(): CallWindow {
-  const berlinHour = getBerlinHour(new Date());
+  return windowAt(new Date());
+}
+
+function windowAt(date: Date): CallWindow {
+  const berlinHour = getBerlinHour(date);
   if (berlinHour < 12) return 'morning';
   if (berlinHour < 16) return 'afternoon';
   return 'evening';
@@ -136,6 +141,60 @@ const CADENCE_STEPS: CadenceStep[] = [
   { daysFromNow: 3, window: 'morning' },      // attempt 5->6: +3 days, morning
 ];
 
+/** Anruf-Modus wie Close: nicht erreicht → frühestens morgen 08:00 Uhr Berliner Zeit wieder anrufbar */
+export function morgenAchtUhr(jetzt: Date): Date {
+  const [y, m, d] = berlinTag(jetzt).split('-').map(Number);
+  return enforceQuietHours(berlinUhrzeit(y, m, d + 1, 8));
+}
+
+export type VersuchsPlan =
+  | { stopp: true }
+  | { stopp: false; currentAttempt: number; nextAt: Date; nextWindow: CallWindow };
+
+/**
+ * Nächsten Kadenz-Versuch berechnen (rein, testbar). Nach dem 6. Versuch Stopp.
+ * Ohne wieClose exakt das bisherige Schema (CADENCE_STEPS, 1→2 = +3h am selben Tag).
+ */
+export function planeNaechstenVersuch(input: {
+  bisherigeVersuche: number;
+  fenster: CallWindow | null;
+  jetzt: Date;
+  wieClose?: boolean;
+}): VersuchsPlan {
+  const currentAttempt = input.bisherigeVersuche + 1;
+  if (currentAttempt >= 6) return { stopp: true };
+
+  const stepIndex = currentAttempt - 1; // 0-based
+  const step = CADENCE_STEPS[stepIndex];
+  if (!step) return { stopp: true };
+
+  const now = input.jetzt;
+  if (input.wieClose) {
+    // Wer nicht rangeht, ist bis morgen früh gesperrt – kein zweiter Versuch am selben Tag
+    return { stopp: false, currentAttempt, nextAt: morgenAchtUhr(now), nextWindow: 'morning' };
+  }
+
+  let nextWindow: CallWindow;
+  if (step.window === 'different') {
+    const currentWindow = input.fenster ?? windowAt(now);
+    nextWindow = getNextDifferentWindow(currentWindow);
+  } else {
+    nextWindow = step.window;
+  }
+
+  let nextAt: Date;
+  if (stepIndex === 0) {
+    // Attempt 1->2: same day, +3 hours
+    nextAt = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  } else {
+    // Use daysFromNow + window time
+    const targetDate = addDays(now, step.daysFromNow);
+    nextAt = getWindowTime(targetDate, nextWindow);
+  }
+
+  return { stopp: false, currentAttempt, nextAt: enforceQuietHours(nextAt), nextWindow };
+}
+
 // ---------- Core functions ----------
 
 /**
@@ -169,10 +228,12 @@ export async function startCadence(
  * Increments cadence_attempt and calculates the next call time/window.
  * Creates an internal_task for the next attempt.
  * Stops cadence after attempt 6 (max_attempts).
+ * wieClose (Freigabe anruf_modus_wie_close): statt +3h am selben Tag erst morgen 08:00 Berlin.
  */
 export async function advanceCadence(
   supabase: SupabaseClient,
-  candidateId: string
+  candidateId: string,
+  opts: { wieClose?: boolean } = {},
 ) {
   // Fetch current state
   const { data: candidate } = await supabase
@@ -183,42 +244,17 @@ export async function advanceCadence(
 
   if (!candidate) return;
 
-  const currentAttempt = (candidate.cadence_attempt ?? 0) + 1;
-
-  // After 6 attempts, stop cadence
-  if (currentAttempt >= 6) {
+  const plan = planeNaechstenVersuch({
+    bisherigeVersuche: candidate.cadence_attempt ?? 0,
+    fenster: (candidate.cadence_next_window as CallWindow | null) ?? null,
+    jetzt: new Date(),
+    wieClose: opts.wieClose === true,
+  });
+  if (plan.stopp) {
     await stopCadence(supabase, candidateId, 'max_attempts');
     return;
   }
-
-  const stepIndex = currentAttempt - 1; // 0-based
-  const step = CADENCE_STEPS[stepIndex];
-  if (!step) {
-    await stopCadence(supabase, candidateId, 'max_attempts');
-    return;
-  }
-
-  const now = new Date();
-  let nextWindow: CallWindow;
-
-  if (step.window === 'different') {
-    const currentWindow = (candidate.cadence_next_window as CallWindow) ?? getCurrentWindow();
-    nextWindow = getNextDifferentWindow(currentWindow);
-  } else {
-    nextWindow = step.window;
-  }
-
-  let nextAt: Date;
-  if (stepIndex === 0) {
-    // Attempt 1->2: same day, +3 hours
-    nextAt = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-  } else {
-    // Use daysFromNow + window time
-    const targetDate = addDays(now, step.daysFromNow);
-    nextAt = getWindowTime(targetDate, nextWindow);
-  }
-
-  nextAt = enforceQuietHours(nextAt);
+  const { currentAttempt, nextAt, nextWindow } = plan;
 
   // Update candidate cadence state
   await supabase

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { berlinMonatsStart, berlinTag, berlinTagesStart, berlinWochenStart } from '../berlin';
+import { berlinMonatsStart, berlinTag, berlinTagesStart, berlinUhrzeit, berlinWochenStart } from '../berlin';
 
 describe('Berlin-Kalendergrenzen', () => {
   it('Sonntag gehört zur laufenden Woche (Montag davor)', () => {
@@ -20,5 +20,14 @@ describe('Berlin-Kalendergrenzen', () => {
   it('Winterzeit und Monatsanfang', () => {
     expect(berlinMonatsStart(new Date('2026-12-15T12:00:00Z')).toISOString()).toBe('2026-11-30T23:00:00.000Z');
     expect(berlinMonatsStart(new Date('2026-01-15T12:00:00Z'), -1).toISOString()).toBe('2025-11-30T23:00:00.000Z');
+  });
+});
+
+describe('berlinUhrzeit', () => {
+  it('Wanduhrzeit Berlin → UTC, auch am Umstell-Tag und mit Tagesüberlauf', () => {
+    expect(berlinUhrzeit(2026, 10, 16, 8).toISOString()).toBe('2026-10-16T06:00:00.000Z');
+    expect(berlinUhrzeit(2026, 10, 25, 8).toISOString()).toBe('2026-10-25T07:00:00.000Z');
+    expect(berlinUhrzeit(2026, 3, 29, 8).toISOString()).toBe('2026-03-29T06:00:00.000Z');
+    expect(berlinUhrzeit(2026, 10, 32, 8, 30).toISOString()).toBe('2026-11-01T07:30:00.000Z');
   });
 });

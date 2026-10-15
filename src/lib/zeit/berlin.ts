@@ -34,6 +34,13 @@ export function berlinMitternacht(y: number, m: number, d: number): Date {
   return new Date(naiv - offsetMs(new Date(erst)));
 }
 
+/** Zeitpunkt (UTC) von h:min Uhr Berliner Zeit am Kalendertag y-m-d (m 1-basiert, Überlauf erlaubt) – auch an Umstell-Tagen */
+export function berlinUhrzeit(y: number, m: number, d: number, h = 0, min = 0): Date {
+  const naiv = Date.UTC(y, m - 1, d, h, min);
+  const erst = naiv - offsetMs(new Date(naiv));
+  return new Date(naiv - offsetMs(new Date(erst)));
+}
+
 /** Heutiges Datum in Berlin als 'YYYY-MM-DD' */
 export function berlinTag(jetzt: Date = new Date()): string {
   const w = wanduhr(jetzt);
