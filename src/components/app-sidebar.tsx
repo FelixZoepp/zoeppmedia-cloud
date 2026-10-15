@@ -41,6 +41,7 @@ import {
   KanbanSquare,
   Clapperboard,
   Mail,
+  Gauge,
 } from 'lucide-react';
 import { ADMIN_BEREICHE } from '@/lib/navigation/bereiche';
 
@@ -55,6 +56,7 @@ const adminGroups: SidebarGroup[] = [
     label: 'Überblick',
     items: [
       { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
+      { id: 'kontrollzentrum', label: 'Kontrollzentrum', icon: <Gauge className="w-5 h-5" />, href: '/admin/kontrollzentrum' },
       { id: 'meine-todos', label: 'Meine Aufgaben', icon: <CheckSquare className="w-5 h-5" />, href: '/meine-todos' },
       { id: 'boards', label: 'Boards', icon: <KanbanSquare className="w-5 h-5" />, href: '/boards' },
       { id: 'videos', label: 'Video-Freigabe', icon: <Clapperboard className="w-5 h-5" />, href: '/videos' },
@@ -102,6 +104,7 @@ const employeeGroups: SidebarGroup[] = [
     label: 'Cockpit',
     items: [
       { id: 'dashboard', label: 'Cockpit', icon: <LayoutDashboard className="w-5 h-5" />, href: '/admin' },
+      { id: 'kontrollzentrum', label: 'Kontrollzentrum', icon: <Gauge className="w-5 h-5" />, href: '/admin/kontrollzentrum' },
       { id: 'clients', label: 'Kunden', icon: <Building2 className="w-5 h-5" />, href: '/clients' },
       { id: 'ergebnisse', label: 'Kunden-Ergebnisse', icon: <TrendingUp className="w-5 h-5" />, href: '/ergebnisse' },
       { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-5 h-5" />, href: '/employee-reports' },

@@ -16,6 +16,7 @@ const ANSEHEN: Record<string, { href: string; label: string }> = {
   closing_ergebnisse: { href: '/admin/vertrieb', label: 'Sales-Controlling' },
   angebot_nachfassen: { href: '/admin/vertrieb', label: 'Sales-Controlling' },
   empfehlung_aufgaben: { href: '/admin/empfehlungen', label: 'Kandidaten ansehen' },
+  kontrollzentrum_warnungen: { href: '/admin/kontrollzentrum', label: 'Kontrollzentrum' },
 };
 
 export function FreigabenClient() {
