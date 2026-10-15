@@ -34,6 +34,13 @@ export function twilioConfig(env: Record<string, string | undefined> = process.e
   };
 }
 
+/** Nur REST (Nummern, Unterkonten): reicht Account-SID + Auth-Token, die Browser-Telefonie-Schlüssel braucht es dafür nicht */
+export function twilioRestConfig(env: Record<string, string | undefined> = process.env): { accountSid: string; authToken: string } | null {
+  const accountSid = env.TWILIO_ACCOUNT_SID?.trim();
+  const authToken = env.TWILIO_AUTH_TOKEN?.trim();
+  return accountSid && authToken ? { accountSid, authToken } : null;
+}
+
 /** Öffentliche Basis-URL, unter der Twilio die Webhooks aufruft (Signatur hängt an der exakten URL) */
 export function oeffentlicheBasis(): string {
   return (process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de').replace(/\/+$/, '');

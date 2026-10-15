@@ -29,3 +29,18 @@ export function twimlWaehlen(x: { nummer: string; callerId: string; basis: strin
   const number = x.aufnahme ? `<Number url="${esc(`${x.basis}/api/twilio/ansage`)}">${esc(x.nummer)}</Number>` : `<Number>${esc(x.nummer)}</Number>`;
   return twimlAntwort(`<Dial ${dial}>${number}</Dial>`);
 }
+
+/**
+ * Bestätigungscode per Anruf mithören (Meta liest den Code vor): Spracherkennung, Ergebnis geht an `action`.
+ * Es wird nichts angesagt – der Anrufer (Meta) spricht sofort.
+ */
+export function twimlCodeHoeren(x: { action: string; sprache: 'de-DE' | 'en-US' }): string {
+  const hinweise = x.sprache === 'de-DE' ? 'Code, null, eins, zwei, drei, vier, fünf, sechs, sieben, acht, neun' : 'code, zero, one, two, three, four, five, six, seven, eight, nine';
+  return twimlAntwort(
+    `<Gather input="speech" language="${x.sprache}" speechTimeout="auto" timeout="15" actionOnEmptyResult="true" method="POST" action="${esc(x.action)}" hints="${esc(hinweise)}"></Gather>`,
+  );
+}
+
+export function twimlAuflegen(): string {
+  return twimlAntwort('<Hangup/>');
+}
