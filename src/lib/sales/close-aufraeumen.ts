@@ -129,6 +129,14 @@ export async function pruefeVerlustgrund(svc: SupabaseClient, oppId: string): Pr
   if (o.status_type !== 'lost') return 'nicht_verloren';
   const grund = o[`custom.${VERLUSTGRUND_FELD}`];
   if (Array.isArray(grund) ? grund.length : grund) return 'grund_vorhanden';
+  // Grund steht im letzten Protokoll (z. B. Setting „Unqualifiziert“ + Grund)? → direkt eintragen statt Aufgabe
+  if (await istFreigegeben(svc, 'verlustgrund_automatisch')) {
+    const ausProtokoll = await grundAusLetztemProtokoll(svc, o.lead_id);
+    if (ausProtokoll) {
+      await close(`/opportunity/${oppId}/`, { method: 'PUT', body: JSON.stringify({ [`custom.${VERLUSTGRUND_FELD}`]: ausProtokoll }) });
+      return 'aus_protokoll';
+    }
+  }
   await close('/task/', {
     method: 'POST',
     body: JSON.stringify({
@@ -139,4 +147,21 @@ export async function pruefeVerlustgrund(svc: SupabaseClient, oppId: string): Pr
     }),
   });
   return 'aufgabe';
+}
+
+/** Jüngstes Protokoll der letzten 3 Tage mit eindeutigem Verlustgrund */
+async function grundAusLetztemProtokoll(svc: SupabaseClient, leadId: string): Promise<string | null> {
+  const { verlustgrundAusProtokoll } = await import('./protokolle');
+  const { data } = await svc
+    .from('close_protokolle')
+    .select('typ, felder, datum')
+    .eq('lead_id', leadId)
+    .gte('datum', new Date(Date.now() - 3 * 864e5).toISOString())
+    .order('datum', { ascending: false })
+    .limit(5);
+  for (const p of (data ?? []) as Array<{ typ: string; felder: Record<string, string | null> | null }>) {
+    const g = verlustgrundAusProtokoll(p.typ, p.felder ?? {});
+    if (g) return g;
+  }
+  return null;
 }

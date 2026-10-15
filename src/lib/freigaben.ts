@@ -22,6 +22,21 @@ export const FREIGABEN = {
     was: 'Ein Setting, Closing oder CC2 wird nur im Gesprächsprotokoll gelegt und steht 15 Minuten später nicht in Calendly → Hinweis ans Team (Push + Slack): bitte über Calendly einbuchen, sonst bekommt der Lead keine Bestätigung und keine Erinnerung.',
     wirkt: 'Nur intern (keine Nachricht an Leads)',
   },
+  abschluss_nachziehen: {
+    titel: '🏆 Abschluss nachziehen',
+    was:
+      'Protokoll „Abgeschlossen“ (Closing oder Follow-up): Gesprächsanalysen des Leads stehen sofort auf „gewonnen“ und die Close-Notiz zeigt „✅ Abgeschlossen“ statt „Abschlusschance … %“. ' +
+      'Steht ein Auftragswert in der gewonnenen Opportunity, bekommt der Closer die Aufgabe „Auftragswert prüfen“ (einmalig vs. monatlich). ' +
+      'Gibt es den Kunden noch nicht in der Cloud, entsteht die interne Aufgabe „Kunde in der Cloud anlegen“ – bewusst ohne After-Close (keine Vertrags-Mail).',
+    wirkt: 'Nur Close-Felder, Close-Aufgaben und interne Aufgaben – keine Nachricht an den Kunden',
+  },
+  verlustgrund_automatisch: {
+    titel: '🏷️ Verlustgrund aus dem Protokoll',
+    was:
+      'Nennt das Protokoll den Grund (Setting „Unqualifiziert/Disqualifiziert“ + Grund, Follow-up „Verloren“ + Verloren-Grund, Terminierung „Unqualifiziert“ + Einwand Budget/Bedarf/Anbieter), trägt die Cloud ihn in die verlorene Opportunity ein – statt der Aufgabe „Verlustgrund eintragen“. ' +
+      'Follow-up „Verloren“ setzt die aktive Opportunity außerdem auf „Verloren“. Ohne eindeutigen Grund (z. B. Closing) bleibt es bei der Aufgabe.',
+    wirkt: 'Nur Felder in Close – keine Nachricht an den Lead',
+  },
   verlustgrund_aufgabe: {
     titel: '❓ Verlustgrund-Pflicht',
     was: 'Eine Opportunity geht in Close auf „verloren“ und 30 Minuten später ist kein Verlustgrund eingetragen → der Verantwortliche bekommt in Close die Aufgabe „Verlustgrund eintragen“.',

@@ -122,3 +122,18 @@ describe('regelnSetting – Unqualifiziert mit Rückruf', () => {
     expect(regelnSetting({ [S.ergebnis]: 'Beratungsgespräch gelegt', [S.kalender]: '2026-10-20T09:00:00Z' }, jetzt)).toEqual({});
   });
 });
+
+describe('verlustgrundAusProtokoll', () => {
+  it('nimmt den Grund nur, wenn das Protokoll ihn nennt', async () => {
+    const { verlustgrundAusProtokoll, SETTING_FELDER: S } = await import('../protokolle');
+    expect(verlustgrundAusProtokoll('setting', { [S.ergebnis]: 'Unqualifiziert', [S.grund]: 'Kein Budget / nicht liquide (GS 2)' })).toBe('Kein Budget / nicht liquide (GS 2)');
+    expect(verlustgrundAusProtokoll('setting', { [S.ergebnis]: 'Disqualifiziert', [S.grund]: 'Respektlos (GS 5)' })).toBe('Respektlos (GS 5)');
+    expect(verlustgrundAusProtokoll('setting', { [S.ergebnis]: 'Beratungsgespräch gelegt', [S.grund]: 'Respektlos (GS 5)' })).toBeNull();
+    expect(verlustgrundAusProtokoll('follow_up', { [FOLLOWUP_FELDER_IDS.ergebnis]: 'Verloren', [FOLLOWUP_FELDER_IDS.verlorenGrund]: 'Entscheider fehlt (GS 3)' })).toBe('Entscheider fehlt (GS 3)');
+    expect(verlustgrundAusProtokoll('follow_up', { [FOLLOWUP_FELDER_IDS.ergebnis]: 'Verloren' })).toBeNull();
+    expect(verlustgrundAusProtokoll('terminierung', { [F.ergebnis]: 'Unqualifiziert', [F.einwand]: 'Kein Budget' })).toBe('Kein Budget / nicht liquide (GS 2)');
+    expect(verlustgrundAusProtokoll('terminierung', { [F.ergebnis]: 'Unqualifiziert', [F.einwand]: 'Keine Zeit' })).toBeNull();
+    expect(verlustgrundAusProtokoll('closing', {})).toBeNull();
+    expect(verlustgrundAusProtokoll('setting', { [S.ergebnis]: 'Unqualifiziert', [S.grund]: 'Erfunden' })).toBeNull();
+  });
+});

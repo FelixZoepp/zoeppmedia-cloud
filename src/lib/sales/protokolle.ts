@@ -35,6 +35,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { legeSettingOpportunityAn, LEAD_STATUS_SETTING } from './funnel-lead';
 import { PROTOKOLL_TYPEN } from '@/lib/sales-controlling/tagesbericht';
+import { VERLUSTGRUENDE, VERLUSTGRUND_FELD } from './close-aufraeumen';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const TAG = 864e5;
@@ -52,6 +53,7 @@ export const FOLLOWUP_FELDER_IDS = {
   erreicht: 'cf_Cua7sMxQ2f21XKBBaWBNcb0eDpWpGkLDkLcKlt0nihI',
   ergebnis: 'cf_JKIoBAGq8wjSE0mo8C6lyWjMZHRw8WlwNJrqb0LpWeN',
   kalender: 'cf_TXou3dAspi00xZ6gcrT0wXGoWq7IgDMBAJcXqcHszCR',
+  verlorenGrund: 'cf_WTlYPdZH1Tf1dvOilHwtQY24z3ilVOqBhcPOeyWL4IN',
 } as const;
 
 const LEAD_FELD_GESPERRT_BIS = 'cf_ivdENLjTV0OBF9z2It0W5CikYZMBZbE54BgcbINdO9S';
@@ -106,6 +108,8 @@ export interface Aktionen {
   /** Closing: Angebot verschickt → Nachfass-Aufgaben für den Closer */
   angebotNachfassen?: boolean;
   oppsVerloren?: boolean;
+  /** Verlustgrund für die verlorenen Opportunities (nur mit Freigabe verlustgrund_automatisch) */
+  verlustgrund?: string | null;
   settingOpportunity?: boolean;
   /** Follow-up: Erstgespräch neu gelegt → Opportunity zurück auf „Setting – Terminiert“ */
   settingTerminiert?: boolean;
@@ -212,13 +216,38 @@ async function closeJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+const EINWAND_GRUND: Record<string, string> = {
+  'Kein Budget': 'Kein Budget / nicht liquide (GS 2)',
+  'Kein Bedarf mehr': 'Kein Bedarf (GS 1)',
+  'Hat schon Anbieter': 'Anderer Anbieter',
+};
+
+/**
+ * Verlustgrund aus dem Protokoll ableiten (rein, testbar) – nur wenn das Protokoll ihn wirklich nennt:
+ * Setting „Unqualifiziert/Disqualifiziert“ + Grund, Follow-up „Verloren“ + Verloren-Grund,
+ * Terminierung „Unqualifiziert“ + passender Einwand. Closing hat kein Grund-Feld → null.
+ */
+export function verlustgrundAusProtokoll(typ: string, felder: Record<string, string | null>): string | null {
+  let grund: string | null = null;
+  if (typ === 'setting') {
+    const ergebnis = felder[SETTING_FELDER.ergebnis] ?? '';
+    if (ergebnis.startsWith('Unqualifiziert') || ergebnis.startsWith('Disqualifiziert')) grund = felder[SETTING_FELDER.grund] ?? null;
+  } else if (typ === 'follow_up') {
+    if ((felder[FOLLOWUP_FELDER_IDS.ergebnis] ?? '').startsWith('Verloren')) grund = felder[FOLLOWUP_FELDER_IDS.verlorenGrund] ?? null;
+  } else if (typ === 'terminierung') {
+    if ((felder[TERMINIERUNG_FELDER.ergebnis] ?? '').startsWith('Unqualifiziert')) grund = EINWAND_GRUND[felder[TERMINIERUNG_FELDER.einwand] ?? ''] ?? null;
+  }
+  return grund && (VERLUSTGRUENDE as readonly string[]).includes(grund) ? grund : null;
+}
+
 async function setzeLead(leadId: string, daten: Record<string, unknown>) {
   await closeJson(`/lead/${leadId}/`, { method: 'PUT', body: JSON.stringify(daten) });
 }
 
-async function oppsVerloren(leadId: string): Promise<number> {
+async function oppsVerloren(leadId: string, grund?: string | null): Promise<number> {
   const { data } = await closeJson<{ data: Array<{ id: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id`);
-  for (const o of data) await closeJson(`/opportunity/${o.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: OPP_STATUS_VERLOREN }) });
+  const body = { status_id: OPP_STATUS_VERLOREN, ...(grund ? { [`custom.${VERLUSTGRUND_FELD}`]: grund } : {}) };
+  for (const o of data) await closeJson(`/opportunity/${o.id}/`, { method: 'PUT', body: JSON.stringify(body) });
   return data.length;
 }
 
@@ -239,7 +268,10 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
     await setzeLead(leadId, { [`custom.${LEAD_FELD_GESPERRT_BIS}`]: a.gesperrtBis });
     erledigt.gesperrtBis = a.gesperrtBis;
   }
-  if (a.oppsVerloren) erledigt.oppsVerloren = await oppsVerloren(leadId);
+  if (a.oppsVerloren) {
+    erledigt.oppsVerloren = await oppsVerloren(leadId, a.verlustgrund);
+    if (a.verlustgrund) erledigt.verlustgrund = a.verlustgrund;
+  }
   if (a.settingTerminiert) {
     // Lead wieder im Setting und nicht mehr gesperrt (sonst bliebe er aus den Ansichten verschwunden)
     await setzeLead(leadId, { status_id: LEAD_STATUS_SETTING, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
@@ -410,7 +442,23 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
       if (!f.closing_ergebnisse) plan = {};
       else if (!f.angebot_nachfassen) plan = { ...plan, angebotNachfassen: false };
     }
+    // Verlustgrund direkt aus dem Protokoll; Follow-up „Verloren“ setzt die Opportunity auf verloren (nur mit Freigabe)
+    const grund = verlustgrundAusProtokoll(typ, felder);
+    if (grund || (typ === 'follow_up' && (felder[FOLLOWUP_FELDER_IDS.ergebnis] ?? '').startsWith('Verloren'))) {
+      const { istFreigegeben } = await import('@/lib/freigaben');
+      if (await istFreigegeben(svc, 'verlustgrund_automatisch')) {
+        plan = { ...plan, verlustgrund: grund, ...(typ === 'follow_up' && (felder[FOLLOWUP_FELDER_IDS.ergebnis] ?? '').startsWith('Verloren') ? { oppsVerloren: true } : {}) };
+      }
+    }
     aktionen = { ...(await fuehreAus(a.lead_id, plan, a.user_id)), schluessel };
+    // Abschluss nachziehen: Analyse gewonnen, Auftragswert prüfen, Kunde anlegen (nur mit Freigabe)
+    if (plan.abgeschlossen) {
+      const { istFreigegeben } = await import('@/lib/freigaben');
+      if (await istFreigegeben(svc, 'abschluss_nachziehen')) {
+        const { zieheAbschlussNach } = await import('./abschluss');
+        aktionen.abschluss = await zieheAbschlussNach(svc, a.lead_id, a.user_id).catch((err) => (console.error('[sales] Abschluss nachziehen:', err), { fehler: String(err) }));
+      }
+    }
     // Terminierung „Niemand / Mailbox“ → WhatsApp-Rückfrage planen (nur mit Freigabe nicht_erreicht_rueckfrage)
     if (typ === 'terminierung' && (felder[TERMINIERUNG_FELDER.wenErreicht] ?? '').startsWith('Niemand')) {
       const { planeNichtErreicht } = await import('./nicht-erreicht');

@@ -141,11 +141,13 @@ export function kurzfassung(text: string, max = 280): string {
 /**
  * Kurze Notiz für Close – die volle Auswertung (Fehler, Zitate, Coaching) steht gesammelt im Sales-Controlling.
  */
-export function closeNotiz(g: { id: string; titel: string | null; datum: string | null; dauerMin: number | null }, a: GespraechAnalyse): string {
+export function closeNotiz(g: { id: string; titel: string | null; datum: string | null; dauerMin: number | null }, a: GespraechAnalyse, ausgang?: string | null): string {
   const d = g.datum ? new Date(g.datum) : null;
   const kopf = `🎥 ${g.titel ?? 'Gespräch'}${d ? ` · ${d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })}` : ''} · ${Math.round(g.dauerMin ?? 0)} Min.`;
   const schritte = a.naechste_schritte.slice(0, 3).join(' · ');
-  const chance = ['closing', 'setting', 'follow_up', 'opening'].includes(a.art) ? `Abschlusschance ${a.abschluss_chance} % · ` : '';
+  // Nach dem Abschluss keine „Abschlusschance“ mehr anzeigen
+  const chance =
+    ausgang === 'gewonnen' ? '✅ Abgeschlossen · ' : ['closing', 'setting', 'follow_up', 'opening'].includes(a.art) ? `Abschlusschance ${a.abschluss_chance} % · ` : '';
   return [
     kopf,
     kurzfassung(a.zusammenfassung),
