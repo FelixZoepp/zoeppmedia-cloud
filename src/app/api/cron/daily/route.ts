@@ -354,6 +354,15 @@ async function runDailyJobs() {
     console.error('[cron/daily] Empfehlungen fehlgeschlagen:', err);
   }
 
+  // 14d. Kontrollzentrum-Frühwarnung: Kunde rot / Churn-Risiko → interne Aufgabe (nur mit Freigabe, nie Nachricht an Kunden)
+  try {
+    const { planeFruehwarnungen } = await import('@/lib/kontrollzentrum/fruehwarnung');
+    const { today } = await import('@/lib/fulfillment/views');
+    results.kontrollzentrum = await planeFruehwarnungen(supabase, today(), now);
+  } catch (err) {
+    console.error('[cron/daily] Kontrollzentrum-Frühwarnung fehlgeschlagen:', err);
+  }
+
   // 15. Slack-Berichte Marketing + Sales: siehe Abendbericht (20 Uhr, src/lib/berichte/abendbericht.ts) im Minuten-Tick
 
   // 16. Eingangs-Monitoring: Feed-Abrufe ohne Bewerbungen + Fehlerquote (Phase 5 Task 8)

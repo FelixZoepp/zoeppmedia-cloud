@@ -131,6 +131,13 @@ export const FREIGABEN = {
       'Aus: wie bisher (zweiter Versuch nach 3 Stunden, Rückruf nur mit Datum).',
     wirkt: 'Nur Anruf-Liste und interne Aufgaben – keine Nachricht an Bewerber',
   },
+  kontrollzentrum_warnungen: {
+    titel: '🚦 Kontrollzentrum: Frühwarnung',
+    was:
+      'Täglich prüft die Cloud alle Kunden wie im Kontrollzentrum. Wird ein Kunde rot (z. B. Kontaktquote unter 50 %, keine Logins, viele Leads ohne Termin) oder zeigt Churn-Risiko (2 Wochen rot, keine Logins, Leads eingebrochen), ' +
+      'bekommt der Kundenbetreuer eine interne Aufgabe mit den Gründen – je Kunde und Grund höchstens eine offene.',
+    wirkt: 'Nur interne Aufgaben – keine Nachricht an Kunden',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;
