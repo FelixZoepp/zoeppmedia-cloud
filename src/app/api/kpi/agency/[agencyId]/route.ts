@@ -7,8 +7,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Agency users can see their own KPIs, internal can see all
-  if (!isInternal(user.role) && user.agency_id !== agencyId) {
+  // KPI-Ziele sind intern – Kunden sehen sie nicht
+  if (!isInternal(user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
