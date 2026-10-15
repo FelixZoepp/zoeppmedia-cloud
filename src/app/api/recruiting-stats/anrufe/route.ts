@@ -9,6 +9,8 @@ import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { berechneAnrufStats } from '@/lib/kpi/anruf-stats';
 import { fetchAll } from '@/lib/supabase/fetch-all';
+import { berlinTagesGrenzen } from '@/lib/zeit/berlin';
+import { pruefeZeitraum } from '@/lib/zeit/zeitraum';
 
 const TAG = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -22,8 +24,10 @@ export async function GET(request: Request) {
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
   if (!TAG.test(from) || !TAG.test(to)) return NextResponse.json({ error: 'Ungültiger Zeitraum' }, { status: 400 });
-  const ab = `${from}T00:00:00.000Z`;
-  const bis = `${to}T23:59:59.999Z`;
+  const fehler = pruefeZeitraum(from, to);
+  if (fehler) return NextResponse.json({ error: fehler }, { status: 400 });
+  // Berliner Kalendertage → UTC-Grenzen (00:00 bis 23:59:59.999 Uhr deutscher Zeit)
+  const { ab, bis } = berlinTagesGrenzen(from, to);
 
   const svc = createAdminClient();
   // Seitenweise laden – Supabase liefert pro Abfrage höchstens 1000 Zeilen

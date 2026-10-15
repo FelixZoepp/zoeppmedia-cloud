@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { fetchAll } from '@/lib/supabase/fetch-all';
 import { getStagesForAgency, istEingestelltStage } from '@/lib/pipeline/get-stages';
-import { berlinMonatsStart, berlinWochenStart } from '@/lib/zeit/berlin';
+import { berlinMonatsStart, berlinTag, berlinWochenStart } from '@/lib/zeit/berlin';
 
 function getDateRange(period: string): { since: Date | null; until: Date } {
   const now = new Date();
@@ -135,8 +135,9 @@ export async function GET(request: Request) {
     .eq('agency_id', agencyId)
     .order('report_date', { ascending: false });
 
-  if (since) metaQuery = metaQuery.gte('report_date', since.toISOString().split('T')[0]);
-  if (period !== 'all') metaQuery = metaQuery.lte('report_date', until.toISOString().split('T')[0]);
+  // report_date ist ein Kalendertag – Berliner Tag nehmen, nicht den UTC-Tag (Berlin 00:00 = Vortag in UTC)
+  if (since) metaQuery = metaQuery.gte('report_date', berlinTag(since));
+  if (period !== 'all') metaQuery = metaQuery.lte('report_date', berlinTag(until));
   else metaQuery = metaQuery.limit(30);
 
   const { data: metaReports } = await metaQuery;

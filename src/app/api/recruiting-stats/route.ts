@@ -13,6 +13,8 @@ import { z } from 'zod';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getRecruitingStats } from '@/lib/kpi/get-recruiting-stats';
+import { berlinTagesGrenzen, vorperiode } from '@/lib/zeit/berlin';
+import { pruefeZeitraum } from '@/lib/zeit/zeitraum';
 
 // ---------------------------------------------------------------------------
 // Query-Parameter-Schema
@@ -55,16 +57,24 @@ export async function GET(request: Request) {
 
   const { from, to, job_id: jobId, source } = parsed.data;
 
-  // Datum zu vollständigem ISO-Timestamp erweitern
-  const fromTs = `${from}T00:00:00.000Z`;
-  const toTs   = `${to}T23:59:59.999Z`;
+  const fehler = pruefeZeitraum(from, to);
+  if (fehler) {
+    return NextResponse.json({ error: fehler }, { status: 400 });
+  }
+
+  // Berliner Kalendertage → UTC-Grenzen (00:00 bis 23:59:59.999 Uhr deutscher Zeit)
+  const aktuell = berlinTagesGrenzen(from, to);
+  const vor     = vorperiode(from, to);
+  const vorher  = berlinTagesGrenzen(vor.from, vor.to);
 
   // --- Daten laden ---
   const svc = createAdminClient();
 
   const payload = await getRecruitingStats(svc, agencyId, {
-    from:   fromTs,
-    to:     toTs,
+    from:     aktuell.ab,
+    to:       aktuell.bis,
+    prevFrom: vorher.ab,
+    prevTo:   vorher.bis,
     jobId,
     source,
   });

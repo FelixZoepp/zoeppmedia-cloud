@@ -5,10 +5,19 @@ import dynamic from 'next/dynamic';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { AnrufStatsSection } from './anruf-stats-section';
 import type { RecruitingStatsPayload, JobTableRow } from '@/lib/kpi/get-recruiting-stats';
 import type { KpiTiles } from '@/lib/kpi/recruiting-kpis';
+import { berlinTag, tagPlus } from '@/lib/zeit/berlin';
+import {
+  MAX_ZEITRAUM_TAGE,
+  ZEITRAUM_OPTIONEN,
+  istMonatsPreset,
+  zeitraumAufloesen,
+  type ZeitraumPreset,
+} from '@/lib/zeit/zeitraum';
 
 const TimelineChart = dynamic(() => import('./timeline-chart').then((m) => m.TimelineChart), {
   ssr: false,
@@ -49,9 +58,10 @@ interface TileProps {
   value: string;
   delta: string | null;
   positive?: boolean; // true = grün wenn delta positiv, false = grün wenn negativ
+  vergleich: string; // z. B. „ggü. Vorperiode" oder „ggü. Vormonat"
 }
 
-function KpiTile({ label, value, delta, positive = true }: TileProps) {
+function KpiTile({ label, value, delta, positive = true, vergleich }: TileProps) {
   const isPositive = delta !== null && !delta.startsWith('-');
   const isGood = positive ? isPositive : !isPositive;
   const deltaColor = delta === null ? '' : isGood ? 'text-green-600' : 'text-red-600';
@@ -61,7 +71,7 @@ function KpiTile({ label, value, delta, positive = true }: TileProps) {
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{label}</p>
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       {delta !== null && (
-        <p className={`text-xs mt-1 font-medium ${deltaColor}`}>{delta} ggü. Vorperiode</p>
+        <p className={`text-xs mt-1 font-medium ${deltaColor}`}>{delta} {vergleich}</p>
       )}
       {delta === null && <p className="text-xs mt-1 text-gray-300">–</p>}
     </Card>
@@ -87,12 +97,6 @@ function sourceColor(src: string): string {
 // Haupt-Komponente
 // ---------------------------------------------------------------------------
 
-const ZEITRAUM_OPTIONS = [
-  { value: '7', label: '7 Tage' },
-  { value: '30', label: '30 Tage' },
-  { value: '90', label: '90 Tage' },
-];
-
 const SOURCE_OPTIONS = [
   { value: '', label: 'Alle Quellen' },
   { value: 'indeed', label: 'Indeed' },
@@ -102,18 +106,25 @@ const SOURCE_OPTIONS = [
 ];
 
 export function RecruitingStatsView() {
-  const [zeitraum, setZeitraum] = useState<'7' | '30' | '90'>('30');
+  // Heute als Berliner Kalendertag – alle Zeiträume werden in deutscher Zeit aufgelöst
+  const [heute] = useState(() => berlinTag());
+  const [preset, setPreset] = useState<ZeitraumPreset>('30');
+  const [eigenVon, setEigenVon] = useState(() => tagPlus(heute, -29));
+  const [eigenBis, setEigenBis] = useState(heute);
   const [jobId, setJobId] = useState('');
   const [source, setSource] = useState('');
   const [data, setData] = useState<RecruitingStatsPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const zeitraum = zeitraumAufloesen(preset, heute, { von: eigenVon, bis: eigenBis });
+  const from = zeitraum.ok ? zeitraum.from : null;
+  const to = zeitraum.ok ? zeitraum.to : null;
+  const vergleich = istMonatsPreset(preset) ? 'ggü. Vormonat' : 'ggü. Vorperiode';
+
   const fetchStats = useCallback(async () => {
+    // Ungültiger eigener Zeitraum: nichts laden, letzte Daten stehen lassen
+    if (!from || !to) return;
     setLoading(true);
-    const to = new Date().toISOString().slice(0, 10);
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - parseInt(zeitraum, 10));
-    const from = fromDate.toISOString().slice(0, 10);
 
     const params = new URLSearchParams({ from, to });
     if (jobId) params.set('job_id', jobId);
@@ -128,7 +139,7 @@ export function RecruitingStatsView() {
     } finally {
       setLoading(false);
     }
-  }, [zeitraum, jobId, source]);
+  }, [from, to, jobId, source]);
 
   useEffect(() => {
     fetchStats();
@@ -142,17 +153,14 @@ export function RecruitingStatsView() {
     ).map(([id, title]) => ({ value: id, label: title })),
   ];
 
-  // Zeitraum-Filter für Export-URL
-  const exportTo = new Date().toISOString().slice(0, 10);
-  const exportFrom = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - parseInt(zeitraum, 10));
-    return d.toISOString().slice(0, 10);
+  // Zeitraum-Filter für Export-URL (gleiche Kalendertage wie die Anzeige)
+  const exportUrl = (() => {
+    if (!from || !to) return null;
+    const exportParams = new URLSearchParams({ from, to });
+    if (jobId) exportParams.set('job_id', jobId);
+    if (source) exportParams.set('source', source);
+    return `/api/recruiting-stats/export?${exportParams.toString()}`;
   })();
-  const exportParams = new URLSearchParams({ from: exportFrom, to: exportTo });
-  if (jobId) exportParams.set('job_id', jobId);
-  if (source) exportParams.set('source', source);
-  const exportUrl = `/api/recruiting-stats/export?${exportParams.toString()}`;
 
   const tiles = data?.kpis.tiles;
   const prev: KpiTiles | undefined = data?.previousTiles;
@@ -178,10 +186,11 @@ export function RecruitingStatsView() {
         action={
           <div className="flex items-center gap-3">
             <Select
-              value={zeitraum}
-              onChange={(e) => setZeitraum(e.target.value as '7' | '30' | '90')}
-              options={ZEITRAUM_OPTIONS}
-              className="w-32"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value as ZeitraumPreset)}
+              options={ZEITRAUM_OPTIONEN}
+              className="w-44"
+              aria-label="Zeitraum"
             />
             <Select
               value={jobId}
@@ -199,6 +208,35 @@ export function RecruitingStatsView() {
         }
       />
 
+      {preset === 'eigen' && (
+        <div className="-mt-3 mb-6 flex flex-wrap items-end gap-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Von</span>
+            <Input
+              type="date"
+              value={eigenVon}
+              max={eigenBis || heute}
+              onChange={(e) => setEigenVon(e.target.value)}
+              className="w-44"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Bis</span>
+            <Input
+              type="date"
+              value={eigenBis}
+              min={eigenVon || undefined}
+              max={heute}
+              onChange={(e) => setEigenBis(e.target.value)}
+              className="w-44"
+            />
+          </label>
+          <p className={`pb-3 text-xs ${zeitraum.ok ? 'text-gray-500' : 'font-medium text-red-600'}`}>
+            {zeitraum.ok ? `Höchstens ${MAX_ZEITRAUM_TAGE} Tage, Tage nach deutscher Zeit` : zeitraum.fehler}
+          </p>
+        </div>
+      )}
+
       {loading && (
         <div className="flex items-center justify-center h-64">
           <div className="w-8 h-8 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
@@ -214,42 +252,49 @@ export function RecruitingStatsView() {
               value={fmtNum(tiles?.bewerbungen ?? 0)}
               delta={prev ? deltaAbs(tiles?.bewerbungen ?? 0, prev.bewerbungen) : null}
               positive
+              vergleich={vergleich}
             />
             <KpiTile
               label="Antwortquote"
               value={fmtPct(tiles?.antwortquote ?? null)}
               delta={prev ? deltaPct(tiles?.antwortquote ?? null, prev.antwortquote) : null}
               positive
+              vergleich={vergleich}
             />
             <KpiTile
               label="Vorquali abgeschlossen"
               value={fmtNum(tiles?.vorqualiAbgeschlossen ?? 0)}
               delta={prev ? deltaAbs(tiles?.vorqualiAbgeschlossen ?? 0, prev.vorqualiAbgeschlossen) : null}
               positive
+              vergleich={vergleich}
             />
             <KpiTile
               label="Qualifiziert (A+B)"
               value={fmtNum(tiles?.qualifiziert ?? 0)}
               delta={prev ? deltaAbs(tiles?.qualifiziert ?? 0, prev.qualifiziert) : null}
               positive
+              vergleich={vergleich}
             />
             <KpiTile
               label="Termine gebucht"
               value={fmtNum(tiles?.termineGebucht ?? 0)}
               delta={prev ? deltaAbs(tiles?.termineGebucht ?? 0, prev.termineGebucht) : null}
               positive
+              vergleich={vergleich}
             />
             <KpiTile
               label="No-Show-Quote"
               value={fmtPct(tiles?.noShowQuote ?? null)}
               delta={prev ? deltaPct(tiles?.noShowQuote ?? null, prev.noShowQuote) : null}
               positive={false}
+              vergleich={vergleich}
             />
             <KpiTile
               label="Einstellungen"
               value={fmtNum(tiles?.einstellungen ?? 0)}
               delta={prev ? deltaAbs(tiles?.einstellungen ?? 0, prev.einstellungen) : null}
               positive
+              vergleich={vergleich}
             />
           </div>
 
@@ -423,18 +468,24 @@ export function RecruitingStatsView() {
           </div>
 
           {/* Anrufe (Erreichbarkeit, je Person, Speed-to-Lead, No-Shows) */}
-          <AnrufStatsSection zeitraum={zeitraum} />
+          {from && to && <AnrufStatsSection from={from} to={to} />}
 
           {/* 6. Jobs-Tabelle */}
           <Card padding="md">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-900">Jobs-Übersicht</h2>
-              <a
-                href={exportUrl}
-                className="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                CSV exportieren
-              </a>
+              {exportUrl ? (
+                <a
+                  href={exportUrl}
+                  className="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                >
+                  CSV exportieren
+                </a>
+              ) : (
+                <span className="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-400 cursor-not-allowed">
+                  CSV exportieren
+                </span>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

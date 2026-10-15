@@ -9,6 +9,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { fetchAll, fetchAllIn } from '@/lib/supabase/fetch-all';
+import { berlinTag, berlinTagVon } from '@/lib/zeit/berlin';
 import {
   computeRecruitingKpis,
   type KpiAppRow,
@@ -24,6 +25,9 @@ import {
 export interface StatsFilters {
   from: string;
   to: string;
+  /** Vorperiode explizit (z. B. Berliner Kalendertage); ohne Angabe gleiche Dauer direkt davor */
+  prevFrom?: string;
+  prevTo?: string;
   jobId?: string;
   source?: string;
 }
@@ -197,12 +201,12 @@ export async function getRecruitingStats(
 ): Promise<RecruitingStatsPayload> {
   const { from, to, jobId, source } = filters;
 
-  // Vorzeitraum: gleiche Länge direkt davor
+  // Vorzeitraum: gleiche Länge direkt davor (von der Route als Kalendertage vorgegeben, sonst per Dauer)
   const fromMs   = new Date(from).getTime();
   const toMs     = new Date(to).getTime();
   const duration = toMs - fromMs;
-  const prevFrom = new Date(fromMs - duration).toISOString();
-  const prevTo   = new Date(fromMs - 1).toISOString();
+  const prevFrom = filters.prevFrom ?? new Date(fromMs - duration).toISOString();
+  const prevTo   = filters.prevTo ?? new Date(fromMs - 1).toISOString();
 
   // -------------------------------------------------------------------------
   // Schritt 1–3: pipeline_stages + applications (aktueller und Vorzeitraum) parallel.
@@ -421,7 +425,7 @@ export async function getRecruitingStats(
   // -------------------------------------------------------------------------
   // Tasks aufbauen
   // -------------------------------------------------------------------------
-  const todayUtc = new Date().toISOString().slice(0, 10);
+  const heuteBerlin = berlinTag();
 
   const brauchtMensch = conversations.filter(
     (c) => currAppIds.has(c.application_id) && c.state === 'human_active',
@@ -437,7 +441,7 @@ export async function getRecruitingStats(
     (t) =>
       currAppIds.has(t.application_id) &&
       (t.status === 'booked' || t.status === 'confirmed') &&
-      t.starts_at?.slice(0, 10) === todayUtc,
+      !!t.starts_at && berlinTagVon(t.starts_at) === heuteBerlin,
   ).length;
 
   // Nur um TypeScript den currConvIds-Gebrauch zu signalisieren

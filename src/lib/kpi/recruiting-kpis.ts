@@ -4,6 +4,8 @@
  * Alle Quoten folgen Spec §12.
  */
 
+import { berlinTagVon } from '@/lib/zeit/berlin';
+
 // ---------------------------------------------------------------------------
 // Interfaces — buchstabengetreu nach Task-3-Brief (Task 4 baut darauf auf)
 // ---------------------------------------------------------------------------
@@ -119,10 +121,10 @@ function ms(isoStr: string): number {
 }
 
 /**
- * ISO-Zeitstring → YYYY-MM-DD (UTC-Tag).
+ * ISO-Zeitstring → YYYY-MM-DD (Berliner Kalendertag, passend zu den Zeitraumgrenzen).
  */
 function toDay(isoStr: string): string {
-  return isoStr.slice(0, 10);
+  return berlinTagVon(isoStr);
 }
 
 // ---------------------------------------------------------------------------

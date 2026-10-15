@@ -58,3 +58,71 @@ export function berlinMonatsStart(jetzt: Date = new Date(), delta = 0): Date {
   const w = wanduhr(jetzt);
   return berlinMitternacht(w.y, w.m + delta, 1);
 }
+
+// ---------------------------------------------------------------------------
+// Kalendertage 'YYYY-MM-DD' (reine Datumsrechnung, ohne Uhrzeit)
+// ---------------------------------------------------------------------------
+
+const TAG_MUSTER = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Zerlegt 'YYYY-MM-DD' – null, wenn das Format falsch oder der Tag ungültig ist (z. B. 31.02.) */
+export function tagTeile(tag: string): { y: number; m: number; d: number } | null {
+  const t = TAG_MUSTER.exec(tag);
+  if (!t) return null;
+  const y = Number(t[1]);
+  const m = Number(t[2]);
+  const d = Number(t[3]);
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) return null;
+  return { y, m, d };
+}
+
+/** true, wenn 'YYYY-MM-DD' ein gültiger Kalendertag ist */
+export function istGueltigerTag(tag: string): boolean {
+  return tagTeile(tag) !== null;
+}
+
+function tagAusUtc(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** Kalendertag um n Tage verschieben (n darf negativ sein) */
+export function tagPlus(tag: string, n: number): string {
+  const t = tagTeile(tag);
+  if (!t) throw new Error(`Ungültiger Tag: ${tag}`);
+  return tagAusUtc(Date.UTC(t.y, t.m - 1, t.d + n));
+}
+
+/** Anzahl Kalendertage von 'von' bis 'bis' einschließlich beider Tage (bis < von ergibt ≤ 0) */
+export function tageInklusive(von: string, bis: string): number {
+  const a = tagTeile(von);
+  const b = tagTeile(bis);
+  if (!a || !b) throw new Error(`Ungültiger Zeitraum: ${von} – ${bis}`);
+  return Math.round((Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d)) / 86_400_000) + 1;
+}
+
+/**
+ * Berliner Kalendertage → UTC-Zeitstempel für Datenbankabfragen:
+ * ab = 00:00:00.000 Uhr Berlin am Tag 'von', bis = 23:59:59.999 Uhr Berlin am Tag 'bis'.
+ * Sommer-/Winterzeit wird berücksichtigt (Umstellungstage haben 23 bzw. 25 Stunden).
+ */
+export function berlinTagesGrenzen(von: string, bis: string): { ab: string; bis: string } {
+  const a = tagTeile(von);
+  const b = tagTeile(bis);
+  if (!a || !b) throw new Error(`Ungültiger Zeitraum: ${von} – ${bis}`);
+  const start = berlinMitternacht(a.y, a.m, a.d);
+  const ende = new Date(berlinMitternacht(b.y, b.m, b.d + 1).getTime() - 1);
+  return { ab: start.toISOString(), bis: ende.toISOString() };
+}
+
+/** Vorperiode: gleich viele Kalendertage direkt vor 'von' */
+export function vorperiode(von: string, bis: string): { from: string; to: string } {
+  const n = tageInklusive(von, bis);
+  return { from: tagPlus(von, -n), to: tagPlus(von, -1) };
+}
+
+/** Berliner Kalendertag eines Zeitstempels (ISO-String) als 'YYYY-MM-DD' */
+export function berlinTagVon(iso: string): string {
+  return berlinTag(new Date(iso));
+}
