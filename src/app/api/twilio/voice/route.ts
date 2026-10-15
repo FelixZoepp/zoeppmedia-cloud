@@ -34,6 +34,8 @@ export async function POST(req: Request) {
   const { data: a } = await svc.from('agencies').select('outbound_phone').eq('id', cand.agency_id).maybeSingle();
   const von = normalizePhoneE164((a as { outbound_phone: string | null } | null)?.outbound_phone) ?? normalizePhoneE164(cfg.callerId);
   if (!von) return xml(twimlSagen('Für diesen Kunden ist noch keine Absendernummer eingetragen.'));
+  // Kosten: Handy-Anrufe sind nur mit deutscher Absendernummer günstig (EU-Tarif) – sonst bis zu 10× teurer
+  if (!von.startsWith('+49')) return xml(twimlSagen('Bitte zuerst eine deutsche Absendernummer eintragen.'));
 
   const nach = normalizePhoneE164(cand.phone)!;
   const aufnahme = p.aufnahme === '1';

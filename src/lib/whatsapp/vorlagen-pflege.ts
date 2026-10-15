@@ -61,13 +61,29 @@ export async function pflegeVorlagen(svc: SupabaseClient, jetzt: Date = new Date
         const { count } = await svc
           .from('whatsapp_templates')
           .update(
-            { status, meta_template_id: t.id, meta_fehler: status === 'rejected' ? t.rejectedReason ?? 'abgelehnt' : null, updated_at: jetzt.toISOString() },
+            { status, meta_template_id: t.id, meta_fehler: status === 'rejected' ? t.rejectedReason ?? 'abgelehnt' : null, ...(t.category ? { category: t.category } : {}), updated_at: jetzt.toISOString() },
             { count: 'exact' },
           )
           .eq('wa_account_id', k.id)
           .eq('name', t.name)
           .eq('language', t.language);
         if (count) aktualisiert += count;
+        // Kosten: Service-Vorlage (UTILITY) von Meta als Werbung (MARKETING) eingestuft → ~2,5× so teuer → Aufgabe für uns
+        const preset = TEMPLATE_PRESETS.find((p) => p.name === t.name);
+        if (preset && preset.category === 'UTILITY' && t.category === 'MARKETING') {
+          const titel = `💸 WhatsApp-Vorlage „${t.name}“ von Meta als Werbung eingestuft`;
+          const { count: schon } = await svc.from('internal_tasks').select('id', { count: 'exact', head: true }).eq('title', titel).eq('agency_id', k.agency_id);
+          if (!schon) {
+            await svc.from('internal_tasks').insert({
+              title: titel,
+              description: 'Meta rechnet diese Vorlage jetzt als Werbung ab (ca. 0,11 € statt 0,05 € je Nachricht). Text prüfen: rein informativ zum Termin/zur Bewerbung, ohne werbliche Formulierungen – dann neu einreichen.',
+              agency_id: k.agency_id,
+              status: 'todo',
+              priority: 'medium',
+              due_date: jetzt.toISOString().slice(0, 10),
+            });
+          }
+        }
       }
       // Kunden-Konten: Presets ohne Meta-ID (Einreichung fehlgeschlagen oder nie erfolgt) erneut einreichen – höchstens 1×/Tag
       const { data: rows } = await svc.from('whatsapp_templates').select('preset_key, meta_template_id, eingereicht_am, meta_fehler, created_at').eq('wa_account_id', k.id);
