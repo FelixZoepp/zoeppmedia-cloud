@@ -204,6 +204,13 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'umfrage_vorlagen_einreichung', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    // Einzelne Vorlage einreichen: vorlage_einreichen:<name>
+    if (name.startsWith('vorlage_einreichen:')) {
+      const { reicheSalesVorlageEin } = await import('./vorlagen');
+      const v = name.slice('vorlage_einreichen:'.length);
+      await svc.from('system_einstellungen').upsert({ key: `einreichung_${v}`, wert: JSON.stringify(await reicheSalesVorlageEin(svc, v)), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'eintrag_vorlagen') {
       const { reicheSalesVorlageEin } = await import('./vorlagen');
       const erg: Record<string, unknown> = {};
