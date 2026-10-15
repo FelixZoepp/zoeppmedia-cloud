@@ -1,7 +1,10 @@
+
 /**
  * Kontrollzentrum: reine Rechen- und Bewertungsfunktionen (ohne Datenbank, testbar).
  * Kennzahlen je Kunde für ein Zeitfenster, Ampel mit Gründen, Upsell-Signal, Churn-Risiko und Marge.
  */
+
+import { liesSchalter } from '@/lib/recruiting/kontakt-schalter';
 
 export type Ampel = 'gruen' | 'gelb' | 'rot';
 
@@ -240,19 +243,10 @@ export function kostenProEinstellung(mrr: number | null, werbebudget: number | n
   return Math.round(kosten / einstellungen);
 }
 
-/** system_einstellungen.bewerber_kontakt = { aktiv, kunden?: string[] } – ohne Kundenliste gilt der Schalter für alle */
+/** Bewerber-Kontakt für diesen Kunden an? Globaler Schalter oder einzeln freigegeben (gleiche Regel wie kontakt-schalter.ts) */
 export function bewerberKontaktAktiv(wert: unknown, agencyId: string): boolean {
-  let w = wert;
-  if (typeof w === 'string') {
-    try {
-      w = JSON.parse(w);
-    } catch {
-      return false;
-    }
-  }
-  const o = (w ?? {}) as { aktiv?: unknown; kunden?: unknown };
-  if (o.aktiv !== true) return false;
-  return !Array.isArray(o.kunden) || !o.kunden.length || o.kunden.includes(agencyId);
+  const s = liesSchalter(wert);
+  return s.aktiv || s.kunden.includes(agencyId);
 }
 
 /** Zahl aus system_einstellungen tolerant lesen ("65", "65,5", 65, {"wert": 65}) */

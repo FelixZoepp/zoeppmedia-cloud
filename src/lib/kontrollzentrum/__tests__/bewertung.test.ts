@@ -148,7 +148,9 @@ describe('Marge und Kosten', () => {
 describe('Einstellungen lesen', () => {
   it('Bewerber-Kontakt: aktiv für alle oder nur gelistete Kunden', () => {
     expect(bewerberKontaktAktiv('{"aktiv":true}', 'a')).toBe(true);
-    expect(bewerberKontaktAktiv({ aktiv: true, kunden: ['b'] }, 'a')).toBe(false);
+    expect(bewerberKontaktAktiv({ aktiv: true, kunden: ['b'] }, 'a')).toBe(true);
+    expect(bewerberKontaktAktiv({ aktiv: false, kunden: ['a'] }, 'a')).toBe(true);
+    expect(bewerberKontaktAktiv({ aktiv: false, kunden: ['b'] }, 'a')).toBe(false);
     expect(bewerberKontaktAktiv({ aktiv: true, kunden: ['a'] }, 'a')).toBe(true);
     expect(bewerberKontaktAktiv({ aktiv: false }, 'a')).toBe(false);
     expect(bewerberKontaktAktiv('kaputt', 'a')).toBe(false);
@@ -217,7 +219,7 @@ describe('baueZeilen', () => {
       { agency_id: 'b', last_login: tage(60) },
     ],
     whatsapp: new Set(['b']),
-    kontaktSchalter: { aktiv: true, kunden: ['b'] },
+    kontaktSchalter: { aktiv: false, kunden: ['b'] },
     stundensatz: 60,
     teamMinuten: new Map([['b', 120]]),
     anrufMinuten: new Map([['b', 100]]),
