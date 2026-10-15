@@ -1,5 +1,5 @@
 /**
- * 10 Vorlagen-Presets aus Spec Abschn. 7.
+ * Vorlagen-Presets aus Spec Abschn. 7 (+ „Nicht erreicht“ aus dem Anruf-Modus).
  * Kategorie UTILITY, Sprache de, deutsche Bodies mit echten Umlauten.
  * Meta-Regeln: Body darf nicht mit einer Variable beginnen oder enden, Beispielwerte müssen realistisch sein,
  * keine Emojis in Buttons. Die erste Nachricht nennt die Abmeldung per STOP.
@@ -122,6 +122,16 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     body: 'Hallo {{1}}, ein kurzes Update zu deiner Bewerbung als {{2}}: {{3}}\n\nBei Fragen antworte einfach hier.',
     variables: ['vorname', 'jobtitel', 'freitext'],
     beispiel: ['Mehmet', 'Vertriebsmitarbeiter im Außendienst', 'Dein Probetag ist für Donnerstag eingeplant'],
+  },
+  {
+    // Anruf-Modus „Nicht erreicht / Mailbox“ (Freigabe bewerber_nicht_erreicht_whatsapp)
+    presetKey: 'bewerber_nicht_erreicht',
+    name: 'bewerber_nicht_erreicht',
+    category: 'UTILITY',
+    language: 'de',
+    body: 'Hallo {{1}}, wir haben gerade versucht, dich wegen deiner Bewerbung bei {{2}} anzurufen. Wann erreichen wir dich am besten? Schreib uns einfach Tag und Uhrzeit, dann rufen wir genau dann an.',
+    variables: ['vorname', 'firmenname'],
+    beispiel: ['Mehmet', 'Solar Nord GmbH'],
   },
 ];
 

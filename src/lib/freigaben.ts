@@ -91,6 +91,14 @@ export const FREIGABEN = {
       'Ohne Angabe im Funnel oder ohne freigegebene Vorlage eintrag_1_termin_v2 geht wie bisher eintrag_1_termin raus.',
     wirkt: 'Ersetzt nur den Text der ersten Nachricht der bestehenden Kette – nicht mehr Nachrichten',
   },
+  bewerber_nicht_erreicht_whatsapp: {
+    titel: '📲 Bewerber nicht erreicht → WhatsApp',
+    was:
+      'Wird im Anruf-Modus „Nicht erreicht / Mailbox“ protokolliert, bekommt der Bewerber 2 Minuten später: „Hallo …, wir haben gerade versucht, dich wegen deiner Bewerbung bei <Kunde> anzurufen. Wann erreichen wir dich am besten? …“. ' +
+      'Höchstens einmal in 3 Tagen, nicht nachts, nicht bei STOP/Sperre, nicht wenn er inzwischen erreicht wurde. Hat der Bewerber in den letzten 24 h geschrieben, geht kostenloser Freitext raus, sonst die Vorlage bewerber_nicht_erreicht (Service, ca. 0,05 €). ' +
+      'Zusätzlich gilt der Bewerber-Kontakt-Schalter – solange der aus ist, nur an Testnummern.',
+    wirkt: 'WhatsApp an Bewerber der Kunden – ausgelöst durch das Anruf-Protokoll',
+  },
   telefonie: {
     titel: '📞 Telefonieren über die Cloud',
     was:

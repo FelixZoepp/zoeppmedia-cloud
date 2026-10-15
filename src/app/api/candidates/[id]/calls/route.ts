@@ -114,6 +114,12 @@ export async function POST(
   // Handle cadence logic based on call result
   await handleCallResultForCadence(supabase, id, candidate.agency_id, body.result, { wieClose });
 
+  // Nicht erreicht → WhatsApp „Wann erreichen wir dich am besten?“ (nur mit Freigabe, Versand prüft Kontakt-Schalter)
+  if (body.result === 'nicht_erreicht') {
+    const { planeBewerberNichtErreicht } = await import('@/lib/recruiting/nicht-erreicht');
+    await planeBewerberNichtErreicht(svc, id, candidate.agency_id).catch((err) => console.error('[calls] Nicht-erreicht-WhatsApp nicht geplant', id, err));
+  }
+
   // Rückruf wie in Close: interne Aufgabe am Wunschtag (nur intern, keine Nachricht an den Bewerber)
   if (rueckrufMitZeit && typeof body.next_contact_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.next_contact_date)) {
     const { error: taskErr } = await svc.from('internal_tasks').insert(
