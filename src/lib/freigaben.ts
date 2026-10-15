@@ -99,6 +99,14 @@ export const FREIGABEN = {
       'Aus: nur Admins können zum Testen telefonieren.',
     wirkt: 'Nur Anrufe, die jemand selbst startet – nichts läuft automatisch',
   },
+  whatsapp_nummer_besorgen: {
+    titel: '☎️ WhatsApp-Nummer für Kunden besorgen',
+    was:
+      'In der Kundenakte legt ein Admin per Klick ein Twilio-Unterkonto für den Kunden an, sieht den Stand der Unterlagen (Regulatory Bundle) und kauft nach ausdrücklicher Bestätigung eine deutsche Festnetznummer (Ortsnetz des Kunden, sonst Berlin 030) – kostet monatlich bei Twilio. ' +
+      'Den Bestätigungscode, den Meta beim WhatsApp-Einrichten per Anruf oder SMS schickt, fängt die Cloud in einem 15-Minuten-Fenster ab und zeigt ihn in der Kundenakte. ' +
+      'Aus: nur der Testlauf (freie Nummern suchen, ohne Kauf) geht.',
+    wirkt: 'Nur Schritte, die ein Admin selbst klickt – keine Nachricht an Kunden, nichts läuft automatisch',
+  },
   masterclass_fuehrung_teaser: {
     titel: '🎓 Masterclass für Führungskräfte anteasern',
     was:

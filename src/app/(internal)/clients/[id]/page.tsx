@@ -14,6 +14,7 @@ import { LeistungenCard } from '@/components/clients/leistungen-card';
 import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
 import { TestleadCard } from '@/components/clients/testlead-card';
 import { HandelsregisterCard } from '@/components/clients/handelsregister-card';
+import { WhatsappNummerCard } from '@/components/clients/whatsapp-nummer-card';
 import { KundenGespraecheCard } from '@/components/clients/kunden-gespraeche-card';
 import { GeneratorCard } from '@/components/clients/generator-card';
 import { agencyLogo } from '@/lib/branding/logo';
@@ -595,6 +596,7 @@ export default function ClientDetailPage() {
       <MasterclassFuehrungCard agencyId={id} />
 
       <HandelsregisterCard agencyId={id} />
+      <WhatsappNummerCard agencyId={id} />
 
       {/* ── Problem Alerts ─────────────────────────────── */}
       {problems.length > 0 && (
