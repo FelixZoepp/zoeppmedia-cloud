@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Clock, Download, FileText, GraduationCap, Link2, ListOrdered, Paperclip, PlayCircle } from 'lucide-react';
 import { Card, SplitText } from '@/components/ui';
 import { formatZeit, videoEmbedUrl, type Lesson, type Module } from '@/lib/masterclass/lesson';
+import { ANGESCHAUT_AB, anbieterVon, GeschuetztesVideo, type VideoStand, type VideoSteuerung } from '@/components/masterclass/geschuetztes-video';
 
 interface Detail {
   lesson: Lesson;
@@ -17,15 +18,29 @@ interface Detail {
   erledigt: boolean;
   aufgaben: Array<{ id: string; title: string; description: string | null; erledigt: boolean }>;
   kann_fortschritt_speichern: boolean;
+  sehnachweis?: string | null;
 }
 
-async function saveProgress(type: 'lesson' | 'task', id: string, value: boolean) {
+async function saveProgress(type: 'lesson' | 'task', id: string, value: boolean, extra: Record<string, unknown> = {}) {
   const res = await fetch('/api/masterclass/progress', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type, id, value }),
+    body: JSON.stringify({ type, id, value, ...extra }),
   });
-  if (!res.ok) throw new Error('Fortschritt konnte nicht gespeichert werden');
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Fortschritt konnte nicht gespeichert werden');
+}
+
+/** Der erste Sehnachweis je Lektion zählt – Neuladen setzt die Zeit nicht zurück */
+function ersterNachweis(lessonId: string, neu: string | null | undefined): string | null {
+  const key = `mc_nachweis_${lessonId}`;
+  try {
+    const alt = localStorage.getItem(key);
+    if (alt) return alt;
+    if (neu) localStorage.setItem(key, neu);
+  } catch {
+    /* privates Fenster */
+  }
+  return neu ?? null;
 }
 
 export default function LessonPage() {
@@ -35,6 +50,8 @@ export default function LessonPage() {
   const [start, setStart] = useState(0);
   const [startedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
+  const [stand, setStand] = useState<VideoStand>({ weiteste: 0, dauer: null });
+  const steuerung = useRef<VideoSteuerung | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,16 +69,24 @@ export default function LessonPage() {
     };
   }, [id, router]);
 
-  // „Kein vorzeitiges Abschließen“: Knopf erst nach der Videodauer freigeben
-  const sperrSek = d?.lesson.kein_vorzeitiges_abschliessen && d.lesson.duration_minutes ? d.lesson.duration_minutes * 60 : 0;
-  const rest = Math.max(0, Math.ceil(sperrSek - (now - startedAt) / 1000));
+  const embed = useMemo(() => (d ? videoEmbedUrl(d.lesson.video_url, start) : null), [d, start]);
+  const istVideo = d?.lesson.typ === 'video' && !!embed;
+  // YouTube/Vimeo: angeschaute Stelle zählt; Loom/Drive und Text: Zeit auf der Seite
+  const mitPlayer = istVideo && !!embed && !!anbieterVon(embed);
+  const schutz = !!d?.kann_fortschritt_speichern && !d.erledigt;
+  const sperrSek = mitPlayer
+    ? 0
+    : (istVideo || d?.lesson.kein_vorzeitiges_abschliessen) && d?.lesson.duration_minutes
+      ? d.lesson.duration_minutes * 60
+      : 0;
+  const zeitRest = Math.max(0, Math.ceil(sperrSek - (now - startedAt) / 1000));
+  const videoRest = mitPlayer && schutz ? (stand.dauer ? Math.max(0, Math.ceil(stand.dauer * ANGESCHAUT_AB - stand.weiteste)) : 1) : 0;
+  const rest = Math.max(zeitRest, videoRest);
   useEffect(() => {
     if (!sperrSek || rest <= 0) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [sperrSek, rest]);
-
-  const embed = useMemo(() => (d ? videoEmbedUrl(d.lesson.video_url, start) : null), [d, start]);
 
   if (!d) {
     return (
@@ -77,7 +102,7 @@ export default function LessonPage() {
     const next = !d.erledigt;
     setD({ ...d, erledigt: next, modul_lektionen: d.modul_lektionen.map((x) => (x.id === l.id ? { ...x, erledigt: next } : x)) });
     try {
-      await saveProgress('lesson', l.id, next);
+      await saveProgress('lesson', l.id, next, next ? { sehnachweis: ersterNachweis(l.id, d.sehnachweis), video_sekunden: stand.dauer } : {});
       if (next) {
         toast.success('Lektion erledigt');
         if (d.nachher) setTimeout(() => router.push(`/masterclass/lektion/${d.nachher!.id}`), 600);
@@ -128,7 +153,11 @@ export default function LessonPage() {
             <Card padding="none" className="overflow-hidden">
               {embed ? (
                 <div className="aspect-video bg-ink">
-                  <iframe key={embed} src={embed} title={l.title} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen className="h-full w-full" />
+                  {mitPlayer ? (
+                    <GeschuetztesVideo embed={embed} lessonId={l.id} title={l.title} geschuetzt={schutz} onStand={setStand} steuerungRef={steuerung} />
+                  ) : (
+                    <iframe key={embed} src={embed} title={l.title} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen className="h-full w-full" />
+                  )}
                 </div>
               ) : (
                 <div className="grid aspect-video place-items-center bg-panel text-gray-500">
@@ -230,7 +259,11 @@ export default function LessonPage() {
               <ul className="mt-3 space-y-1">
                 {l.kapitel.map((k, i) => (
                   <li key={i}>
-                    <button onClick={() => setStart(k.sekunden)} className="flex w-full items-center gap-3 rounded-[12px] px-2 py-2 text-left hover:bg-panel">
+                    <button
+                      onClick={() => {
+                        if (!steuerung.current) return setStart(k.sekunden);
+                        if (!steuerung.current.springe(k.sekunden)) toast('Dieses Kapitel öffnet sich, sobald du bis dahin geschaut hast.');
+                      }} className="flex w-full items-center gap-3 rounded-[12px] px-2 py-2 text-left hover:bg-panel">
                       <span className="w-14 flex-none font-mono text-[13.5px] font-medium text-red-800">{formatZeit(k.sekunden)}</span>
                       <span className="text-[14.5px]">{k.titel}</span>
                     </button>

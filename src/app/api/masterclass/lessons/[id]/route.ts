@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { lessonPatchSchema, normalizeLesson, prepareLessonPatch } from '@/lib/masterclass/lesson';
 import { lessonSchemaReady } from '@/lib/masterclass/schema';
+import { baueSehnachweis } from '@/lib/masterclass/sehnachweis';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -62,6 +63,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     erledigt,
     aufgaben: ((aufgaben ?? []) as Array<{ id: string; title: string; description: string | null }>).map((t) => ({ ...t, erledigt: !!aufgabenErledigt[t.id] })),
     kann_fortschritt_speichern: !!agencyId,
+    sehnachweis: agencyId ? baueSehnachweis(lesson.id, user.id) : null,
     schema_ready: admin ? await lessonSchemaReady(svc) : undefined,
   });
 }
