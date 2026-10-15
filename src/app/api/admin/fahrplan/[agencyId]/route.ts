@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { zaehleCeoLektionen } from '@/lib/masterclass/bereich';
 import { createServerClient } from '@/lib/supabase/server';
 import { isInternalUser } from '@/lib/admin';
 import { isUuid } from '@/lib/supabase/filters';
@@ -78,7 +79,7 @@ export async function GET(
     { data: openTasks },
     { data: problems },
     { data: lessonProgress },
-    { data: totalLessons },
+    ceoLektionen,
     { data: kpiDefaults },
     { data: kpiOverrides },
   ] = await Promise.all([
@@ -90,7 +91,7 @@ export async function GET(
     admin.from('fulfillment_tasks').select('id, title, status, task_type').eq('agency_id', agencyId).not('status', 'in', '("done","skipped")'),
     admin.from('agency_problems').select('id, problem_key, severity, current_value, target_value, detected_at').eq('agency_id', agencyId).is('resolved_at', null),
     admin.from('agency_lesson_progress').select('lesson_id, watched, completed_at').eq('agency_id', agencyId),
-    admin.from('masterclass_lessons').select('id', { count: 'exact', head: true }),
+    zaehleCeoLektionen(admin),
     admin.from('kpi_defaults').select('*'),
     admin.from('agency_kpi_overrides').select('*').eq('agency_id', agencyId),
   ]);
@@ -223,7 +224,7 @@ export async function GET(
   // ── Section 3: Open items ────────────────────────────────────────────────
 
   const completedLessons = (lessonProgress || []).filter((l) => l.watched && l.completed_at).length;
-  const totalLessonCount = totalLessons?.length ?? 0;
+  const totalLessonCount = ceoLektionen;
 
   // SLA: Median TTFC of last 14 days' candidates, compared to KPI target
   const overrideMap = new Map((kpiOverrides || []).map((o) => [o.kpi_key, o.value]));

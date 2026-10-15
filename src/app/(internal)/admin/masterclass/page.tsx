@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowDown, ArrowUp, Clock, FileText, Paperclip, Pencil, PlayCircle, Plus, Trash2, ListOrdered } from 'lucide-react';
-import { Button, Card, Input, Modal, PageHeader } from '@/components/ui';
+import { Button, Card, Input, Modal, PageHeader, SegmentedControl } from '@/components/ui';
 import type { Lesson, Module } from '@/lib/masterclass/lesson';
 
 async function post(body: Record<string, unknown>) {
@@ -28,19 +28,23 @@ function move<T>(list: T[], from: number, to: number): T[] {
 
 export default function AdminMasterclassPage() {
   const router = useRouter();
-  const [modules, setModules] = useState<Module[]>([]);
+  const [alleModule, setAlleModule] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [schemaReady, setSchemaReady] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [fuehrungReady, setFuehrungReady] = useState(false);
+  // Welche Masterclass wird bearbeitet: CEO oder Führungskräfte
+  const [bereich, setBereich] = useState<'ceo' | 'fuehrung'>('ceo');
   const [moduleModal, setModuleModal] = useState<{ id?: string; title: string; description: string } | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch('/api/masterclass/admin');
     if (res.ok) {
-      const d = (await res.json()) as { modules: Module[]; lessons: Lesson[]; schema_ready: boolean };
-      setModules(d.modules);
+      const d = (await res.json()) as { modules: Module[]; lessons: Lesson[]; schema_ready: boolean; fuehrung_ready?: boolean };
+      setAlleModule(d.modules);
       setLessons(d.lessons);
       setSchemaReady(d.schema_ready);
+      setFuehrungReady(!!d.fuehrung_ready);
     }
     setLoading(false);
   }, []);
@@ -49,11 +53,12 @@ export default function AdminMasterclassPage() {
     let cancelled = false;
     fetch('/api/masterclass/admin')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { modules: Module[]; lessons: Lesson[]; schema_ready: boolean } | null) => {
+      .then((d: { modules: Module[]; lessons: Lesson[]; schema_ready: boolean; fuehrung_ready?: boolean } | null) => {
         if (cancelled || !d) return;
-        setModules(d.modules);
+        setAlleModule(d.modules);
         setLessons(d.lessons);
         setSchemaReady(d.schema_ready);
+        setFuehrungReady(!!d.fuehrung_ready);
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -67,7 +72,7 @@ export default function AdminMasterclassPage() {
       if (moduleModal.id) {
         await post({ action: 'update_module', id: moduleModal.id, title: moduleModal.title.trim(), description: moduleModal.description.trim() || null });
       } else {
-        await post({ action: 'create_module', title: moduleModal.title.trim(), description: moduleModal.description.trim() || null, sort_order: modules.length + 1, published: false });
+        await post({ action: 'create_module', title: moduleModal.title.trim(), description: moduleModal.description.trim() || null, sort_order: modules.length + 1, published: false, ...(fuehrungReady ? { bereich } : {}) });
       }
       setModuleModal(null);
       await load();
@@ -77,7 +82,7 @@ export default function AdminMasterclassPage() {
   }
 
   async function togglePublished(m: Module) {
-    setModules((prev) => prev.map((x) => (x.id === m.id ? { ...x, published: !m.published } : x)));
+    setAlleModule((prev) => prev.map((x) => (x.id === m.id ? { ...x, published: !m.published } : x)));
     try {
       await post({ action: 'update_module', id: m.id, published: !m.published });
     } catch {
@@ -88,7 +93,7 @@ export default function AdminMasterclassPage() {
 
   async function reorderModules(from: number, to: number) {
     const next = move(modules, from, to);
-    setModules(next);
+    setAlleModule((prev) => [...prev.filter((x) => !next.some((n) => n.id === x.id)), ...next.map((m, i) => ({ ...m, sort_order: i + 1 }))]);
     await post({ action: 'reorder', table: 'module', ids: next.map((m) => m.id) }).catch(() => toast.error('Reihenfolge nicht gespeichert'));
   }
 
@@ -115,8 +120,12 @@ export default function AdminMasterclassPage() {
     }
   }
 
-  const gesamt = lessons.length;
-  const live = lessons.filter((l) => l.status === 'veroeffentlicht').length;
+  const modules = alleModule
+    .filter((m) => ((m as { bereich?: string }).bereich === 'fuehrung' ? 'fuehrung' : 'ceo') === bereich)
+    .sort((a, b) => a.sort_order - b.sort_order);
+  const imBereich = lessons.filter((l) => modules.some((m) => m.id === l.module_id));
+  const gesamt = imBereich.length;
+  const live = imBereich.filter((l) => l.status === 'veroeffentlicht').length;
 
   return (
     <div>
@@ -134,6 +143,21 @@ export default function AdminMasterclassPage() {
           </>
         }
       />
+
+      {fuehrungReady && (
+        <SegmentedControl
+          className="mb-4"
+          items={[
+            { value: 'ceo', label: 'Masterclass (Inhaber)' },
+            { value: 'fuehrung', label: 'Für Führungskräfte' },
+          ]}
+          value={bereich}
+          onChange={(v) => setBereich(v as 'ceo' | 'fuehrung')}
+        />
+      )}
+      {fuehrungReady && bereich === 'fuehrung' && (
+        <p className="mb-4 text-[13.5px] text-gray-600">Sichtbar nur für freigeschaltete Personen – freischalten in der Kundenakte unter „Masterclass für Führungskräfte“.</p>
+      )}
 
       {!schemaReady && (
         <div className="mb-5 flex gap-3 rounded-xl bg-amber-50 p-4 text-[14px] text-amber-900 shadow-[inset_0_0_0_1px_#fde68a]">

@@ -84,6 +84,13 @@ export const FREIGABEN = {
       'Aus: nur Admins können zum Testen telefonieren.',
     wirkt: 'Nur Anrufe, die jemand selbst startet – nichts läuft automatisch',
   },
+  masterclass_fuehrung_teaser: {
+    titel: '🎓 Masterclass für Führungskräfte anteasern',
+    was:
+      'In der Masterclass sehen Kunden ohne Freischaltung oben die Karte „Masterclass für deine Führungskräfte“ (selbst rekrutieren, von uns ausgebildet, rechnet sich mit den ersten zwei Vertrieblern) mit dem Knopf „Für meine Führungskräfte anfragen“. ' +
+      'Eine Anfrage legt bei uns eine Aufgabe an (höchstens eine pro Kunde und Woche).',
+    wirkt: 'Nur Anzeige im Portal und eine interne Aufgabe – keine Nachricht an den Kunden',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;

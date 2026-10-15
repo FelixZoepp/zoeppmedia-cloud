@@ -1,3 +1,4 @@
+import { bereichVon } from '@/lib/masterclass/bereich';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 
@@ -34,11 +35,14 @@ export async function checkMasterclassNudges(supabase: SupabaseClient) {
   if (!agencies?.length) return { sent: 0 };
 
   // 2. Load modules and lessons once
-  const { data: modules } = await supabase
+  const { data: modulesRaw } = await supabase
     .from('masterclass_modules')
-    .select('id, title, sort_order')
+    .select('*')
     .eq('published', true)
     .order('sort_order');
+  // Nur die CEO-Masterclass
+  const modules = ((modulesRaw ?? []) as Array<Module & { bereich?: unknown }>).filter((m) => bereichVon(m) === 'ceo');
+  const ceoModule = new Set(modules.map((m) => m.id));
 
   const { data: allLessonsRaw } = await supabase
     .from('masterclass_lessons')
@@ -46,7 +50,7 @@ export async function checkMasterclassNudges(supabase: SupabaseClient) {
     .order('sort_order');
   // Entwürfe zählen nicht mit
   const allLessons = (allLessonsRaw ?? [])
-    .filter((l) => (l as { status?: string }).status !== 'entwurf')
+    .filter((l) => (l as { status?: string }).status !== 'entwurf' && ceoModule.has((l as { module_id: string }).module_id))
     .map((l) => ({ id: (l as { id: string }).id, module_id: (l as { module_id: string }).module_id }));
 
   if (!modules?.length || !allLessons?.length) return { sent: 0 };

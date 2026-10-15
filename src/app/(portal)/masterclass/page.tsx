@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Check, Clock, FileText, PlayCircle } from 'lucide-react';
-import { Card, CountUp, PageHeader, SplitText } from '@/components/ui';
+import { Check, Clock, FileText, PlayCircle, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { Card, CountUp, PageHeader, SegmentedControl, SplitText } from '@/components/ui';
 import type { Lesson, Module } from '@/lib/masterclass/lesson';
 
 interface Data {
+  fuehrung_zugang?: boolean;
+  fuehrung_teaser?: boolean;
   modules: Module[];
   lessons: Lesson[];
   lessonProgress: Record<string, boolean>;
@@ -14,16 +17,26 @@ interface Data {
 
 export default function MasterclassPage() {
   const [data, setData] = useState<Data | null>(null);
+  // Zweite Masterclass „Führungskräfte“ – Tab nur mit Freischaltung
+  const [bereich, setBereich] = useState<'ceo' | 'fuehrung'>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('bereich') === 'fuehrung' ? 'fuehrung' : 'ceo',
+  );
+  const [zugang, setZugang] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/masterclass')
+    fetch(`/api/masterclass${bereich === 'fuehrung' ? '?bereich=fuehrung' : ''}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => !cancelled && setData(d ?? { modules: [], lessons: [], lessonProgress: {} }));
+      .then((d: Data | null) => {
+        if (cancelled) return;
+        if (!d && bereich === 'fuehrung') return setBereich('ceo');
+        setData(d ?? { modules: [], lessons: [], lessonProgress: {} });
+        if (d?.fuehrung_zugang) setZugang(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bereich]);
 
   if (!data) {
     return (
@@ -43,7 +56,28 @@ export default function MasterclassPage() {
 
   return (
     <div>
-      <PageHeader title="Masterclass" description="Schritt für Schritt zu planbarem Recruiting und starkem Vertrieb." />
+      <PageHeader
+        title={bereich === 'fuehrung' ? 'Masterclass für Führungskräfte' : 'Masterclass'}
+        description={
+          bereich === 'fuehrung'
+            ? 'Selbst rekrutieren und dein Team aufbauen – wir bilden dich dabei aus.'
+            : 'Schritt für Schritt zu planbarem Recruiting und starkem Vertrieb.'
+        }
+      />
+      {zugang && (
+        <SegmentedControl
+          className="mb-4"
+          items={[
+            { value: 'ceo', label: 'Masterclass' },
+            { value: 'fuehrung', label: 'Für Führungskräfte' },
+          ]}
+          value={bereich}
+          onChange={(v) => {
+            setData(null);
+            setBereich(v as 'ceo' | 'fuehrung');
+          }}
+        />
+      )}
 
       {/* Fortschritt */}
       <section data-rise="" className="fx-swirl mb-4 grid gap-6 rounded-2xl p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-9">
@@ -77,6 +111,8 @@ export default function MasterclassPage() {
           </p>
         </div>
       </section>
+
+      {bereich === 'ceo' && data.fuehrung_teaser && <FuehrungTeaser />}
 
       {modules.length === 0 ? (
         <Card className="py-14 text-center">
@@ -149,5 +185,63 @@ export default function MasterclassPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/** CEO-Masterclass: Hinweis auf die Masterclass für Führungskräfte + Anfrage (geht an uns, nicht raus) */
+function FuehrungTeaser() {
+  const [offen, setOffen] = useState(false);
+  const [anzahl, setAnzahl] = useState('');
+  const [sendet, setSendet] = useState(false);
+  const [fertig, setFertig] = useState(false);
+
+  async function anfragen() {
+    setSendet(true);
+    const res = await fetch('/api/masterclass/fuehrung-anfrage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anzahl: Number(anzahl) || null }),
+    });
+    setSendet(false);
+    if (!res.ok) return void toast.error('Anfrage konnte nicht gesendet werden');
+    setFertig(true);
+    toast.success('Danke! Wir besprechen das im nächsten Termin mit dir.');
+  }
+
+  return (
+    <Card className="mb-4">
+      <div className="flex flex-wrap items-start gap-4">
+        <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-red-100 text-red-900">
+          <Users className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[19px] font-medium tracking-[-0.02em]">Masterclass für deine Führungskräfte</h2>
+          <p className="mt-1 text-[14.5px] leading-relaxed text-gray-700">
+            Deine Führungskräfte lernen, selbst zu rekrutieren – mit demselben System, das du hier lernst. Wir bilden sie persönlich aus.
+            Schon die ersten zwei Vertriebler, die sie selbst gewinnen, holen die Investition wieder rein.
+          </p>
+          {fertig ? (
+            <p className="mt-3 text-[14px] font-medium text-green-700">Angefragt – wir melden uns im nächsten Termin.</p>
+          ) : offen ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                inputMode="numeric"
+                value={anzahl}
+                onChange={(e) => setAnzahl(e.target.value.replace(/\D/g, ''))}
+                placeholder="Wie viele Führungskräfte?"
+                className="h-10 w-56 rounded-full bg-panel px-4 text-[14px] outline-none"
+              />
+              <button onClick={() => void anfragen()} disabled={sendet} className="h-10 rounded-full bg-red-800 px-5 text-[14px] font-semibold text-red-50 disabled:opacity-50">
+                Anfragen
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setOffen(true)} className="mt-3 h-10 rounded-full bg-red-800 px-5 text-[14px] font-semibold text-red-50">
+              Für meine Führungskräfte anfragen
+            </button>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }

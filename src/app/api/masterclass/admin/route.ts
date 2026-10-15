@@ -4,19 +4,22 @@ import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizeLesson, sanitizeLessonHtml } from '@/lib/masterclass/lesson';
 import { lessonSchemaReady } from '@/lib/masterclass/schema';
+import { fuehrungSchemaReady } from '@/lib/masterclass/bereich';
 
 /** Admin-Übersicht: alle Module (auch unveröffentlicht) und alle Lektionen inkl. Entwürfe */
 export async function GET() {
   const user = await getCurrentUser();
   if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const svc = createAdminClient();
-  const [{ data: modules }, { data: lessons }, ready] = await Promise.all([
+  const [{ data: modules }, { data: lessons }, ready, fuehrungReady] = await Promise.all([
     svc.from('masterclass_modules').select('*').order('sort_order'),
     svc.from('masterclass_lessons').select('*').order('sort_order'),
     lessonSchemaReady(svc),
+    fuehrungSchemaReady(svc),
   ]);
   return NextResponse.json({
     schema_ready: ready,
+    fuehrung_ready: fuehrungReady,
     modules: modules ?? [],
     lessons: (lessons ?? []).map((l) => normalizeLesson(l as Record<string, unknown>)),
   });

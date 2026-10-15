@@ -19,6 +19,7 @@ interface Detail {
   aufgaben: Array<{ id: string; title: string; description: string | null; erledigt: boolean }>;
   kann_fortschritt_speichern: boolean;
   sehnachweis?: string | null;
+  bereich?: 'ceo' | 'fuehrung';
 }
 
 async function saveProgress(type: 'lesson' | 'task', id: string, value: boolean, extra: Record<string, unknown> = {}) {
@@ -96,6 +97,7 @@ export default function LessonPage() {
     );
   }
   const l = d.lesson;
+  const uebersicht = d.bereich === 'fuehrung' ? '/masterclass?bereich=fuehrung' : '/masterclass';
 
   async function toggleDone() {
     if (!d) return;
@@ -127,13 +129,13 @@ export default function LessonPage() {
     <div>
       <nav className="fx-fade mb-3 flex flex-wrap items-center gap-2 text-[14px] text-gray-600">
         <GraduationCap className="h-4 w-4" />
-        <Link href="/masterclass" className="hover:text-ink">Masterclass</Link>
+        <Link href={uebersicht} className="hover:text-ink">Masterclass</Link>
         <ChevronRight className="h-3.5 w-3.5" />
         <span className="max-w-[240px] truncate">{d.module?.title}</span>
       </nav>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Link href="/masterclass" className="grid h-11 w-11 place-items-center rounded-full hover:bg-gray-100" aria-label="Zur Übersicht">
+        <Link href={uebersicht} className="grid h-11 w-11 place-items-center rounded-full hover:bg-gray-100" aria-label="Zur Übersicht">
           <ArrowLeft className="h-6 w-6" />
         </Link>
         <SplitText as="h1" text={l.title} className="min-w-0 flex-1 text-[clamp(26px,2.8vw,38px)] font-semibold leading-tight tracking-[-0.035em]" />

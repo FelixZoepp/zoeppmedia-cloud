@@ -1,3 +1,4 @@
+import { bereichVon } from '@/lib/masterclass/bereich';
 import { getEffectiveAgencyId } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -38,11 +39,14 @@ export async function GET(request: NextRequest) {
     : 0;
 
   // Get published modules
-  const { data: modules } = await supabase
+  const { data: modulesRaw } = await supabase
     .from('masterclass_modules')
-    .select('id, title, sort_order')
+    .select('*')
     .eq('published', true)
     .order('sort_order');
+  // Nur die CEO-Masterclass – die für Führungskräfte hat eigenen Fortschritt je Person
+  const modules = ((modulesRaw ?? []) as Array<{ id: string; title: string; sort_order: number; bereich?: unknown }>).filter((m) => bereichVon(m) === 'ceo');
+  const ceoModule = new Set(modules.map((m) => m.id));
 
   // Get all lessons
   const { data: lessonsRaw } = await supabase
@@ -51,7 +55,7 @@ export async function GET(request: NextRequest) {
     .order('sort_order');
   // Entwürfe zählen nicht mit
   const lessons = (lessonsRaw ?? [])
-    .filter((l) => (l as { status?: string }).status !== 'entwurf')
+    .filter((l) => (l as { status?: string }).status !== 'entwurf' && ceoModule.has((l as { module_id: string }).module_id))
     .map((l) => ({ id: (l as { id: string }).id, module_id: (l as { module_id: string }).module_id }));
 
   // Get progress for this agency
