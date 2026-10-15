@@ -1,5 +1,6 @@
 'use client';
 
+import { EinrichtungCard } from '@/components/admin/einrichtung-card';
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -344,6 +345,8 @@ export function HealthClient() {
           </Button>
         }
       />
+
+      <EinrichtungCard />
 
       {loading ? (
         <div className="flex items-center justify-center py-24">
