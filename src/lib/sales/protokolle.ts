@@ -69,6 +69,12 @@ const OPP_CC2 = 'stat_TTFBUyYC71TwPVSrEmD0pa0GbqRowRt71e5xI5LFMTN';
 const OPP_CLOSING_NO_SHOW = 'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG';
 const LEAD_STATUS_DISQUALIFIZIERT = 'stat_8dSmRG4WxUrYGItFQyAy0B4lksHZYeaxnkmUiqKbuCu';
 
+export const SETTING_FELDER = {
+  ergebnis: 'cf_76Hh4UwJmO29mcOhNZdGglGCNpQyccCBbZSciCF3fb3',
+  kalender: 'cf_U7wmwfAu5xqLmfNXv2nYx5EbiLHGFdsZC4nJKHBeR3G',
+  grund: 'cf_F0RQQriozWIK59wJEZqtRTxUPYNU0QAUXk6cgWla6xX',
+} as const;
+
 export const CLOSING_FELDER = {
   naechsterSchritt: 'cf_BhCW7idf0P9fl8ba0D6OZJIwuUDqiiBhHwgJCJbScuJ',
   kalender: 'cf_8gj9WdroQPN5i1M8IhpQ8s30fL4pOF1fRW25kbIrGNU',
@@ -109,6 +115,8 @@ export interface Aktionen {
   abgeschlossen?: boolean;
   /** Termin / Rückruf aus dem Kalenderfeld */
   termin?: string | null;
+  /** Rückruf-Aufgabe in Close für den Bearbeiter des Protokolls */
+  rueckruf?: { datum: string; text: string };
 }
 
 function plusMonate(d: Date, n: number): Date {
@@ -155,6 +163,26 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
   if (erreicht.startsWith('Nein') || ergebnis.startsWith('Nicht erreicht')) return { gesperrtBis: bisKalender ?? morgen };
   if (ergebnis.startsWith('Weiter Follow-up') && bisKalender) return { gesperrtBis: bisKalender };
   return {};
+}
+
+/**
+ * Regeln für das Setting-Protokoll (rein, testbar). Nur ein Fall: Unqualifiziert mit Rückruf-Datum im Kalender
+ * → Lead bis dahin gesperrt (statt pauschal 3 Monate) und eine Rückruf-Aufgabe an dem Tag. Status und
+ * Opportunity setzt der Setter selbst. Keine Nachricht an den Lead.
+ */
+export function regelnSetting(felder: Record<string, string | null>, jetzt: Date): Aktionen {
+  const ergebnis = felder[SETTING_FELDER.ergebnis] ?? '';
+  const kalender = felder[SETTING_FELDER.kalender] || null;
+  if (!ergebnis.startsWith('Unqualifiziert') || !kalender || new Date(kalender).getTime() <= jetzt.getTime()) return {};
+  const grund = felder[SETTING_FELDER.grund];
+  const uhr = new Date(kalender).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+  return {
+    gesperrtBis: new Date(kalender).toISOString(),
+    rueckruf: {
+      datum: new Date(kalender).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }),
+      text: `📞 Rückruf ${uhr} Uhr (vereinbart im Setting)${grund ? ` – damals unqualifiziert: ${grund}` : ''}. Prüfen, ob es jetzt passt, und neues Erstgespräch legen.`,
+    },
+  };
 }
 
 /** Regeln für das Closing-Protokoll (rein, testbar). Alles außer „Abgeschlossen“ braucht die Freigabe closing_ergebnisse. */
@@ -306,6 +334,14 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
       erledigt.volumenAufgabe = true;
     }
   }
+  if (a.rueckruf) {
+    // Nur anlegen, wenn es an dem Tag noch keine offene Rückruf-Aufgabe gibt (Protokoll-Korrekturen)
+    const { data: offen } = await closeJson<{ data: Array<{ text: string; date: string | null }> }>(`/task/?lead_id=${leadId}&is_complete=false&_fields=text,date`);
+    if (!offen.some((t) => t.date?.startsWith(a.rueckruf!.datum) && t.text.startsWith('📞 Rückruf'))) {
+      await closeJson('/task/', { method: 'POST', body: JSON.stringify({ lead_id: leadId, ...(userId ? { assigned_to: userId } : {}), text: a.rueckruf.text, date: a.rueckruf.datum }) });
+      erledigt.rueckruf = a.rueckruf.datum;
+    }
+  }
   if (a.settingOpportunity) {
     const termin = a.termin
       ? new Date(a.termin).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr'
@@ -352,11 +388,13 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
       ? [FOLLOWUP_FELDER_IDS.erreicht, FOLLOWUP_FELDER_IDS.ergebnis, FOLLOWUP_FELDER_IDS.kalender]
       : typ === 'closing'
         ? [CLOSING_FELDER.naechsterSchritt, CLOSING_FELDER.kalender]
-        : [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender];
+        : typ === 'setting'
+          ? [SETTING_FELDER.ergebnis, SETTING_FELDER.kalender]
+          : [TERMINIERUNG_FELDER.wenErreicht, TERMINIERUNG_FELDER.gatekeeperErgebnis, TERMINIERUNG_FELDER.ergebnis, TERMINIERUNG_FELDER.kalender];
   const schluessel = schluesselFelder.map((f) => felder[f] ?? '').join('|');
 
   let aktionen: Record<string, unknown> | null = null;
-  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? regelnClosing : null;
+  const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? regelnClosing : typ === 'setting' ? regelnSetting : null;
   if (regeln && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
     let plan = regeln(felder, jetzt);
     // Termin nur im Protokoll gelegt? → prüfen, ob er in Calendly steht (sonst keine Erinnerung an den Lead)

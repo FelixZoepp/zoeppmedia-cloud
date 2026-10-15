@@ -103,3 +103,22 @@ describe('Closing-Ergebnisse', () => {
     expect(r('8. Verloren')).toEqual({ oppsVerloren: true });
   });
 });
+
+describe('regelnSetting – Unqualifiziert mit Rückruf', () => {
+  it('sperrt bis zum Rückruf und legt eine Rückruf-Aufgabe an', async () => {
+    const { regelnSetting, SETTING_FELDER: S } = await import('../protokolle');
+    const a = regelnSetting({ [S.ergebnis]: 'Unqualifiziert', [S.kalender]: '2027-01-13T09:30:00Z', [S.grund]: 'Kein Budget / nicht liquide (GS 2)' }, new Date('2026-10-15T09:12:00Z'));
+    expect(a.gesperrtBis).toBe('2027-01-13T09:30:00.000Z');
+    expect(a.rueckruf?.datum).toBe('2027-01-13');
+    expect(a.rueckruf?.text).toContain('10:30 Uhr');
+    expect(a.rueckruf?.text).toContain('Kein Budget');
+    expect(a.leadStatus).toBeUndefined();
+  });
+  it('ohne Kalender, mit vergangenem Datum oder anderem Ergebnis: nichts', async () => {
+    const { regelnSetting, SETTING_FELDER: S } = await import('../protokolle');
+    const jetzt = new Date('2026-10-15T09:12:00Z');
+    expect(regelnSetting({ [S.ergebnis]: 'Unqualifiziert' }, jetzt)).toEqual({});
+    expect(regelnSetting({ [S.ergebnis]: 'Unqualifiziert', [S.kalender]: '2026-10-01T09:00:00Z' }, jetzt)).toEqual({});
+    expect(regelnSetting({ [S.ergebnis]: 'Beratungsgespräch gelegt', [S.kalender]: '2026-10-20T09:00:00Z' }, jetzt)).toEqual({});
+  });
+});

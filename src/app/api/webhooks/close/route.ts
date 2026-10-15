@@ -24,7 +24,7 @@ interface CloseWebhookBody {
     object_id?: string;
     lead_id?: string;
     changed_fields?: string[];
-    data?: { status_id?: string; status_type?: string; lead_id?: string };
+    data?: { status_id?: string; status_type?: string; lead_id?: string; status?: string; date_updated?: string };
     previous_data?: { status_id?: string; status_type?: string };
   };
 }
@@ -75,8 +75,9 @@ export async function POST(request: NextRequest) {
       run_at: new Date().toISOString(),
       payload: { activity_id: ev.object_id },
       status: 'pending',
-      // created + updated (Entwurf → veröffentlicht) dürfen beide planen; der Job ist idempotent
-      dedupe_key: `sales.protokoll:${ev.object_id}:${ev.action}:${Math.floor(Date.now() / 60_000)}`,
+      // Je Version des Protokolls ein Job (der Job ist idempotent). Früher je Minute: Entwurf und Veröffentlichen
+      // in derselben Minute → die Veröffentlichung wurde verworfen und das Protokoll nie gespeichert.
+      dedupe_key: `sales.protokoll:${ev.object_id}:${ev.action}:${ev.data?.status ?? ''}:${ev.data?.date_updated ?? Date.now()}`,
     });
     if (error && error.code !== '23505') {
       console.error('[close-webhook] Protokoll-Job nicht geplant:', error.message);
