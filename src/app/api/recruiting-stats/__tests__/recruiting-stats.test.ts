@@ -94,6 +94,7 @@ function buildMockClient(opts: {
   appointments?: object[];
   jobs?: object[];
   recordEqCalls?: Array<{ table: string; col: string; val: unknown }>;
+  recordRange?: Array<{ op: 'gte' | 'lte'; col: string; val: unknown }>;
 }) {
   const {
     appsCurrentPeriod = [],
@@ -104,6 +105,7 @@ function buildMockClient(opts: {
     appointments       = [],
     jobs               = [],
     recordEqCalls      = [],
+    recordRange        = [],
   } = opts;
 
   // Zählt, welche eq-Aufrufe stattfanden
@@ -168,8 +170,14 @@ function buildMockClient(opts: {
             if (col === 'agency_id') recordedAgencyEq = true;
             // Gibt immer sich selbst mit gte/lte/eq zurück
             const inner: Record<string, unknown> = {};
-            inner['gte'] = () => inner;
-            inner['lte'] = () => inner;
+            inner['gte'] = (c: string, v: unknown) => {
+              recordRange.push({ op: 'gte', col: c, val: v });
+              return inner;
+            };
+            inner['lte'] = (c: string, v: unknown) => {
+              recordRange.push({ op: 'lte', col: c, val: v });
+              return inner;
+            };
             inner['order'] = () => inner;
             inner['range'] = () => inner;
             inner['eq']  = (c: string, v: unknown) => {
@@ -306,6 +314,42 @@ describe('GET /api/recruiting-stats', () => {
   it('400 bei ungültiger job_id (kein UUID)', async () => {
     const res = await GET(makeRequest({ job_id: 'nicht-eine-uuid' }));
     expect(res.status).toBe(400);
+  });
+
+  it('400 wenn to vor from liegt', async () => {
+    const res = await GET(makeRequest({ from: '2026-09-30', to: '2026-09-01' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('400 bei mehr als 366 Tagen', async () => {
+    const res = await GET(makeRequest({ from: '2025-01-01', to: '2026-01-02' }));
+    expect(res.status).toBe(400);
+  });
+
+  it('400 bei ungültigem Kalendertag', async () => {
+    const res = await GET(makeRequest({ from: '2026-02-30', to: '2026-03-05' }));
+    expect(res.status).toBe(400);
+  });
+
+  // --- Berliner Tagesgrenzen ---
+
+  it('fragt mit Berliner Tagesgrenzen ab, Vorperiode gleich viele Tage direkt davor', async () => {
+    const recordRange: Array<{ op: 'gte' | 'lte'; col: string; val: unknown }> = [];
+    vi.mocked(createAdminClient).mockReturnValue(buildMockClient({ recordRange }));
+
+    // 26.10.–01.11.2026 (Winterzeit), Vorperiode 19.10.–25.10. (Umstellung am 25.10.)
+    const res = await GET(makeRequest({ from: '2026-10-26', to: '2026-11-01' }));
+    expect(res.status).toBe(200);
+
+    const appRange = recordRange.filter((r) => r.col === 'applied_at').map((r) => `${r.op}:${String(r.val)}`);
+    expect(appRange).toEqual(
+      expect.arrayContaining([
+        'gte:2026-10-25T23:00:00.000Z',
+        'lte:2026-11-01T22:59:59.999Z',
+        'gte:2026-10-18T22:00:00.000Z',
+        'lte:2026-10-25T22:59:59.999Z',
+      ]),
+    );
   });
 
   // --- Happy-Path mit kleinem Fixture ---

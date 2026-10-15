@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
+import { berlinMonatsStart, berlinWochenStart } from '@/lib/zeit/berlin';
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -11,16 +12,17 @@ export async function GET(request: NextRequest) {
   const agencyId = await getEffectiveAgencyId();
   const period = request.nextUrl.searchParams.get('period') ?? 'all';
 
+  // Kalendergrenzen in Berliner Zeit – identisch mit GET /api/reports (Montag als Wochenbeginn)
   let fromDate: Date | null = null;
+  let untilDate: Date | null = null;
   const now = new Date();
   if (period === 'this_week') {
-    fromDate = new Date(now);
-    fromDate.setDate(now.getDate() - now.getDay());
-    fromDate.setHours(0, 0, 0, 0);
+    fromDate = berlinWochenStart(now);
   } else if (period === 'this_month') {
-    fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    fromDate = berlinMonatsStart(now);
   } else if (period === 'last_month') {
-    fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    fromDate = berlinMonatsStart(now, -1);
+    untilDate = new Date(berlinMonatsStart(now).getTime() - 1);
   }
 
   let candidatesQuery = supabase
@@ -29,6 +31,7 @@ export async function GET(request: NextRequest) {
 
   if (agencyId) candidatesQuery = candidatesQuery.eq('agency_id', agencyId);
   if (fromDate) candidatesQuery = candidatesQuery.gte('created_at', fromDate.toISOString());
+  if (untilDate) candidatesQuery = candidatesQuery.lte('created_at', untilDate.toISOString());
 
   const { data: candidates } = await candidatesQuery;
   const total = candidates?.length ?? 0;
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
     .select('id, result, created_at');
   if (agencyId) callsQuery = callsQuery.eq('agency_id', agencyId);
   if (fromDate) callsQuery = callsQuery.gte('created_at', fromDate.toISOString());
+  if (untilDate) callsQuery = callsQuery.lte('created_at', untilDate.toISOString());
 
   const { data: calls } = await callsQuery;
   const totalCalls = calls?.length ?? 0;

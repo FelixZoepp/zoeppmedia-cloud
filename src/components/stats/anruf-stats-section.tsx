@@ -18,21 +18,19 @@ const FARBE: Record<string, string> = {
 };
 
 /** Anruf-Kennzahlen für die Statistik-Seite (eigener Abruf, gleicher Zeitraum wie die Seite) */
-export function AnrufStatsSection({ zeitraum }: { zeitraum: '7' | '30' | '90' }) {
+export function AnrufStatsSection({ from, to }: { from: string; to: string }) {
   const [d, setD] = useState<AnrufStats | null>(null);
 
+  // from/to: Berliner Kalendertage (YYYY-MM-DD), von der Seite aufgelöst
   useEffect(() => {
     const ctrl = new AbortController();
-    const to = new Date().toISOString().slice(0, 10);
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - parseInt(zeitraum, 10));
-    const from = fromDate.toISOString().slice(0, 10);
-    fetch(`/api/recruiting-stats/anrufe?from=${from}&to=${to}`, { signal: ctrl.signal })
+    const params = new URLSearchParams({ from, to });
+    fetch(`/api/recruiting-stats/anrufe?${params.toString()}`, { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((x) => setD(x))
       .catch(() => {});
     return () => ctrl.abort();
-  }, [zeitraum]);
+  }, [from, to]);
 
   if (!d) return null;
   const max = Math.max(1, ...d.proErgebnis.map((e) => e.anzahl));
