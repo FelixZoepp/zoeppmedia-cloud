@@ -1,5 +1,6 @@
 'use client';
 
+import { VerbindenAnleitung } from '@/components/whatsapp/verbinden-anleitung';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Script from 'next/script';
 import { Card } from '@/components/ui/card';
@@ -278,14 +279,7 @@ export default function WhatsAppSettingsPage() {
               <p className="text-sm text-gray-400">Verbinde deine Nummer – danach schreibt unser KI-Assistent neue Bewerber sofort an.</p>
             </div>
           </div>
-          {envConfigured ? (
-            <div className="pl-12">
-              <Button onClick={launchEmbeddedSignup} size="md" disabled={arbeitet}>
-                {arbeitet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
-                {arbeitet ? 'Wird eingerichtet …' : 'WhatsApp verbinden'}
-              </Button>
-            </div>
-          ) : (
+          {envConfigured ? null : (
             <div className="pl-12">
               <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-600">
                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -294,6 +288,11 @@ export default function WhatsAppSettingsPage() {
             </div>
           )}
         </Card>
+      )}
+
+      {/* Schritt-für-Schritt-Anleitung inkl. eigener Nummer und Bestätigungscode */}
+      {!account && envConfigured && (
+        <VerbindenAnleitung onStart={launchEmbeddedSignup} kannStarten={userRole === 'agency_owner' || userRole === 'admin'} arbeitet={arbeitet} />
       )}
 
       {/* Vorlagen-Status */}
