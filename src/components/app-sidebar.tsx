@@ -41,6 +41,7 @@ import {
   KanbanSquare,
   Clapperboard,
   Mail,
+  Clock,
 } from 'lucide-react';
 import { ADMIN_BEREICHE } from '@/lib/navigation/bereiche';
 
@@ -213,6 +214,14 @@ const akademieItem: SidebarItem = {
   href: '/akademie',
 };
 
+/** Zeiterfassung (Stoppuhr + Nachtragen) für alle internen Nutzer */
+const zeitenItem: SidebarItem = {
+  id: 'zeiten',
+  label: 'Meine Zeiten',
+  icon: <Clock className="w-5 h-5" />,
+  href: '/zeiten',
+};
+
 const logoutItem: SidebarItem = {
   id: 'logout',
   label: 'Logout',
@@ -278,7 +287,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
   const isInternal = role === 'admin' || role === 'employee';
 
   const bottomItems = isInternal
-    ? [akademieItem, profileItem, settingsItem, helpItem, logoutItem]
+    ? [zeitenItem, akademieItem, profileItem, settingsItem, helpItem, logoutItem]
     : [settingsItem, kundenHilfeItem, logoutItem];
 
   return (

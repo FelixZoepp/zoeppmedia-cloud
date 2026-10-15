@@ -37,6 +37,7 @@ export const ADMIN_BEREICHE: Bereich[] = [
     tabs: [
       { label: 'Team', href: '/team' },
       { label: 'Kapazität', href: '/admin/kapazitaet' },
+      { label: 'Zeiterfassung', href: '/admin/zeiten' },
     ],
   },
   {
