@@ -68,7 +68,7 @@ describe('Kalendertage', () => {
   });
 
   it('vorperiode: gleich viele Tage direkt davor', () => {
-    expect(vorperiode('2026-10-01', '2026-10-31')).toEqual({ from: '2026-08-31', to: '2026-09-30' });
+    expect(vorperiode('2026-10-01', '2026-10-31')).toEqual({ from: '2026-09-01', to: '2026-09-30' });
     expect(vorperiode('2026-10-09', '2026-10-15')).toEqual({ from: '2026-10-02', to: '2026-10-08' });
   });
 
@@ -84,5 +84,16 @@ describe('Kalendertage', () => {
   it('berlinTagVon: kurz nach Mitternacht Berlin zählt zum neuen Tag', () => {
     expect(berlinTagVon('2026-10-08T22:30:00Z')).toBe('2026-10-09');
     expect(berlinTagVon('2026-10-25T22:30:00Z')).toBe('2026-10-25');
+  });
+});
+
+describe('vorperiode – Monate', () => {
+  it('ganzer Monat → ganzer Vormonat, angefangener Monat → gleiche Tage im Vormonat', async () => {
+    const { vorperiode } = await import('../berlin');
+    expect(vorperiode('2026-09-01', '2026-09-30')).toEqual({ from: '2026-08-01', to: '2026-08-31' });
+    expect(vorperiode('2026-10-01', '2026-10-15')).toEqual({ from: '2026-09-01', to: '2026-09-15' });
+    expect(vorperiode('2026-03-01', '2026-03-31')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(vorperiode('2026-03-01', '2026-03-30')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(vorperiode('2026-10-09', '2026-10-15')).toEqual({ from: '2026-10-02', to: '2026-10-08' });
   });
 });

@@ -116,8 +116,18 @@ export function berlinTagesGrenzen(von: string, bis: string): { ab: string; bis:
   return { ab: start.toISOString(), bis: ende.toISOString() };
 }
 
-/** Vorperiode: gleich viele Kalendertage direkt vor 'von' */
+/**
+ * Vorperiode: Beginnt der Zeitraum am Monatsersten und endet im selben Monat, ist es der Vormonat
+ * (ganzer Monat → ganzer Vormonat, 1.–15. → 1.–15. des Vormonats). Sonst gleich viele Kalendertage direkt vor 'von'.
+ */
 export function vorperiode(von: string, bis: string): { from: string; to: string } {
+  if (von.endsWith('-01') && von.slice(0, 7) === bis.slice(0, 7)) {
+    const vormonatEnde = tagPlus(von, -1);
+    const vormonatStart = `${vormonatEnde.slice(0, 7)}-01`;
+    const ganzerMonat = tagPlus(bis, 1).endsWith('-01');
+    const bisTag = Math.min(Number(bis.slice(8, 10)), Number(vormonatEnde.slice(8, 10)));
+    return { from: vormonatStart, to: ganzerMonat ? vormonatEnde : `${vormonatEnde.slice(0, 7)}-${String(bisTag).padStart(2, '0')}` };
+  }
   const n = tageInklusive(von, bis);
   return { from: tagPlus(von, -n), to: tagPlus(von, -1) };
 }
