@@ -11,6 +11,8 @@ function isPublicPath(pathname: string) {
     pathname.startsWith('/book/') ||
     pathname.startsWith('/video/') ||
     pathname.startsWith('/termin/') ||
+    // Button „Zum Zoom-Meeting“ aus der WhatsApp-Erinnerung
+    pathname.startsWith('/zoom/') ||
     pathname.startsWith('/gespraech/') ||
     // Kunden-Freigabe von Videos über Link (ohne Login)
     pathname.startsWith('/freigabe/') ||
