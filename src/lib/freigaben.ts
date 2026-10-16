@@ -99,6 +99,13 @@ export const FREIGABEN = {
       'Zusätzlich gilt der Bewerber-Kontakt-Schalter – solange der aus ist, nur an Testnummern.',
     wirkt: 'WhatsApp an Bewerber der Kunden – ausgelöst durch das Anruf-Protokoll',
   },
+  kunden_zufriedenheit: {
+    titel: '📋 2-Wochen-Check an Kunden',
+    was:
+      'Alle 14 Tage bekommen aktive Kunden den Zufriedenheits-Check per Mail und WhatsApp (Sales-Nummer, Vorlage kunde_zufriedenheit mit Schnellantworten + Link). ' +
+      'Ist er nach 2 Tagen offen, kommt die Erinnerung kunde_zufriedenheit_erinnerung („Dein 2-Wochen-Check ist noch offen …“), höchstens 2-mal. Aus: Checks werden nur eingeplant, nichts geht raus.',
+    wirkt: 'Mail + WhatsApp an Kunden – täglich im Cron',
+  },
   telefonie: {
     titel: '📞 Telefonieren über die Cloud',
     was:

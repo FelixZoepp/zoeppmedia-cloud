@@ -396,8 +396,12 @@ async function runDailyJobs() {
       (a) => !HIDDEN_AGENCY_IDS.includes(a.id) && !['offboarding', 'beendet'].includes((a as { fulfillment_phase?: string | null }).fulfillment_phase ?? ''),
     );
     surveysScheduled = await planeUmfragen(supabase, aktiv, now);
-    results.surveys_sent = await versendeUmfragen(supabase, ownerByAgency, now);
-    results.surveys_reminded = await erinnereUmfragen(supabase, now);
+    // Versand an Kunden (Mail + WhatsApp) und Erinnerungen nur mit Freigabe – sonst geht nichts raus
+    const { istFreigegeben } = await import('@/lib/freigaben');
+    if (await istFreigegeben(supabase, 'kunden_zufriedenheit')) {
+      results.surveys_sent = await versendeUmfragen(supabase, ownerByAgency, now);
+      results.surveys_reminded = await erinnereUmfragen(supabase, now);
+    } else results.surveys_sent = 'freigabe_aus';
   } catch (err) {
     console.error('[cron-daily] Umfragen fehlgeschlagen', err);
     results.surveys = { error: String(err) };
