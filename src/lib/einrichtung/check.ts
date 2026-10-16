@@ -62,6 +62,8 @@ export const DB_CHECKS: DbCheck[] = [
   { name: 'Kundengespräche (Fireflies)', datei: '20261014000430_kunden_gespraeche.sql', tabelle: 'kunden_gespraeche', spalten: 'id' },
   { name: 'Masterclass für Führungskräfte', datei: '20261015000440_masterclass_fuehrung.sql', tabelle: 'masterclass_freischaltungen', spalten: 'user_id' },
   { name: 'WhatsApp-Nummer besorgen (Twilio)', datei: '20261015000460_whatsapp_nummern.sql', tabelle: 'kunden_telefonnummern', spalten: '*' },
+  { name: 'Zeiterfassung', datei: '20261016000480_zeiterfassung.sql', tabelle: 'zeiteintraege', spalten: 'id' },
+  { name: 'Vorstellungsrunden / Termin-Format', datei: '20261016000490_vorstellungsrunden.sql', tabelle: 'vorstellungsrunden', spalten: 'id' },
 ];
 
 export interface Ergebnis {
