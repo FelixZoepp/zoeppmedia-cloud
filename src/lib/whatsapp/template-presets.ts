@@ -86,6 +86,20 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     ],
   },
   {
+    // Termine vor Ort (Einzelgespräch vor Ort, Vorstellungsrunde): Erinnerung mit vollständiger Adresse
+    presetKey: 'appointment_reminder_24h_ort',
+    name: 'appointment_reminder_24h_ort',
+    category: 'UTILITY',
+    language: 'de',
+    body: 'Hallo {{1}}, kurze Erinnerung: Morgen am {{2}} um {{3}} Uhr ist dein Termin vor Ort bei {{4}}. Adresse: {{5}}. Bist du dabei?',
+    variables: ['vorname', 'datum', 'uhrzeit', 'firmenname', 'adresse'],
+    beispiel: ['Mehmet', '14. Oktober', '17:00', 'Solar Nord GmbH', 'Hauptstraße 5, 20095 Hamburg (Klingel Solar Nord, 2. OG)'],
+    buttons: [
+      { type: 'QUICK_REPLY', text: 'Ich komme' },
+      { type: 'QUICK_REPLY', text: 'Verschieben' },
+    ],
+  },
+  {
     presetKey: 'appointment_reminder_2h',
     name: 'appointment_reminder_2h',
     category: 'UTILITY',

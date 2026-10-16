@@ -3,6 +3,8 @@ import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { MIN_DAUER_MINUTEN, MAX_DAUER_MINUTEN } from '@/lib/appointments/freie-slots';
+import { istSchemaFehler, istTerminFormat, terminTypFuerFormat } from '@/lib/appointments/termin-format';
+import { ladeTerminEinstellung } from '@/lib/appointments/vorstellungsrunden';
 
 export async function GET(
   _request: Request,
@@ -32,7 +34,16 @@ export async function GET(
     .eq('agency_id', agencyId)
     .single();
 
-  return NextResponse.json({ rules: rules ?? [], job: job ?? {} });
+  // Termin-Format (ohne Migration aus appointment_type abgeleitet)
+  const einstellung = job ? await ladeTerminEinstellung(svc, agencyId, jobId) : null;
+
+  return NextResponse.json({
+    rules: rules ?? [],
+    job: job ?? {},
+    termin_format: einstellung?.format ?? 'telefon',
+    standard_adresse: einstellung?.standardAdresse ?? '',
+    migration_fehlt: einstellung?.migrationFehlt ?? false,
+  });
 }
 
 export async function PUT(
@@ -56,6 +67,17 @@ export async function PUT(
   }
 
   const svc = createAdminClient();
+
+  if (body.termin_format !== undefined && !istTerminFormat(body.termin_format)) {
+    return NextResponse.json({ error: 'Ungültiges Termin-Format' }, { status: 400 });
+  }
+  if (body.termin_format === 'vorstellungsrunde') {
+    const einstellung = await ladeTerminEinstellung(svc, agencyId, jobId);
+    if (!einstellung) return NextResponse.json({ error: 'Job nicht gefunden' }, { status: 404 });
+    if (einstellung.migrationFehlt) {
+      return NextResponse.json({ error: 'Datenbank-Änderung fehlt noch – Vorstellungsrunden sind noch nicht verfügbar' }, { status: 409 });
+    }
+  }
 
   // Regeln ersetzen (Delete + Insert)
   // Dauer 0 würde die Slot-Berechnung endlos laufen lassen – vor jedem Schreibvorgang prüfen
@@ -108,15 +130,32 @@ export async function PUT(
   // Job-Spalten aktualisieren
   const jobUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.appointment_type !== undefined) jobUpdate.appointment_type = body.appointment_type;
+  // Format bestimmt den Termintyp (Telefon/Video/vor Ort)
+  if (istTerminFormat(body.termin_format)) {
+    jobUpdate.appointment_type = terminTypFuerFormat(body.termin_format);
+    jobUpdate.termin_format = body.termin_format;
+  }
   if (body.appointment_location !== undefined) jobUpdate.appointment_location = body.appointment_location;
   if (body.appointment_duration_minutes !== undefined) jobUpdate.appointment_duration_minutes = Number(body.appointment_duration_minutes);
   if (body.appointment_buffer_minutes !== undefined) jobUpdate.appointment_buffer_minutes = Number(body.appointment_buffer_minutes);
 
-  await svc
+  const { error } = await svc
     .from('jobs')
     .update(jobUpdate)
     .eq('id', jobId)
     .eq('agency_id', agencyId);
+
+  if (error && 'termin_format' in jobUpdate && istSchemaFehler(error)) {
+    // Migration fehlt: Vorstellungsrunde geht noch nicht, Einzelformate wie bisher über appointment_type
+    if (body.termin_format === 'vorstellungsrunde') {
+      return NextResponse.json({ error: 'Datenbank-Änderung fehlt noch – Vorstellungsrunden sind noch nicht verfügbar' }, { status: 409 });
+    }
+    delete jobUpdate.termin_format;
+    const retry = await svc.from('jobs').update(jobUpdate).eq('id', jobId).eq('agency_id', agencyId);
+    if (retry.error) return NextResponse.json({ error: 'Fehler beim Speichern' }, { status: 500 });
+  } else if (error) {
+    return NextResponse.json({ error: 'Fehler beim Speichern' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

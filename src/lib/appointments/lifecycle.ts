@@ -6,6 +6,7 @@ import { sendAgencyCalendarInvite } from '@/lib/email/resend';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { insertDeduped } from '@/lib/jobs/insert-deduped';
+import { terminParameter } from '@/lib/appointments/termin-format';
 
 export async function createProposedAppointment(svc: SupabaseClient, args: {
   agencyId: string; applicationId: string; type: AppointmentType; location: string | null;
@@ -26,6 +27,10 @@ export async function createProposedAppointment(svc: SupabaseClient, args: {
 
 export async function bookAppointment(svc: SupabaseClient, args: {
   agencyId: string; appointmentId: string; startsAt: Date; endsAt: Date; bookedVia: string;
+  /** Vorstellungsrunde (Gruppentermin) – Platzgrenze prüft die Datenbank */
+  vorstellungsrundeId?: string | null;
+  /** Ort/Link überschreiben (z. B. vollständige Büro-Adresse der Runde) */
+  location?: string | null;
 }): Promise<void> {
   // 1. Termin aktualisieren
   const { error: updateErr } = await svc.from('appointments').update({
@@ -34,9 +39,15 @@ export async function bookAppointment(svc: SupabaseClient, args: {
     status: 'booked',
     booked_via: args.bookedVia,
     updated_at: new Date().toISOString(),
+    ...(args.vorstellungsrundeId ? { vorstellungsrunde_id: args.vorstellungsrundeId, type: 'onsite' } : {}),
+    ...(args.location !== undefined ? { location: args.location } : {}),
   }).eq('id', args.appointmentId).eq('agency_id', args.agencyId);
 
-  if (updateErr) throw new Error('Termin konnte nicht gebucht werden');
+  if (updateErr) {
+    if (/ausgebucht/i.test(updateErr.message ?? '')) throw new Error('Vorstellungsrunde ausgebucht');
+    if (/duplicate|unique/i.test(updateErr.message ?? '')) throw new Error('Slot bereits vergeben');
+    throw new Error('Termin konnte nicht gebucht werden');
+  }
 
   // 2. Termin + Application + Candidate + Agency laden
   const { data: appt } = await svc.from('appointments').select('*')
@@ -99,10 +110,14 @@ export async function bookAppointment(svc: SupabaseClient, args: {
       .maybeSingle();
 
     if (tmpl) {
-      const vorname = (candidate.name || '').split(' ')[0];
-      const datum = args.startsAt.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', timeZone: agency?.timezone || 'Europe/Berlin' });
-      const uhrzeit = args.startsAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: agency?.timezone || 'Europe/Berlin' });
-      const ortOderLink = appt.location || 'wird noch mitgeteilt';
+      // [Vorname, Datum, Uhrzeit, Ort/Link] – vor Ort die vollständige Adresse (+ Hinweis)
+      const parameter = terminParameter('appointment_confirmation', {
+        vorname: (candidate.name || '').split(' ')[0],
+        startsAt: args.startsAt,
+        timezone: agency?.timezone || 'Europe/Berlin',
+        ort: appt.location,
+        firma: agency?.name || '',
+      });
 
       await sendWhatsAppMessage(svc, {
         agencyId: args.agencyId,
@@ -117,12 +132,7 @@ export async function bookAppointment(svc: SupabaseClient, args: {
             language: { code: 'de' },
             components: [{
               type: 'body',
-              parameters: [
-                { type: 'text', text: vorname },
-                { type: 'text', text: datum },
-                { type: 'text', text: uhrzeit },
-                { type: 'text', text: ortOderLink },
-              ],
+              parameters: parameter.map((text) => ({ type: 'text', text })),
             }],
           },
         },
@@ -253,6 +263,7 @@ export async function cancelAppointment(svc: SupabaseClient, args: {
 
 export async function rescheduleAppointment(svc: SupabaseClient, args: {
   agencyId: string; oldAppointmentId: string; startsAt: Date; endsAt: Date; bookedVia: string;
+  vorstellungsrundeId?: string | null; location?: string | null;
 }): Promise<{ newAppointmentId: string }> {
   // P4-R7: neuer Datensatz, alter wird erst nach erfolgreicher Buchung storniert –
   // scheitert die Buchung (z. B. Slot inzwischen vergeben), bleibt der alte Termin bestehen.
@@ -268,6 +279,7 @@ export async function rescheduleAppointment(svc: SupabaseClient, args: {
   try {
     await bookAppointment(svc, {
       agencyId: args.agencyId, appointmentId, startsAt: args.startsAt, endsAt: args.endsAt, bookedVia: args.bookedVia,
+      vorstellungsrundeId: args.vorstellungsrundeId, location: args.location,
     });
   } catch (err) {
     // Buchung fehlgeschlagen, bevor Folgeaktionen liefen: verwaisten Vorschlag entfernen

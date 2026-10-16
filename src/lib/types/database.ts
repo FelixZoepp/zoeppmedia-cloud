@@ -949,6 +949,8 @@ export interface Appointment {
   booking_token: string;
   token_expires_at: string | null;
   ics_sequence: number;
+  /** Gruppentermin (Migration 20261016000490); fehlt ohne Migration */
+  vorstellungsrunde_id?: string | null;
   created_at: string;
   updated_at: string;
 }

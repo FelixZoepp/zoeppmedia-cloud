@@ -20,8 +20,19 @@ interface SlotData {
   end: string;
 }
 
+interface RundeData {
+  id: string;
+  start: string;
+  end: string;
+  adresse: string;
+  freie_plaetze: number;
+}
+
 export function SlotPicker({ token, appointmentType, location, hasBooking, bookedStart, agencyTimezone }: SlotPickerProps) {
   const [slots, setSlots] = useState<SlotData[]>([]);
+  // Vorstellungsrunde: feste Gruppentermine statt Einzelslots
+  const [runden, setRunden] = useState<RundeData[] | null>(null);
+  const [selectedRunde, setSelectedRunde] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -40,6 +51,7 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
           setSlots([]);
         } else {
           setSlots(data.slots ?? []);
+          setRunden(data.modus === 'vorstellungsrunde' ? (data.runden ?? []) : null);
         }
         setLoading(false);
       })
@@ -64,14 +76,14 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
   }
 
   const handleBook = async (action: 'book' | 'reschedule') => {
-    if (!selectedSlot) return;
+    if (!selectedSlot && !selectedRunde) return;
     setBooking(true);
     setError(null);
     try {
       const res = await fetch(`/api/book/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, start: selectedSlot }),
+        body: JSON.stringify(selectedRunde ? { action, runde_id: selectedRunde } : { action, start: selectedSlot }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -79,6 +91,7 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
         if (res.status === 409) {
           setSelectedSlot(null);
           setSelectedDay(null);
+          setSelectedRunde(null);
           fetchSlots();
         }
       } else {
@@ -156,6 +169,67 @@ export function SlotPicker({ token, appointmentType, location, hasBooking, booke
   }
 
   if (loading) return <p className="py-8 text-center text-gray-500">Lade verfügbare Termine...</p>;
+
+  if (runden) {
+    if (runden.length === 0) {
+      return <p className="py-8 text-center text-gray-500">Aktuell sind alle Vorstellungsrunden belegt. Wir melden uns bei dir.</p>;
+    }
+    const gewaehlt = runden.find((r) => r.id === selectedRunde);
+    return (
+      <div>
+        <p className="mb-4 text-sm text-gray-600">
+          {showReschedule ? 'Wähle eine neue Vorstellungsrunde aus:' : 'Wähle eine Vorstellungsrunde vor Ort aus:'}
+        </p>
+        <div className="mb-4 space-y-2">
+          {runden.map((r) => {
+            const d = new Date(r.start);
+            return (
+              <button
+                key={r.id}
+                onClick={() => setSelectedRunde(r.id)}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                  selectedRunde === r.id
+                    ? 'border-blue-600 bg-blue-50 text-gray-900'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                }`}
+              >
+                <span className="block font-medium">
+                  {d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', timeZone: agencyTimezone })}{' '}
+                  um {d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: agencyTimezone })} Uhr
+                </span>
+                <span className="block text-xs text-gray-500">{r.adresse}</span>
+                <span className="block text-xs text-gray-500">
+                  {r.freie_plaetze === 1 ? 'Noch 1 Platz frei' : `Noch ${r.freie_plaetze} Plätze frei`}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {gewaehlt && (
+          <div className="border-t pt-4">
+            <Badge tone="neutral">Vorstellungsrunde vor Ort</Badge>
+            <p className="mt-1 text-xs text-gray-500">{gewaehlt.adresse}</p>
+            <Button
+              onClick={() => handleBook(showReschedule ? 'reschedule' : 'book')}
+              disabled={booking}
+              className="mt-3 w-full"
+            >
+              {booking ? 'Wird gebucht...' : showReschedule ? 'Termin verschieben' : 'Platz buchen'}
+            </Button>
+          </div>
+        )}
+        {showReschedule && (
+          <button
+            onClick={() => { setShowReschedule(false); setSelectedRunde(null); }}
+            className="mt-2 w-full text-sm text-gray-500 hover:text-gray-700"
+          >
+            Abbrechen
+          </button>
+        )}
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      </div>
+    );
+  }
 
   if (slots.length === 0) {
     return <p className="py-8 text-center text-gray-500">Aktuell keine freien Termine verfügbar.</p>;

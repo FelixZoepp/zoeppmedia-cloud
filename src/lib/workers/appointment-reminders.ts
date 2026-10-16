@@ -9,6 +9,7 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { isQuietHours, nextAllowedTime } from '@/lib/whatsapp/window';
 import { createNotificationForAgency } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
+import { reminder24hVorlagen, terminParameter } from '@/lib/appointments/termin-format';
 
 const ACTIVE_STATUSES = ['booked', 'confirmed'];
 
@@ -26,10 +27,11 @@ async function loadActiveAppointment(
   application_id: string;
   starts_at: string | null;
   location: string | null;
+  type: string | null;
 } | null> {
   const { data } = await svc
     .from('appointments')
-    .select('id, status, application_id, starts_at, location')
+    .select('id, status, application_id, starts_at, location, type')
     .eq('id', appointmentId)
     .eq('agency_id', agencyId)
     .maybeSingle();
@@ -42,6 +44,7 @@ async function loadActiveAppointment(
     application_id: string;
     starts_at: string | null;
     location: string | null;
+    type: string | null;
   };
 }
 
@@ -86,7 +89,8 @@ async function sendReminderTemplate(
   svc: SupabaseClient,
   agencyId: string,
   appt: { id: string; application_id: string; starts_at: string | null; location: string | null },
-  presetKey: string,
+  /** Vorlagen in Reihenfolge der Wahl – die erste freigegebene wird genutzt */
+  presetKeys: string[],
   bypassQuietHours: boolean,
 ): Promise<boolean> {
   // Bewerbung laden
@@ -112,13 +116,14 @@ async function sendReminderTemplate(
 
   const cand = candidate as { id: string; name: string; phone_e164: string; whatsapp_opt_in: boolean };
 
-  // Agency-Timezone für Template-Variablen
+  // Agency-Timezone + Firmenname für Template-Variablen
   const { data: agency } = await svc
     .from('agencies')
-    .select('timezone')
+    .select('timezone, name')
     .eq('id', agencyId)
     .maybeSingle();
   const timezone = (agency as { timezone?: string } | null)?.timezone || 'Europe/Berlin';
+  const firma = (agency as { name?: string } | null)?.name || '';
 
   // Conversation laden
   const { data: conv } = await svc
@@ -131,25 +136,34 @@ async function sendReminderTemplate(
   if (!conv) return false;
   const convData = conv as { id: string; wa_account_id: string };
 
-  // Template laden
-  const { data: tmpl } = await svc
-    .from('whatsapp_templates')
-    .select('id, name, body')
-    .eq('wa_account_id', convData.wa_account_id)
-    .eq('preset_key', presetKey)
-    .eq('status', 'approved')
-    .eq('agency_id', agencyId)
-    .maybeSingle();
-
-  if (!tmpl) return false;
-  const tmplData = tmpl as { id: string; name: string; body: string };
+  // Template laden – erste freigegebene Vorlage der Liste (z. B. 24 h mit Adresse, sonst ohne)
+  let tmplData: { id: string; name: string; body: string } | null = null;
+  let presetKey = presetKeys[0];
+  for (const key of presetKeys) {
+    const { data: tmpl } = await svc
+      .from('whatsapp_templates')
+      .select('id, name, body')
+      .eq('wa_account_id', convData.wa_account_id)
+      .eq('preset_key', key)
+      .eq('status', 'approved')
+      .eq('agency_id', agencyId)
+      .maybeSingle();
+    if (tmpl) {
+      tmplData = tmpl as { id: string; name: string; body: string };
+      presetKey = key;
+      break;
+    }
+  }
+  if (!tmplData) return false;
 
   // Template-Variablen aufbauen
-  const vorname = (cand.name || '').split(' ')[0];
-  const startsAt = appt.starts_at ? new Date(appt.starts_at) : new Date();
-  const datum = startsAt.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', timeZone: timezone });
-  const uhrzeit = startsAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: timezone });
-  const ortOderLink = appt.location || 'wird noch mitgeteilt';
+  const parameter = terminParameter(presetKey, {
+    vorname: (cand.name || '').split(' ')[0],
+    startsAt: appt.starts_at ? new Date(appt.starts_at) : new Date(),
+    timezone,
+    ort: appt.location,
+    firma,
+  });
 
   await sendWhatsAppMessage(svc, {
     agencyId,
@@ -164,8 +178,8 @@ async function sendReminderTemplate(
         language: { code: 'de' },
         components: [{
           type: 'body',
-          // Variablen exakt wie in den Vorlagen: 24h = [Vorname, Datum, Uhrzeit], 2h = [Vorname, Uhrzeit, Ort/Link]
-          parameters: (presetKey === 'appointment_reminder_2h' ? [vorname, uhrzeit, ortOderLink] : [vorname, datum, uhrzeit]).map((text) => ({ type: 'text', text })),
+          // Variablen exakt wie in den Vorlagen (siehe terminParameter)
+          parameters: parameter.map((text) => ({ type: 'text', text })),
         }],
       },
     },
@@ -235,7 +249,8 @@ export async function processReminder24h(
     return;
   }
 
-  await sendReminderTemplate(svc, agencyId, appt, 'appointment_reminder_24h', false);
+  // Vor Ort (Einzelgespräch/Vorstellungsrunde): Vorlage mit Adresse, falls freigegeben
+  await sendReminderTemplate(svc, agencyId, appt, reminder24hVorlagen(appt), false);
 }
 
 // ---------------------------------------------------------------------------
@@ -252,7 +267,7 @@ export async function processReminder2h(
   if (!appt) return;
 
   // P4-R6: reminder_2h wird IMMER gesendet (bypassQuietHours=true)
-  await sendReminderTemplate(svc, agencyId, appt, 'appointment_reminder_2h', true);
+  await sendReminderTemplate(svc, agencyId, appt, ['appointment_reminder_2h'], true);
 }
 
 // ---------------------------------------------------------------------------

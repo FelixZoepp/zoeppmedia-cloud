@@ -12,7 +12,7 @@ import { ArrowLeft, Play, Pause, X, Save, Files, Bot, CalendarDays } from 'lucid
 import { toast } from 'sonner';
 import { BotConfigForm } from '@/components/bot/bot-config-form';
 import { BotSimulator } from '@/components/bot/bot-simulator';
-import { AvailabilityEditor } from '@/components/jobs/availability-editor';
+import { TerminEinstellungen } from '@/components/jobs/availability-editor';
 
 type JobTab = 'details' | 'ki-bot' | 'termine';
 
@@ -245,7 +245,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       {/* Tab: Termine */}
       {activeTab === 'termine' && (
         <div className="max-w-2xl">
-          <AvailabilityEditor jobId={jobId} />
+          <TerminEinstellungen jobId={jobId} />
         </div>
       )}
 

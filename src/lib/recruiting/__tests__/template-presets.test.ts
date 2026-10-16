@@ -83,8 +83,8 @@ function createMockSvc(overrides?: {
 // 1. TEMPLATE_PRESETS — statische Validierung
 // ---------------------------------------------------------------------------
 describe('TEMPLATE_PRESETS', () => {
-  it('hat genau 10 Einträge', () => {
-    expect(TEMPLATE_PRESETS).toHaveLength(11);
+  it('hat genau 12 Einträge', () => {
+    expect(TEMPLATE_PRESETS).toHaveLength(12);
   });
 
   it('alle preset_keys sind eindeutig', () => {
@@ -163,7 +163,7 @@ describe('seedTemplatesForAccount', () => {
     const svc = createMockSvc();
     await seedTemplatesForAccount(svc as never, WA_ACCOUNT_ID, AGENCY_ID);
 
-    expect(svc._upsertCalls).toHaveLength(11);
+    expect(svc._upsertCalls).toHaveLength(12);
   });
 
   it('jedes upsert-Payload enthält agency_id', async () => {
@@ -200,7 +200,7 @@ describe('seedTemplatesForAccount', () => {
     ).resolves.toBeUndefined();
 
     // Alle 10 Upserts wurden trotzdem aufgerufen
-    expect(svc._upsertCalls).toHaveLength(11);
+    expect(svc._upsertCalls).toHaveLength(12);
   });
 
   it('insertError bei Preset 3 führt zu console.warn und überspringt Preset, Presets 4–10 laufen durch', async () => {
@@ -225,7 +225,7 @@ describe('seedTemplatesForAccount', () => {
     await seedTemplatesForAccount(svc as never, WA_ACCOUNT_ID, AGENCY_ID);
 
     // Alle 10 upserts wurden versucht
-    expect(svc._upsertCalls).toHaveLength(11);
+    expect(svc._upsertCalls).toHaveLength(12);
     expect(warnSpy).toHaveBeenCalledWith(
       'Template-Seed: Insert fehlgeschlagen',
       'unique constraint violated'

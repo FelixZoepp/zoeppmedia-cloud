@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Trash2, Save } from 'lucide-react';
+import { TERMIN_FORMATE, type TerminFormat } from '@/lib/appointments/termin-format';
+import { VorstellungsrundenEditor } from '@/components/jobs/vorstellungsrunden-editor';
 
 const WEEKDAYS = [
   { value: '1', label: 'Montag' },
@@ -18,11 +20,12 @@ const WEEKDAYS = [
   { value: '0', label: 'Sonntag' },
 ];
 
-const APPOINTMENT_TYPES = [
-  { value: 'call', label: 'Telefon' },
-  { value: 'video', label: 'Video' },
-  { value: 'onsite', label: 'Vor Ort' },
-];
+const ORT_FELD: Record<TerminFormat, { label: string; placeholder: string } | null> = {
+  telefon: null,
+  video: { label: 'Video-Link', placeholder: 'https://…' },
+  vor_ort: { label: 'Adresse', placeholder: 'Straße Nr., PLZ Ort' },
+  vorstellungsrunde: { label: 'Standard-Adresse für neue Runden', placeholder: 'Straße Nr., PLZ Ort' },
+};
 
 interface Rule {
   weekday: number;
@@ -30,9 +33,10 @@ interface Rule {
   end_time: string;
 }
 
-export function AvailabilityEditor({ jobId }: { jobId: string }) {
+export function AvailabilityEditor({ jobId, onFormatGespeichert }: { jobId: string; onFormatGespeichert?: (f: TerminFormat) => void }) {
   const [rules, setRules] = useState<Rule[]>([]);
-  const [appointmentType, setAppointmentType] = useState('call');
+  const [format, setFormat] = useState<TerminFormat>('telefon');
+  const [migrationFehlt, setMigrationFehlt] = useState(false);
   const [location, setLocation] = useState('');
   const [duration, setDuration] = useState(30);
   const [buffer, setBuffer] = useState(15);
@@ -50,8 +54,12 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
             end_time: r.end_time,
           })) ?? [],
         );
-        setAppointmentType(String(data.job?.appointment_type ?? 'call'));
-        setLocation(String(data.job?.appointment_location ?? ''));
+        setFormat(data.termin_format ?? 'telefon');
+        onFormatGespeichert?.(data.termin_format ?? 'telefon');
+        setMigrationFehlt(!!data.migration_fehlt);
+        // Vor Ort ohne eigene Adresse: Anschrift des Unternehmens vorschlagen
+        const vorOrt = data.termin_format === 'vor_ort' || data.termin_format === 'vorstellungsrunde';
+        setLocation(String(data.job?.appointment_location ?? (vorOrt ? data.standard_adresse ?? '' : '')));
         setDuration(Number(data.job?.appointment_duration_minutes ?? 30));
         setBuffer(Number(data.job?.appointment_buffer_minutes ?? 15));
         setLoading(false);
@@ -60,6 +68,7 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
         console.error('[AvailabilityEditor] Laden fehlgeschlagen', err);
         setLoading(false);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur beim Wechsel der Stelle laden
   }, [jobId]);
 
   const addRule = () => {
@@ -78,14 +87,15 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rules,
-          appointment_type: appointmentType,
+          termin_format: format,
           appointment_location: location || null,
           appointment_duration_minutes: duration,
           appointment_buffer_minutes: buffer,
         }),
       });
       if (res.ok) {
-        toast.success('Verfügbarkeiten gespeichert');
+        onFormatGespeichert?.(format);
+        toast.success('Termineinstellungen gespeichert');
       } else {
         const data = await res.json();
         toast.error(data.error || 'Fehler beim Speichern');
@@ -105,22 +115,28 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
       <h3 className="font-medium text-gray-900">Termineinstellungen</h3>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Terminart</label>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Termin-Format</label>
           <Select
-            value={appointmentType}
-            onChange={(e) => setAppointmentType(e.target.value)}
-            options={APPOINTMENT_TYPES}
+            value={format}
+            onChange={(e) => setFormat(e.target.value as TerminFormat)}
+            options={TERMIN_FORMATE.filter((f) => !migrationFehlt || f.value !== 'vorstellungsrunde')}
           />
+          {migrationFehlt && (
+            <p className="mt-1 text-xs text-amber-700">Vorstellungsrunde (Gruppe, vor Ort): Datenbank-Änderung fehlt noch.</p>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Ort / Link</label>
-          <Input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Adresse oder Video-Link"
-          />
-        </div>
+        {ORT_FELD[format] && (
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{ORT_FELD[format]!.label}</label>
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder={ORT_FELD[format]!.placeholder}
+            />
+          </div>
+        )}
+        {format !== 'vorstellungsrunde' && (<>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Dauer (Minuten)</label>
           <Input
@@ -141,8 +157,14 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
             max={60}
           />
         </div>
+        </>)}
       </div>
 
+      {format === 'vorstellungsrunde' ? (
+        <p className="text-sm text-gray-600">
+          Bewerber wählen aus deinen festen Vorstellungsrunden mit freien Plätzen. Volle Runden werden nicht angeboten.
+        </p>
+      ) : (<>
       <h3 className="font-medium text-gray-900 pt-2">Verfügbare Zeitfenster</h3>
 
       {rules.length === 0 && (
@@ -194,6 +216,7 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
         <Plus className="h-4 w-4 mr-1" />
         Zeitfenster hinzufügen
       </Button>
+      </>)}
 
       <div className="pt-2 border-t">
         <Button onClick={save} disabled={saving}>
@@ -202,5 +225,16 @@ export function AvailabilityEditor({ jobId }: { jobId: string }) {
         </Button>
       </div>
     </Card>
+  );
+}
+
+/** Termineinstellungen + bei Vorstellungsrunde die Runden mit Teilnehmern */
+export function TerminEinstellungen({ jobId }: { jobId: string }) {
+  const [format, setFormat] = useState<TerminFormat | null>(null);
+  return (
+    <div className="space-y-4">
+      <AvailabilityEditor jobId={jobId} onFormatGespeichert={setFormat} />
+      {format === 'vorstellungsrunde' && <VorstellungsrundenEditor jobId={jobId} />}
+    </div>
   );
 }
