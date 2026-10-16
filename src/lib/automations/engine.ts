@@ -145,6 +145,10 @@ async function executeAction(
   action: Action,
   context: AutomationContext
 ): Promise<ActionDetail | void> {
+  // Schnell-Absage („passt nicht“): nie eine Nachricht an den Bewerber auslösen
+  if (context.data?.schnell_absage === true && ['send_template', 'send_message', 'send_email', 'start_bot'].includes(action.type)) {
+    return { status: 'skipped' };
+  }
   switch (action.type) {
     case 'send_notification':
       await executeSendNotification(supabase, action.params, context);
