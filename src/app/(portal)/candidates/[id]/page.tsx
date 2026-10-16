@@ -23,7 +23,6 @@ import {
   FileText,
   Briefcase,
   Download,
-  Shield,
   ShieldX,
   AlertTriangle,
   Check,
@@ -363,35 +362,6 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
     <div className="flex items-start justify-between py-2">
       <span className="text-sm text-gray-500 shrink-0">{label}</span>
       <span className="text-sm font-medium text-gray-900 text-right ml-4">{children}</span>
-    </div>
-  );
-}
-
-function ConsentRow({
-  label,
-  active,
-  unknown,
-}: {
-  label: string;
-  active: boolean | undefined;
-  unknown?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="text-sm text-gray-600">{label}</span>
-      {unknown ? (
-        <span className="text-xs text-gray-400">Unbekannt</span>
-      ) : active ? (
-        <div className="flex items-center gap-1.5">
-          <Check className="w-4 h-4 text-green-500" />
-          <span className="text-xs text-green-600">Ja</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5">
-          <X className="w-4 h-4 text-red-500" />
-          <span className="text-xs text-red-600">Nein</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -1648,21 +1618,13 @@ export default function CandidateDetailPage() {
             </div>
           </Card>
 
-          {/* Consent & Status */}
-          <Card padding="md" className={candidate.do_not_contact ? 'border-red-300 bg-red-50/30' : ''}>
-            <SectionHeader icon={<Shield className="w-4 h-4 text-gray-600" />} title="Consent & Status" />
-            {candidate.do_not_contact && (
-              <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
-                <Ban className="w-4 h-4 text-red-600" />
-                <span className="text-sm font-semibold text-red-700">NICHT KONTAKTIEREN</span>
-              </div>
-            )}
-            <div className="space-y-0">
-              <ConsentRow label="WhatsApp Opt-in" active={candidate.whatsapp_opt_in} unknown={candidate.whatsapp_opt_in === undefined} />
-              <ConsentRow label="E-Mail Opt-in" active={candidate.email_opt_in} unknown={candidate.email_opt_in === undefined} />
-              <ConsentRow label="Aufnahme-Einwilligung" active={candidate.recording_consent} unknown={candidate.recording_consent === undefined} />
+          {/* Nicht kontaktieren (Consent-Status ausgeblendet) */}
+          {candidate.do_not_contact && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
+              <Ban className="w-4 h-4 text-red-600" />
+              <span className="text-sm font-semibold text-red-700">NICHT KONTAKTIEREN</span>
             </div>
-          </Card>
+          )}
 
           {/* No-Show & Kadenz */}
           <Card padding="md" className={candidate.blacklisted ? 'border-red-300 bg-red-50/30' : ''}>
