@@ -61,7 +61,7 @@ export async function pflegeVorlagen(svc: SupabaseClient, jetzt: Date = new Date
         const { count } = await svc
           .from('whatsapp_templates')
           .update(
-            { status, meta_template_id: t.id, meta_fehler: status === 'rejected' ? t.rejectedReason ?? 'abgelehnt' : null, ...(t.category ? { category: t.category } : {}), updated_at: jetzt.toISOString() },
+            { status, meta_template_id: t.id, meta_fehler: status === 'rejected' ? t.rejectedReason ?? 'abgelehnt' : null, ...(t.category ? { category: t.category } : {}), ...(t.buttons?.length ? { buttons: t.buttons } : {}), updated_at: jetzt.toISOString() },
             { count: 'exact' },
           )
           .eq('wa_account_id', k.id)

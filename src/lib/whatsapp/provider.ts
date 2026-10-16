@@ -38,6 +38,8 @@ export interface TemplateStatus {
   language: string;
   /** Grund bei Ablehnung (Meta: rejected_reason) */
   rejectedReason?: string | null;
+  /** Buttons der Vorlage, wie bei Meta hinterlegt (aus components[type=BUTTONS]) */
+  buttons?: Array<Record<string, unknown>> | null;
 }
 
 export interface WhatsAppProvider {
@@ -130,7 +132,7 @@ export class CloudApiProvider implements WhatsAppProvider {
   }
 
   async listTemplates(wabaId: string, token: string): Promise<TemplateStatus[]> {
-    const res = await metaFetch(`/${wabaId}/message_templates?limit=100&fields=id,name,status,category,language,rejected_reason`, token);
+    const res = await metaFetch(`/${wabaId}/message_templates?limit=100&fields=id,name,status,category,language,rejected_reason,components`, token);
     const data = await res.json();
     return (data.data || []).map((t: Record<string, unknown>) => ({
       id: t.id as string,
@@ -139,6 +141,7 @@ export class CloudApiProvider implements WhatsAppProvider {
       category: t.category as string,
       language: t.language as string,
       rejectedReason: (t.rejected_reason as string | undefined) ?? null,
+      buttons: ((t.components as Array<{ type?: string; buttons?: Array<Record<string, unknown>> }> | undefined) ?? []).find((c) => c.type === 'BUTTONS')?.buttons ?? null,
     }));
   }
 
