@@ -117,6 +117,10 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
     if (appErr) console.error('[perspective] Bewerbung nicht angelegt:', appErr.message);
   }
 
+  // Bild-/Datei-Uploads aus dem Funnel übernehmen (Job, damit der Webhook schnell bleibt)
+  const { planeFunnelDateien } = await import('./dateien');
+  await planeFunnelDateien(svc, agencyId, c.id, lead.angaben).catch((err) => console.error('[perspective] Datei-Übernahme nicht geplant:', err));
+
   if (lead.automationen) fireEvent('candidate_created', agencyId, { candidate_id: c.id }).catch(() => {});
 
   const blacklist = await checkBlacklist(svc, agencyId, lead.email, lead.phone);

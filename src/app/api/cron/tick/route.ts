@@ -425,6 +425,11 @@ export async function GET(request: NextRequest) {
           console.log('[reaktivierung]', JSON.stringify(await reaktiviereUnqualifizierte(svc, new Date(), startTime + WALL_CLOCK_LIMIT_MS - 8_000)));
           break;
         }
+        case 'bewerber.funnel_dateien': {
+          const { uebernehmeFunnelDateien } = await import('@/lib/perspective/dateien');
+          console.log('[funnel-dateien]', await uebernehmeFunnelDateien(svc, payload as { candidate_id: string }));
+          break;
+        }
         case 'bewerber.nicht_erreicht': {
           const { sendeBewerberNichtErreicht } = await import('@/lib/recruiting/nicht-erreicht');
           console.log('[bewerber-nicht-erreicht]', await sendeBewerberNichtErreicht(svc, payload as { candidate_id: string }));

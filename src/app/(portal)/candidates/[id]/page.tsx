@@ -520,9 +520,19 @@ function TabUebersicht({
             {Object.entries(candidate.vorquali_json).map(([key, value]) => (
               <div key={key} className="flex items-start justify-between py-1.5">
                 <span className="text-sm text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
-                <span className="text-sm font-medium text-gray-900 text-right ml-4 max-w-[60%]">
-                  {typeof value === 'boolean' ? (value ? 'Ja' : 'Nein') : String(value ?? '-')}
-                </span>
+                {typeof value === 'string' && value.startsWith('datei:') ? (
+                  // Funnel-Upload (Bild/PDF) – in der Cloud gespeichert
+                  <a href={`/api/candidates/${candidate.id}/datei/${value.slice(6)}`} target="_blank" rel="noopener noreferrer" className="ml-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- signierte Storage-URL */}
+                    <img src={`/api/candidates/${candidate.id}/datei/${value.slice(6)}`} alt={key} className="max-h-48 max-w-[220px] rounded-lg object-cover shadow-sm" />
+                  </a>
+                ) : typeof value === 'string' && /^https:\/\//.test(value) ? (
+                  <a href={value} target="_blank" rel="noopener noreferrer" className="ml-4 text-sm font-medium text-red-800 underline">Datei öffnen</a>
+                ) : (
+                  <span className="text-sm font-medium text-gray-900 text-right ml-4 max-w-[60%]">
+                    {typeof value === 'boolean' ? (value ? 'Ja' : 'Nein') : String(value ?? '-')}
+                  </span>
+                )}
               </div>
             ))}
           </div>
