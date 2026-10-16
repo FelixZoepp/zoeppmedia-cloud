@@ -47,6 +47,7 @@ export default async function DashboardPage() {
       agencyName={user.name}
       pendingSurveys={pendingSurveys ?? 0}
       startklar={startklar}
+      werbekosten={roi?.werbekosten30 ?? null}
       garantie={gz?.garantie_ziel_starter && gz.garantie_ampel ? { ampel: gz.garantie_ampel, ist: gz.garantie_ist ?? 0, ziel: gz.garantie_ziel_starter } : null}
       kennzahlen={
         roi && {

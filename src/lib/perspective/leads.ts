@@ -4,6 +4,7 @@ import { findDuplicateCandidate } from '@/lib/candidates/find-duplicate';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
+import { autoStelle, istKampagnenId, ladeZuordnung, merkeAutoZuordnung, type Utm } from '@/lib/kosten/kampagnen';
 
 export interface FunnelLead {
   name: string | null;
@@ -21,6 +22,8 @@ export interface FunnelLead {
   automationen: boolean;
   /** Antworten aus dem Funnel („Frage → Antwort“) → vorquali_json */
   angaben?: Record<string, string> | null;
+  /** UTM aus dem Funnel (utm_campaign = Meta-Kampagnen-ID, utm_term = Anzeigengruppe) */
+  utm?: Utm | null;
 }
 
 export type LeadErgebnis =
@@ -42,6 +45,7 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
     // Kennung nachtragen, damit der Abgleich den Lead künftig direkt erkennt
     if (lead.externeId) await svc.from('candidates').update({ externe_id: lead.externeId }).eq('id', duplicate.id).is('externe_id', null);
     if (lead.angaben && Object.keys(lead.angaben).length) await svc.from('candidates').update({ vorquali_json: lead.angaben }).eq('id', duplicate.id).is('vorquali_json', null);
+    if (lead.utm?.campaign) await svc.from('candidates').update({ meta_campaign: lead.utm.campaign, meta_adset: lead.utm.adset }).eq('id', duplicate.id).is('meta_campaign', null);
     return { status: 'doppelt', candidateId: duplicate.id };
   }
 
@@ -60,6 +64,7 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       meta_form: lead.funnelName,
       current_stage_id: firstStage.id,
       externe_id: lead.externeId ?? null,
+      ...(lead.utm ? { meta_campaign: lead.utm.campaign, meta_adset: lead.utm.adset } : {}),
       ...(lead.angaben && Object.keys(lead.angaben).length ? { vorquali_json: lead.angaben } : {}),
       ...(lead.eingegangenAm ? { created_at: lead.eingegangenAm } : {}),
     })
@@ -77,16 +82,25 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
 
   await svc.from('candidate_stages').insert({ candidate_id: c.id, stage_id: firstStage.id, changed_by: null });
 
-  // Auch als Bewerbung anlegen – sonst fehlt der Lead in Kennzahlen, Phasen-Logik und Warnungen
-  const { data: stelle } = await svc
+  // Auch als Bewerbung anlegen – sonst fehlt der Lead in Kennzahlen, Phasen-Logik und Warnungen.
+  // Stelle: aus der Kampagnen-Zuordnung, sonst die Standard-Stelle
+  const kampagne = istKampagnenId(lead.utm?.campaign) ? lead.utm!.campaign! : null;
+  const zuordnung = kampagne ? await ladeZuordnung(svc, kampagne) : null;
+  const { data: aktive } = await svc
     .from('jobs')
     .select('id')
     .eq('agency_id', agencyId)
     .eq('status', 'active')
     .order('is_default', { ascending: false })
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: true });
+  const aktiveIds = ((aktive ?? []) as Array<{ id: string }>).map((j) => j.id);
+  const zugeordnet = zuordnung?.agency_id === agencyId && aktiveIds.includes(zuordnung.job_id) ? zuordnung.job_id : null;
+  const stelle = zugeordnet ? { id: zugeordnet } : aktiveIds[0] ? { id: aktiveIds[0] } : null;
+  const einzigeStelle = autoStelle(aktiveIds);
+  if (kampagne && !zuordnung && einzigeStelle) {
+    const r = await merkeAutoZuordnung(svc, { campaign_id: kampagne, agency_id: agencyId, job_id: einzigeStelle });
+    if (r === 'fehler') console.error('[perspective] Kampagnen-Zuordnung nicht gespeichert');
+  }
   const ref = lead.externeId ? `perspective:${lead.externeId}` : null;
   const { count: schonDa } = ref ? await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', ref) : { count: 0 };
   if (stelle && !schonDa) {
@@ -97,7 +111,7 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       stage_id: firstStage.id,
       source: 'meta',
       source_ref: lead.externeId ? `perspective:${lead.externeId}` : null,
-      campaign: lead.funnelName ? { funnel: lead.funnelName } : null,
+      campaign: lead.funnelName || lead.utm ? { ...(lead.funnelName ? { funnel: lead.funnelName } : {}), ...(lead.utm ? { utm: lead.utm } : {}) } : null,
       ...(lead.eingegangenAm ? { applied_at: lead.eingegangenAm } : {}),
     });
     if (appErr) console.error('[perspective] Bewerbung nicht angelegt:', appErr.message);

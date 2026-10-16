@@ -27,6 +27,7 @@ export const ENV_CHECKS: EnvCheck[] = [
   { bereich: 'WhatsApp', name: 'META_APP_SECRET', stufe: 'pflicht', wofuer: 'Meta-Webhook prüfen' },
   { bereich: 'WhatsApp', name: 'NEXT_PUBLIC_META_APP_ID', stufe: 'pflicht', wofuer: 'Embedded Signup im Browser' },
   { bereich: 'WhatsApp', name: 'NEXT_PUBLIC_META_ES_CONFIG_ID', stufe: 'pflicht', wofuer: 'Embedded-Signup-Konfiguration' },
+  { bereich: 'Werbung', name: 'META_SYSTEM_USER_TOKEN', stufe: 'wichtig', wofuer: 'Werbekosten je Kunde/Stelle aus den Meta-Werbekonten (ads_read)' },
   { bereich: 'Leads', name: 'PERSPECTIVE_WEBHOOK_SECRET', stufe: 'wichtig', wofuer: 'Schutz vor gefälschten Leads – vorher ?secret= in allen Funnel-Webhooks eintragen' },
   { bereich: 'Leads', name: 'INDEED_WEBHOOK_SECRET', stufe: 'wichtig', wofuer: 'Indeed-Bewerbungen' },
   { bereich: 'Leads', name: 'RESEND_WEBHOOK_SECRET', stufe: 'optional', wofuer: 'nur für Indeed per E-Mail – nicht nötig, Indeed läuft über Manatal' },
@@ -64,6 +65,7 @@ export const DB_CHECKS: DbCheck[] = [
   { name: 'WhatsApp-Nummer besorgen (Twilio)', datei: '20261015000460_whatsapp_nummern.sql', tabelle: 'kunden_telefonnummern', spalten: '*' },
   { name: 'Zeiterfassung', datei: '20261016000480_zeiterfassung.sql', tabelle: 'zeiteintraege', spalten: 'id' },
   { name: 'Vorstellungsrunden / Termin-Format', datei: '20261016000490_vorstellungsrunden.sql', tabelle: 'vorstellungsrunden', spalten: 'id' },
+  { name: 'Werbekosten je Stelle (Meta-Kampagnen, Indeed je Stelle)', datei: '20261016000500_kampagnen_kosten.sql', tabelle: 'meta_kampagnen_zuordnung', spalten: 'campaign_id, job_id' },
 ];
 
 export interface Ergebnis {

@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { toast } from 'sonner';
 import { PersonaKarte } from './persona-karte';
 import { IndeedBudgetKarte } from './indeed-budget-karte';
+import { WerbekontoPruefen } from './werbekonto-pruefen';
 import {
   ArrowLeft,
   Check,
@@ -259,8 +260,11 @@ export function IntegrationenClient({ agencyId }: { agencyId: string }) {
                 </Button>
               </div>
               <p className="text-xs text-gray-400 mt-1.5">
-                Wird für den täglichen Insights-Sync (CPL, Spend, Reports) verwendet.
+                Werbekonto des Kunden – täglicher Abgleich der Kosten je Kampagne (für Kosten pro Bewerber je Stelle) und der Insights.
               </p>
+              <div className="mt-2">
+                <WerbekontoPruefen agencyId={agencyId} wert={metaAccount} onWaehlen={setMetaAccount} />
+              </div>
             </div>
 
             <CopyField

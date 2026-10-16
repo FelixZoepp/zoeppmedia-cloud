@@ -2,7 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { fetchAll } from '@/lib/supabase/fetch-all';
 import { getStagesForAgency, istEingestelltStage } from '@/lib/pipeline/get-stages';
 import { berlinMonatsStart, berlinWochenStart } from '@/lib/zeit/berlin';
-import { indeedKosten, laufendePhase, leadpreis, type BudgetPhase } from '@/lib/werbekosten/indeed-budget';
+import { indeedKosten, leadpreis, tagesbudgetHeute, type BudgetPhase } from '@/lib/werbekosten/indeed-budget';
 
 export interface DashboardData {
   totalCandidates: number;
@@ -130,7 +130,7 @@ export async function getDashboardData(agencyId: string): Promise<DashboardData>
     const bis = tag(0);
     const { count } = await supabase.from('candidates').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source', 'indeed').is('deleted_at', null).gte('created_at', new Date(Date.now() - 30 * 864e5).toISOString());
     const { kosten } = indeedKosten(phasen, von, bis);
-    indeed30 = { kosten, bewerber: count ?? 0, leadpreis: leadpreis(kosten, count ?? 0), tagesbudget: laufendePhase(phasen, bis)?.tagesbudget ?? null };
+    indeed30 = { kosten, bewerber: count ?? 0, leadpreis: leadpreis(kosten, count ?? 0), tagesbudget: tagesbudgetHeute(phasen, bis) };
   }
 
   return {

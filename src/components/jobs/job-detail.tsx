@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { BotConfigForm } from '@/components/bot/bot-config-form';
 import { BotSimulator } from '@/components/bot/bot-simulator';
 import { TerminEinstellungen } from '@/components/jobs/availability-editor';
+import { StellenKosten } from '@/components/jobs/stellen-kosten';
 
 type JobTab = 'details' | 'ki-bot' | 'termine';
 
@@ -361,6 +362,8 @@ export function JobDetail({ jobId }: { jobId: string }) {
               </div>
             )}
           </Card>
+
+          <StellenKosten jobId={jobId} />
         </div>
 
         <div className="space-y-4">

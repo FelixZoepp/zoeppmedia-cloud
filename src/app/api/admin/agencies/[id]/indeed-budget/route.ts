@@ -3,6 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { ersterStart, indeedKosten, laufendePhase, leadpreis, type BudgetPhase } from '@/lib/werbekosten/indeed-budget';
+import { istSchemaFehler } from '@/lib/appointments/termin-format';
 
 const heute = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 const vorTagen = (n: number) => new Date(Date.now() - n * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
@@ -19,8 +20,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ error: 'Ungültige ID' }, { status: 400 });
   const svc = createAdminClient();
-  const { data } = await svc.from('indeed_budget').select('id, tagesbudget, start, ende').eq('agency_id', id).order('start', { ascending: false });
+  // job_id gibt es erst mit Migration 20261016000500 – ohne sie wie bisher (ganzer Kunde)
+  const mitStelle = await svc.from('indeed_budget').select('id, tagesbudget, start, ende, job_id').eq('agency_id', id).order('start', { ascending: false });
+  const jeStelle = !istSchemaFehler(mitStelle.error);
+  const { data } = jeStelle ? mitStelle : await svc.from('indeed_budget').select('id, tagesbudget, start, ende').eq('agency_id', id).order('start', { ascending: false });
   const phasen = ((data ?? []) as BudgetPhase[]).map((p) => ({ ...p, tagesbudget: Number(p.tagesbudget) }));
+  const { data: jobs } = await svc.from('jobs').select('id, title, status').eq('agency_id', id).neq('status', 'closed').order('created_at');
+  const { data: ag } = await svc.from('agencies').select('settings').eq('id', id).maybeSingle();
+  const indeedKonto = ((ag as { settings: Record<string, unknown> | null } | null)?.settings?.indeed_konto as string | undefined) ?? null;
   const h = heute();
 
   const zeitraum = async (von: string) => {
@@ -31,6 +38,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const start = ersterStart(phasen);
   return NextResponse.json({
     phasen,
+    jeStelle,
+    stellen: jobs ?? [],
+    indeedKonto,
     laeuft: !!laufendePhase(phasen, h),
     tage30: await zeitraum(vorTagen(29)),
     seitStart: start ? await zeitraum(start) : null,
@@ -43,18 +53,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ error: 'Ungültige ID' }, { status: 400 });
-  const b = (await req.json().catch(() => ({}))) as { tagesbudget?: unknown; start?: unknown; ende?: unknown };
+  const b = (await req.json().catch(() => ({}))) as { tagesbudget?: unknown; start?: unknown; ende?: unknown; job_id?: unknown };
   const tagesbudget = Number(String(b.tagesbudget ?? '').replace(',', '.'));
   const start = String(b.start ?? '');
   const ende = b.ende ? String(b.ende) : null;
   if (!Number.isFinite(tagesbudget) || tagesbudget < 0) return NextResponse.json({ error: 'Tagesbudget fehlt' }, { status: 400 });
   if (!DATUM.test(start) || (ende && (!DATUM.test(ende) || ende < start))) return NextResponse.json({ error: 'Datum prüfen' }, { status: 400 });
 
+  const jobId = typeof b.job_id === 'string' && b.job_id ? b.job_id : null;
+  if (jobId && !isUuid(jobId)) return NextResponse.json({ error: 'Ungültige Stelle' }, { status: 400 });
+
   const svc = createAdminClient();
+  if (jobId) {
+    const { data: job } = await svc.from('jobs').select('id').eq('id', jobId).eq('agency_id', id).maybeSingle();
+    if (!job) return NextResponse.json({ error: 'Stelle gehört nicht zu diesem Kunden' }, { status: 400 });
+  }
   const vortag = new Date(Date.parse(`${start}T00:00:00Z`) - 864e5).toISOString().slice(0, 10);
-  // Offene Phasen, die vor dem neuen Start begonnen haben, enden am Vortag
-  await svc.from('indeed_budget').update({ ende: vortag }).eq('agency_id', id).is('ende', null).lt('start', start);
-  const { error } = await svc.from('indeed_budget').insert({ agency_id: id, tagesbudget, start, ende, angelegt_von: user.id });
+  // Offene Phasen derselben Spur (gleiche Stelle bzw. ganzer Kunde), die vor dem neuen Start begonnen haben, enden am Vortag
+  const offen = svc.from('indeed_budget').update({ ende: vortag }).eq('agency_id', id).is('ende', null).lt('start', start);
+  const geschlossen = await (jobId ? offen.eq('job_id', jobId) : offen.is('job_id', null));
+  if (geschlossen.error && istSchemaFehler(geschlossen.error)) {
+    if (jobId) return NextResponse.json({ error: 'Datenbank-Änderung fehlt noch – Budget je Stelle ist noch nicht verfügbar' }, { status: 409 });
+    await svc.from('indeed_budget').update({ ende: vortag }).eq('agency_id', id).is('ende', null).lt('start', start);
+  }
+  const { error } = await svc.from('indeed_budget').insert({ agency_id: id, tagesbudget, start, ende, angelegt_von: user.id, ...(jobId ? { job_id: jobId } : {}) });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await pausiertMerken(svc, id, !!ende && ende < heute());
   return NextResponse.json({ ok: true });
@@ -64,9 +86,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await intern())) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   const { id } = await params;
-  const b = (await req.json().catch(() => ({}))) as { id?: string; ende?: string; loeschen?: boolean };
-  if (!isUuid(id) || !b.id || !isUuid(b.id)) return NextResponse.json({ error: 'Ungültige ID' }, { status: 400 });
+  const b = (await req.json().catch(() => ({}))) as { id?: string; ende?: string; loeschen?: boolean; indeed_konto?: string | null };
+  if (!isUuid(id)) return NextResponse.json({ error: 'Ungültige ID' }, { status: 400 });
   const svc = createAdminClient();
+  // Indeed-Konto des Kunden (Bezeichnung/ID, nur zur Orientierung – keine API)
+  if (b.indeed_konto !== undefined && !b.id) {
+    const { data } = await svc.from('agencies').select('settings').eq('id', id).maybeSingle();
+    const settings = ((data as { settings: Record<string, unknown> | null } | null)?.settings ?? {}) as Record<string, unknown>;
+    const konto = String(b.indeed_konto ?? '').trim().slice(0, 200) || null;
+    const { error } = await svc.from('agencies').update({ settings: { ...settings, indeed_konto: konto } }).eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+  if (!b.id || !isUuid(b.id)) return NextResponse.json({ error: 'Ungültige ID' }, { status: 400 });
   if (b.loeschen) {
     await svc.from('indeed_budget').delete().eq('id', b.id).eq('agency_id', id);
   } else {

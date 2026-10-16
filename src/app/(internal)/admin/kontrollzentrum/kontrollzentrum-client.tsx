@@ -308,7 +308,14 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
                     <td className="px-3 py-3">{z.jetzt.termine}<Delta jetzt={z.jetzt.termine} vorher={z.vorher.termine} /></td>
                     <td className="px-3 py-3" title={`${z.jetzt.erschienen} erschienen, ${z.jetzt.noShows} No-Shows`}>{pct(z.jetzt.erscheinensquote)}</td>
                     <td className="px-3 py-3 font-medium">{z.jetzt.einstellungen}<Delta jetzt={z.jetzt.einstellungen} vorher={z.vorher.einstellungen} /></td>
-                    <td className="whitespace-nowrap px-3 py-3" title="(MRR + Werbebudget) / Einstellungen, ohne Indeed">{eur(z.kostenProEinstellung)}</td>
+                    <td
+                      className="whitespace-nowrap px-3 py-3"
+                      title={`(MRR + ${z.metaAusgaben != null ? 'Meta-Ausgaben 30 Tage' : 'Werbebudget'}) / Einstellungen, ohne Indeed${z.indeedKosten ? ` · Indeed 30 Tage: ${eur(z.indeedKosten)}` : ''}`}
+                    >
+                      {eur(z.kostenProEinstellung)}
+                      {z.metaAusgaben != null && <span className="block text-[11px] text-gray-500">Meta {eur(z.metaAusgaben)}</span>}
+                      {z.indeedKosten ? <span className="block text-[11px] text-gray-400">Indeed {eur(z.indeedKosten)}</span> : null}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-3">{datum(z.nutzung.letzterLogin)}</td>
                     <td className="whitespace-nowrap px-3 py-3">{eur(z.marge.umsatz)}</td>
                     <td className="whitespace-nowrap px-3 py-3"><MargeZelle z={z} zeiterfassung={daten.zeiterfassung} /></td>

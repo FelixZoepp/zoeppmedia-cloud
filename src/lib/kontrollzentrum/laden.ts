@@ -4,6 +4,8 @@ import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 import { mitInnendienst } from '@/lib/fulfillment/pakete';
 import { istEingestelltStage } from '@/lib/pipeline/get-stages';
 import { fetchAll, fetchAllIn } from '@/lib/supabase/fetch-all';
+import { ladeIndeedPhasen, ladeMetaAusgabenJeKunde, zeitraum } from '@/lib/kosten/stellen';
+import { indeedKosten } from '@/lib/werbekosten/indeed-budget';
 import {
   FENSTER_TAGE,
   ROT_SEIT_TAGEN,
@@ -48,6 +50,10 @@ export interface KontrollZeile {
   upsell: { signal: boolean; gruende: string[]; vorschlaege: string[] };
   churn: { risiko: boolean; gruende: string[] };
   kostenProEinstellung: number | null;
+  /** Echte Meta-Ausgaben der letzten 30 Tage (Werbekonto); null = nicht abgeglichen → Werbebudget als Schätzung */
+  metaAusgaben: number | null;
+  /** Indeed-Kosten 30 Tage aus dem Tagesbudget – nur Info, nicht in Marge/€ pro Einstellung */
+  indeedKosten: number | null;
   marge: Marge;
 }
 
@@ -90,6 +96,10 @@ export interface Rohdaten {
   teamMinuten: Map<string, number> | null;
   anrufMinuten: Map<string, number>;
   vorlagen: Map<string, number>;
+  /** Meta-Ausgaben 30 Tage je Kunde (null/fehlend = Tabelle fehlt oder kein Abgleich) */
+  metaAusgaben?: Map<string, number> | null;
+  /** Indeed-Kosten 30 Tage je Kunde (Info) */
+  indeedKosten?: Map<string, number> | null;
 }
 
 function gruppiere<T extends { agency_id: string }>(rows: T[]): Map<string, T[]> {
@@ -142,6 +152,8 @@ export function baueZeilen(r: Rohdaten, jetzt: Date): KontrollZeile[] {
       }).ampel;
 
       const mrr = zahl(a.mrr) || (a.paket ? r.retainer.get(a.paket.trim().toLowerCase()) ?? null : null) || null;
+      // Echte Meta-Ausgaben statt Werbebudget, sobald für den Kunden abgeglichen; Indeed wird nicht eingerechnet
+      const metaAusgaben = r.metaAusgaben?.has(a.id) ? r.metaAusgaben.get(a.id)! : null;
       return {
         id: a.id,
         name: a.name,
@@ -168,7 +180,9 @@ export function baueZeilen(r: Rohdaten, jetzt: Date): KontrollZeile[] {
           mitInnendienst: mitInnendienst(a.bausteine),
         }),
         churn: churnRisiko({ ampel, ampelFrueher, keineLogins, loginPruefen, jetzt: jetztK, vorher }),
-        kostenProEinstellung: kostenProEinstellung(mrr, zahl(a.werbebudget), jetztK.einstellungen),
+        kostenProEinstellung: kostenProEinstellung(mrr, metaAusgaben ?? zahl(a.werbebudget), jetztK.einstellungen),
+        metaAusgaben,
+        indeedKosten: r.indeedKosten?.get(a.id) ?? null,
         marge: berechneMarge({
           umsatz: mrr,
           teamMinuten: r.teamMinuten ? r.teamMinuten.get(a.id) ?? 0 : null,
@@ -275,6 +289,19 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
       ),
       ladeTeamMinuten(svc, ab30),
     ]);
+  const tage = zeitraum(FENSTER_TAGE, jetzt);
+  const [metaAusgaben, indeed] = await Promise.all([
+    ladeMetaAusgabenJeKunde(svc, tage.von, tage.bis).catch(() => null),
+    ladeIndeedPhasen(svc).catch(() => null),
+  ]);
+  let indeedJeKunde: Map<string, number> | null = null;
+  if (indeed) {
+    indeedJeKunde = new Map();
+    for (const p of indeed.phasen) {
+      const k = indeedKosten([p], tage.von, tage.bis).kosten;
+      if (k > 0) indeedJeKunde.set(p.agency_id, Math.round(((indeedJeKunde.get(p.agency_id) ?? 0) + k) * 100) / 100);
+    }
+  }
   if (agErr) throw new Error(`Kunden konnten nicht geladen werden: ${agErr.message}`);
 
   // Einstellungen: eingestellt_am, aktuelle Einstellungs-Stufe oder Wechsel dorthin
@@ -326,6 +353,8 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
     teamMinuten,
     anrufMinuten: summiere(mitKunde(twilio), (x) => (x.dauer_sekunden ?? 0) / 60),
     vorlagen: summiere(mitKunde(vorlagen), () => 1),
+    metaAusgaben,
+    indeedKosten: indeedJeKunde,
   };
 }
 

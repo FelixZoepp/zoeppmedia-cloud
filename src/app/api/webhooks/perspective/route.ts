@@ -5,6 +5,7 @@ import { isUuid } from '@/lib/supabase/filters';
 import { logActivity } from '@/lib/activity/log';
 import { legeFunnelLeadAn } from '@/lib/perspective/leads';
 import { angabenAusProfil } from '@/lib/perspective/angaben';
+import { extrahiereUtm } from '@/lib/kosten/kampagnen';
 
 /**
  * Perspective-Funnel-Webhook. Pro Kunde wird im Funnel die URL
@@ -129,6 +130,7 @@ export async function POST(request: NextRequest) {
     externeId: typeof body.id === 'string' && body.id ? `perspective:${body.id}` : null,
     automationen: true,
     angaben: angabenAusProfil(profile),
+    utm: extrahiereUtm(body),
   });
   if (ergebnis.status === 'fehler') return NextResponse.json({ error: ergebnis.fehler }, { status: 500 });
   if (ergebnis.status === 'doppelt') {

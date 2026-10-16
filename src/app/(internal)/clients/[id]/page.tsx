@@ -13,6 +13,7 @@ import { StartklarCard } from '@/components/clients/startklar-card';
 import { MasterclassFuehrungCard } from '@/components/clients/masterclass-fuehrung-card';
 import { LeistungenCard } from '@/components/clients/leistungen-card';
 import { IndeedAnzeigeCard } from '@/components/clients/indeed-anzeige-card';
+import { StellenKostenCard } from '@/components/clients/stellen-kosten-card';
 import { TestleadCard } from '@/components/clients/testlead-card';
 import { HandelsregisterCard } from '@/components/clients/handelsregister-card';
 import { WhatsappNummerCard } from '@/components/clients/whatsapp-nummer-card';
@@ -590,6 +591,8 @@ export default function ClientDetailPage() {
       <GeneratorCard agencyId={id} />
 
       <IndeedAnzeigeCard agencyId={id} />
+
+      <StellenKostenCard agencyId={id} />
 
       <TestleadCard agencyId={id} onFertig={load} />
 

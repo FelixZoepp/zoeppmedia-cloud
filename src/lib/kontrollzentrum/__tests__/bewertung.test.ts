@@ -243,6 +243,15 @@ describe('baueZeilen', () => {
     expect(b.marge).toMatchObject({ umsatz: 2500, teamKosten: 120, kommKosten: 6, marge: 2374 });
   });
 
+  it('€/Einstellung mit echten Meta-Ausgaben statt Werbebudget, Indeed nur als Info', () => {
+    const [a, b] = baueZeilen(roh({ metaAusgaben: new Map([['b', 500]]), indeedKosten: new Map([['b', 300]]) }), jetzt);
+    expect(b.kostenProEinstellung).toBe(3000);
+    expect(b.metaAusgaben).toBe(500);
+    expect(b.indeedKosten).toBe(300);
+    expect(b.marge.umsatz).toBe(2500);
+    expect(a.metaAusgaben).toBeNull();
+  });
+
   it('ohne Zeiterfassung: Teamkosten –', () => {
     const [, b] = baueZeilen(roh({ teamMinuten: null }), jetzt);
     expect(b.marge.teamKosten).toBeNull();

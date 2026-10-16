@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { berechneRoi, monatPlus, monatVon, type Einstellung, type UmsatzEintrag } from './berechnung';
+import { ladeStellenKosten, zeitraum } from '@/lib/kosten/stellen';
 
 /** Bewerber, die als eingestellt gelten: eingestellt_am gesetzt oder in einer Stufe „eingestellt“ */
 export async function ladeEinstellungen(svc: SupabaseClient, agencyId: string): Promise<Einstellung[]> {
@@ -72,11 +73,16 @@ export async function ladeGeplanteTermine(svc: SupabaseClient, agencyId: string,
 
 /** Alles für Dashboard und Umsätze-Seite */
 export async function ladeRoiUebersicht(svc: SupabaseClient, agencyId: string, jetzt: Date = new Date()) {
-  const [einstellungen, eintraege, kosten, termine] = await Promise.all([
+  const [einstellungen, eintraege, kosten, termine, werbekosten] = await Promise.all([
     ladeEinstellungen(svc, agencyId),
     ladeUmsaetze(svc, agencyId),
     ladeKosten(svc, agencyId),
     ladeGeplanteTermine(svc, agencyId, jetzt),
+    // Echte Werbekosten (Meta-Werbekonto + Indeed-Tagesbudget) der letzten 30 Tage
+    ladeStellenKosten(svc, agencyId, zeitraum(30, jetzt)).catch((err) => {
+      console.error('[roi] Werbekosten', err);
+      return null;
+    }),
   ]);
   const roi = berechneRoi({ einstellungen, eintraege, kosten, jetzt });
   const vor30 = new Date(jetzt.getTime() - 30 * 864e5).toISOString();
@@ -85,6 +91,7 @@ export async function ladeRoiUebersicht(svc: SupabaseClient, agencyId: string, j
   return {
     roi,
     termine,
+    werbekosten30: werbekosten ? { ...werbekosten.gesamt, meta: werbekosten.meta } : null,
     einstellungen30: einstellungen.filter((h) => h.eingestellt_am >= vor30).length,
     einstellungenGesamt: einstellungen.length,
     monate,

@@ -13,6 +13,11 @@ interface Phase {
   tagesbudget: number;
   start: string;
   ende: string | null;
+  job_id?: string | null;
+}
+interface Stelle {
+  id: string;
+  title: string;
 }
 interface Zeitraum {
   von: string;
@@ -23,6 +28,10 @@ interface Zeitraum {
 }
 interface Daten {
   phasen: Phase[];
+  /** Budget je Stelle möglich (Migration eingespielt) */
+  jeStelle?: boolean;
+  stellen?: Stelle[];
+  indeedKonto?: string | null;
   laeuft: boolean;
   tage30: Zeitraum;
   seitStart: Zeitraum | null;
@@ -37,6 +46,8 @@ export function IndeedBudgetKarte({ agencyId }: { agencyId: string }) {
   const [d, setD] = useState<Daten | null>(null);
   const [budget, setBudget] = useState('');
   const [start, setStart] = useState(heute());
+  const [stelle, setStelle] = useState('');
+  const [konto, setKonto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const laden = useCallback(async () => {
@@ -64,7 +75,9 @@ export function IndeedBudgetKarte({ agencyId }: { agencyId: string }) {
     }
   }
 
-  const laufend = d?.phasen.find((p) => !p.ende || p.ende >= heute());
+  // Laufende Phase der gewählten Spur (Stelle bzw. ganzer Kunde)
+  const laufend = d?.phasen.find((p) => (p.job_id ?? '') === stelle && (!p.ende || p.ende >= heute()));
+  const stellenName = new Map((d?.stellen ?? []).map((s) => [s.id, s.title]));
 
   return (
     <Card padding="lg">
@@ -74,9 +87,21 @@ export function IndeedBudgetKarte({ agencyId }: { agencyId: string }) {
         </div>
         <div className="flex-1">
           <h2 className="text-sm font-bold text-gray-900">Indeed-Budget & Leadpreis</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Tagesbudget mit Startdatum – Kosten = Tagesbudget × Tage, Leadpreis = Kosten ÷ Indeed-Bewerber</p>
+          <p className="text-xs text-gray-500 mt-0.5">Eigenes Indeed-Konto des Kunden, Tagesbudget mit Startdatum – Kosten = Tagesbudget × Tage, Leadpreis = Kosten ÷ Indeed-Bewerber</p>
         </div>
         {d && <Badge tone={d.laeuft ? 'success' : 'neutral'}>{d.laeuft ? 'Läuft' : d.phasen.length ? 'Pausiert' : 'Kein Budget'}</Badge>}
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-end gap-3">
+        <div className="w-72">
+          <label className="text-xs font-medium text-gray-600">Indeed-Konto des Kunden (Bezeichnung/ID)</label>
+          <Input value={konto ?? d?.indeedKonto ?? ''} onChange={(e) => setKonto(e.target.value)} placeholder="z. B. Firmenname oder Konto-ID" />
+        </div>
+        {konto !== null && konto !== (d?.indeedKonto ?? '') && (
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => void senden('PATCH', { indeed_konto: konto }, 'Indeed-Konto gespeichert').then(() => setKonto(null))}>
+            Speichern
+          </Button>
+        )}
       </div>
 
       {d && (d.seitStart || d.phasen.length > 0) && (
@@ -97,7 +122,22 @@ export function IndeedBudgetKarte({ agencyId }: { agencyId: string }) {
           <label className="text-xs font-medium text-gray-600">Ab (Startdatum)</label>
           <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
         </div>
-        <Button size="sm" disabled={busy || !budget || !start} onClick={() => void senden('POST', { tagesbudget: budget, start }, 'Budget gespeichert')}>
+        {d?.jeStelle && (d.stellen?.length ?? 0) > 0 && (
+          <div className="w-56">
+            <label className="text-xs font-medium text-gray-600">Für</label>
+            <select
+              value={stelle}
+              onChange={(e) => setStelle(e.target.value)}
+              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-red-500"
+            >
+              <option value="">Ganzer Kunde</option>
+              {d.stellen!.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <Button size="sm" disabled={busy || !budget || !start} onClick={() => void senden('POST', { tagesbudget: budget, start, job_id: stelle || null }, 'Budget gespeichert')}>
           {laufend ? 'Budget ändern' : 'Budget starten'}
         </Button>
         {laufend && (
@@ -106,7 +146,7 @@ export function IndeedBudgetKarte({ agencyId }: { agencyId: string }) {
           </Button>
         )}
       </div>
-      <p className="text-xs text-gray-400 mt-2">Budget ändern beendet das laufende Budget am Vortag. Pausieren stoppt die Kosten ab morgen und schaltet die Indeed-Warnung für diesen Kunden ab.</p>
+      <p className="text-xs text-gray-400 mt-2">Budget ändern beendet das laufende Budget (derselben Stelle bzw. des ganzen Kunden) am Vortag. Pausieren stoppt die Kosten ab morgen und schaltet die Indeed-Warnung für diesen Kunden ab.</p>
 
       {d && d.phasen.length > 0 && (
         <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
@@ -114,6 +154,7 @@ export function IndeedBudgetKarte({ agencyId }: { agencyId: string }) {
             <div key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
               <span className="text-gray-800">
                 {eur(p.tagesbudget)} / Tag · {dt(p.start)} – {p.ende ? dt(p.ende) : 'läuft'}
+                {d.jeStelle && <span className="ml-2 text-xs text-gray-500">{p.job_id ? stellenName.get(p.job_id) ?? 'Stelle' : 'Ganzer Kunde'}</span>}
               </span>
               <button
                 className="text-xs text-gray-400 hover:text-red-600"

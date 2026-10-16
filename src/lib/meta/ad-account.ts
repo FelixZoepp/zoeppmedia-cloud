@@ -16,3 +16,8 @@ export function metaAdAccountId(): string | undefined {
 export function metaAdsToken(): string | undefined {
   return process.env.META_ACCESS_TOKEN || process.env.META_SYSTEM_USER_TOKEN || undefined;
 }
+
+/** Schlüssel für die Werbekonten der Kunden: Systembenutzer-Token (Partnerzugriff), sonst der Ads-Token */
+export function metaKundenToken(): string | undefined {
+  return process.env.META_SYSTEM_USER_TOKEN || process.env.META_ACCESS_TOKEN || undefined;
+}

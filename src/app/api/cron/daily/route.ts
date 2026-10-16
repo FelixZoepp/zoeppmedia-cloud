@@ -187,6 +187,18 @@ async function runDailyJobs() {
     kpiSnapshots = await writeKpiSnapshots(supabase);
   } catch { /* silent */ }
 
+  // 6a. Meta-Kosten je Kampagne und Tag aus den Werbekonten der Kunden (Kosten pro Bewerber je Stelle)
+  let kampagnenTage = 0;
+  try {
+    const { syncKampagnenKosten } = await import('@/lib/meta/kampagnen-kosten');
+    const r = await syncKampagnenKosten(supabase, { tage: 7 });
+    kampagnenTage = r.zeilen;
+    const ohneZugriff = r.kunden.filter((k) => k.status !== 'ok').length;
+    if (ohneZugriff) console.warn(`[cron] Meta-Kampagnen: ${ohneZugriff} Kunden ohne Abgleich`);
+  } catch (err) {
+    console.error('[cron] Meta-Kampagnen-Abgleich fehlgeschlagen:', err);
+  }
+
   // 7. Wochenberichte laufen über /api/cron/weekly-report (montags, Schalter unter Admin → Wochenberichte)
 
   // 7b. Fireflies-Gespräche der letzten 2 Tage nachholen, falls ein Webhook ausgeblieben ist
@@ -428,6 +440,7 @@ async function runDailyJobs() {
     reminders: remindersS,
     fahrplanCalls,
     metaSynced,
+    kampagnenTage,
     kpiSnapshots,
     backupAdAccountTasksCreated,
     preDebitSent,

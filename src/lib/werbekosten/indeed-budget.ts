@@ -9,6 +9,8 @@ export interface BudgetPhase {
   tagesbudget: number;
   start: string;
   ende: string | null;
+  /** Stelle, für die das Budget läuft – leer = ganzer Kunde */
+  job_id?: string | null;
 }
 
 const TAG = 864e5;
@@ -45,4 +47,15 @@ export function laufendePhase(phasen: BudgetPhase[], heute: string): BudgetPhase
 /** Erster Starttag aller Phasen (für „seit Start“) */
 export function ersterStart(phasen: BudgetPhase[]): string | null {
   return phasen.map((p) => p.start).sort()[0] ?? null;
+}
+
+/** Summe der heute laufenden Tagesbudgets (Kunde + einzelne Stellen); null, wenn nichts läuft */
+export function tagesbudgetHeute(phasen: BudgetPhase[], heute: string): number | null {
+  const laufend = phasen.filter((p) => p.start <= heute && (!p.ende || p.ende >= heute));
+  return laufend.length ? Math.round(laufend.reduce((s, p) => s + Number(p.tagesbudget), 0) * 100) / 100 : null;
+}
+
+/** Phasen derselben Spur (gleiche Stelle bzw. beide ohne Stelle) */
+export function gleicheSpur(p: Pick<BudgetPhase, 'job_id'>, jobId: string | null): boolean {
+  return (p.job_id ?? null) === (jobId ?? null);
 }

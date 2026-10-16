@@ -1,6 +1,7 @@
 'use client';
 
 import type { DashboardData } from '@/lib/dashboard';
+import type { KostenZeile, MetaStatus } from '@/lib/kosten/stellen';
 import dynamic from 'next/dynamic';
 import { PipelineChart } from './pipeline-chart';
 import { SlaAmpel } from './sla-ampel';
@@ -96,13 +97,17 @@ interface DashboardViewProps {
   garantie?: { ampel: string; ist: number; ziel: number } | null;
   /** Startklar-Checkliste – sichtbar, bis alle Schritte erledigt sind */
   startklar?: Startklar | null;
+  /** Echte Werbekosten der letzten 30 Tage (Meta-Werbekonto + Indeed-Tagesbudget) */
+  werbekosten?: (KostenZeile & { meta: MetaStatus }) | null;
 }
 
-export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null, garantie = null, startklar = null }: DashboardViewProps) {
+export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, kennzahlen = null, garantie = null, startklar = null, werbekosten = null }: DashboardViewProps) {
   const now = new Date();
   const dayName = now.toLocaleDateString('de-DE', { weekday: 'long' });
   const kw = getISOWeek(now);
   const hireRate = data.totalCandidates > 0 ? Math.round((data.hired / data.totalCandidates) * 100) : 0;
+  // Echte Meta-Ausgaben vorhanden → statt Hochrechnung aus dem Tagesbudget anzeigen
+  const echteMeta = !!werbekosten && werbekosten.meta === 'ok' && werbekosten.metaKosten > 0;
 
   return (
     <div className="space-y-6">
@@ -178,11 +183,24 @@ export function DashboardView({ data, agencyId, agencyName, pendingSurveys = 0, 
       </div>
 
       {/* ── Werbekosten ──────────────────────────────────── */}
-      {((data.metaDailyBudget != null && data.metaDailyBudget > 0) || (data.indeedDailyBudget != null && data.indeedDailyBudget > 0) || data.indeed30) && (
+      {((data.metaDailyBudget != null && data.metaDailyBudget > 0) || (data.indeedDailyBudget != null && data.indeedDailyBudget > 0) || data.indeed30 || echteMeta) && (
         <DashCard>
-          <CardTitle sub={data.indeed30 ? "Letzte 30 Tage aus dem hinterlegten Tagesbudget" : "Tagesbudget hochgerechnet auf 30 Tage"}>Werbekosten</CardTitle>
+          <CardTitle sub={echteMeta ? 'Letzte 30 Tage – Meta aus dem Werbekonto, Indeed aus dem Tagesbudget' : data.indeed30 ? "Letzte 30 Tage aus dem hinterlegten Tagesbudget" : "Tagesbudget hochgerechnet auf 30 Tage"}>Werbekosten</CardTitle>
+          {werbekosten && werbekosten.kosten > 0 && (
+            <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <MoneyStat label="Kosten pro Bewerber" value={werbekosten.kostenProBewerber} sub={`${werbekosten.bewerber} Bewerber · ${werbekosten.kosten.toLocaleString('de-DE', { minimumFractionDigits: 2 })} € Werbekosten`} />
+              <MoneyStat label="Kosten pro Termin" value={werbekosten.kostenProTermin} sub={`${werbekosten.termine} Termine`} />
+              <MoneyStat label="Kosten pro Einstellung" value={werbekosten.kostenProEinstellung} sub={`${werbekosten.einstellungen} Einstellungen`} />
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {data.metaDailyBudget != null && data.metaDailyBudget > 0 && (() => {
+            {echteMeta && (
+              <>
+                <MoneyStat label="Meta Kosten (30 Tage)" value={werbekosten!.metaKosten} sub="aus dem Werbekonto" />
+                <MoneyStat label="Meta Kosten pro Bewerber" value={werbekosten!.metaKostenProBewerber} sub={`${werbekosten!.bewerberQuelle.meta} Bewerber in 30 Tagen`} />
+              </>
+            )}
+            {!echteMeta && data.metaDailyBudget != null && data.metaDailyBudget > 0 && (() => {
               const daily = data.metaDailyBudget!;
               const monthly = daily * 30;
               const metaCandidates = data.sourceBreakdown.find((s) => s.name === 'Meta Ads')?.count ?? 0;
