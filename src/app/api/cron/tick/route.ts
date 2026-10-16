@@ -340,6 +340,16 @@ export async function GET(request: NextRequest) {
         case 'sales.close_log':
           await processSalesCloseLog(payload as unknown as SalesCloseLogPayload);
           break;
+        case 'sales.absage': {
+          const { verarbeiteAbsage } = await import('@/lib/sales/absage');
+          await verarbeiteAbsage(svc, payload as unknown as Parameters<typeof verarbeiteAbsage>[1]);
+          break;
+        }
+        case 'sales.absage_nachricht': {
+          const { sendeAbsageNachricht } = await import('@/lib/sales/absage');
+          await sendeAbsageNachricht(svc, payload as unknown as Parameters<typeof sendeAbsageNachricht>[1]);
+          break;
+        }
         case 'sales.eintragung_check': {
           const { pruefeEintragung } = await import('@/lib/sales/eintragungen');
           await pruefeEintragung(svc, payload as unknown as { lead_id: string }, todayBerlin());

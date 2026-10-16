@@ -68,6 +68,8 @@ interface CalendlyInvitee {
   canceled?: boolean;
   /** true, wenn die Absage Teil einer Verschiebung ist */
   rescheduled?: boolean;
+  /** Bei invitee.canceled: wer abgesagt hat und mit welchem Grund */
+  cancellation?: { canceled_by?: string; reason?: string | null; canceler_type?: 'host' | 'invitee' | string };
   text_reminder_number?: string | null;
   questions_and_answers?: { question: string; answer: string; position: number }[];
 }
@@ -213,6 +215,9 @@ export async function POST(request: NextRequest) {
           inviteeName: invitee.name || 'Unbekannt',
           startTime: scheduledEvent.start_time ?? null,
           rescheduled: invitee.rescheduled === true,
+          chain: salesChain,
+          grund: invitee.cancellation?.reason ?? null,
+          durchLead: invitee.cancellation?.canceler_type === 'invitee',
         });
         return NextResponse.json({ ok: true, action: 'cancelled', sales: true });
       }

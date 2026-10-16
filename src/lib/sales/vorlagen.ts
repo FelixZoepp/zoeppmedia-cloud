@@ -182,6 +182,18 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     buttons: [{ type: 'URL', text: 'Davids Video ansehen', url: 'https://cloud.zoeppmedia.de/gespraech/fallstudie-david' }],
   },
   {
+    // Lead hat in Calendly abgesagt (sales/absage.ts): {{2}} = Satz je Grund mit zwei freien Zeiten aus Calendly.
+    // Kein Buchungslink – die Antwort liest die Cloud aus (sales/noshow-antwort.ts) → Close-Aufgabe am Wunschtag.
+    name: 'absage_rueckfrage',
+    category: 'UTILITY',
+    body:
+      'Hallo {{1}}, ich habe gesehen, dass du unser Gespräch absagen musstest. {{2}}\n\n' +
+      'Schreib mir einfach kurz, was dir passt, oder nenn mir eine andere Zeit. Dann trage ich dich direkt ein.',
+    variables: ['vorname', 'satz'],
+    beispiel: ['Mehmet', 'Gute Besserung! Lass uns gerne einen neuen Termin für nächste Woche finden. Passt dir Dienstag (20.10.) um 10:00 Uhr oder Mittwoch (21.10.) um 14:30 Uhr?'],
+    buttons: [],
+  },
+  {
     // Interne Morgenliste für das Team (aufgaben/tagesliste.ts) – Antwort „erledigt 2“ hakt ab
     name: 'team_aufgaben_heute',
     category: 'UTILITY',

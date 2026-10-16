@@ -121,6 +121,8 @@ export interface Aktionen {
   termin?: string | null;
   /** Rückruf-Aufgabe in Close für den Bearbeiter des Protokolls */
   rueckruf?: { datum: string; text: string };
+  /** Nur ausführen, wenn diese Freigabe an ist */
+  freigabe?: 'absage_nachfass';
 }
 
 function plusMonate(d: Date, n: number): Date {
@@ -177,6 +179,19 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
 export function regelnSetting(felder: Record<string, string | null>, jetzt: Date): Aktionen {
   const ergebnis = felder[SETTING_FELDER.ergebnis] ?? '';
   const kalender = felder[SETTING_FELDER.kalender] || null;
+  // Abgesagt → Rückruf am Kalender-Tag (bis dahin gesperrt), sonst morgen (Freigabe „absage_nachfass“)
+  if (ergebnis.startsWith('Abgesagt')) {
+    const spaeter = !!kalender && new Date(kalender).getTime() > jetzt.getTime();
+    const datum = spaeter ? new Date(kalender!) : new Date(jetzt.getTime() + 864e5);
+    return {
+      freigabe: 'absage_nachfass',
+      ...(spaeter ? { gesperrtBis: new Date(kalender!).toISOString() } : {}),
+      rueckruf: {
+        datum: datum.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }),
+        text: `📞 Rückruf nach Absage im Setting${spaeter ? ` (${datum.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })} Uhr)` : ''}. Neues Erstgespräch legen.`,
+      },
+    };
+  }
   if (!ergebnis.startsWith('Unqualifiziert') || !kalender || new Date(kalender).getTime() <= jetzt.getTime()) return {};
   const grund = felder[SETTING_FELDER.grund];
   const uhr = new Date(kalender).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -434,6 +449,10 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
     if (istLeadTermin(plan, jetzt)) {
       const art = typ === 'closing' && plan.oppStatus === 'cc2' ? 'CC2' : plan.closingTerminiert || typ === 'closing' ? 'Closing' : 'Setting';
       await planeTerminCheck(svc, a.lead_id, plan.termin!, art).catch((err) => console.error('[sales] Termin-Check nicht geplant:', err));
+    }
+    if (plan.freigabe) {
+      const { istFreigegeben } = await import('@/lib/freigaben');
+      if (!(await istFreigegeben(svc, plan.freigabe))) plan = {};
     }
     // Closing: nur „Abgeschlossen“ läuft immer – alles andere erst nach Freigabe (/admin/freigaben)
     if (typ === 'closing' && !plan.abgeschlossen && Object.keys(plan).length) {

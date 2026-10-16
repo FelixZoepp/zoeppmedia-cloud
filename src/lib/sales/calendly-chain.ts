@@ -334,11 +334,11 @@ export async function handleSalesBooking(
   return { prospectId, jobsScheduled: true };
 }
 
-/** Storno einer Sales-Buchung: Status setzen und alle offenen Jobs canceln. */
+/** Storno einer Sales-Buchung: Status setzen und alle offenen Jobs canceln. Sagt der Lead selbst ab → Absage-Nachfass (absage.ts). */
 export async function handleSalesCancellation(
   svc: SupabaseClient,
   calendlyEventId: string,
-  info?: { inviteeName: string; startTime: string | null; rescheduled?: boolean },
+  info?: { inviteeName: string; startTime: string | null; rescheduled?: boolean; chain?: SalesChain; grund?: string | null; durchLead?: boolean },
 ): Promise<void> {
   await svc
     .from('calendly_events')
@@ -349,12 +349,21 @@ export async function handleSalesCancellation(
 
   // Verschiebung = Storno + neue Buchung → nur die neue Buchung melden
   if (info && !info.rescheduled) {
+    const grund = info.grund?.trim();
     await notifySales(svc, {
       emoji: '❌',
       title: `Storniert: ${info.inviteeName}`,
-      body: info.startTime ? `Termin am ${formatTermin(info.startTime)} wurde in Calendly abgesagt.` : 'Termin wurde in Calendly abgesagt.',
+      body:
+        (info.startTime ? `Termin am ${formatTermin(info.startTime)} wurde in Calendly abgesagt.` : 'Termin wurde in Calendly abgesagt.') +
+        (info.durchLead ? `\nGrund: ${grund ? `„${grund.slice(0, 300)}“` : 'keiner angegeben'}` : ''),
       type: 'system',
     });
+    if (info.durchLead && info.chain) {
+      const { planeAbsageNachfass } = await import('./absage');
+      await planeAbsageNachfass(svc, { calendly_event_id: calendlyEventId, chain: info.chain, grund: grund || null, abgesagt_am: new Date().toISOString() }).catch((err) =>
+        console.error('[sales] Absage-Nachfass nicht geplant:', err),
+      );
+    }
   }
 }
 

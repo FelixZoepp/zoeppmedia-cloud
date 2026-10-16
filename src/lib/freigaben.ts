@@ -54,6 +54,14 @@ export const FREIGABEN = {
     was: 'Nach „Angebot versendet“ bekommt der Closer in Close Aufgaben zum Nachfassen an Tag 1, 3 und 7. Kein automatischer Versand an den Lead – der Closer ruft an.',
     wirkt: 'Close-Aufgaben für den Closer',
   },
+  absage_nachfass: {
+    titel: '🗓️ Absage-Nachfass (Calendly)',
+    was:
+      'Ein Lead sagt sein Erst- oder Beratungsgespräch in Calendly selbst ab → die KI liest den Grund. Ohne Grund: sofort Close-Aufgabe „Anrufen“, nach 2 Std. WhatsApp, falls er nicht erreicht wurde. ' +
+      'Krank: WhatsApp „Gute Besserung“ mit zwei freien Zeiten nächste Woche. Urlaub: WhatsApp am Rückkehrtag (sonst nach 14 Tagen). Sonst: WhatsApp mit zwei freien Zeiten morgen/übermorgen. Kein Interesse: nur Close-Aufgabe. ' +
+      'Die Zeiten kommen live aus Calendly, kein Buchungslink – die Antwort wird zur Close-Aufgabe am Wunschtag. Setting-Protokoll „Abgesagt“ → Rückruf-Aufgabe (am Kalender-Tag, sonst morgen). Aus: nur an Testnummern.',
+    wirkt: 'WhatsApp an den Lead (einmal je Absage, 8–21 Uhr) + Close-Aufgaben',
+  },
   noshow_rueckfrage: {
     titel: '👻 No-Show-Rückfrage (Setting + Closing)',
     was:
