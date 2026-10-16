@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, UserPlus, Check, X } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Check, X, Ban } from 'lucide-react';
 
 interface Teilnehmer {
   appointment_id: string;
@@ -135,13 +135,14 @@ export function VorstellungsrundenEditor({ jobId }: { jobId: string }) {
   };
 
   // Bestehende Status-Logik der Termine: done = erschienen, no_show = nicht erschienen
-  const markieren = async (appointmentId: string, status: 'done' | 'no_show') => {
+  const markieren = async (appointmentId: string, status: 'done' | 'no_show', sperren = false) => {
+    if (sperren && !confirm('Als No-Show markieren und den Bewerber sperren? Er bekommt keine Nachrichten mehr und wird bei neuen Bewerbungen als gesperrt erkannt.')) return;
     setBusy(appointmentId);
     try {
       const res = await fetch(`/api/appointments-recruiting/${appointmentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, sperren }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Fehler beim Speichern');
@@ -248,6 +249,9 @@ export function VorstellungsrundenEditor({ jobId }: { jobId: string }) {
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => markieren(t.appointment_id, 'no_show')} disabled={busy === t.appointment_id}>
                               <X className="h-4 w-4 mr-1" />No-Show
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => markieren(t.appointment_id, 'no_show', true)} disabled={busy === t.appointment_id} title="Nicht erschienen und auf die Blacklist">
+                              <Ban className="h-4 w-4 mr-1" />No-Show + sperren
                             </Button>
                           </>
                         )}

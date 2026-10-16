@@ -22,7 +22,7 @@ export async function PATCH(
 
   const { id: appointmentId } = await params;
 
-  let body: { status: string };
+  let body: { status: string; sperren?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -75,6 +75,35 @@ export async function PATCH(
         .update({ status: 'no_show', updated_at: new Date().toISOString() })
         .eq('id', appointmentId)
         .eq('agency_id', agencyId);
+
+      // „No-Show + sperren“: sofort auf die Blacklist, kein neuer Buchungslink, nichts mehr an den Bewerber
+      if (body.sperren === true) {
+        const { data: a } = await svc.from('applications').select('candidate_id').eq('id', appt.application_id).eq('agency_id', agencyId).maybeSingle();
+        const candidateId = (a as { candidate_id: string } | null)?.candidate_id;
+        if (candidateId) {
+          const jetzt = new Date().toISOString();
+          await svc
+            .from('candidates')
+            .update({ blacklisted: true, blacklisted_at: jetzt, blacklisted_by: user.id, blacklist_reason: 'Nicht zum Termin erschienen (No-Show)' })
+            .eq('id', candidateId)
+            .eq('agency_id', agencyId);
+          const { data: c } = await svc.from('candidates').select('cadence_active').eq('id', candidateId).maybeSingle();
+          if ((c as { cadence_active: boolean } | null)?.cadence_active) {
+            const { stopCadence } = await import('@/lib/cadence/engine');
+            await stopCadence(svc, candidateId, 'blacklisted').catch(() => {});
+          }
+          await svc.from('conversations').update({ state: 'closed', updated_at: jetzt }).eq('candidate_id', candidateId).eq('agency_id', agencyId);
+          await logActivity(svc, {
+            agency_id: agencyId,
+            candidate_id: candidateId,
+            user_id: user.id,
+            action: 'No-Show – Bewerber gesperrt (Blacklist)',
+            action_type: 'other',
+            metadata: { appointment_id: appointmentId },
+          });
+        }
+        return NextResponse.json({ ok: true, gesperrt: !!candidateId });
+      }
 
       // Neuen Buchungslink für No-Show-Followup erstellen
       const { appointmentId: newApptId, bookingToken: newToken } = await createProposedAppointment(svc, {
