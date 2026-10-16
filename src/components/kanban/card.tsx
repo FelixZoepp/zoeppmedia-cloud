@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import type { ApplicationRow } from './board';
+import { AbsageKnopf, type AbsageErgebnis } from '@/components/candidates/absage-knopf';
 
 const sourceLabels: Record<string, string> = {
   meta: 'Meta', indeed: 'Indeed', manual: 'Manuell', form: 'Formular', csv: 'CSV-Import',
@@ -17,7 +18,19 @@ const scoreTones: Record<string, 'accent' | 'softAccent' | 'neutral'> = {
   A: 'accent', B: 'softAccent', C: 'neutral',
 };
 
-export function KanbanCard({ application, onClick }: { application: ApplicationRow; onClick: () => void }) {
+export function KanbanCard({
+  application,
+  onClick,
+  abgesagt = false,
+  onAbgesagt,
+  onWiederhergestellt,
+}: {
+  application: ApplicationRow;
+  onClick: () => void;
+  abgesagt?: boolean;
+  onAbgesagt?: (e: AbsageErgebnis) => void;
+  onWiederhergestellt?: (e: AbsageErgebnis) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: application.id,
     data: { application },
@@ -32,7 +45,17 @@ export function KanbanCard({ application, onClick }: { application: ApplicationR
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={onClick}
       className="bg-card rounded-xl p-4 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow">
-      <p className="font-semibold text-gray-900 text-sm">{application.candidate.name}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-semibold text-gray-900 text-sm">{application.candidate.name}</p>
+        <AbsageKnopf
+          candidateId={application.candidate_id}
+          name={application.candidate.name}
+          abgesagt={abgesagt || application.status === 'rejected'}
+          onAbgesagt={onAbgesagt}
+          onWiederhergestellt={onWiederhergestellt}
+          className="-mr-1.5 -mt-1.5"
+        />
+      </div>
       <p className="text-xs text-gray-500 mt-1">{application.job.title}</p>
       {application.candidate.phone && (
         <p className="text-xs text-gray-600 mt-2">{application.candidate.phone}</p>

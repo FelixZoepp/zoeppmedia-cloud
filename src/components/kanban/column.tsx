@@ -5,16 +5,23 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { KanbanCard } from './card';
 import type { PipelineStage } from '@/lib/types/database';
 import type { ApplicationRow } from './board';
+import type { AbsageErgebnis } from '@/components/candidates/absage-knopf';
+import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 
 export function KanbanColumn({
   stage,
   applications,
   onCardClick,
+  onAbgesagt,
+  onWiederhergestellt,
 }: {
   stage: PipelineStage;
   applications: ApplicationRow[];
   onCardClick: (app: ApplicationRow) => void;
+  onAbgesagt?: (app: ApplicationRow, e: AbsageErgebnis) => void;
+  onWiederhergestellt?: (app: ApplicationRow, e: AbsageErgebnis) => void;
 }) {
+  const abgesagt = istAbgesagtStage(stage);
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
   return (
@@ -32,7 +39,14 @@ export function KanbanColumn({
         }`}>
         <SortableContext items={applications.map((a) => a.id)} strategy={verticalListSortingStrategy}>
           {applications.map((app) => (
-            <KanbanCard key={app.id} application={app} onClick={() => onCardClick(app)} />
+            <KanbanCard
+              key={app.id}
+              application={app}
+              onClick={() => onCardClick(app)}
+              abgesagt={abgesagt}
+              onAbgesagt={onAbgesagt && ((e) => onAbgesagt(app, e))}
+              onWiederhergestellt={onWiederhergestellt && ((e) => onWiederhergestellt(app, e))}
+            />
           ))}
           {applications.length === 0 && (
             <p className="text-xs text-gray-400 text-center py-8">Keine Bewerber in dieser Stufe.</p>

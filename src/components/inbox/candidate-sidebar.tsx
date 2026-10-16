@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ArrowUpRight, Briefcase, CalendarClock, Check, Copy, Mail, MapPin, MessageCircle, Pencil, Phone, Sparkles, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
+import { AbsageKnopf } from '@/components/candidates/absage-knopf';
+import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 import { formatPhone, isNewFromWhatsApp, type InboxConversation, type InboxKind } from './format';
 
 interface TeamMember {
@@ -305,9 +307,19 @@ export function CandidateSidebar({ conversation, kind = 'recruiting', onChanged,
           )}
         </ul>
         {kind === 'recruiting' && (
-          <Link href={`/candidates/${candidate.id}`} className="mt-3.5 inline-flex items-center gap-1 text-[14px] font-medium text-red-800 hover:underline">
-            Bewerberprofil öffnen <ArrowUpRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-3.5 flex items-center justify-between gap-2">
+            <Link href={`/candidates/${candidate.id}`} className="inline-flex items-center gap-1 text-[14px] font-medium text-red-800 hover:underline">
+              Bewerberprofil öffnen <ArrowUpRight className="h-4 w-4" />
+            </Link>
+            <AbsageKnopf
+              candidateId={candidate.id}
+              name={candidate.name}
+              variante="label"
+              abgesagt={istAbgesagtStage(stage)}
+              onAbgesagt={() => onChanged?.()}
+              onWiederhergestellt={() => onChanged?.()}
+            />
+          </div>
         )}
       </section>
 

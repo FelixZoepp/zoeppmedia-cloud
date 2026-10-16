@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Badge, Button, Card, PageHeader } from '@/components/ui';
 import { BrowserAnruf } from './browser-anruf';
+import { AbsageKnopf } from '@/components/candidates/absage-knopf';
 import type { DialerQueueItem, QueueReason } from '@/lib/dialer/queue';
 import { rueckrufZeit, zerlegeRueckruf } from '@/lib/dialer/rueckruf';
 
@@ -242,6 +243,15 @@ export function DialerClient({ modus = 'intern' }: { modus?: DialerModus }) {
     [nächster, öffnen],
   );
 
+  // Schnell-Absage: eigene Sperre lösen, aus der Schlange nehmen, nächster Bewerber
+  const abgesagt = useCallback(
+    (id: string) => {
+      void sperre(id, 'release');
+      erledigt(id);
+    },
+    [erledigt, sperre],
+  );
+
   /* ── Render ─────────────────────────────────────────────────── */
 
   if (!data) {
@@ -311,6 +321,8 @@ export function DialerClient({ modus = 'intern' }: { modus?: DialerModus }) {
               jetzt={jetzt}
               onErledigt={erledigt}
               onÜberspringen={überspringen}
+              onAbgesagt={abgesagt}
+              onWiederhergestellt={() => void laden()}
             />
           ) : (
             <Card hero padding="lg" className="flex flex-col items-start gap-4">
@@ -420,6 +432,8 @@ function Fokus({
   jetzt,
   onErledigt,
   onÜberspringen,
+  onAbgesagt,
+  onWiederhergestellt,
 }: {
   item: DialerQueueItem;
   agency: AgencyMeta | undefined;
@@ -431,6 +445,8 @@ function Fokus({
   jetzt: number;
   onErledigt: (id: string) => void;
   onÜberspringen: () => void;
+  onAbgesagt: (id: string) => void;
+  onWiederhergestellt: () => void;
 }) {
   const [ergebnis, setErgebnis] = useState('');
   const [notiz, setNotiz] = useState('');
@@ -716,6 +732,15 @@ function Fokus({
             <Button variant="secondary" onClick={onÜberspringen} disabled={speichert}>
               <SkipForward /> Überspringen
             </Button>
+            <AbsageKnopf
+              candidateId={item.candidate_id}
+              name={item.name}
+              variante="label"
+              schreiben={schreiben}
+              onAbgesagt={() => onAbgesagt(item.candidate_id)}
+              onWiederhergestellt={onWiederhergestellt}
+              className="ml-auto"
+            />
           </div>
         </div>
       ) : (
