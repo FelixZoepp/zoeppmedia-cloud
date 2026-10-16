@@ -12,6 +12,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AppointmentsSection } from '@/components/candidates/appointments-section';
 import { AppointmentList } from '@/components/candidates/appointment-list';
 import { PersonaKarte } from '@/components/candidates/persona-karte';
+import { AbsageKnopf } from '@/components/candidates/absage-knopf';
+import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 import {
   ArrowLeft,
   Mail,
@@ -1141,6 +1143,14 @@ export default function CandidateDetailPage() {
               E-Mail
             </a>
           )}
+          <AbsageKnopf
+            candidateId={id}
+            name={String(candidate.name)}
+            variante="label"
+            abgesagt={istAbgesagtStage(currentStage)}
+            onAbgesagt={() => { fetchData(); void fetchApplications(); }}
+            onWiederhergestellt={() => { fetchData(); void fetchApplications(); }}
+          />
         </div>
       </div>
 

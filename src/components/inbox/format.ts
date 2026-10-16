@@ -10,7 +10,7 @@ export interface InboxCandidate {
   created_at?: string | null;
   location?: string | null;
   kunde_agency_id?: string | null;
-  current_stage?: { name: string; color: string | null } | null;
+  current_stage?: { name: string; color: string | null; stage_type?: string | null } | null;
 }
 
 export interface InboxConversation {
@@ -21,7 +21,7 @@ export interface InboxConversation {
   last_message_at: string | null;
   assigned_to: string | null;
   candidate: InboxCandidate;
-  application: Array<{ id: string; job: { title: string } | null; stage: { name: string; color: string } | null }> | null;
+  application: Array<{ id: string; job: { title: string } | null; stage: { name: string; color: string; stage_type?: string | null } | null }> | null;
   last_message?: { body: string | null; type: string; direction: string; sender_type: string; created_at: string } | null;
   /** Sales-Inbox: Name des Kunden, wenn der Kontakt zu einem Kunden gehört */
   kunde_name?: string | null;

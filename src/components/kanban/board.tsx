@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import type { PipelineStage } from '@/lib/types/database';
 import { toast } from 'sonner';
+import type { AbsageErgebnis } from '@/components/candidates/absage-knopf';
 
 export interface ApplicationRow {
   id: string;
@@ -140,6 +141,24 @@ export function KanbanBoard({ hideHeader }: { hideHeader?: boolean } = {}) {
     setRejectionModal(null);
   }
 
+  // Schnell-Absage zieht alle Bewerbungen des Bewerbers in „Abgesagt“
+  function schnellAbgesagt(app: ApplicationRow, e: AbsageErgebnis) {
+    setApplications((prev) =>
+      prev.map((a) => (a.candidate_id === app.candidate_id ? { ...a, stage_id: e.stageId, status: 'rejected' } : a))
+    );
+  }
+
+  function schnellWiederhergestellt(app: ApplicationRow, e: AbsageErgebnis) {
+    const vorher = new Map(e.rueckgaengig.bewerbungen.map((b) => [b.id, b]));
+    setApplications((prev) =>
+      prev.map((a) =>
+        a.candidate_id === app.candidate_id
+          ? { ...a, stage_id: vorher.get(a.id)?.stage_id ?? e.vorherStageId, status: vorher.get(a.id)?.status ?? 'open' }
+          : a
+      )
+    );
+  }
+
   function handleCardClick(app: ApplicationRow) {
     window.location.href = `/candidates/${app.candidate_id}`;
   }
@@ -189,6 +208,8 @@ export function KanbanBoard({ hideHeader }: { hideHeader?: boolean } = {}) {
               stage={stage}
               applications={filteredApps.filter((a) => a.stage_id === stage.id)}
               onCardClick={handleCardClick}
+              onAbgesagt={schnellAbgesagt}
+              onWiederhergestellt={schnellWiederhergestellt}
             />
           ))}
         </div>

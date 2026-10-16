@@ -10,6 +10,8 @@ import { Download, Trash2, ArrowRightLeft, UserPlus, Search, Settings2 } from 'l
 import { toast } from 'sonner';
 import type { ApplicationRow } from '@/components/kanban/board';
 import type { PipelineStage } from '@/lib/types/database';
+import { AbsageKnopf } from '@/components/candidates/absage-knopf';
+import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 
 type ColumnKey = 'name' | 'job' | 'stage' | 'source' | 'score' | 'phone' | 'email' | 'applied_at';
 
@@ -253,6 +255,7 @@ export function ApplicationTableView({
                   {ALL_COLUMNS.find((c) => c.key === col)?.label}
                 </th>
               ))}
+              <th className="w-12 px-3 py-3"><span className="sr-only">Absagen</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -265,10 +268,19 @@ export function ApplicationTableView({
                 {columns.map((col) => (
                   <td key={col} className="px-4 py-3">{renderCell(app, col)}</td>
                 ))}
+                <td className="px-3 py-3 text-right">
+                  <AbsageKnopf
+                    candidateId={app.candidate_id}
+                    name={app.candidate.name}
+                    abgesagt={app.status === 'rejected' || istAbgesagtStage(stages.find((s) => s.id === app.stage_id))}
+                    onAbgesagt={onRefresh}
+                    onWiederhergestellt={onRefresh}
+                  />
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={columns.length + 1} className="px-4 py-8 text-center text-sm text-gray-400">Keine Ergebnisse</td></tr>
+              <tr><td colSpan={columns.length + 2} className="px-4 py-8 text-center text-sm text-gray-400">Keine Ergebnisse</td></tr>
             )}
           </tbody>
         </table>
