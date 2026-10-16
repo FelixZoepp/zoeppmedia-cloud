@@ -145,8 +145,8 @@ async function executeAction(
   action: Action,
   context: AutomationContext
 ): Promise<ActionDetail | void> {
-  // Schnell-Absage („passt nicht“): nie eine Nachricht an den Bewerber auslösen
-  if (context.data?.schnell_absage === true && ['send_template', 'send_message', 'send_email', 'start_bot'].includes(action.type)) {
+  // Schnell-Absage („passt nicht“): nie eine Nachricht an den Bewerber auslösen – auch nicht über geplante Jobs oder Webhooks (z. B. Zapier)
+  if (context.data?.schnell_absage === true && ['send_template', 'send_message', 'send_email', 'start_bot', 'schedule_job', 'call_webhook'].includes(action.type)) {
     return { status: 'skipped' };
   }
   switch (action.type) {
