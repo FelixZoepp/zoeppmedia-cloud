@@ -24,6 +24,32 @@ export function istDateiLink(wert: unknown): wert is string {
   }
 }
 
+/** Upload-ID aus einem Perspective-Download-Link (uploads.leadnotifications.co/download/<id>) – rein, testbar */
+export function perspectiveUploadId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/leadnotifications\.co$/i.test(u.hostname)) return null;
+    const m = u.pathname.match(/\/download\/([0-9a-f-]{20,})/i);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+type Quelle = { url: string } | { warten: true } | { gesperrt: true } | null;
+
+/** Echte Datei-URL: Perspective-Links über die Upload-Schnittstelle (nur nach bestandenem Virenscan) */
+async function dateiQuelle(link: string): Promise<Quelle> {
+  const id = perspectiveUploadId(link);
+  if (!id) return { url: link };
+  const res = await fetch(`https://lemon-tool-api.perspective.co/api/session-uploads/${id}`, { signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) return null;
+  const d = (await res.json()) as { malwareScan?: { completed?: boolean; infected?: boolean }; downloadUrl?: string };
+  if (d.malwareScan?.infected) return { gesperrt: true };
+  if (!d.malwareScan?.completed) return { warten: true };
+  return d.downloadUrl ? { url: d.downloadUrl } : null;
+}
+
 /** Dateiendung zum MIME-Typ (rein, testbar) */
 export function endungFuer(mime: string): string {
   if (mime === 'application/pdf') return 'pdf';
@@ -44,7 +70,7 @@ export async function planeFunnelDateien(svc: SupabaseClient, agencyId: string, 
 }
 
 /** Job: alle Datei-Links eines Bewerbers übernehmen. Gibt die Zahl der übernommenen Dateien zurück. */
-export async function uebernehmeFunnelDateien(svc: SupabaseClient, payload: { candidate_id: string }): Promise<number> {
+export async function uebernehmeFunnelDateien(svc: SupabaseClient, payload: { candidate_id: string; versuch?: number }): Promise<number> {
   const { data: c } = await svc.from('candidates').select('id, agency_id, vorquali_json').eq('id', payload.candidate_id).maybeSingle();
   const cand = c as { id: string; agency_id: string; vorquali_json: Record<string, unknown> | null } | null;
   if (!cand?.vorquali_json) return 0;
@@ -54,10 +80,22 @@ export async function uebernehmeFunnelDateien(svc: SupabaseClient, payload: { ca
 
   const neu = { ...cand.vorquali_json };
   let n = 0;
+  let spaeter = false;
   for (const [frage, wert] of Object.entries(cand.vorquali_json)) {
     if (!istDateiLink(wert)) continue;
     try {
-      const res = await fetch(wert, { signal: AbortSignal.timeout(20_000) });
+      const quelle = await dateiQuelle(wert);
+      if (!quelle) continue;
+      if ('warten' in quelle) {
+        spaeter = true;
+        continue;
+      }
+      if ('gesperrt' in quelle) {
+        neu[frage] = 'Datei vom Virenscan gesperrt';
+        n++;
+        continue;
+      }
+      const res = await fetch(quelle.url, { signal: AbortSignal.timeout(20_000) });
       if (!res.ok) continue;
       const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
       if (!ERLAUBT.test(mime)) continue;
@@ -79,5 +117,17 @@ export async function uebernehmeFunnelDateien(svc: SupabaseClient, payload: { ca
     }
   }
   if (n) await svc.from('candidates').update({ vorquali_json: neu }).eq('id', cand.id);
+  // Virenscan noch nicht fertig → in 5 Minuten erneut (höchstens 6-mal)
+  const versuch = (payload.versuch ?? 0) + 1;
+  if (spaeter && versuch < 6) {
+    await svc.from('scheduled_jobs').insert({
+      agency_id: cand.agency_id,
+      type: 'bewerber.funnel_dateien',
+      run_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+      payload: { candidate_id: cand.id, versuch },
+      status: 'pending',
+      dedupe_key: `bewerber.funnel_dateien:${cand.id}:${versuch}`,
+    });
+  }
   return n;
 }

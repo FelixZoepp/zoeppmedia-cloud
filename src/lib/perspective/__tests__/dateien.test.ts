@@ -15,3 +15,11 @@ describe('Funnel-Dateien', () => {
     expect(endungFuer('application/pdf')).toBe('pdf');
   });
 });
+
+describe('Perspective-Upload-ID', () => {
+  it('liest die ID aus dem Link', async () => {
+    const { perspectiveUploadId } = await import('../dateien');
+    expect(perspectiveUploadId('https://uploads.leadnotifications.co/download/1f1c9466-66a9-6230-89b5-0e9016772610?filename=image.jpg')).toBe('1f1c9466-66a9-6230-89b5-0e9016772610');
+    expect(perspectiveUploadId('https://example.com/download/1f1c9466-66a9-6230-89b5-0e9016772610')).toBeNull();
+  });
+});

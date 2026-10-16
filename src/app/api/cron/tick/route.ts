@@ -427,7 +427,7 @@ export async function GET(request: NextRequest) {
         }
         case 'bewerber.funnel_dateien': {
           const { uebernehmeFunnelDateien } = await import('@/lib/perspective/dateien');
-          console.log('[funnel-dateien]', await uebernehmeFunnelDateien(svc, payload as { candidate_id: string }));
+          console.log('[funnel-dateien]', await uebernehmeFunnelDateien(svc, payload as { candidate_id: string; versuch?: number }));
           break;
         }
         case 'bewerber.nicht_erreicht': {
