@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { logActivity } from '@/lib/activity/log';
 import { legeFunnelLeadAn } from '@/lib/perspective/leads';
+import { angabenAusProfil } from '@/lib/perspective/angaben';
 
 /**
  * Perspective-Funnel-Webhook. Pro Kunde wird im Funnel die URL
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
     funnelName: (body.funnelName as string) ?? null,
     externeId: typeof body.id === 'string' && body.id ? `perspective:${body.id}` : null,
     automationen: true,
+    angaben: angabenAusProfil(profile),
   });
   if (ergebnis.status === 'fehler') return NextResponse.json({ error: ergebnis.fehler }, { status: 500 });
   if (ergebnis.status === 'doppelt') {

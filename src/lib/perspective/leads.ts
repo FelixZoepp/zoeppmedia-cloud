@@ -19,6 +19,8 @@ export interface FunnelLead {
    * nachgeholte ältere Leads sollen keine Nachrichten verschicken.
    */
   automationen: boolean;
+  /** Antworten aus dem Funnel („Frage → Antwort“) → vorquali_json */
+  angaben?: Record<string, string> | null;
 }
 
 export type LeadErgebnis =
@@ -39,6 +41,7 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
   if (duplicate) {
     // Kennung nachtragen, damit der Abgleich den Lead künftig direkt erkennt
     if (lead.externeId) await svc.from('candidates').update({ externe_id: lead.externeId }).eq('id', duplicate.id).is('externe_id', null);
+    if (lead.angaben && Object.keys(lead.angaben).length) await svc.from('candidates').update({ vorquali_json: lead.angaben }).eq('id', duplicate.id).is('vorquali_json', null);
     return { status: 'doppelt', candidateId: duplicate.id };
   }
 
@@ -57,6 +60,7 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       meta_form: lead.funnelName,
       current_stage_id: firstStage.id,
       externe_id: lead.externeId ?? null,
+      ...(lead.angaben && Object.keys(lead.angaben).length ? { vorquali_json: lead.angaben } : {}),
       ...(lead.eingegangenAm ? { created_at: lead.eingegangenAm } : {}),
     })
     .select('id, name')
