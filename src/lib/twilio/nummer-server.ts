@@ -27,6 +27,12 @@ export interface NummernEintrag {
   code_empfang_bis: string | null;
   gekauft_am: string | null;
   created_at: string;
+  /** Rückrufe auf diese Nummer weiterleiten (E.164), sonst Ansage */
+  weiterleiten_an?: string | null;
+  /** Bestätigung als Absender im Hauptkonto: Code, den die Cloud beim Prüfanruf von Twilio eintippt */
+  anrufer_code?: string | null;
+  anrufer_code_bis?: string | null;
+  anrufer_bestaetigt_am?: string | null;
 }
 
 export class TwilioFehler extends Error {}
@@ -214,6 +220,34 @@ export async function nummerKaufen(x: { subSid: string; nummer: string; bundleSi
   const r = await anfrage<{ sid?: string; phone_number?: string }>(`${API}/Accounts/${encodeURIComponent(x.subSid)}/IncomingPhoneNumbers.json`, haupt, { method: 'POST', form });
   if (!r.sid || !r.phone_number) throw new TwilioFehler('Twilio hat den Kauf nicht bestätigt');
   return { sid: r.sid, nummer: r.phone_number };
+}
+
+// ---------------------------------------------------------------- Absender fürs Telefonieren
+
+/**
+ * Anrufe aus der Cloud laufen über das Hauptkonto. Eine Nummer aus einem Unterkonto darf dort nur als Absender
+ * erscheinen, wenn sie im Hauptkonto bestätigt ist. Twilio ruft die Nummer dafür an und erwartet den Code –
+ * den tippt unsere Anruf-Weiche selbst ein (siehe /api/twilio/nummer/anruf).
+ */
+export async function absenderBestaetigungAnfordern(nummer: string, name: string): Promise<{ code: string }> {
+  const haupt = hauptzugang();
+  const r = await anfrage<{ validation_code?: string | number }>(`${API}/Accounts/${encodeURIComponent(haupt.accountSid)}/OutgoingCallerIds.json`, haupt, {
+    method: 'POST',
+    form: { PhoneNumber: nummer, FriendlyName: `Anrufe – ${name}`.slice(0, 64), CallDelay: '3' },
+  });
+  const code = r.validation_code != null ? String(r.validation_code) : '';
+  if (!/^\d{4,10}$/.test(code)) throw new TwilioFehler('Twilio hat keinen Bestätigungscode geliefert');
+  return { code };
+}
+
+/** Ist die Nummer im Hauptkonto als Absender bestätigt? */
+export async function absenderBestaetigt(nummer: string): Promise<boolean> {
+  const haupt = hauptzugang();
+  const r = await anfrage<{ outgoing_caller_ids?: unknown[] }>(
+    `${API}/Accounts/${encodeURIComponent(haupt.accountSid)}/OutgoingCallerIds.json?PhoneNumber=${encodeURIComponent(nummer)}`,
+    haupt,
+  );
+  return (r.outgoing_caller_ids?.length ?? 0) > 0;
 }
 
 // ---------------------------------------------------------------- Webhooks der Kundennummern

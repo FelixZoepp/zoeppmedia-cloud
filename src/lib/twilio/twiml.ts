@@ -44,3 +44,15 @@ export function twimlCodeHoeren(x: { action: string; sprache: 'de-DE' | 'en-US' 
 export function twimlAuflegen(): string {
   return twimlAntwort('<Hangup/>');
 }
+
+/** Prüfanruf von Twilio (Absender bestätigen): kurz warten, dann den Code als Tastentöne eingeben */
+export function twimlCodeEintippen(code: string): string {
+  const ziffern = code.replace(/\D/g, '');
+  return twimlAntwort(`<Pause length="3"/><Play digits="${esc(ziffern)}"/><Pause length="10"/>`);
+}
+
+/** Rückruf auf die Kundennummer an das Handy des Kunden weiterleiten (Bewerber-Nummer wird angezeigt) */
+export function twimlWeiterleiten(x: { an: string; anrufer?: string | null }): string {
+  const caller = x.anrufer && /^\+\d{6,16}$/.test(x.anrufer) ? ` callerId="${esc(x.anrufer)}"` : '';
+  return twimlAntwort(`<Dial timeout="25"${caller}><Number>${esc(x.an)}</Number></Dial>`);
+}

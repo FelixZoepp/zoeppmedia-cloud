@@ -15,6 +15,10 @@ interface Eintrag {
   status: 'unterkonto' | 'gekauft';
   code_empfang_bis: string | null;
   gekauft_am: string | null;
+  weiterleiten_an?: string | null;
+  anrufer_code?: string | null;
+  anrufer_code_bis?: string | null;
+  anrufer_bestaetigt_am?: string | null;
 }
 
 interface Code {
@@ -56,6 +60,7 @@ export function WhatsappNummerCard({ agencyId }: { agencyId: string }) {
   const [suche, setSuche] = useState<Suche | null>(null);
   const [auswahl, setAuswahl] = useState<string | null>(null);
   const [bundleSid, setBundleSid] = useState('');
+  const [weiterleitung, setWeiterleitung] = useState('');
   const [addressSid, setAddressSid] = useState('');
   const [kaufOffen, setKaufOffen] = useState(false);
   const [bestaetigt, setBestaetigt] = useState(false);
@@ -71,6 +76,7 @@ export function WhatsappNummerCard({ agencyId }: { agencyId: string }) {
     setD(data);
     setVorwahl((v) => v || `0${data.vorschlag.vorwahl}`);
     setBundleSid((b) => b || data.bundles.find((x) => x.anzeige.kaufbar)?.sid || '');
+    setWeiterleitung((w) => w || data.eintrag?.weiterleiten_an || '');
     setAddressSid((a) => a || data.adressen[0]?.sid || '');
   }, [url]);
 
@@ -138,11 +144,25 @@ export function WhatsappNummerCard({ agencyId }: { agencyId: string }) {
     if (r) setD((alt) => (alt?.eintrag ? { ...alt, eintrag: { ...alt.eintrag, code_empfang_bis: r.code_empfang_bis } } : alt));
   }
 
+  async function anruferBestaetigen() {
+    const r = (await aktion('anrufer_bestaetigen')) as { bestaetigt?: boolean } | null;
+    if (!r) return;
+    toast.success(r.bestaetigt ? 'Nummer ist für Anrufe bestätigt' : 'Twilio ruft die Nummer jetzt an – die Cloud tippt den Code selbst ein. In einer Minute „Neu laden“.');
+    void laden();
+  }
+
+  async function weiterleitungSpeichern() {
+    const r = await aktion('weiterleitung', { weiterleiten_an: weiterleitung });
+    if (!r) return;
+    toast.success(weiterleitung.trim() ? 'Rückrufe werden weitergeleitet' : 'Weiterleitung entfernt');
+    void laden();
+  }
+
   async function alsAbsender() {
     const nr = d?.eintrag?.nummer_e164;
     if (!nr || !confirm(`${nummerAnzeigen(nr)} als Absendernummer für „${d?.kunde.name}“ übernehmen?${d?.kunde.outbound_phone ? ` Bisher: ${d.kunde.outbound_phone}` : ''}`)) return;
     if (await aktion('absender')) {
-      toast.success('Absendernummer übernommen');
+      toast.success('Absendernummer übernommen – Twilio bestätigt sie jetzt per Prüfanruf (dauert ca. 1 Minute)');
       void laden();
     }
   }
@@ -337,13 +357,47 @@ export function WhatsappNummerCard({ agencyId }: { agencyId: string }) {
             {!gekauft ? (
               <span className="text-gray-500">Erst nach dem Kauf.</span>
             ) : d.kunde.outbound_phone === e?.nummer_e164 ? (
-              <span className="text-gray-600">Ist die Absendernummer des Kunden.</span>
+              <div className="space-y-2">
+                <span className="text-gray-600">Ist die Absendernummer des Kunden.</span>
+                {e?.anrufer_bestaetigt_am ? (
+                  <p className="text-green-700">Für Anrufe aus der Cloud bestätigt.</p>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-amber-700">
+                      {e?.anrufer_code && codeEmpfangOffen(e.anrufer_code_bis ?? null) ? 'Twilio ruft gerade zur Bestätigung an …' : 'Für Anrufe noch nicht bestätigt.'}
+                    </span>
+                    <Button size="sm" variant="secondary" onClick={anruferBestaetigen} disabled={!bereit || !!arbeitet}>
+                      Für Anrufe bestätigen
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => void laden()}>
+                      <RefreshCw /> Neu laden
+                    </Button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-gray-600">Bisher: {d.kunde.outbound_phone || 'keine'}</span>
                 <Button size="sm" variant="secondary" onClick={alsAbsender} disabled={!bereit || !!arbeitet}>
                   Als Absendernummer übernehmen
                 </Button>
+              </div>
+            )}
+          </Schritt>
+
+          {/* 6. Rückrufe weiterleiten */}
+          <Schritt nr={6} titel="Rückrufe weiterleiten" fertig={!!e?.weiterleiten_an}>
+            {!gekauft ? (
+              <span className="text-gray-500">Erst nach dem Kauf.</span>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-gray-600">Ruft ein Bewerber diese Nummer zurück, klingelt es hier (z. B. Handy des Kunden). Leer = Ansage „nicht erreichbar“.</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input className="!w-48" value={weiterleitung} onChange={(ev) => setWeiterleitung(ev.target.value)} placeholder="0171 1234567" aria-label="Weiterleiten an" />
+                  <Button size="sm" variant="secondary" onClick={weiterleitungSpeichern} disabled={!bereit || !!arbeitet}>
+                    Speichern
+                  </Button>
+                </div>
               </div>
             )}
           </Schritt>

@@ -9,6 +9,8 @@ import { twilioRestConfig } from '@/lib/twilio/config';
 import { bereinigeVorwahl, bundleStatus, istDeutscheNummer, kaufGrund, ortZuVorwahl, vorschlagVorwahl } from '@/lib/twilio/nummer';
 import {
   NICHT_EINGERICHTET,
+  absenderBestaetigt,
+  absenderBestaetigungAnfordern,
   SCHEMA_FEHLT,
   TwilioFehler,
   adressenLaden,
@@ -28,13 +30,24 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /**
  * WhatsApp-Nummer für einen Kunden besorgen (nur Admins, nur per Klick):
  * GET               → Stand (Unterkonto, Unterlagen, Nummer, letzte Codes); ?nur=codes für das Nachladen alle paar Sekunden
- * POST {aktion}     → suchen (Testlauf, kauft nichts) · unterkonto · kaufen · code_empfang · absender
+ * POST {aktion}     → suchen (Testlauf, kauft nichts) · unterkonto · kaufen · code_empfang · absender · anrufer_bestaetigen · weiterleitung
  * Alles außer „suchen“ braucht die Freigabe whatsapp_nummer_besorgen.
  */
 
 type Ctx = { params: Promise<{ id: string }> };
 
 const CODE_FENSTER_MIN = 15;
+/** So lange tippt die Anruf-Weiche den Twilio-Code ein (Twilio ruft nach wenigen Sekunden an) */
+const ANRUFER_FENSTER_MIN = 5;
+
+/** Twilio-Prüfanruf anstoßen: Code merken, damit die Anruf-Weiche ihn eintippt */
+async function anruferBestaetigen(svc: SupabaseClient, agencyId: string, nummer: string, name: string) {
+  const { code } = await absenderBestaetigungAnfordern(nummer, name);
+  const bis = new Date(Date.now() + ANRUFER_FENSTER_MIN * 60_000).toISOString();
+  const { error } = await svc.from('kunden_telefonnummern').update({ anrufer_code: code, anrufer_code_bis: bis, updated_at: new Date().toISOString() }).eq('agency_id', agencyId);
+  if (error) throw new Error(error.message);
+  return bis;
+}
 
 function fehler(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status });
@@ -85,6 +98,15 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const twilio = !!twilioRestConfig();
   const freigabe = await istFreigegeben(svc, 'whatsapp_nummer_besorgen');
   const eintrag = schema ? await ladeEintrag(svc, id) : null;
+  // Absender-Bestätigung angefordert, aber noch nicht bestätigt → bei Twilio nachsehen
+  if (twilio && eintrag?.nummer_e164 && eintrag.anrufer_code && !eintrag.anrufer_bestaetigt_am) {
+    const ok = await absenderBestaetigt(eintrag.nummer_e164).catch(() => false);
+    if (ok) {
+      eintrag.anrufer_bestaetigt_am = new Date().toISOString();
+      eintrag.anrufer_code = null;
+      await svc.from('kunden_telefonnummern').update({ anrufer_bestaetigt_am: eintrag.anrufer_bestaetigt_am, anrufer_code: null, anrufer_code_bis: null }).eq('agency_id', id);
+    }
+  }
 
   let bundles: Array<Bundle & { anzeige: ReturnType<typeof bundleStatus> }> = [];
   let adressen: Adresse[] = [];
@@ -126,6 +148,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     address_sid?: string;
     sms?: boolean;
     bestaetigt?: boolean;
+    weiterleiten_an?: string | null;
   };
   const svc = createAdminClient();
   if (!twilioRestConfig()) return fehler(NICHT_EINGERICHTET, 503);
@@ -213,7 +236,35 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const { error } = await svc.from('agencies').update({ outbound_phone: nummer }).eq('id', id);
       if (error) return fehler(error.message, 500);
       await logActivity(svc, { agency_id: id, user_id: user.id, action: `Absendernummer auf ${nummer} gesetzt`, action_type: 'other', metadata: { kind: 'whatsapp_nummer', schritt: 'absender', nummer, vorher: agency.outbound_phone } });
-      return NextResponse.json({ ok: true, outbound_phone: nummer });
+      // Damit die Cloud mit der Nummer anrufen darf: im Hauptkonto bestätigen (Prüfanruf, Code tippt die Cloud)
+      let anrufer_code_bis: string | null = null;
+      if (!eintrag?.anrufer_bestaetigt_am && !(await absenderBestaetigt(nummer).catch(() => false))) {
+        anrufer_code_bis = await anruferBestaetigen(svc, id, nummer, agency.name);
+      }
+      return NextResponse.json({ ok: true, outbound_phone: nummer, anrufer_code_bis });
+    }
+
+    if (body.aktion === 'anrufer_bestaetigen') {
+      const nummer = normalizePhoneE164(eintrag?.nummer_e164);
+      if (!nummer) return fehler('Noch keine Nummer gekauft');
+      if (await absenderBestaetigt(nummer).catch(() => false)) {
+        await svc.from('kunden_telefonnummern').update({ anrufer_bestaetigt_am: new Date().toISOString(), anrufer_code: null, anrufer_code_bis: null }).eq('agency_id', id);
+        return NextResponse.json({ ok: true, bestaetigt: true });
+      }
+      const anrufer_code_bis = await anruferBestaetigen(svc, id, nummer, agency.name);
+      return NextResponse.json({ ok: true, anrufer_code_bis });
+    }
+
+    if (body.aktion === 'weiterleitung') {
+      if (!eintrag?.nummer_e164) return fehler('Noch keine Nummer gekauft');
+      const roh = (body.weiterleiten_an ?? '').trim();
+      const ziel = roh ? normalizePhoneE164(roh) : null;
+      if (roh && !ziel) return fehler('Bitte eine gültige Telefonnummer angeben, z. B. 0171 1234567');
+      if (ziel === eintrag.nummer_e164) return fehler('Weiterleitung auf dieselbe Nummer geht nicht');
+      const { error } = await svc.from('kunden_telefonnummern').update({ weiterleiten_an: ziel, updated_at: new Date().toISOString() }).eq('agency_id', id);
+      if (error) return fehler(error.message, 500);
+      await logActivity(svc, { agency_id: id, user_id: user.id, action: ziel ? `Rückrufe auf ${eintrag.nummer_e164} gehen an ${ziel}` : `Weiterleitung von ${eintrag.nummer_e164} entfernt`, action_type: 'other', metadata: { kind: 'whatsapp_nummer', schritt: 'weiterleitung', ziel } });
+      return NextResponse.json({ ok: true, weiterleiten_an: ziel });
     }
 
     return fehler('Unbekannte Aktion');
