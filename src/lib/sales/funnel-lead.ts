@@ -137,6 +137,8 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
   const vorhanden = await findCloseLeadId({ email: l.email, phone: l.phone });
   if (vorhanden) {
     await addCloseNote(vorhanden, notizText(l, true));
+    // Neueste Antworten auch in die Felder (z. B. neue Funnel-Fragen)
+    await schreibeAntworten(apiKey, vorhanden, l.antworten).catch((e) => console.error('[funnel-lead] Felder (bestehender Lead):', e));
     return { leadId: vorhanden, neu: false };
   }
 
@@ -177,15 +179,8 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
     if (put.ok) break;
   }
 
-  // Funnel-Antworten in die gleichnamigen Close-Felder (wie bisher über Zapier) – einzeln, damit ein Auswahlfeld mit
-  // unbekanntem Wert nicht alles blockiert
-  for (const [feldId, antwort] of await ordneAntwortenZu(apiKey, l.antworten)) {
-    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, {
-      method: 'PUT',
-      headers: closeHeaders(apiKey),
-      body: JSON.stringify({ [`custom.${feldId}`]: antwort }),
-    }).catch(() => null);
-  }
+  // Funnel-Antworten in die Close-Felder (wie bisher über Zapier)
+  await schreibeAntworten(apiKey, leadId, l.antworten).catch((e) => console.error('[funnel-lead] Felder:', e));
 
   await addCloseNote(leadId, notizText(l, false)).catch((e) => console.error('[funnel-lead] Notiz fehlgeschlagen:', e));
   return { leadId, neu: true };
@@ -193,17 +188,55 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
 
 const normFeld = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 
-/** Antworten den Close-Lead-Feldern mit gleichem Namen zuordnen (Frage-Titel = Feldname) */
+/**
+ * Funnel-Fragen, deren Wortlaut vom Close-Feld abweicht (oder die neu sind) → Close-Lead-Feld.
+ * Fehlt das Feld in Close, legt die Cloud es als Textfeld an. Alle anderen Fragen landen nur bei gleichem Namen in einem Feld.
+ */
+export const FUNNEL_FELDER: Array<{ feld: string; frage: RegExp }> = [
+  { feld: 'Warum ist es dir wichtig, neue Vertriebler zu gewinnen?', frage: /warum.*wichtig.*vertriebler/i },
+  { feld: 'Wie viele Vertriebler hast du aktuell?', frage: /wie viele vertriebler hast du aktuell/i },
+  { feld: 'Wie viele Vertriebler möchtest du in den nächsten 30 Tagen einstellen?', frage: /vertriebler.*(pro monat|monatlich).*(onboarden|einstellen)|nächsten 30 tagen einstellen/i },
+  { feld: 'Wie gewinnst du aktuell Vertriebler?', frage: /worüber kommen deine vertriebler|wie gewinnst du aktuell vertriebler/i },
+];
+
+/** Name des Close-Felds für eine Funnel-Frage: feste Zuordnung, sonst der Fragetext selbst (rein, testbar) */
+export function zielFeld(frage: string): { name: string; anlegen: boolean } {
+  const fest = FUNNEL_FELDER.find((f) => f.frage.test(frage));
+  return fest ? { name: fest.feld, anlegen: true } : { name: frage, anlegen: false };
+}
+
+/** Antworten den Close-Lead-Feldern zuordnen; fehlende Felder aus FUNNEL_FELDER werden angelegt */
 async function ordneAntwortenZu(apiKey: string, antworten: FunnelLead['antworten']): Promise<Array<[string, string]>> {
   if (!antworten.length) return [];
   const res = await fetch(`${CLOSE_BASE}/custom_field/lead/?_limit=200&_fields=id,name`, { headers: closeHeaders(apiKey) });
   if (!res.ok) return [];
   const felder = ((await res.json()) as { data: Array<{ id: string; name: string }> }).data;
   const nachName = new Map(felder.map((f) => [normFeld(f.name), f.id]));
-  return antworten.flatMap((a) => {
-    const id = nachName.get(normFeld(a.frage));
-    return id && id !== LEADQUELLE_CF ? [[id, a.antwort] as [string, string]] : [];
-  });
+  const paare: Array<[string, string]> = [];
+  for (const a of antworten) {
+    const ziel = zielFeld(a.frage);
+    let id = nachName.get(normFeld(ziel.name));
+    if (!id && ziel.anlegen) {
+      const neu = await fetch(`${CLOSE_BASE}/custom_field/lead/`, { method: 'POST', headers: closeHeaders(apiKey), body: JSON.stringify({ name: ziel.name, type: 'text' }) });
+      if (neu.ok) {
+        id = ((await neu.json()) as { id: string }).id;
+        nachName.set(normFeld(ziel.name), id);
+      } else console.error('[funnel-lead] Close-Feld nicht angelegt:', ziel.name, neu.status);
+    }
+    if (id && id !== LEADQUELLE_CF) paare.push([id, a.antwort]);
+  }
+  return paare;
+}
+
+/** Funnel-Antworten in die Close-Felder schreiben – einzeln, damit ein Auswahlfeld mit unbekanntem Wert nicht alles blockiert */
+async function schreibeAntworten(apiKey: string, leadId: string, antworten: FunnelLead['antworten']): Promise<void> {
+  for (const [feldId, antwort] of await ordneAntwortenZu(apiKey, antworten)) {
+    await fetch(`${CLOSE_BASE}/lead/${leadId}/`, {
+      method: 'PUT',
+      headers: closeHeaders(apiKey),
+      body: JSON.stringify({ [`custom.${feldId}`]: antwort }),
+    }).catch(() => null);
+  }
 }
 
 export interface BuchungFuerClose {

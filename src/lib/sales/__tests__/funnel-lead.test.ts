@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leseFunnelLead } from '../funnel-lead';
+import { leseFunnelLead, zielFeld } from '../funnel-lead';
 
 describe('leseFunnelLead', () => {
   it('liest das Perspective-Format inkl. UTM aus meta und Antworten mit Titel', () => {
@@ -37,5 +37,18 @@ describe('UTM-Platzhalter', () => {
     const { leseFunnelLead } = await import('../funnel-lead');
     const l = leseFunnelLead({ email: 'a@b.de', felder: { utm_content: 'UTM Content' }, meta: { utm_content: '250propartner' } }, new URLSearchParams());
     expect(l.utm.content).toBe('250propartner');
+  });
+});
+
+describe('zielFeld', () => {
+  it('ordnet abweichende und neue Funnel-Fragen festen Close-Feldern zu', () => {
+    expect(zielFeld('Warum ist es dir wichtig neue Vertriebler zu gewinnen?')).toEqual({ name: 'Warum ist es dir wichtig, neue Vertriebler zu gewinnen?', anlegen: true });
+    expect(zielFeld('Wie viele Vertriebler möchtest du pro Monat onboarden?').name).toBe('Wie viele Vertriebler möchtest du in den nächsten 30 Tagen einstellen?');
+    expect(zielFeld('Worüber kommen deine Vertriebler aktuell?').name).toBe('Wie gewinnst du aktuell Vertriebler?');
+    expect(zielFeld('Wie viele Vertriebler hast du aktuell?').anlegen).toBe(true);
+  });
+  it('andere Fragen nur bei gleichem Namen, ohne Anlegen', () => {
+    expect(zielFeld('Was ist aktuell dein größtes Problem?')).toEqual({ name: 'Was ist aktuell dein größtes Problem?', anlegen: false });
+    expect(zielFeld('Fbclid').anlegen).toBe(false);
   });
 });
