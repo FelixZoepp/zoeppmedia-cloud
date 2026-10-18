@@ -54,6 +54,14 @@ export const FREIGABEN = {
     was: 'Nach „Angebot versendet“ bekommt der Closer in Close Aufgaben zum Nachfassen an Tag 1, 3 und 7. Kein automatischer Versand an den Lead – der Closer ruft an.',
     wirkt: 'Close-Aufgaben für den Closer',
   },
+  whatsapp_assistent: {
+    titel: '🤖 Zoepp-Assistent per WhatsApp',
+    was:
+      'Du schreibst der Zoepp-Nummer (die das Briefing schickt) eine Frage, z. B. „Wie war die Show-up-Quote diese Woche?“ – der Assistent antwortet in ca. 1 Minute mit Zahlen aus Close, Meta und der Cloud. ' +
+      'Nur für die Nummern aus dem CEO-Briefing, alle anderen (Kunden, Leads) laufen normal in den Vertrieb. Nur lesen, nichts ändern. ' +
+      'Läuft gerade ein Lead-Test an deine Nummer (24 Std.), geht deine Antwort in den Test – „Assistent: …“ erzwingt den Assistenten. „neu“ beginnt ein neues Gespräch.',
+    wirkt: 'WhatsApp-Antworten nur an deine Nummer',
+  },
   absage_nachfass: {
     titel: '🗓️ Absage-Nachfass (Calendly)',
     was:

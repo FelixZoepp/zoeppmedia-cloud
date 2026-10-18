@@ -11,6 +11,7 @@ import { ladeArbeit } from '@/lib/kunden-cloud/uebersicht';
 import { ladeEmpfehlungen } from '@/lib/empfehlungen/laden';
 import { erstelleAnfrage } from '@/lib/support/anfragen';
 import { ladeSalesControlling, ZEITRÄUME, type Zeitraum } from '@/lib/sales-controlling/laden';
+import { ladeTagesbericht, tageZwischen } from '@/lib/sales-controlling/tagesbericht-laden';
 import { KUNDEN_CLOUD_BEREICHE, SALES_BEREICHE } from '@/lib/team/funktionen';
 import { sucheArtikel, suchTextVon } from '@/lib/akademie/daten';
 import { ladeZugriff } from '@/lib/akademie/zugriff';
@@ -401,6 +402,36 @@ const salesKennzahlen: ToolDef = {
   },
 };
 
+const salesTage: ToolDef = {
+  label: 'Schaut in die Tageszahlen aus Close',
+  tool: {
+    name: 'sales_tage',
+    description:
+      'Vertriebszahlen aus Close für frei wählbare Tage (z. B. gestern, diese Woche, letzte 7 Tage; höchstens 62 Tage): Anwahlen, Entscheider, Settings/Closings gebucht/gehalten/No-Show, Abschlüsse, Volumen, Funnel-Eintragungen und Quoten (Erreichbarkeit, Terminierung, Show-up Setting/Closing, Qualifizierung, Closing-Rate, Direktbuchung). Quoten in Prozent.',
+    input_schema: {
+      type: 'object',
+      properties: { von: { type: 'string', description: 'YYYY-MM-DD' }, bis: { type: 'string', description: 'YYYY-MM-DD (einschließlich)' } },
+      required: ['von', 'bis'],
+    },
+  },
+  run: async (input) => {
+    if (!process.env.CLOSE_API_KEY) return { fehler: 'Close ist nicht verbunden' };
+    const von = str(input.von);
+    const bis = str(input.bis);
+    if (!DAY.test(von) || !DAY.test(bis) || von > bis) return { fehler: 'Bitte von/bis als YYYY-MM-DD angeben' };
+    const tage = tageZwischen(von, bis);
+    if (tage.length > 62) return { fehler: 'Höchstens 62 Tage – für längere Zeiträume sales_kennzahlen nutzen' };
+    const b = await ladeTagesbericht(tage);
+    return {
+      summe: b.summe,
+      // Einzelne Tage nur bei kurzen Zeiträumen, sonst wird es unübersichtlich
+      tage: tage.length <= 14 ? b.tage.map((t) => ({ tag: t.tag, settingsGehalten: t.settingsGehalten, closingsGehalten: t.closingsGehalten, abschluesse: t.abschluesse, volumen: t.volumen, anwahlen: t.anwahlen })) : undefined,
+      fehlende_protokolle: b.fehlendeProtokolleJePerson,
+      protokolle_verbunden: b.protokolleVerbunden,
+    };
+  },
+};
+
 const akademie: ToolDef = {
   label: 'Sucht in der Team-Akademie',
   tool: {
@@ -438,11 +469,11 @@ export function toolsFor(audience: Audience, funktion?: string | null, imKunden 
   const set = new Set<ToolDef>([meineAufgaben, kundenSuchen, kalender, hilfe, akademie]);
   const f = funktion ?? '';
   if (audience === 'admin') {
-    [kundenErgebnisse, innendienstArbeit, kundenChancen, teamAuslastung, salesKennzahlen].forEach((t) => set.add(t));
+    [kundenErgebnisse, innendienstArbeit, kundenChancen, teamAuslastung, salesKennzahlen, salesTage].forEach((t) => set.add(t));
   } else {
     if (KUNDEN_CLOUD_BEREICHE.includes(f)) [innendienstArbeit, kundenErgebnisse].forEach((t) => set.add(t));
     if (f === 'csm') [kundenErgebnisse, kundenChancen].forEach((t) => set.add(t));
-    if (SALES_BEREICHE.includes(f)) set.add(salesKennzahlen);
+    if (SALES_BEREICHE.includes(f)) [salesKennzahlen, salesTage].forEach((t) => set.add(t));
   }
   // Intern in einer geöffneten Kunden-Cloud: die Kunden-Werkzeuge für genau diesen Kunden dazu
   if (imKunden) [meineErgebnisse, recruitingZahlen, bewerberSuchen, deineAufgaben].forEach((t) => set.add(t));

@@ -417,6 +417,11 @@ export async function GET(request: NextRequest) {
           console.log('[tagesliste]', JSON.stringify(await sendeTageslisten(svc, new Date(), (payload as { tag?: string }).tag)));
           break;
         }
+        case 'assistent.whatsapp': {
+          const { beantworteAssistentenNachricht } = await import('@/lib/assistant/whatsapp');
+          await beantworteAssistentenNachricht(svc, payload as unknown as import('@/lib/assistant/whatsapp').AssistentJob);
+          break;
+        }
         case 'aufgaben.whatsapp_befehl': {
           const { verarbeiteBefehl } = await import('@/lib/aufgaben/tagesliste');
           await verarbeiteBefehl(svc, payload as unknown as import('@/lib/aufgaben/tagesliste').BefehlJob);

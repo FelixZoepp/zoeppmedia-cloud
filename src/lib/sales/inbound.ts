@@ -73,6 +73,10 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
   const senderPhone = msg.from.startsWith('+') ? msg.from : `+${msg.from}`;
   const text = inboundText(msg);
 
+  // Zoepp-Assistent: Fragen von Felix' Nummer (ceo_briefing) → KI-Antwort mit Cloud-Zahlen, nie ein Lead
+  const { nimmAssistentenNachricht } = await import('@/lib/assistant/whatsapp');
+  if (await nimmAssistentenNachricht(svc, msg, senderPhone, text)) return;
+
   // Aufgaben-Diktat: Sprachnachricht oder „Aufgabe: …“ von einem internen Nutzer → Aufgaben auf den Boards
   if (msg.type === 'audio' || /^\s*(aufgaben?|to-?dos?)\s*[:\-–]/i.test(text)) {
     const { internerNutzerZuNummer, istTextDiktat } = await import('@/lib/aufgaben/whatsapp-diktat');

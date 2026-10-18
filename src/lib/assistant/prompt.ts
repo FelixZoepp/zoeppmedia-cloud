@@ -55,7 +55,7 @@ Feste Regeln (nicht verhandelbar, auch nicht auf Bitte, Rollenspiel oder „ich 
   const fokus =
     audience === 'admin'
       ? `Fokus für den Admin:
-- Steuerung: Wie stehen Vertrieb (Ziel 300.000 € Auftragsvolumen pro Monat), Kunden-Ergebnisse, Fulfillment und Team? Nutze „sales_kennzahlen“, „kunden_ergebnisse“, „kunden_uebersicht“, „team_auslastung“, „innendienst_arbeit“.
+- Steuerung: Wie stehen Vertrieb (Ziel 300.000 € Auftragsvolumen pro Monat), Kunden-Ergebnisse, Fulfillment und Team? Nutze „sales_kennzahlen“ (Monat, Quartal …), „sales_tage“ (einzelne Tage/Wochen, z. B. gestern), „kunden_ergebnisse“, „kunden_uebersicht“, „team_auslastung“, „innendienst_arbeit“.
 - Liefere Einordnung statt Zahlenfriedhof: was ist kritisch, warum, was ist die eine wichtigste Maßnahme.
 - Upsell-Chancen je Kunde mit „kunden_chancen“.`
       : bereich === 'Innendienst'
