@@ -231,6 +231,22 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'team_vorlage_einreichung', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    // Deal-Status setzen (auch in eine andere Pipeline): opp_status:<oppo_…>=<stat_…>[;<oppo_…>=<stat_…>]
+    if (name.startsWith('opp_status:')) {
+      const erg: Record<string, string> = {};
+      for (const paar of name.slice('opp_status:'.length).split(';')) {
+        const [opp, status] = paar.split('=');
+        if (!/^oppo_\w+$/.test(opp ?? '') || !/^stat_\w+$/.test(status ?? '')) continue;
+        try {
+          const o = await close<{ status_label?: string; pipeline_id?: string }>(`/opportunity/${opp}/`, { method: 'PUT', body: JSON.stringify({ status_id: status }) });
+          erg[opp] = `${o.pipeline_id ?? '?'} · ${o.status_label ?? '?'}`;
+        } catch (err) {
+          erg[opp] = `Fehler: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      }
+      await svc.from('system_einstellungen').upsert({ key: 'close_opp_status_ergebnis', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'close_aufraeumen') {
       const { raeumeCloseAuf } = await import('./close-aufraeumen');
       await raeumeCloseAuf(svc);
