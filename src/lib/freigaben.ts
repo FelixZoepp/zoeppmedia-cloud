@@ -62,6 +62,14 @@ export const FREIGABEN = {
       'Läuft gerade ein Lead-Test an deine Nummer (24 Std.), geht deine Antwort in den Test – „Assistent: …“ erzwingt den Assistenten. „neu“ beginnt ein neues Gespräch.',
     wirkt: 'WhatsApp-Antworten nur an deine Nummer',
   },
+  termin_auto_buchen: {
+    titel: '📆 Termine per WhatsApp einbuchen',
+    was:
+      'Nennt ein Lead auf eine Rückfrage (Eintragung ohne Termin, No-Show, nicht erreicht, Absage) eine Wunschzeit und die ist im Analysegespräch in Calendly frei, fragt die Cloud zurück: „Dann trage ich dich für Montag (19.10.) um 10:00 Uhr ein. Passt das?“ ' +
+      'Ist sie belegt, schlägt sie zwei freie Zeiten vor. Nach „Ja“ prüft sie nochmal und bucht über Calendly ein (Name, E-Mail, Telefon, Pflichtfragen aus dem Funnel, Rest neutral + Hinweis in der Notiz) – Calendly schickt die Bestätigung, die normale Termin-Kette läuft. ' +
+      'Klappt es nicht: Close-Aufgabe „bitte einbuchen“. Beratungsgespräche bucht weiter ein Mensch. Aus: nur an Testnummern.',
+    wirkt: 'WhatsApp-Antworten an den Lead + Calendly-Buchung',
+  },
   absage_nachfass: {
     titel: '🗓️ Absage-Nachfass (Calendly)',
     was:

@@ -88,6 +88,15 @@ export type SalesReplyKind = 'confirmed' | 'callback' | 'noshow_antwort' | 'vers
  * meldet der Inbound-Handler die Nachricht als normale Antwort ans Team.
  */
 export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInput): Promise<SalesReplyKind> {
+  // Offener Terminvorschlag + „Ja“ → direkt in Calendly einbuchen (auto-buchung.ts)
+  const { offenerVorschlag, istJa, bucheBestaetigtenTermin } = await import('./auto-buchung');
+  if (istJa(input.text)) {
+    const vorschlag = await offenerVorschlag(svc, input.candidateId).catch(() => null);
+    if (vorschlag) {
+      await bucheBestaetigtenTermin(svc, input, vorschlag);
+      return 'noshow_antwort';
+    }
+  }
   // Offene No-Show-Rückfrage hat Vorrang (auch „ruf mich morgen um 10 an“ soll die Wunschzeit bekommen)
   const { offeneNoShowRueckfrage, verarbeiteNoShowAntwort } = await import('./noshow-antwort');
   const offen = await offeneNoShowRueckfrage(svc, input.candidateId).catch(() => null);

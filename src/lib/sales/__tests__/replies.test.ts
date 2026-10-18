@@ -16,6 +16,11 @@ vi.mock('../noshow-antwort', () => ({
   offeneNoShowRueckfrage: vi.fn().mockResolvedValue(null),
   verarbeiteNoShowAntwort: vi.fn(),
 }));
+vi.mock('../auto-buchung', () => ({
+  istJa: () => true,
+  offenerVorschlag: vi.fn().mockResolvedValue(null),
+  bucheBestaetigtenTermin: vi.fn(),
+}));
 vi.mock('../close', () => ({
   addCloseNoteByEmail: vi.fn().mockResolvedValue(true),
 }));

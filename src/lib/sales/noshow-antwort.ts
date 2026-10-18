@@ -21,6 +21,8 @@ export interface OffeneRueckfrage {
   gesendetAm: string;
   /** Absage-Nachfass: vorgeschlagene Zeiten („Di., 20.10., 10:00 | Mi., 21.10., 14:30“) */
   vorschlaege?: string | null;
+  /** Absage: welches Gespräch (setting/beratung) */
+  gespraech?: string | null;
 }
 
 /** Wurde dem Prospect in den letzten 7 Tagen eine Rückfrage geschickt, auf die noch keine Antwort ausgewertet ist? */
@@ -29,7 +31,7 @@ export async function offeneNoShowRueckfrage(svc: SupabaseClient, candidateId: s
     .from('activity_log')
     .select('created_at, metadata')
     .eq('candidate_id', candidateId)
-    .in('metadata->>kind', ['sales_noshow_sent', 'sales_noshow_antwort', 'sales_eintrag_kette'])
+    .in('metadata->>kind', ['sales_noshow_sent', 'sales_noshow_antwort', 'sales_eintrag_kette', 'sales_buchung_vorschlag', 'sales_buchung_erledigt'])
     .gte('created_at', new Date(jetzt.getTime() - OFFEN_TAGE * 864e5).toISOString())
     .order('created_at', { ascending: false })
     .limit(1);
@@ -37,6 +39,16 @@ export async function offeneNoShowRueckfrage(svc: SupabaseClient, candidateId: s
   if (!letzte) return null;
   // Kette „Eingetragen, aber kein Termin“: jede Antwort darauf zählt (Wunschzeit oder Rückfrage)
   if (letzte.metadata.kind === 'sales_eintrag_kette') return { art: 'eintrag', closeLeadId: letzte.metadata.lead_id ?? null, gesendetAm: letzte.created_at };
+  // Terminvorschlag offen, aber kein „Ja“ (z. B. „lieber 11 Uhr“) → Antwort erneut als Wunschzeit lesen
+  if (letzte.metadata.kind === 'sales_buchung_vorschlag') {
+    const a = letzte.metadata.art;
+    return {
+      art: a === 'nicht_erreicht' || a === 'absage' || a === 'eintrag' ? a : 'setting',
+      closeLeadId: letzte.metadata.close_lead_id ?? null,
+      gesendetAm: letzte.created_at,
+      vorschlaege: letzte.metadata.vorschlaege ?? null,
+    };
+  }
   if (letzte.metadata.kind !== 'sales_noshow_sent' || !letzte.metadata.vorlage?.endsWith('_rueckfrage')) return null;
   const art = letzte.metadata.art;
   return {
@@ -44,6 +56,7 @@ export async function offeneNoShowRueckfrage(svc: SupabaseClient, candidateId: s
     closeLeadId: letzte.metadata.close_lead_id ?? null,
     gesendetAm: letzte.created_at,
     vorschlaege: letzte.metadata.vorschlaege ?? null,
+    gespraech: letzte.metadata.gespraech ?? null,
   };
 }
 
@@ -125,6 +138,14 @@ export async function verarbeiteNoShowAntwort(
     console.error('[sales] Wunschzeit nicht lesbar:', err);
     return null;
   });
+  // Freie Zeit in Calendly? → Termin vorschlagen und nach „Ja“ direkt einbuchen (Freigabe termin_auto_buchen)
+  const { schlageTerminVor } = await import('./auto-buchung');
+  const vorgeschlagen = await schlageTerminVor(svc, input, offen, wunsch, jetzt).catch((err) => {
+    console.error('[sales] Terminvorschlag fehlgeschlagen:', err);
+    return false;
+  });
+  if (vorgeschlagen) return;
+
   const heute = jetzt.toLocaleDateString('sv-SE', { timeZone: TZ });
   const aufgabe = baueRueckrufAufgabe({ name: input.candidateName, phone: input.candidatePhone, text: input.text, art: offen.art }, wunsch, heute);
 

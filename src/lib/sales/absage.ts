@@ -132,7 +132,7 @@ export function planeAbsage(art: AbsageArt, zurueckAm: string | null, jetzt: Dat
 }
 
 /** Uhrzeit (HH:MM) in Berlin */
-function uhrBerlin(iso: string): string {
+export function uhrBerlin(iso: string): string {
   return new Date(iso).toLocaleTimeString('de-DE', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
 }
 
@@ -229,7 +229,7 @@ async function ladeTermin(svc: SupabaseClient, calendlyEventId: string): Promise
 }
 
 /** Ohne Freigabe nur Testnummern */
-async function darfSenden(svc: SupabaseClient, telefon: string): Promise<boolean> {
+export async function darfSenden(svc: SupabaseClient, telefon: string): Promise<boolean> {
   if (await istFreigegeben(svc, 'absage_nachfass')) return true;
   const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
   const s = await ladeSchalter(svc);
