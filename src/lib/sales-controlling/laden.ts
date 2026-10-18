@@ -1,5 +1,6 @@
 /** Sales-Controlling laden: Zeiträume, Close- und Meta-Daten, Berechnung. */
 import { berechneSalesControlling, type Opp } from '@/lib/sales-controlling/compute';
+import { berechneUpsell } from '@/lib/sales-controlling/upsell';
 import { ladeAnrufe, ladeAufgaben, ladeClose, ladeErledigteAufgaben, ladeMetaMonate, ladeMetaZeitraum } from '@/lib/sales-controlling/quellen';
 import { berechneAuslastung, SCHWELLEN_KEYS, schwellenAus, STANDARD_SCHWELLEN, type Schwellen } from '@/lib/sales-controlling/auslastung';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -85,6 +86,7 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
     return {
       ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
       metaVerbunden: metaZeitraum !== null,
+      upsell: berechneUpsell({ opps: close.opps, statuses: close.statuses, zeitraum, jetzt }),
       details: berechneDetails({
         statuses: close.statuses,
         opps: close.opps,

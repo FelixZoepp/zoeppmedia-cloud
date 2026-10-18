@@ -381,7 +381,7 @@ const salesKennzahlen: ToolDef = {
   tool: {
     name: 'sales_kennzahlen',
     description:
-      'Sales-Controlling (Close + Meta): Auftragsvolumen vs. Ziel 300.000 €/Monat, Hochrechnung, Forecast, Setting/Closing mit Show-Quoten, Marketing-Kosten, Pipeline, Telefonie, Follow-ups, Problemfelder. Zeitraum: monat, vormonat, quartal, letztesquartal, 90tage, jahr.',
+      'Sales-Controlling (Close + Meta): Auftragsvolumen vs. Ziel 300.000 €/Monat, Hochrechnung, Forecast, Setting/Closing mit Show-Quoten, Marketing-Kosten, Pipeline, Telefonie, Follow-ups, Upsell-Quote (Kunden mit Nachkauf, Anteil Upsell am Volumen, Nachkäufer), Problemfelder. Zeitraum: monat, vormonat, quartal, letztesquartal, 90tage, jahr.',
     input_schema: { type: 'object', properties: { zeitraum: { type: 'string', enum: [...ZEITRÄUME] } } },
   },
   run: async (input, ctx) => {
@@ -397,6 +397,7 @@ const salesKennzahlen: ToolDef = {
       pipeline: { offen: d.pipeline.offenAnzahl, wert: d.pipeline.offenWert, gewichtet: d.pipeline.gewichtet },
       telefonie: { anwahlen: d.details.telefonie.anwahlen, gespraeche: d.details.telefonie.gespraeche, erreichbarkeit: d.details.telefonie.erreichbarkeit, speed_to_lead_min: d.details.telefonie.speedToLeadMedianMin },
       follow_ups: { ueberfaellig: d.details.followups.aufgaben.ueberfaellig, deals_ohne_naechsten_schritt: d.details.followups.aufgaben.dealsOhneAufgabe },
+      upsell: { quote_kunden_prozent: d.upsell.quote, quote_reife_kunden_prozent: d.upsell.quoteReif, kunden: d.upsell.kunden, kunden_mit_nachkauf: d.upsell.kundenMitUpsell, upsell_volumen: d.upsell.upsellVolumen, anteil_am_volumen_prozent: d.upsell.volumenAnteil, deals_pro_kunde: d.upsell.dealsProKunde, im_zeitraum: d.upsell.zeitraum, nachkaeufer: d.upsell.nachkaeufer.slice(0, 10) },
       probleme: d.probleme,
     };
   },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, PhoneCall, RefreshCw, Target, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, PhoneCall, RefreshCw, Repeat, Target, TrendingUp, Users } from 'lucide-react';
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
 import { GespraecheBereich } from './gespraeche-bereich';
 import { EintragungenBereich } from './eintragungen-bereich';
@@ -13,8 +13,9 @@ import { FollowupBereich, ShowDetail, TelefonieBereich } from './detail-bereiche
 import { AuslastungBereich } from './auslastung-bereich';
 import { TagesberichtBereich } from './tagesbericht-bereich';
 import type { Auslastung } from '@/lib/sales-controlling/auslastung';
+import type { Upsell } from '@/lib/sales-controlling/upsell';
 
-type Daten = SalesControlling & { metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
+type Daten = SalesControlling & { upsell?: Upsell; metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
 
 const eur = (n: number | null | undefined, digits = 0) =>
   n === null || n === undefined ? '–' : `${n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })} €`;
@@ -207,6 +208,7 @@ export function VertriebClient() {
                 <Verlauf d={d} />
               </div>
               <Funnel d={d} />
+              {d.upsell && <UpsellBereich u={d.upsell} label={d.zeitraum.label} />}
             </>
           )}
 
@@ -449,6 +451,37 @@ function Rückwärts({ d }: { d: Daten }) {
           </tbody>
         </table>
       </div>
+    </Card>
+  );
+}
+
+/* ── Upsell ──────────────────────────────────────────────────── */
+
+function UpsellBereich({ u, label }: { u: Upsell; label: string }) {
+  const p = (x: number | null) => (x === null ? '–' : `${zahl(x)} %`);
+  return (
+    <Card>
+      <h2 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.02em]">
+        <Repeat className="h-5 w-5 text-red-800" /> Upsell <span className="text-[13px] font-normal text-gray-500">· Kunden, die ein weiteres Paket gekauft haben</span>
+      </h2>
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kennzahl label="Upsell-Quote" wert={p(u.quote)} sub={`${u.kundenMitUpsell} von ${u.kunden} Kunden`} />
+        <Kennzahl label="Quote reife Kunden" wert={p(u.quoteReif)} sub={`erster Kauf ≥ 6 Wochen her (${u.kundenReif})`} />
+        <Kennzahl label="Upsell-Volumen" wert={eur(u.upsellVolumen)} sub={`${p(u.volumenAnteil)} vom Gesamtvolumen`} />
+        <Kennzahl label={`Upsell · ${label}`} wert={eur(u.zeitraum.upsell.volumen)} sub={`${u.zeitraum.upsell.anzahl} Upsells · ${u.zeitraum.neukauf.anzahl} Neukunden`} />
+      </div>
+      {u.nachkaeufer.length > 0 && (
+        <ul className="mt-4 divide-y divide-gray-100 text-[13.5px]">
+          {u.nachkaeufer.slice(0, 8).map((k) => (
+            <li key={k.kunde} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0 truncate">{k.kunde}</span>
+              <span className="flex-none text-gray-500">
+                {k.deals} Pakete · <span className="font-medium text-gray-900">{eur(k.upsellVolumen)}</span> Upsell
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }
