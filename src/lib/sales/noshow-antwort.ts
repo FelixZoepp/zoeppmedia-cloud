@@ -16,7 +16,7 @@ const TZ = 'Europe/Berlin';
 const OFFEN_TAGE = 7;
 
 export interface OffeneRueckfrage {
-  art: 'setting' | 'closing' | 'nicht_erreicht' | 'absage';
+  art: 'setting' | 'closing' | 'nicht_erreicht' | 'absage' | 'eintrag';
   closeLeadId: string | null;
   gesendetAm: string;
   /** Absage-Nachfass: vorgeschlagene Zeiten („Di., 20.10., 10:00 | Mi., 21.10., 14:30“) */
@@ -29,12 +29,15 @@ export async function offeneNoShowRueckfrage(svc: SupabaseClient, candidateId: s
     .from('activity_log')
     .select('created_at, metadata')
     .eq('candidate_id', candidateId)
-    .in('metadata->>kind', ['sales_noshow_sent', 'sales_noshow_antwort'])
+    .in('metadata->>kind', ['sales_noshow_sent', 'sales_noshow_antwort', 'sales_eintrag_kette'])
     .gte('created_at', new Date(jetzt.getTime() - OFFEN_TAGE * 864e5).toISOString())
     .order('created_at', { ascending: false })
     .limit(1);
   const letzte = ((data ?? []) as Array<{ created_at: string; metadata: Record<string, string | undefined> }>)[0];
-  if (!letzte || letzte.metadata.kind !== 'sales_noshow_sent' || !letzte.metadata.vorlage?.endsWith('_rueckfrage')) return null;
+  if (!letzte) return null;
+  // Kette „Eingetragen, aber kein Termin“: jede Antwort darauf zählt (Wunschzeit oder Rückfrage)
+  if (letzte.metadata.kind === 'sales_eintrag_kette') return { art: 'eintrag', closeLeadId: letzte.metadata.lead_id ?? null, gesendetAm: letzte.created_at };
+  if (letzte.metadata.kind !== 'sales_noshow_sent' || !letzte.metadata.vorlage?.endsWith('_rueckfrage')) return null;
   const art = letzte.metadata.art;
   return {
     art: art === 'closing' || art === 'nicht_erreicht' || art === 'absage' ? art : 'setting',
@@ -86,7 +89,13 @@ export function baueRueckrufAufgabe(
     .filter(Boolean)
     .join(' ');
   const gespraech =
-    p.art === 'closing' ? 'Beratungsgespräch neu legen (alle Entscheider)' : p.art === 'nicht_erreicht' ? 'Erstgespräch legen' : p.art === 'absage' ? 'Gespräch neu buchen (Calendly)' : 'Erstgespräch nachholen';
+    p.art === 'closing'
+      ? 'Beratungsgespräch neu legen (alle Entscheider)'
+      : p.art === 'nicht_erreicht' || p.art === 'eintrag'
+        ? 'Erstgespräch legen'
+        : p.art === 'absage'
+          ? 'Gespräch neu buchen (Calendly)'
+          : 'Erstgespräch nachholen';
   const teile = [
     `📞 ${RUECKFRAGE_LABEL[p.art]}: ${p.name} – ${gespraech}`,
     wann ? `Wunschzeit: ${wann}` : 'Keine Zeit genannt – heute anrufen',
@@ -102,8 +111,9 @@ const RUECKFRAGE_LABEL: Record<OffeneRueckfrage['art'], string> = {
   closing: 'No-Show-Rückruf',
   nicht_erreicht: 'Rückruf (vorher nicht erreicht)',
   absage: 'Nach Absage',
+  eintrag: 'Eingetragen ohne Termin',
 };
-const NACHRICHT_LABEL: Record<OffeneRueckfrage['art'], string> = { setting: 'No-Show', closing: 'No-Show', nicht_erreicht: 'Nicht-erreicht', absage: 'Absage' };
+const NACHRICHT_LABEL: Record<OffeneRueckfrage['art'], string> = { setting: 'No-Show', closing: 'No-Show', nicht_erreicht: 'Nicht-erreicht', absage: 'Absage', eintrag: 'Eintragungs' };
 
 export async function verarbeiteNoShowAntwort(
   svc: SupabaseClient,
@@ -145,7 +155,7 @@ export async function verarbeiteNoShowAntwort(
   await logActivity(svc, {
     agency_id: input.agencyId,
     candidate_id: input.candidateId,
-    action: `Antwort auf ${NACHRICHT_LABEL[offen.art]}-Rückfrage${offen.art === 'absage' ? '' : ` (${offen.art === 'closing' ? 'Beratungsgespräch' : 'Erstgespräch'})`}`,
+    action: `Antwort auf ${NACHRICHT_LABEL[offen.art]}-Rückfrage${offen.art === 'absage' || offen.art === 'eintrag' ? '' : ` (${offen.art === 'closing' ? 'Beratungsgespräch' : 'Erstgespräch'})`}`,
     action_type: 'other',
     metadata: { kind: 'sales_noshow_antwort', art: offen.art, termin: aufgabe.datum, in_close: inClose },
   });

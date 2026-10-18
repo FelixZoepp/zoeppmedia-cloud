@@ -131,6 +131,18 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     buttons: [{ type: 'URL', text: 'Termin buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] }],
   },
   {
+    // 1) am Wochenende (Sa/So): Termin für Montag sichern oder Wunschzeit nennen – Antwort wertet sales/noshow-antwort.ts aus
+    name: 'eintrag_1_wochenende',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, schön, dass du dich eingetragen hast! Damit wir am Montag direkt für dich loslegen können: Wir haben gerade noch ein paar Termine frei. ' +
+      'Sicher dir am besten direkt einen, das Erstgespräch dauert nur 15 Minuten.\n\n' +
+      'Oder schreib mir kurz, wann wir dich am besten erreichen, dann melden wir uns genau dann.',
+    variables: ['vorname'],
+    beispiel: ['Mehmet'],
+    buttons: [{ type: 'URL', text: 'Termin buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] }],
+  },
+  {
     // Terminierung „Niemand / Mailbox“ (sales/nicht-erreicht.ts) – Antwort wertet sales/noshow-antwort.ts aus
     name: 'nicht_erreicht_rueckfrage',
     category: 'MARKETING',

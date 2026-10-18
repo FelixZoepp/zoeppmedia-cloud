@@ -35,3 +35,17 @@ describe('Eintrag-Kette – Vorlagen', () => {
     });
   }
 });
+
+describe('Wochenende und Abend', () => {
+  it('erkennt Sa/So in Berlin', async () => {
+    const { istWochenende } = await import('../eintrag-kette');
+    expect(istWochenende(new Date('2026-10-18T12:00:00Z'))).toBe(true); // So
+    expect(istWochenende(new Date('2026-10-17T22:30:00Z'))).toBe(true); // So 0:30 Berlin
+    expect(istWochenende(new Date('2026-10-19T12:00:00Z'))).toBe(false); // Mo
+  });
+  it('verschickt bis 21 Uhr, auch sonntags', () => {
+    const so = new Date('2026-10-18T18:45:00Z'); // So 20:45 Berlin
+    expect(versandZeit(so)).toEqual(so);
+    expect(versandZeit(new Date('2026-10-18T19:05:00Z')).toISOString()).toBe('2026-10-19T06:30:00.000Z'); // 21:05 → Mo 8:30
+  });
+});

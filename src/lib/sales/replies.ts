@@ -91,7 +91,8 @@ export async function handleSalesReply(svc: SupabaseClient, input: SalesReplyInp
   // Offene No-Show-Rückfrage hat Vorrang (auch „ruf mich morgen um 10 an“ soll die Wunschzeit bekommen)
   const { offeneNoShowRueckfrage, verarbeiteNoShowAntwort } = await import('./noshow-antwort');
   const offen = await offeneNoShowRueckfrage(svc, input.candidateId).catch(() => null);
-  if (offen) {
+  // „Gerade kein Thema“ (Kette Schritt 3) ist kein Rückrufwunsch
+  if (offen && !(offen.art === 'eintrag' && /kein (thema|interesse)|nicht mehr|abmelden/i.test(input.text))) {
     await verarbeiteNoShowAntwort(svc, input, offen);
     return 'noshow_antwort';
   }

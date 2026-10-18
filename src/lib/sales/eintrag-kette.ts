@@ -7,6 +7,8 @@
  * Stopp vor jedem Versand: Termin gebucht, aktive Opportunity in Close (z. B. telefonisch gelegt),
  * Antwort des Leads, STOP (whatsapp_opt_in = false). Ruhezeiten 20:30–8:00 Uhr → verschoben auf 8:30 Uhr.
  * Nicht freigegebene Vorlagen werden übersprungen.
+ * Versand täglich 8–21 Uhr (auch Sa/So). Am Wochenende ist Schritt 1 eintrag_1_wochenende („damit wir am Montag direkt loslegen …“).
+ * Antwortet der Lead auf eine Nachricht der Kette, liest die KI die Wunschzeit → Close-Aufgabe (sales/noshow-antwort.ts).
  * Freigabe „eintrag_personalisiert“: Schritt 1 als eintrag_1_termin_v2 mit der Funnel-Angabe („3 bis 5 Vertriebler pro Monat“).
  */
 
@@ -31,14 +33,20 @@ function berlinZeit(d: Date): { h: number; min: number } {
   return { h: Number(p.hour), min: Number(p.minute) };
 }
 
-/** Versandzeit außerhalb der Ruhezeit (8:00–20:30 Berlin); sonst auf 8:30 Uhr schieben (rein, testbar) */
+/** Versandzeit täglich 8:00–21:00 Berlin, auch am Wochenende; sonst auf 8:30 Uhr schieben (rein, testbar) */
 export function versandZeit(geplant: Date): Date {
   const { h, min } = berlinZeit(geplant);
   const m = h * 60 + min;
-  if (m >= 8 * 60 && m < 20 * 60 + 30) return geplant;
+  if (m >= 8 * 60 && m < 21 * 60) return geplant;
   // Minuten bis 8:30 Uhr (heute früh oder morgen früh)
   const bis = m < 8 * 60 ? 8 * 60 + 30 - m : 24 * 60 - m + 8 * 60 + 30;
   return new Date(geplant.getTime() + bis * MIN);
+}
+
+/** Samstag oder Sonntag in Berlin (rein, testbar) */
+export function istWochenende(d: Date): boolean {
+  const tag = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', weekday: 'short' }).format(d);
+  return tag === 'Sat' || tag === 'Sun';
 }
 
 export function schrittZeit(eingetragen: Date, schritt: 1 | 2 | 3, jetzt: Date): Date {
@@ -151,7 +159,10 @@ export async function verarbeiteEintragKette(svc: SupabaseClient, payload: { lea
   // Schritt 1 personalisiert (Freigabe eintrag_personalisiert): Funnel-Angabe „pro Monat onboarden“ in der Nachricht
   let ziel: string | null = null;
   let vorlage = k.vorlage;
-  if (payload.schritt === 1) {
+  if (payload.schritt === 1 && istWochenende(new Date())) {
+    // Sa/So: „Damit wir am Montag direkt loslegen …“ + Wunschzeit-Frage (fehlt die Freigabe von Meta → normale Nachricht)
+    vorlage = 'eintrag_1_wochenende';
+  } else if (payload.schritt === 1) {
     const { istFreigegeben } = await import('@/lib/freigaben');
     if (await istFreigegeben(svc, 'eintrag_personalisiert')) {
       ziel = await funnelZiel(e.lead_id).catch(() => null);
@@ -189,6 +200,8 @@ export async function verarbeiteEintragKette(svc: SupabaseClient, payload: { lea
       },
     },
     senderType: 'system',
+    // Wie Anrufe: täglich 8–21 Uhr, auch am Wochenende (sonst warten Sonntags-Leads bis Montag)
+    gespraechsZeiten: true,
     templateId: tmpl.id,
   });
   await logActivity(svc, {
@@ -196,7 +209,7 @@ export async function verarbeiteEintragKette(svc: SupabaseClient, payload: { lea
     candidate_id: prospectId,
     action: `Eintrag ohne Termin – Nachricht ${k.schritt}/3 gesendet (${tmpl.name})`,
     action_type: 'other',
-    metadata: { kind: 'sales_eintrag_kette', lead_id: e.lead_id, schritt: k.schritt },
+    metadata: { kind: 'sales_eintrag_kette', lead_id: e.lead_id, schritt: k.schritt, vorlage: tmpl.name },
   }).catch(() => {});
   await weiter();
   return 'gesendet';
