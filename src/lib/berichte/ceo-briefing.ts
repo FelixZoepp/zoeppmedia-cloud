@@ -16,6 +16,7 @@ import { berlinMitternacht, berlinTag } from '@/lib/zeit/berlin';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 import { ZIEL } from '@/lib/sales-controlling/laden';
 import { erfasseKennzahlen, eur, istWerktag, LEER_MARKETING, LEER_SALES, monatsStart, plusTage, summiere, type MarketingTag } from './abendbericht';
+import { istFreigegeben } from '@/lib/freigaben';
 
 export const BRIEFING_STUNDE = 7;
 /** Verspätete Jobs (Ausfall) verschicken nach 12 Uhr nichts mehr */
@@ -195,6 +196,13 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
     .then((r) => ({ anzahl: r.deals.length, summe: r.summe, top: r.deals.slice(0, 3).map((d) => ({ firma: d.firma, wert: d.wert, tage: d.tage })) }))
     .catch(() => null);
 
+  // Upsell-Deals ohne nächsten Schritt / ohne Bewegung (nur mit Freigabe „Upsell-Wächter“)
+  const upsell = (await istFreigegeben(svc, 'upsell_waechter'))
+    ? await import('@/lib/sales/upsell-waechter')
+        .then(async ({ ladeUpsellDeals, problemVon }) => (await ladeUpsellDeals(jetzt)).filter((d) => problemVon(d)))
+        .catch(() => [])
+    : [];
+
   const q = quoten(sales);
   const leads = marketing ? marketing.eintragungen || marketing.metaLeads : 0;
   const offen = (p: { status: string }) => p.status === 'offen';
@@ -209,6 +217,18 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
       ...anzeigen.map((a) => ({ stufe: 'gelb' as const, text: `Anzeige „${a.name}“ verbrennt Geld: ${a.grund} – gestern ${eur(a.ausgabenGestern)}`, link: '/admin/anzeigen' })),
       ...(stehend && stehend.anzahl >= 3
         ? [{ stufe: (stehend.summe >= 20000 ? 'rot' : 'gelb') as 'rot' | 'gelb', text: `${stehend.anzahl} Deals stehen seit 7+ Tagen (${eur(stehend.summe)}) – zuerst ${stehend.top.map((d) => `${d.firma} ${eur(d.wert)}`).join(', ')}`, link: '/admin/vertrieb' }]
+        : []),
+      ...(upsell.length
+        ? [
+            {
+              stufe: (upsell.some((d) => d.wert >= 20000) ? 'rot' : 'gelb') as 'rot' | 'gelb',
+              text: `Upsell ohne nächsten Schritt: ${upsell
+                .slice(0, 4)
+                .map((d) => `${d.firma} ${eur(d.wert)} (${d.naechsterSchritt ? `${d.tageOhneBewegung} T. ohne Bewegung` : 'kein Termin/keine Aufgabe'})`)
+                .join(', ')}`,
+              link: '/admin/vertrieb',
+            },
+          ]
         : []),
       ...(finanzen.ausfallRisiko > 0 ? [{ stufe: 'rot' as const, text: `${eur(finanzen.ausfallRisiko)} Zahlungsausfall-Risiko (Mahnung 3+, Anwalt, Ausfall droht)`, link: '/buchhaltung?tab=mahnwesen' }] : []),
     ].sort((x, y) => Number(x.stufe === 'gelb') - Number(y.stufe === 'gelb')),

@@ -36,6 +36,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { legeSettingOpportunityAn, LEAD_STATUS_SETTING } from './funnel-lead';
 import { PROTOKOLL_TYPEN } from '@/lib/sales-controlling/tagesbericht';
 import { VERLUSTGRUENDE, VERLUSTGRUND_FELD } from './close-aufraeumen';
+import { istBestandskunde, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const TAG = 864e5;
@@ -256,14 +257,59 @@ export function verlustgrundAusProtokoll(typ: string, felder: Record<string, str
 }
 
 async function setzeLead(leadId: string, daten: Record<string, unknown>) {
+  // Bestandskunden bleiben „Kunde“ – ein Upsell-Gespräch stuft sie nicht zurück auf Setting/Closing
+  if (daten.status_id && daten.status_id !== LEAD_STATUS_KUNDE) {
+    const lead = await closeJson<{ status_label?: string }>(`/lead/${leadId}/?_fields=status_label`);
+    if (istBestandskunde(lead.status_label)) {
+      const { status_id: _ignoriert, ...rest } = daten;
+      void _ignoriert;
+      if (!Object.keys(rest).length) return;
+      daten = rest;
+    }
+  }
   await closeJson(`/lead/${leadId}/`, { method: 'PUT', body: JSON.stringify(daten) });
 }
 
+type AktiveOpp = { id: string; status_id: string; pipeline_id?: string; value?: number | null; date_created: string };
+
+async function istKunde(leadId: string): Promise<boolean> {
+  const lead = await closeJson<{ status_label?: string }>(`/lead/${leadId}/?_fields=status_label`);
+  return istBestandskunde(lead.status_label);
+}
+
+/** Aktive Deals des Leads (beide Pipelines) */
+async function aktiveOpps(leadId: string): Promise<AktiveOpp[]> {
+  const { data } = await closeJson<{ data: AktiveOpp[] }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id,pipeline_id,value,date_created`);
+  return data;
+}
+
+/**
+ * D2D-Status für einen Deal übersetzen: Upsell-Deals bekommen den passenden Upsell-Status, damit sie nicht
+ * in die D2D-Pipeline rutschen. null = diesen Deal nicht anfassen (z. B. No-Show/Setting bei einem Upsell).
+ */
+export function zielStatusFuer(opp: { pipeline_id?: string }, d2dStatus: string): string | null {
+  if (opp.pipeline_id !== UPSELL_PIPELINE_ID) return d2dStatus;
+  const map: Record<string, string> = {
+    [OPP_STATUS_VERLOREN]: UPSELL_STATUS.verloren,
+    [OPP_GEWONNEN]: UPSELL_STATUS.gewonnen,
+    [OPP_CLOSING_TERMINIERT]: UPSELL_STATUS.strategietermin,
+    [OPP_CC2]: UPSELL_STATUS.strategietermin,
+    [OPP_ANGEBOT]: UPSELL_STATUS.entscheidung,
+  };
+  return map[d2dStatus] ?? null;
+}
+
 async function oppsVerloren(leadId: string, grund?: string | null): Promise<number> {
-  const { data } = await closeJson<{ data: Array<{ id: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id`);
-  const body = { status_id: OPP_STATUS_VERLOREN, ...(grund ? { [`custom.${VERLUSTGRUND_FELD}`]: grund } : {}) };
-  for (const o of data) await closeJson(`/opportunity/${o.id}/`, { method: 'PUT', body: JSON.stringify(body) });
-  return data.length;
+  const data = await aktiveOpps(leadId);
+  let n = 0;
+  for (const o of data) {
+    const ziel = zielStatusFuer(o, OPP_STATUS_VERLOREN);
+    if (!ziel) continue;
+    const body = { status_id: ziel, ...(grund ? { [`custom.${VERLUSTGRUND_FELD}`]: grund } : {}) };
+    await closeJson(`/opportunity/${o.id}/`, { method: 'PUT', body: JSON.stringify(body) });
+    n++;
+  }
+  return n;
 }
 
 /** Aktionen in Close ausführen */
@@ -290,7 +336,7 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
   if (a.settingTerminiert) {
     // Lead wieder im Setting und nicht mehr gesperrt (sonst bliebe er aus den Ansichten verschwunden)
     await setzeLead(leadId, { status_id: LEAD_STATUS_SETTING, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
-    const { data } = await closeJson<{ data: Array<{ id: string; status_id: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id`);
+    const data = await aktiveOpps(leadId);
     const zurueck = data.find((o) => OPP_SETTING_ZURUECK.includes(o.status_id));
     if (zurueck) {
       await closeJson(`/opportunity/${zurueck.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: OPP_SETTING_TERMINIERT }) });
@@ -305,9 +351,14 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
   }
   if (a.closingTerminiert) {
     await setzeLead(leadId, { status_id: LEAD_STATUS_CLOSING, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
-    const { data } = await closeJson<{ data: Array<{ id: string; status_id: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id`);
+    const data = await aktiveOpps(leadId);
     const zurueck = data.find((o) => OPP_CLOSING_ZURUECK.includes(o.status_id));
-    if (zurueck) {
+    const upsellPotenzial = data.find((o) => o.status_id === UPSELL_STATUS.potenzial);
+    if (upsellPotenzial) {
+      // Upsell: Termin gelegt → „Strategietermin gelegt“ (bleibt in der Upsell-Pipeline)
+      await closeJson(`/opportunity/${upsellPotenzial.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: UPSELL_STATUS.strategietermin }) });
+      erledigt.opportunity = 'upsell_strategietermin';
+    } else if (zurueck) {
       await closeJson(`/opportunity/${zurueck.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: OPP_CLOSING_TERMINIERT }) });
       erledigt.opportunity = 'auf_closing_terminiert';
     } else if (data.length) {
@@ -317,20 +368,26 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
       const termin = a.termin
         ? new Date(a.termin).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' Uhr'
         : 'Termin laut Protokoll';
+      const kunde = await istKunde(leadId);
       await closeJson('/opportunity/', {
         method: 'POST',
-        body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_CLOSING_TERMINIERT, note: `Beratungsgespräch gelegt (Follow-up): ${termin}` }),
+        body: JSON.stringify(
+          kunde
+            ? { lead_id: leadId, pipeline_id: UPSELL_PIPELINE_ID, status_id: UPSELL_STATUS.strategietermin, note: `Upsell-Termin gelegt (Follow-up): ${termin}` }
+            : { lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: OPP_CLOSING_TERMINIERT, note: `Beratungsgespräch gelegt (Follow-up): ${termin}` },
+        ),
       });
-      erledigt.opportunity = 'angelegt';
+      erledigt.opportunity = kunde ? 'upsell_angelegt' : 'angelegt';
     }
   }
   if (a.oppStatus) {
     const ziel = { angebot: OPP_ANGEBOT, cc2: OPP_CC2, closing_no_show: OPP_CLOSING_NO_SHOW, closing_terminiert: OPP_CLOSING_TERMINIERT }[a.oppStatus];
-    const { data: aktiv } = await closeJson<{ data: Array<{ id: string; status_id: string; date_created: string }> }>(`/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id,date_created`);
+    const aktiv = await aktiveOpps(leadId);
     const opp = [...aktiv].sort((x, y) => y.date_created.localeCompare(x.date_created))[0];
-    if (opp && opp.status_id !== ziel) {
-      await closeJson(`/opportunity/${opp.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: ziel }) });
-      erledigt.opportunity = a.oppStatus;
+    const oppZiel = opp ? zielStatusFuer(opp, ziel) : null;
+    if (opp && oppZiel && opp.status_id !== oppZiel) {
+      await closeJson(`/opportunity/${opp.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: oppZiel }) });
+      erledigt.opportunity = opp.pipeline_id === UPSELL_PIPELINE_ID ? `upsell_${a.oppStatus}` : a.oppStatus;
     } else if (!opp) {
       await closeJson('/opportunity/', { method: 'POST', body: JSON.stringify({ lead_id: leadId, pipeline_id: PIPELINE_ID, status_id: ziel, note: 'Laut Closing-Protokoll' }) });
       erledigt.opportunity = `${a.oppStatus}_angelegt`;
@@ -352,16 +409,15 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
   if (a.abgeschlossen) {
     await setzeLead(leadId, { status_id: LEAD_STATUS_KUNDE, [`custom.${LEAD_FELD_GESPERRT_BIS}`]: null });
     erledigt.leadStatus = 'kunde';
-    const { data: aktiv } = await closeJson<{ data: Array<{ id: string; status_id: string; value: number | null; date_created: string }> }>(
-      `/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,status_id,value,date_created`,
-    );
+    const aktiv = await aktiveOpps(leadId);
     const { data: gewonnen } = await closeJson<{ data: Array<{ id: string; value: number | null }> }>(`/opportunity/?lead_id=${leadId}&status_type=won&_fields=id,value`);
     let opp: { id: string; value: number | null } | null = null;
     if (aktiv.length) {
       // Die jüngste aktive Opportunity ist der Abschluss
-      opp = [...aktiv].sort((x, y) => y.date_created.localeCompare(x.date_created))[0];
-      await closeJson(`/opportunity/${opp.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: OPP_GEWONNEN }) });
-      erledigt.opportunity = 'gewonnen';
+      const juengste = [...aktiv].sort((x, y) => y.date_created.localeCompare(x.date_created))[0];
+      opp = { id: juengste.id, value: juengste.value ?? null };
+      await closeJson(`/opportunity/${juengste.id}/`, { method: 'PUT', body: JSON.stringify({ status_id: zielStatusFuer(juengste, OPP_GEWONNEN) ?? OPP_GEWONNEN }) });
+      erledigt.opportunity = juengste.pipeline_id === UPSELL_PIPELINE_ID ? 'upsell_gewonnen' : 'gewonnen';
     } else if (gewonnen.length) {
       opp = gewonnen[0];
       erledigt.opportunity = 'schon_gewonnen';

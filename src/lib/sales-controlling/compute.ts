@@ -33,6 +33,10 @@ export interface Opp {
   date_created: string;
   date_won: string | null;
   user_id: string | null;
+  /** Deal aus der Pipeline „Upsell (Bestandskunden)“: zählt für Umsatz/Ziel, nicht für die Neukunden-Quoten */
+  upsell?: boolean;
+  /** Abschlusschance aus Close (0–100), nur für Upsell-Deals geladen */
+  confidence?: number | null;
 }
 
 export interface StatusEvent {
@@ -163,14 +167,19 @@ export interface Periodenzahlen {
   closingShowQuote: number | null;
   angebote: number;
   gewonnen: number;
+  /** davon Neukunden (D2D-Pipeline) – Basis für Abschlussquote, Ø-Deal und Akquisekosten */
+  gewonnenNeu: number;
+  gewonnenUpsell: number;
   verloren: number;
   auftragsvolumen: number;
+  volumenNeu: number;
+  volumenUpsell: number;
   schnittDeal: number | null;
   leadZuSetting: number | null;
   settingZuClosing: number | null;
   closingZuAbschluss: number | null;
   zyklusTage: number | null;
-  gewonneneDeals: Array<{ opp: string; lead_id: string; wert: number; datum: string; user_id: string | null }>;
+  gewonneneDeals: Array<{ opp: string; lead_id: string; wert: number; datum: string; user_id: string | null; upsell: boolean }>;
 }
 
 function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string): Periodenzahlen {
@@ -178,7 +187,8 @@ function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string):
   const p = ü.filter((x) => drin(x.date));
   const opps = new Map(e.opps.map((o) => [o.id, o]));
 
-  const neueAnfragen = e.opps.filter((o) => drin(o.date_created)).length;
+  // Upsell-Deals sind keine Anfragen und laufen nicht durch Setting/Closing
+  const neueAnfragen = e.opps.filter((o) => !o.upsell && drin(o.date_created)).length;
   const settingGebucht = p.filter((x) => x.nach === 'setting' && x.von !== 'setting').length;
   const settingNoShow = p.filter((x) => x.nach === 'setting_noshow' && x.von !== 'setting_noshow').length;
   const settingGehalten = p.filter((x) => x.von === 'setting' && SETTING_GEHALTEN_NACH.includes(x.nach)).length;
@@ -186,7 +196,7 @@ function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string):
   const closingNoShow = p.filter((x) => x.nach === 'closing_noshow' && x.von !== 'closing_noshow').length;
   const closingGehalten = p.filter(istClosingGehalten).length;
   const angebote = p.filter((x) => x.nach === 'angebot' && x.von !== 'angebot').length;
-  const verloren = new Set(p.filter((x) => x.nach === 'lost').map((x) => x.opp)).size;
+  const verloren = new Set(p.filter((x) => x.nach === 'lost' && !opps.get(x.opp)?.upsell).map((x) => x.opp)).size;
 
   // Gewonnen: maßgeblich ist das Abschlussdatum des Deals (date_won = „Close date“ in Close).
   // Der Statuswechsel taugt dafür nicht – alte Deals wurden z. B. gesammelt nachgetragen und hätten sonst
@@ -202,10 +212,12 @@ function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string):
   }
   const gewonneneDeals = [...won.values()].map((x) => {
     const o = opps.get(x.opp)!;
-    return { opp: o.id, lead_id: o.lead_id, wert: o.value, datum: x.date, user_id: x.user_id ?? o.user_id };
+    return { opp: o.id, lead_id: o.lead_id, wert: o.value, datum: x.date, user_id: x.user_id ?? o.user_id, upsell: !!o.upsell };
   });
   const auftragsvolumen = gewonneneDeals.reduce((s, d) => s + d.wert, 0);
-  const zyklen = gewonneneDeals
+  const neu = gewonneneDeals.filter((d) => !d.upsell);
+  const volumenNeu = neu.reduce((s, d) => s + d.wert, 0);
+  const zyklen = neu
     .map((d) => (new Date(d.datum).getTime() - new Date(opps.get(d.opp)!.date_created).getTime()) / TAG)
     .filter((t) => t >= 0);
 
@@ -221,12 +233,16 @@ function periodenzahlen(e: Eingaben, ü: Übergang[], von: string, bis: string):
     closingShowQuote: quote(closingGehalten, closingGehalten + closingNoShow),
     angebote,
     gewonnen: gewonneneDeals.length,
+    gewonnenNeu: neu.length,
+    gewonnenUpsell: gewonneneDeals.length - neu.length,
     verloren,
     auftragsvolumen,
-    schnittDeal: gewonneneDeals.length ? Math.round(auftragsvolumen / gewonneneDeals.length) : null,
+    volumenNeu,
+    volumenUpsell: auftragsvolumen - volumenNeu,
+    schnittDeal: neu.length ? Math.round(volumenNeu / neu.length) : null,
     leadZuSetting: quote(settingGebucht, neueAnfragen),
     settingZuClosing: quote(closingGebucht, settingGehalten),
-    closingZuAbschluss: quote(gewonneneDeals.length, closingGehalten),
+    closingZuAbschluss: quote(neu.length, closingGehalten),
     zyklusTage: zyklen.length ? Math.round(zyklen.reduce((a, b) => a + b, 0) / zyklen.length) : null,
     gewonneneDeals,
   };
@@ -240,6 +256,56 @@ export interface Problem {
   bereich: 'Marketing' | 'Setting' | 'Closing' | 'Pipeline' | 'Daten';
   titel: string;
   detail: string;
+}
+
+/** Upsell-Stufe aus dem Status-Label („Upsell - Konzept präsentiert“ …) */
+export type UpsellStufe = 'potenzial' | 'strategietermin' | 'konzept' | 'entscheidung';
+const UPSELL_STUFEN: Array<{ stufe: UpsellStufe; label: string; erkennung: RegExp; standard: number }> = [
+  { stufe: 'potenzial', label: 'Potenzial erkannt', erkennung: /potenzial/i, standard: 0.1 },
+  { stufe: 'strategietermin', label: 'Strategietermin gelegt', erkennung: /strategie/i, standard: 0.25 },
+  { stufe: 'konzept', label: 'Konzept präsentiert', erkennung: /konzept/i, standard: 0.4 },
+  { stufe: 'entscheidung', label: 'Entscheidung offen', erkennung: /entscheid/i, standard: 0.6 },
+];
+
+/**
+ * Offene Upsell-Deals: Wert, gewichtet mit der Abschlusschance aus Close (sonst Standard je Stufe).
+ * „Abschlussnah“ (Konzept präsentiert, Entscheidung offen) fließt in den Monats-Forecast.
+ */
+export function berechneUpsellPipeline(e: Pick<Eingaben, 'opps' | 'statuses'>, jetzt: Date, letzteBewegung: Map<string, string> = new Map()) {
+  const statusById = new Map(e.statuses.map((s) => [s.id, s]));
+  const deals = e.opps
+    .filter((o) => o.upsell && statusById.get(o.status_id)?.type === 'active')
+    .map((o) => {
+      const label = statusById.get(o.status_id)?.label ?? '';
+      const st = UPSELL_STUFEN.find((x) => x.erkennung.test(label)) ?? UPSELL_STUFEN[0];
+      // 0 % bzw. leer in Close = nicht gepflegt → Standard der Stufe
+      const chance = o.confidence && o.confidence > 0 ? Math.min(100, o.confidence) / 100 : st.standard;
+      const letzte = letzteBewegung.get(o.id) ?? o.date_created;
+      return {
+        opp: o.id,
+        lead_id: o.lead_id,
+        firma: o.lead_name ?? 'Unbekannt',
+        stufe: st.stufe,
+        stufeLabel: st.label,
+        wert: o.value,
+        chance: Math.round(chance * 100),
+        gewichtet: Math.round(o.value * chance),
+        tageOhneBewegung: Math.max(0, Math.floor((jetzt.getTime() - new Date(letzte).getTime()) / TAG)),
+      };
+    })
+    .sort((a, b) => b.wert - a.wert);
+  const abschlussnah = deals.filter((d) => d.stufe === 'konzept' || d.stufe === 'entscheidung');
+  return {
+    offenAnzahl: deals.length,
+    offenWert: deals.reduce((s, d) => s + d.wert, 0),
+    gewichtet: deals.reduce((s, d) => s + d.gewichtet, 0),
+    abschlussnahGewichtet: abschlussnah.reduce((s, d) => s + d.gewichtet, 0),
+    proStufe: UPSELL_STUFEN.map((x) => {
+      const l = deals.filter((d) => d.stufe === x.stufe);
+      return { stufe: x.stufe, label: x.label, anzahl: l.length, wert: l.reduce((s, d) => s + d.wert, 0), gewichtet: l.reduce((s, d) => s + d.gewichtet, 0) };
+    }),
+    deals,
+  };
 }
 
 export function berechneSalesControlling(e: Eingaben) {
@@ -267,7 +333,7 @@ export function berechneSalesControlling(e: Eingaben) {
   const metaLeads = e.metaZeitraum?.leads ?? 0;
   const div = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) / 100 : null);
   const quellen = new Map<string, number>();
-  const neuImZeitraum = e.opps.filter((o) => o.date_created >= e.zeitraum.von && o.date_created < e.zeitraum.bis);
+  const neuImZeitraum = e.opps.filter((o) => !o.upsell && o.date_created >= e.zeitraum.von && o.date_created < e.zeitraum.bis);
   const kategorie = (q: string | null | undefined) => {
     const s = (q ?? '').toLowerCase();
     if (!s) return 'Unbekannt';
@@ -287,8 +353,9 @@ export function berechneSalesControlling(e: Eingaben) {
     kostenProAnfrage: div(spend, z.neueAnfragen),
     kostenProSetting: div(spend, z.settingGebucht),
     kostenProClosing: div(spend, z.closingGebucht),
-    kundenakquisekosten: div(spend, z.gewonnen),
-    roas: spend > 0 ? r1(z.auftragsvolumen / spend) : null,
+    kundenakquisekosten: div(spend, z.gewonnenNeu),
+    // Werbung bringt Neukunden – Upsells zählen hier nicht mit
+    roas: spend > 0 ? r1(z.volumenNeu / spend) : null,
     quellen: [...quellen.entries()].map(([quelle, anzahl]) => ({ quelle, anzahl })).sort((a, b) => b.anzahl - a.anzahl),
     vergleich: { spend: e.metaVergleich?.spend ?? 0, metaLeads: e.metaVergleich?.leads ?? 0, neueAnfragen: vg.neueAnfragen },
   };
@@ -345,7 +412,8 @@ export function berechneSalesControlling(e: Eingaben) {
   const monat = periodenzahlen(e, ü, isoTag(mStart), isoTag(mEnde));
   const sollBisHeute = Math.round((e.ziel * vergangeneTage) / tageImMonat);
   const hochrechnung = Math.round((monat.auftragsvolumen / vergangeneTage) * tageImMonat);
-  const forecast = monat.auftragsvolumen + pipeline.abschlussnahGewichtet;
+  const upsellPipeline = berechneUpsellPipeline(e, jetzt, letzteBewegung);
+  const forecast = monat.auftragsvolumen + pipeline.abschlussnahGewichtet + upsellPipeline.abschlussnahGewichtet;
   const rest = Math.max(0, e.ziel - monat.auftragsvolumen);
   const restTage = Math.max(1, tageImMonat - vergangeneTage);
   const restWochen = Math.max(1 / 7, restTage / 7);
@@ -362,7 +430,7 @@ export function berechneSalesControlling(e: Eingaben) {
   };
   // Spend und Anfragen über dasselbe Fenster (Meta-Monate ab Vorvormonat)
   const spendFensterAb = isoTag(monatsStart(jetzt, -2));
-  const refAnfragen = Math.max(1, e.opps.filter((o) => o.date_created >= spendFensterAb).length);
+  const refAnfragen = Math.max(1, e.opps.filter((o) => !o.upsell && o.date_created >= spendFensterAb).length);
   const kostenProAnfrage = refSpend > 0 ? refSpend / refAnfragen : null;
   const rückwärts = (volumen: number) => {
     const deals = Math.ceil(volumen / schnittDeal);
@@ -382,7 +450,7 @@ export function berechneSalesControlling(e: Eingaben) {
     };
   };
   const tempo90ProWoche = {
-    deals: r1(ref.gewonnen / (90 / 7)),
+    deals: r1(ref.gewonnenNeu / (90 / 7)),
     closingsGebucht: r1(ref.closingGebucht / (90 / 7)),
     settingsGebucht: r1(ref.settingGebucht / (90 / 7)),
     anfragen: r1(ref.neueAnfragen / (90 / 7)),
@@ -433,15 +501,16 @@ export function berechneSalesControlling(e: Eingaben) {
   });
 
   // ── Personen (Setter/Closer – derzeit Deal-Besitzer in Close) ──
-  const personen = new Map<string, { gewonnen: number; volumen: number; closingGehalten: number; closingNoShow: number; settingGehalten: number; settingNoShow: number }>();
+  const personen = new Map<string, { gewonnen: number; gewonnenNeu: number; volumen: number; closingGehalten: number; closingNoShow: number; settingGehalten: number; settingNoShow: number }>();
   const pers = (id: string | null) => {
     const k = id ?? '–';
-    if (!personen.has(k)) personen.set(k, { gewonnen: 0, volumen: 0, closingGehalten: 0, closingNoShow: 0, settingGehalten: 0, settingNoShow: 0 });
+    if (!personen.has(k)) personen.set(k, { gewonnen: 0, gewonnenNeu: 0, volumen: 0, closingGehalten: 0, closingNoShow: 0, settingGehalten: 0, settingNoShow: 0 });
     return personen.get(k)!;
   };
   for (const d of z.gewonneneDeals) {
     const p = pers(d.user_id);
     p.gewonnen++;
+    if (!d.upsell) p.gewonnenNeu++;
     p.volumen += d.wert;
   }
   for (const x of ü.filter((x) => x.date >= e.zeitraum.von && x.date < e.zeitraum.bis)) {
@@ -455,7 +524,7 @@ export function berechneSalesControlling(e: Eingaben) {
       user_id: id === '–' ? null : id,
       name: id === '–' ? 'Nicht zugeordnet' : e.users.get(id) ?? 'Unbekannt',
       ...p,
-      abschlussquote: quote(p.gewonnen, p.closingGehalten),
+      abschlussquote: quote(p.gewonnenNeu, p.closingGehalten),
       closingShowQuote: quote(p.closingGehalten, p.closingGehalten + p.closingNoShow),
       settingShowQuote: quote(p.settingGehalten, p.settingGehalten + p.settingNoShow),
     }))
@@ -557,6 +626,7 @@ export function berechneSalesControlling(e: Eingaben) {
     referenz90: { ...ref, gewonneneDeals: undefined },
     marketing,
     pipeline,
+    upsellPipeline,
     verlauf,
     personen: personenListe,
     probleme,

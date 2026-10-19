@@ -247,6 +247,14 @@ async function runDailyJobs() {
   }
 
   // 7b5. Kunden im Sales-WhatsApp markieren, dann an überfällige Aufgaben erinnern (Schalter in /admin/wochenberichte)
+  // Upsell-Wächter: Deals ohne nächsten Schritt → Close-Aufgabe (nur mit Freigabe)
+  try {
+    const { pruefeUpsellDeals } = await import('@/lib/sales/upsell-waechter');
+    results.upsellWaechter = await pruefeUpsellDeals(supabase);
+  } catch (err) {
+    console.error('[daily] Upsell-Wächter', err);
+  }
+
   try {
     const { verknuepfeKundenKontakte } = await import('@/lib/fulfillment/kunden-kontakt');
     await verknuepfeKundenKontakte(supabase);

@@ -208,7 +208,7 @@ export function VertriebClient() {
                 <Verlauf d={d} />
               </div>
               <Funnel d={d} />
-              {d.upsell && <UpsellBereich u={d.upsell} label={d.zeitraum.label} />}
+              {d.upsell && <UpsellBereich u={d.upsell} label={d.zeitraum.label} pipeline={d.upsellPipeline} />}
             </>
           )}
 
@@ -457,7 +457,7 @@ function Rückwärts({ d }: { d: Daten }) {
 
 /* ── Upsell ──────────────────────────────────────────────────── */
 
-function UpsellBereich({ u, label }: { u: Upsell; label: string }) {
+function UpsellBereich({ u, label, pipeline }: { u: Upsell; label: string; pipeline?: SalesControlling['upsellPipeline'] }) {
   const p = (x: number | null) => (x === null ? '–' : `${zahl(x)} %`);
   return (
     <Card>
@@ -470,6 +470,26 @@ function UpsellBereich({ u, label }: { u: Upsell; label: string }) {
         <Kennzahl label="Upsell-Volumen" wert={eur(u.upsellVolumen)} sub={`${p(u.volumenAnteil)} vom Gesamtvolumen`} />
         <Kennzahl label={`Upsell · ${label}`} wert={eur(u.zeitraum.upsell.volumen)} sub={`${u.zeitraum.upsell.anzahl} Upsells · ${u.zeitraum.neukauf.anzahl} Neukunden`} />
       </div>
+      {pipeline && pipeline.offenAnzahl > 0 && (
+        <div className="mt-5">
+          <p className="text-[13px] font-medium text-gray-600">
+            Offene Upsells · {eur(pipeline.offenWert)} · gewichtet {eur(pipeline.gewichtet)}
+          </p>
+          <ul className="mt-2 divide-y divide-gray-100 text-[13.5px]">
+            {pipeline.deals.map((x) => (
+              <li key={x.opp} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0 truncate">
+                  {x.firma} <span className="text-gray-500">· {x.stufeLabel}</span>
+                </span>
+                <span className="flex-none text-gray-500">
+                  <span className="font-medium text-gray-900">{eur(x.wert)}</span> · {x.chance} %
+                  {x.tageOhneBewegung >= 5 && <span className="ml-2 text-amber-700">{x.tageOhneBewegung} T. ohne Bewegung</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {u.nachkaeufer.length > 0 && (
         <ul className="mt-4 divide-y divide-gray-100 text-[13.5px]">
           {u.nachkaeufer.slice(0, 8).map((k) => (
@@ -502,8 +522,8 @@ function MarketingBereich({ d }: { d: Daten }) {
         <Kennzahl label="Meta-Leads" wert={zahl(m.metaLeads)} sub={`CPL ${eur(m.cpl, 2)}`} delta={<Delta jetzt={m.metaLeads} vorher={m.vergleich.metaLeads} />} />
         <Kennzahl label="Anfragen im CRM" wert={zahl(m.neueAnfragen)} sub={`${eur(m.kostenProAnfrage)} je Anfrage`} delta={<Delta jetzt={m.neueAnfragen} vorher={m.vergleich.neueAnfragen} />} />
         <Kennzahl label="Kosten je Setting" wert={eur(m.kostenProSetting)} />
-        <Kennzahl label="Kosten je Kunde" wert={eur(m.kundenakquisekosten)} sub="Werbekosten ÷ Abschlüsse" />
-        <Kennzahl label="ROAS" wert={m.roas === null ? '–' : `${zahl(m.roas)}×`} sub="Auftragsvolumen ÷ Werbekosten" />
+        <Kennzahl label="Kosten je Kunde" wert={eur(m.kundenakquisekosten)} sub="Werbekosten ÷ Neukunden" />
+        <Kennzahl label="ROAS" wert={m.roas === null ? '–' : `${zahl(m.roas)}×`} sub="Neukunden-Volumen ÷ Werbekosten" />
       </div>
       <p className="mt-5 text-[13px] font-medium text-gray-600">Herkunft der Anfragen</p>
       <ul className="mt-2 space-y-2">

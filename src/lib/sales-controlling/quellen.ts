@@ -2,7 +2,12 @@ import type { CloseStatus, MetaZahlen, Opp, StatusEvent } from './compute';
 import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import type { Anruf, Aufgabe } from './detail';
 
-/** Datenquellen für das Sales-Controlling: Close (Pipeline „D2D Sales“) und Meta Ads (Sales-Werbekonto). */
+import { UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
+
+/**
+ * Datenquellen für das Sales-Controlling: Close (Pipelines „D2D Sales“ + „Upsell (Bestandskunden)“) und Meta Ads.
+ * Upsell-Deals tragen `upsell: true` – sie zählen für Umsatz/Ziel, aber nicht für die Neukunden-Quoten.
+ */
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 export const CLOSE_PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
@@ -72,20 +77,38 @@ async function ladeStatuswechsel(ab: string): Promise<RohStatuswechsel[]> {
 }
 
 export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) => Opp[]) {
-  const [pipeline, oppsRaw, eventsRaw, usersRaw] = await Promise.all([
+  type OppRoh = { id: string; lead_id: string; lead_name?: string | null; status_id: string; value: number | null; confidence?: number | null; date_created: string; date_won: string | null; user_id: string | null };
+  const oppFelder = '_fields=id,lead_id,lead_name,status_id,value,confidence,date_created,date_won,user_id';
+  const [pipeline, oppsRaw, upsellPipeline, upsellRaw, eventsRaw, usersRaw] = await Promise.all([
     closeGet<{ statuses: CloseStatus[] }>(`/pipeline/${CLOSE_PIPELINE_ID}/`),
-    closeAll<{ id: string; lead_id: string; lead_name?: string | null; status_id: string; value: number | null; date_created: string; date_won: string | null; user_id: string | null }>(
-      `/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=id,lead_id,lead_name,status_id,value,date_created,date_won,user_id`,
-    ),
+    closeAll<OppRoh>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&${oppFelder}`),
+    // Upsell-Pipeline: fehlt sie (oder ist Close kurz weg), rechnet das Controlling wie bisher nur mit D2D
+    closeGet<{ statuses: CloseStatus[] }>(`/pipeline/${UPSELL_PIPELINE_ID}/`).catch(() => ({ statuses: [] as CloseStatus[] })),
+    closeAll<OppRoh>(`/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&${oppFelder}`).catch(() => [] as OppRoh[]),
     ladeStatuswechsel(historieAb),
     closeAll<{ id: string; first_name?: string; last_name?: string; email?: string }>(`/user/?_fields=id,first_name,last_name,email`).catch(() => []),
   ]);
 
-  const statuses = pipeline.statuses ?? [];
-  const valid = new Set(statuses.map((s) => s.id));
-  const opps: Opp[] = oppsRaw
-    .filter((o) => valid.has(o.status_id))
-    .map((o) => ({ id: o.id, lead_id: o.lead_id, lead_name: o.lead_name ?? null, status_id: o.status_id, value: (o.value ?? 0) / 100, date_created: o.date_created, date_won: o.date_won, user_id: o.user_id }));
+  const d2dStatuses = pipeline.statuses ?? [];
+  const upsellStatuses = upsellPipeline.statuses ?? [];
+  const statuses = [...d2dStatuses, ...upsellStatuses];
+  const zuOpp = (o: OppRoh, upsell: boolean): Opp => ({
+    id: o.id,
+    lead_id: o.lead_id,
+    lead_name: o.lead_name ?? null,
+    status_id: o.status_id,
+    value: (o.value ?? 0) / 100,
+    date_created: o.date_created,
+    date_won: o.date_won,
+    user_id: o.user_id,
+    ...(upsell ? { upsell: true, confidence: o.confidence ?? null } : {}),
+  });
+  const d2dValid = new Set(d2dStatuses.map((s) => s.id));
+  const upsellValid = new Set(upsellStatuses.map((s) => s.id));
+  const opps: Opp[] = [
+    ...oppsRaw.filter((o) => d2dValid.has(o.status_id)).map((o) => zuOpp(o, false)),
+    ...upsellRaw.filter((o) => upsellValid.has(o.status_id)).map((o) => zuOpp(o, true)),
+  ];
   const oppIds = new Set(opps.map((o) => o.id));
   const events: StatusEvent[] = eventsRaw
     .filter((e) => oppIds.has(e.opportunity_id))

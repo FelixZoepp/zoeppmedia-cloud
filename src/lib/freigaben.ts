@@ -70,6 +70,13 @@ export const FREIGABEN = {
       'Klappt es nicht: Close-Aufgabe „bitte einbuchen“. Beratungsgespräche bucht weiter ein Mensch. Aus: nur an Testnummern.',
     wirkt: 'WhatsApp-Antworten an den Lead + Calendly-Buchung',
   },
+  upsell_waechter: {
+    titel: '🔁 Upsell-Wächter',
+    was:
+      'Jeden Morgen prüft die Cloud alle offenen Deals der Pipeline „Upsell (Bestandskunden)“: Hat der Deal keinen nächsten Schritt (keine offene Aufgabe, kein künftiger Termin in Close), ' +
+      'bekommt der Deal-Besitzer die Aufgabe „🔁 Upsell <Firma>: nächsten Schritt festlegen“ (einmal, bis sie erledigt ist). Deals ohne Schritt oder seit 5+ Tagen ohne Bewegung stehen oben im CEO-Briefing.',
+    wirkt: 'Close-Aufgaben + Briefing an dich (keine Nachricht an Kunden)',
+  },
   absage_nachfass: {
     titel: '🗓️ Absage-Nachfass (Calendly)',
     was:
