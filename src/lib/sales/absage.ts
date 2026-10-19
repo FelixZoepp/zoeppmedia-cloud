@@ -292,12 +292,15 @@ export async function verarbeiteAbsage(svc: SupabaseClient, job: AbsageJob, jetz
   const t = await ladeTermin(svc, job.calendly_event_id);
   if (!t?.candidate_id) return 'kein_lead';
   const telefon = t.invitee_phone;
-  const freigabe = await istFreigegeben(svc, 'absage_nachfass');
-  if (!freigabe && !(telefon && (await darfSenden(svc, telefon)))) return 'freigabe_aus';
+  // Ohne Freigabe: keine WhatsApp – aber immer die interne Close-Aufgabe „Anrufen“, damit keine Absage liegen bleibt
+  const nachrichten = (await istFreigegeben(svc, 'absage_nachfass')) || !!(telefon && (await darfSenden(svc, telefon)));
   if (await neuGebucht(svc, t.candidate_id, jetzt)) return 'neu_gebucht';
 
   const { art, zurueckAm } = await liesGrund(job.grund, jetzt);
-  const plan = planeAbsage(art, zurueckAm, jetzt);
+  const geplant = planeAbsage(art, zurueckAm, jetzt);
+  const plan = nachrichten
+    ? geplant
+    : { ...geplant, nachrichtAm: null, aufgabe: geplant.aufgabe ?? `📞 Anrufen – hat das Gespräch abgesagt (${ART_LABEL[art]}). Neuen Termin legen.` };
   const name = t.invitee_name ?? 'Lead';
   const gespraech = job.chain === 'beratung' ? 'Beratungsgespräch' : 'Erstgespräch';
   const grundText = job.grund?.trim() ? `„${job.grund.trim().slice(0, 300)}“` : 'kein Grund angegeben';
@@ -341,6 +344,7 @@ export async function verarbeiteAbsage(svc: SupabaseClient, job: AbsageJob, jetz
     action_type: 'other',
     metadata: { kind: 'sales_absage', art, grund: job.grund, calendly_event_id: job.calendly_event_id, in_close: inClose },
   });
+  if (!nachrichten) return 'freigabe_aus';
   return plan.nachrichtAm ? 'geplant' : 'nur_aufgabe';
 }
 

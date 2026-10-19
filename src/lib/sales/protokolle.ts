@@ -191,12 +191,12 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
 export function regelnSetting(felder: Record<string, string | null>, jetzt: Date): Aktionen {
   const ergebnis = felder[SETTING_FELDER.ergebnis] ?? '';
   const kalender = felder[SETTING_FELDER.kalender] || null;
-  // Abgesagt → Rückruf am Kalender-Tag (bis dahin gesperrt), sonst morgen (Freigabe „absage_nachfass“)
+  // Abgesagt → Rückruf-Aufgabe am Kalender-Tag (bis dahin gesperrt), sonst morgen. Nur intern (Close-Aufgabe),
+  // deshalb ohne Freigabe – die WhatsApp nach Calendly-Absagen hängt separat an „absage_nachfass“.
   if (ergebnis.startsWith('Abgesagt')) {
     const spaeter = !!kalender && new Date(kalender).getTime() > jetzt.getTime();
     const datum = spaeter ? new Date(kalender!) : new Date(jetzt.getTime() + 864e5);
     return {
-      freigabe: 'absage_nachfass',
       ...(spaeter ? { gesperrtBis: new Date(kalender!).toISOString() } : {}),
       rueckruf: {
         datum: datum.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }),
