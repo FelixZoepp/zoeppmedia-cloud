@@ -8,7 +8,7 @@ import { decryptSecret } from '@/lib/crypto';
 
 interface MediaJobPayload {
   media_id: string;
-  mime_type: string;
+  mime_type?: string;
   message_id: string;
   conversation_id: string;
   wa_account_id: string;
@@ -40,12 +40,14 @@ export async function processMediaDownload(svc: SupabaseClient, agencyId: string
   const buffer = Buffer.from(await response.arrayBuffer());
 
   // 4. In Supabase Storage hochladen
-  const ext = payload.mime_type.split('/')[1] || 'bin';
+  // Sales-Inbound gibt keinen Mime-Typ mit → aus der Meta-Antwort (z. B. audio/ogg; codecs=opus)
+  const mimeType = (payload.mime_type || response.headers.get('content-type') || 'application/octet-stream').split(';')[0].trim();
+  const ext = mimeType.split('/')[1] || 'bin';
   const storagePath = `${agencyId}/whatsapp/${payload.conversation_id}/${payload.media_id}.${ext}`;
 
   const { error: uploadErr } = await svc.storage
     .from('whatsapp-media')
-    .upload(storagePath, buffer, { contentType: payload.mime_type });
+    .upload(storagePath, buffer, { contentType: mimeType });
 
   if (uploadErr) throw new Error(`Storage-Upload fehlgeschlagen: ${uploadErr.message}`);
 

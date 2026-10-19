@@ -31,7 +31,7 @@ export interface SalesInboundMessage {
   };
   image?: { id: string; caption?: string };
   document?: { id: string; caption?: string };
-  audio?: { id: string };
+  audio?: { id: string; mime_type?: string };
 }
 
 /** Lesbarer Text einer eingehenden Nachricht — inkl. Button-Antworten. */
@@ -71,7 +71,7 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
   const waAccount = account as { id: string; agency_id: string };
   const agencyId = waAccount.agency_id;
   const senderPhone = msg.from.startsWith('+') ? msg.from : `+${msg.from}`;
-  const text = inboundText(msg);
+  let text = inboundText(msg);
 
   // Zoepp-Assistent: Fragen von Felix' Nummer (ceo_briefing) → KI-Antwort mit Cloud-Zahlen, nie ein Lead
   const { nimmAssistentenNachricht } = await import('@/lib/assistant/whatsapp');
@@ -110,6 +110,16 @@ export async function processSalesInbound(svc: SupabaseClient, payload: SalesInb
     });
     if (jobErr && jobErr.code !== '23505') throw new Error(`Befehl nicht eingeplant: ${jobErr.message}`);
     return;
+  }
+
+  // Sprachnachricht eines Leads → abschreiben, damit Inbox, Close und die KI-Auswertung (Verschiebung, Wunschzeit) sie lesen können
+  if (msg.type === 'audio' && msg.audio?.id) {
+    const { schreibeSprachnachrichtAb } = await import('@/lib/whatsapp/transkript');
+    const transkript = await schreibeSprachnachrichtAb(svc, waAccount.id, msg.audio.id).catch((err) => {
+      console.error('[sales-inbound] Sprachnachricht nicht abgeschrieben:', err);
+      return '';
+    });
+    text = transkript ? `🎤 ${transkript}` : '[Sprachnachricht – nicht abgeschrieben, bitte in der Inbox anhören]';
   }
 
   // Prospect über die Nummer finden (angelegt bei der Calendly-Buchung)
