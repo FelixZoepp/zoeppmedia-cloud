@@ -126,6 +126,8 @@ export interface Aktionen {
   rueckruf?: { datum: string; text: string };
   /** Nur ausführen, wenn diese Freigabe an ist */
   freigabe?: 'absage_nachfass';
+  /** Nur interne Schritte (Aufgabe/Sperre) – läuft auch ohne Closing-Freigabe */
+  nurIntern?: boolean;
   /** Terminierung „Bucht sich selbst ein“: Frist, zu der geprüft wird, ob er gebucht hat */
   selbstbucher?: string;
 }
@@ -234,6 +236,16 @@ export function regelnClosing(felder: Record<string, string | null>, jetzt: Date
   if (schritt.startsWith('No-Show')) return { oppStatus: 'closing_no_show' };
   if (schritt.startsWith('Verschoben')) return { oppStatus: 'closing_terminiert', termin: kalender };
   if (schritt.startsWith('Verloren')) return { oppsVerloren: true };
+  // Abgesagt → Rückruf-Aufgabe (am Kalender-Tag, bis dahin gesperrt – sonst heute). Nur intern, keine Nachricht.
+  if (schritt.startsWith('Abgesagt')) {
+    const spaeter = !!kalender && new Date(kalender).getTime() > jetzt.getTime();
+    const datum = spaeter ? new Date(kalender!) : jetzt;
+    return {
+      nurIntern: true,
+      ...(spaeter ? { gesperrtBis: new Date(kalender!).toISOString() } : {}),
+      rueckruf: { datum: datum.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), text: '📞 Anrufen – hat das Beratungsgespräch abgesagt. Neuen Termin legen.' },
+    };
+  }
   return {};
 }
 
@@ -537,7 +549,7 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
       if (!(await istFreigegeben(svc, plan.freigabe))) plan = {};
     }
     // Closing: nur „Abgeschlossen“ läuft immer – alles andere erst nach Freigabe (/admin/freigaben)
-    if (typ === 'closing' && !plan.abgeschlossen && Object.keys(plan).length) {
+    if (typ === 'closing' && !plan.abgeschlossen && !plan.nurIntern && Object.keys(plan).length) {
       const { ladeFreigaben } = await import('@/lib/freigaben');
       const f = await ladeFreigaben(svc);
       if (!f.closing_ergebnisse) plan = {};

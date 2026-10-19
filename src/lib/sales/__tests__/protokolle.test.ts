@@ -144,3 +144,13 @@ describe('regelnSetting – No-Show', () => {
     expect(regelnSetting({ [S.ergebnis]: 'No-Show' }, new Date('2026-10-19T11:35:00Z'))).toEqual({ oppStatus: 'setting_no_show', gesperrtBis: '2026-10-20T11:35:00.000Z' });
   });
 });
+
+describe('regelnClosing – Abgesagt', () => {
+  it('Rückruf-Aufgabe heute, nur intern', async () => {
+    const { regelnClosing, CLOSING_FELDER: C } = await import('../protokolle');
+    expect(regelnClosing({ [C.naechsterSchritt]: '9. Abgesagt' }, new Date('2026-10-19T12:00:00Z'))).toEqual({
+      nurIntern: true,
+      rueckruf: { datum: '2026-10-19', text: '📞 Anrufen – hat das Beratungsgespräch abgesagt. Neuen Termin legen.' },
+    });
+  });
+});

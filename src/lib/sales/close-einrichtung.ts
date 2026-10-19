@@ -202,6 +202,15 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'upsell_protokoll_einrichtung', wert: JSON.stringify({ typId, ...erg }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    // Closing: Auswahl „9. Abgesagt“ im Feld „Nächster Schritt:“ ergänzen
+    if (name === 'closing_abgesagt') {
+      const id = 'cf_BhCW7idf0P9fl8ba0D6OZJIwuUDqiiBhHwgJCJbScuJ';
+      const feld = await close<{ choices?: string[] }>(`/custom_field/activity/${id}/`);
+      const choices = feld.choices ?? [];
+      if (!choices.some((c) => c.replace(/^\d+\.\s*/, '') === 'Abgesagt')) await close(`/custom_field/activity/${id}/`, { method: 'PUT', body: JSON.stringify({ choices: [...choices, '9. Abgesagt'] }) });
+      await svc.from('system_einstellungen').upsert({ key: 'closing_abgesagt', wert: JSON.stringify({ ok: true }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     // Terminierung: Auswahl „Bucht sich selbst ein“ im Feld „🔍 Entscheider Ergebnis“ ergänzen
     if (name === 'terminierung_selbstbucher') {
       const { SELBSTBUCHER_ERGEBNIS } = await import('./selbstbucher');
