@@ -70,6 +70,14 @@ export const FREIGABEN = {
       'Klappt es nicht: Close-Aufgabe „bitte einbuchen“. Beratungsgespräche bucht weiter ein Mensch. Aus: nur an Testnummern.',
     wirkt: 'WhatsApp-Antworten an den Lead + Calendly-Buchung',
   },
+  meta_conversions: {
+    titel: '📈 Meta Conversions API',
+    was:
+      'Die Cloud meldet dem „D2D Pixel“ echte Ergebnisse, damit Meta auf gute Leads optimiert: jede Funnel-Eintragung als „Lead“ (auch die, die das Browser-Pixel verpasst), ' +
+      'Deal auf „Closing – Terminiert“ als „QualifiedLead“ (Beratungsgespräch gelegt) und gewonnene Neukunden als „Purchase“ mit Auftragswert. ' +
+      'Kontaktdaten gehen nur verschlüsselt (SHA-256) an Meta. Testmodus ohne Freigabe: Test-Code aus dem Events Manager in system_einstellungen „meta_capi_test_code“ – dann nur unter „Ereignisse testen“ sichtbar.',
+    wirkt: 'Daten an Meta (keine Nachricht an Leads oder Kunden)',
+  },
   upsell_waechter: {
     titel: '🔁 Upsell-Wächter',
     was:

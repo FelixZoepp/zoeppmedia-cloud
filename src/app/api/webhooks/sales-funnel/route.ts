@@ -65,6 +65,18 @@ export async function POST(request: NextRequest) {
         .then(({ error }) => error && console.error('[sales-funnel] Herkunft:', error.message));
     }
     if (externalId) await svc.from('sales_funnel_eingaenge').update({ status: 'fertig', erledigt_am: new Date().toISOString(), lead_id: ergebnis.leadId }).eq('external_id', externalId);
+    // Meta Conversions API: jede Eintragung als „Lead“ (nur mit Freigabe/Testmodus, scheitert nie den Webhook)
+    {
+      const { klickAusPayload, planeCapiEvent } = await import('@/lib/meta/capi');
+      const klick = klickAusPayload(body);
+      await planeCapiEvent(svc, {
+        name: 'Lead',
+        eventId: `lead_${externalId ?? `${ergebnis.leadId}_${klick.konvertiert ?? Date.now()}`}`,
+        closeLeadId: ergebnis.leadId,
+        zeit: klick.konvertiert ? new Date(klick.konvertiert) : new Date(),
+        kontakt: { email: lead.email, phone: lead.phone, name: lead.name, fbclid: klick.fbclid, ersterBesuch: klick.ersterBesuch },
+      });
+    }
     await protokoll('done', null);
     return NextResponse.json({ ok: true, lead_id: ergebnis.leadId, neu: ergebnis.neu });
   } catch (err) {

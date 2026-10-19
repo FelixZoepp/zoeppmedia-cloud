@@ -24,7 +24,7 @@ interface CloseWebhookBody {
     object_id?: string;
     lead_id?: string;
     changed_fields?: string[];
-    data?: { status_id?: string; status_type?: string; lead_id?: string; status?: string; date_updated?: string };
+    data?: { status_id?: string; status_type?: string; lead_id?: string; status?: string; date_updated?: string; value?: number | null };
     previous_data?: { status_id?: string; status_type?: string };
   };
 }
@@ -108,6 +108,16 @@ export async function POST(request: NextRequest) {
   if (istGewonnen(ev)) {
     await planeDealFeier(svc, ev.object_id).catch((err) => console.error('[close-webhook] Deal-Feier:', err));
     result.feier = 'geplant';
+  }
+
+  // Meta Conversions API: Beratungsgespräch gelegt (= qualifiziert) und Neukunde gewonnen
+  {
+    const { capiAusCloseEreignis } = await import('@/lib/meta/capi-close');
+    const capi = capiAusCloseEreignis(ev);
+    if (capi) {
+      const { planeCapiEvent } = await import('@/lib/meta/capi');
+      result.capi = await planeCapiEvent(svc, { ...capi, closeLeadId: ev.lead_id ?? ev.data?.lead_id ?? null });
+    }
   }
 
   // Deal verloren → in 30 Min. prüfen, ob ein Verlustgrund eingetragen ist

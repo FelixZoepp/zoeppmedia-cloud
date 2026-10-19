@@ -480,6 +480,11 @@ export async function GET(request: NextRequest) {
           await pruefeProtokollPflicht(svc, (payload as { anruf_id: string }).anruf_id);
           break;
         }
+        case 'meta.capi': {
+          const { sendeCapiEvent } = await import('@/lib/meta/capi');
+          await sendeCapiEvent(svc, (payload as { event_id: string }).event_id);
+          break;
+        }
         case 'sales.deal_feier': {
           const { feiereDeal } = await import('@/lib/sales/deal-feier');
           await feiereDeal(svc, (payload as { opp_id: string }).opp_id);
