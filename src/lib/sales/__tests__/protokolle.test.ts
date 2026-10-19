@@ -137,3 +137,10 @@ describe('verlustgrundAusProtokoll', () => {
     expect(verlustgrundAusProtokoll('setting', { [S.ergebnis]: 'Unqualifiziert', [S.grund]: 'Erfunden' })).toBeNull();
   });
 });
+
+describe('regelnSetting – No-Show', () => {
+  it('setzt den Deal auf „Setting – No Show“ (startet die No-Show-Automatik)', async () => {
+    const { regelnSetting, SETTING_FELDER: S } = await import('../protokolle');
+    expect(regelnSetting({ [S.ergebnis]: 'No-Show' }, new Date('2026-10-19T11:35:00Z'))).toEqual({ oppStatus: 'setting_no_show' });
+  });
+});

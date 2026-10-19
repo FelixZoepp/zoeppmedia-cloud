@@ -70,6 +70,7 @@ const OPP_GEWONNEN = 'stat_BFVJiIlomolS2JMTSHc49cHnvh2Rl1IuWnudLEYRh0n';
 const OPP_ANGEBOT = 'stat_rfJv0gUGFIaEo2LQc7CkKKjSjabGuE509yRR0gZjozP';
 const OPP_CC2 = 'stat_TTFBUyYC71TwPVSrEmD0pa0GbqRowRt71e5xI5LFMTN';
 const OPP_CLOSING_NO_SHOW = 'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG';
+const OPP_SETTING_NO_SHOW = 'stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7';
 const LEAD_STATUS_DISQUALIFIZIERT = 'stat_8dSmRG4WxUrYGItFQyAy0B4lksHZYeaxnkmUiqKbuCu';
 
 export const SETTING_FELDER = {
@@ -105,7 +106,7 @@ export interface Aktionen {
   gesperrtBis?: string;
   leadStatus?: 'setting' | 'unqualifiziert' | 'bad_data' | 'disqualifiziert';
   /** Closing: aktive Opportunity auf diesen Status (Angebot, CC2, No-Show, Verschoben) */
-  oppStatus?: 'angebot' | 'cc2' | 'closing_no_show' | 'closing_terminiert';
+  oppStatus?: 'angebot' | 'cc2' | 'closing_no_show' | 'closing_terminiert' | 'setting_no_show';
   /** Closing: Angebot verschickt → Nachfass-Aufgaben für den Closer */
   angebotNachfassen?: boolean;
   oppsVerloren?: boolean;
@@ -195,6 +196,8 @@ export function regelnSetting(felder: Record<string, string | null>, jetzt: Date
       },
     };
   }
+  // No-Show → Deal auf „Setting – No Show“: das startet die No-Show-Automatik (Rückfrage + Rückholung)
+  if (ergebnis.startsWith('No-Show')) return { oppStatus: 'setting_no_show' };
   if (!ergebnis.startsWith('Unqualifiziert') || !kalender || new Date(kalender).getTime() <= jetzt.getTime()) return {};
   const grund = felder[SETTING_FELDER.grund];
   const uhr = new Date(kalender).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -383,7 +386,7 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
     }
   }
   if (a.oppStatus) {
-    const ziel = { angebot: OPP_ANGEBOT, cc2: OPP_CC2, closing_no_show: OPP_CLOSING_NO_SHOW, closing_terminiert: OPP_CLOSING_TERMINIERT }[a.oppStatus];
+    const ziel = { angebot: OPP_ANGEBOT, cc2: OPP_CC2, closing_no_show: OPP_CLOSING_NO_SHOW, closing_terminiert: OPP_CLOSING_TERMINIERT, setting_no_show: OPP_SETTING_NO_SHOW }[a.oppStatus];
     const aktiv = await aktiveOpps(leadId);
     const opp = [...aktiv].sort((x, y) => y.date_created.localeCompare(x.date_created))[0];
     const oppZiel = opp ? zielStatusFuer(opp, ziel) : null;
