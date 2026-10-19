@@ -169,6 +169,8 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
   if (ergebnis.startsWith('Beratungsgespräch gelegt')) return { closingTerminiert: true, termin: kalender };
   if (erreicht.startsWith('Nein') || ergebnis.startsWith('Nicht erreicht')) return { gesperrtBis: bisKalender ?? morgen };
   if (ergebnis.startsWith('Weiter Follow-up') && bisKalender) return { gesperrtBis: bisKalender };
+  // Verloren mit nächstem Versuch im Kalender (z. B. „3M Follow-up“) → bis dahin aus allen Anruflisten
+  if (ergebnis.startsWith('Verloren') && bisKalender) return { gesperrtBis: bisKalender };
   return {};
 }
 

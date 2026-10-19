@@ -39,11 +39,16 @@ export function plusMonate(iso: string, n: number): string {
   return d.toISOString();
 }
 
-/** Was passiert mit einem unqualifizierten Lead? (rein, testbar) */
+/**
+ * Was passiert mit einem unqualifizierten Lead? (rein, testbar)
+ * Eine Sperre zählt nur, wenn sie NACH der Einstufung gesetzt wurde bzw. später endet – eine alte, abgelaufene
+ * Sperre (z. B. von einem früheren Rückruf) würde den Lead sonst direkt nach „Unqualifiziert“ zurückholen.
+ */
 export function entscheide(gesperrtBis: string | null, eingestuftAm: string, jetzt: Date): { aktion: 'reaktivieren' } | { aktion: 'sperren'; bis: string } | { aktion: 'warten' } {
-  const bis = gesperrtBis ?? plusMonate(eingestuftAm, REAKTIVIERUNG_MONATE);
+  const gueltig = gesperrtBis && new Date(gesperrtBis).getTime() > new Date(eingestuftAm).getTime() ? gesperrtBis : null;
+  const bis = gueltig ?? plusMonate(eingestuftAm, REAKTIVIERUNG_MONATE);
   if (new Date(bis).getTime() <= jetzt.getTime()) return { aktion: 'reaktivieren' };
-  return gesperrtBis ? { aktion: 'warten' } : { aktion: 'sperren', bis };
+  return gueltig ? { aktion: 'warten' } : { aktion: 'sperren', bis };
 }
 
 /** Tick: einmal täglich ab 6 Uhr planen */
@@ -135,8 +140,9 @@ export async function reaktiviereUnqualifizierte(svc: SupabaseClient, jetzt: Dat
     if (bearbeitet >= PORTION || Date.now() > ende) break;
     bearbeitet++;
 
-    const seit = gesperrtBis ? null : await eingestuftAm(lead);
-    const e = entscheide(gesperrtBis, seit ?? jetzt.toISOString(), jetzt);
+    // Einstufungsdatum immer prüfen – auch bei abgelaufener Sperre (die kann älter als die Einstufung sein)
+    const seit = await eingestuftAm(lead);
+    const e = entscheide(gesperrtBis, seit, jetzt);
     if (e.aktion === 'sperren') {
       await close(`/lead/${lead.id}/`, { method: 'PUT', body: JSON.stringify({ [`custom.${GESPERRT_BIS}`]: e.bis }) });
       gesperrt++;

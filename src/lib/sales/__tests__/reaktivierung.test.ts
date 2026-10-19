@@ -14,4 +14,8 @@ describe('entscheide (Reaktivierung Unqualifizierte)', () => {
     expect(entscheide('2026-10-08T00:00:00Z', '2026-07-08T00:00:00Z', jetzt)).toEqual({ aktion: 'reaktivieren' });
     expect(entscheide('2026-12-01T00:00:00Z', '2026-09-01T00:00:00Z', jetzt)).toEqual({ aktion: 'warten' });
   });
+  it('alte, abgelaufene Sperre vor der Einstufung zählt nicht (Fall Klöden)', () => {
+    // Rückruf-Sperre bis 12.10., am 15.10. unqualifiziert → bis 15.01. gesperrt, nicht am 16.10. zurück
+    expect(entscheide('2026-10-12T10:00:00Z', '2026-10-15T09:00:00Z', new Date('2026-10-16T06:00:00Z'))).toEqual({ aktion: 'sperren', bis: '2027-01-15T09:00:00.000Z' });
+  });
 });
