@@ -450,6 +450,11 @@ export async function GET(request: NextRequest) {
           console.log('[bewerber-nicht-erreicht]', await sendeBewerberNichtErreicht(svc, payload as { candidate_id: string }));
           break;
         }
+        case 'sales.selbstbucher': {
+          const { pruefeSelbstbucher } = await import('@/lib/sales/selbstbucher');
+          await pruefeSelbstbucher(svc, payload as { protokoll_id: string });
+          break;
+        }
         case 'sales.nicht_erreicht': {
           const { sendeNichtErreicht } = await import('@/lib/sales/nicht-erreicht');
           console.log('[nicht-erreicht]', await sendeNichtErreicht(svc, payload as { lead_id: string }));

@@ -202,6 +202,16 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'upsell_protokoll_einrichtung', wert: JSON.stringify({ typId, ...erg }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    // Terminierung: Auswahl „Bucht sich selbst ein“ im Feld „🔍 Entscheider Ergebnis“ ergänzen
+    if (name === 'terminierung_selbstbucher') {
+      const { SELBSTBUCHER_ERGEBNIS } = await import('./selbstbucher');
+      const id = 'cf_0qd3PlDb9re1MU97cxNV7MJUXjHVYGmuifQc5CsTrN1';
+      const feld = await close<{ choices?: string[] }>(`/custom_field/activity/${id}/`);
+      const choices = feld.choices ?? [];
+      if (!choices.includes(SELBSTBUCHER_ERGEBNIS)) await close(`/custom_field/activity/${id}/`, { method: 'PUT', body: JSON.stringify({ choices: [...choices, SELBSTBUCHER_ERGEBNIS] }) });
+      await svc.from('system_einstellungen').upsert({ key: 'terminierung_selbstbucher', wert: JSON.stringify({ ok: true, choices: [...new Set([...choices, SELBSTBUCHER_ERGEBNIS])] }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'smartview_eingetragen') {
       const { passeEingetragenViewAn } = await import('./close-smartviews');
       await passeEingetragenViewAn();

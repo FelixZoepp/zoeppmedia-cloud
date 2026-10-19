@@ -37,6 +37,7 @@ import { legeSettingOpportunityAn, LEAD_STATUS_SETTING } from './funnel-lead';
 import { PROTOKOLL_TYPEN } from '@/lib/sales-controlling/tagesbericht';
 import { VERLUSTGRUENDE, VERLUSTGRUND_FELD } from './close-aufraeumen';
 import { istBestandskunde, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
+import { planeSelbstbucherCheck, selbstbucherFrist } from './selbstbucher';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const TAG = 864e5;
@@ -125,6 +126,8 @@ export interface Aktionen {
   rueckruf?: { datum: string; text: string };
   /** Nur ausführen, wenn diese Freigabe an ist */
   freigabe?: 'absage_nachfass';
+  /** Terminierung „Bucht sich selbst ein“: Frist, zu der geprüft wird, ob er gebucht hat */
+  selbstbucher?: string;
 }
 
 function plusMonate(d: Date, n: number): Date {
@@ -143,6 +146,11 @@ export function regelnTerminierung(felder: Record<string, string | null>, jetzt:
   const bisKalender = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : null;
 
   if (ergebnis.startsWith('Setting vereinbart')) return { leadStatus: 'setting', settingOpportunity: true, termin: kalender };
+  // Will selbst buchen → bis zur Frist gesperrt, dann Check (gebucht? sonst Aufgabe)
+  if (ergebnis.startsWith('Bucht sich selbst')) {
+    const frist = selbstbucherFrist(kalender, jetzt);
+    return { gesperrtBis: frist, selbstbucher: frist };
+  }
   // Nach 3 Monaten holt die tägliche Reaktivierung den Lead zurück in den Leadpool
   if (ergebnis.startsWith('Unqualifiziert')) return { leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: plusMonate(jetzt, 3).toISOString() };
   if (ergebnis.startsWith('Bad Data')) return { leadStatus: 'bad_data', oppsVerloren: true };
@@ -540,6 +548,10 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
       }
     }
     aktionen = { ...(await fuehreAus(a.lead_id, plan, a.user_id)), schluessel };
+    if (plan.selbstbucher) {
+      await planeSelbstbucherCheck(svc, { leadId: a.lead_id, protokollId: a.id, frist: plan.selbstbucher, jetzt });
+      aktionen.selbstbucher = plan.selbstbucher;
+    }
     // Abschluss nachziehen: Analyse gewonnen, Auftragswert prüfen, Kunde anlegen (nur mit Freigabe)
     if (plan.abgeschlossen) {
       const { istFreigegeben } = await import('@/lib/freigaben');

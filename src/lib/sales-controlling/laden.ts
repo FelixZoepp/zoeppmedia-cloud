@@ -87,6 +87,9 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
       ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
       metaVerbunden: metaZeitraum !== null,
       upsell: berechneUpsell({ opps: close.opps, statuses: close.statuses, zeitraum, jetzt }),
+      selbstbucher: await import('@/lib/sales/selbstbucher')
+        .then(({ ladeSelbstbucher }) => ladeSelbstbucher(createAdminClient(), zeitraum.von, zeitraum.bis))
+        .catch(() => null),
       details: berechneDetails({
         statuses: close.statuses,
         opps: close.opps,

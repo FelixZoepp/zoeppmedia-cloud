@@ -15,7 +15,7 @@ import { TagesberichtBereich } from './tagesbericht-bereich';
 import type { Auslastung } from '@/lib/sales-controlling/auslastung';
 import type { Upsell } from '@/lib/sales-controlling/upsell';
 
-type Daten = SalesControlling & { upsell?: Upsell; metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
+type Daten = SalesControlling & { upsell?: Upsell; selbstbucher?: { zugesagt: number; gebucht: number; nichtGebucht: number; offen: number; quote: number | null } | null; metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
 
 const eur = (n: number | null | undefined, digits = 0) =>
   n === null || n === undefined ? '–' : `${n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })} €`;
@@ -560,6 +560,13 @@ function SettingBereich({ d }: { d: Daten }) {
         <Kennzahl label="Gehalten" wert={zahl(z.settingGehalten)} />
         <Kennzahl label="No-Shows" wert={zahl(z.settingNoShow)} sub={`No-Show-Quote ${pct(z.settingShowQuote === null ? null : 100 - z.settingShowQuote)}`} delta={<Delta jetzt={z.settingNoShow} vorher={v.settingNoShow} invert />} />
         <Kennzahl label="Weiter ins Closing" wert={pct(z.settingZuClosing)} sub="Closings ÷ gehaltene Settings" />
+        {d.selbstbucher && d.selbstbucher.zugesagt > 0 && (
+          <Kennzahl
+            label="„Bucht sich selbst ein“"
+            wert={`${d.selbstbucher.gebucht} von ${d.selbstbucher.gebucht + d.selbstbucher.nichtGebucht}`}
+            sub={`wirklich gebucht${d.selbstbucher.quote === null ? '' : ` (${d.selbstbucher.quote} %)`}${d.selbstbucher.offen ? ` · ${d.selbstbucher.offen} offen` : ''}`}
+          />
+        )}
       </div>
     </Card>
   );
