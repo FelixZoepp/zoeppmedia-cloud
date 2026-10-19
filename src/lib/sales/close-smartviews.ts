@@ -47,7 +47,10 @@ const STATUS = {
   settingFollowUp: 'stat_EWpujNpwdtq5HSFAMO6c0awZUVgsz6TfO1ZXe5Ff8IT',
   closingFollowUp: 'stat_qdOAuGHxRx66Mk45E58gOOXnceL04Iouh6nAuoEXyjy',
   angebot: 'stat_rfJv0gUGFIaEo2LQc7CkKKjSjabGuE509yRR0gZjozP',
+  settingTerminiert: 'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH',
 } as const;
+
+const LEAD_SETTING = 'stat_E0PMV0VE8R9KIyqq8aGpBMyvBqjmaih50lXRczPpQ2L';
 
 /* ── Query-Bausteine (Close „s_query“) ─────────────────────────── */
 
@@ -175,6 +178,28 @@ export function smartViews(closingTerminFeld: string | null, kunden: CloseKunden
       s_query: sQuery(and(deal(STATUS.angebot, STATUS.closingFollowUp), nichtGesperrt), [sortierung('date_updated', 'asc')]),
     },
   ];
+}
+
+/**
+ * „🤑 3.2 (CC) Eingetragen – noch kein Termin“: Leadpool/Interessiert wie bisher – plus Leads im Setting, deren
+ * Erstgespräch vorbei ist und deren Deal noch auf „Setting – Terminiert“ steht (verschoben/abgesagt, nie neu gebucht).
+ * Gesperrte Leads (Unqualifiziert, Rückruf später …) bleiben draußen.
+ */
+export const EINGETRAGEN_VIEW = {
+  id: 'save_WJBL18ovnqgxlsqyvqY1fzN5V7Gt57preFFK4soA4X6',
+  s_query: sQuery(
+    and(
+      hatTelefon,
+      nichtGesperrt,
+      or(leadStatus(STATUS.leadpool, STATUS.interessiert), and(leadStatus(LEAD_SETTING), cf(F.settingTermin, bisJetzt), deal(STATUS.settingTerminiert))),
+    ),
+    [sortierung('date_updated', 'asc')],
+  ),
+};
+
+/** Nur diese eine View aktualisieren (Name bleibt, wie er in Close steht) */
+export async function passeEingetragenViewAn(): Promise<void> {
+  await close(`/saved_search/${EINGETRAGEN_VIEW.id}/`, { method: 'PUT', body: JSON.stringify({ s_query: EINGETRAGEN_VIEW.s_query }) });
 }
 
 /** Ersetzt „👤3.2 (CC) Inbound - nicht angerufen seit 2 Tagen“ (alter Name) durch die neue Liste */
