@@ -111,6 +111,12 @@ async function testCode(svc: SupabaseClient): Promise<string | null> {
   return w || null;
 }
 
+/**
+ * Sicherheitsgrenze: höchstens so viele Ereignisse je Tag (normal sind 2–6). Schützt vor Schleifen/Massenversand –
+ * alles darüber wird nicht gesendet, sondern als „übersprungen“ vermerkt.
+ */
+export const MAX_EREIGNISSE_PRO_TAG = 25;
+
 /** Ereignis vormerken (einmal je eventId) und Versand-Job planen. Nie werfen – Webhooks dürfen daran nicht scheitern. */
 export async function planeCapiEvent(
   svc: SupabaseClient,
@@ -119,6 +125,10 @@ export async function planeCapiEvent(
   try {
     const test = await testCode(svc);
     if (!test && !(await istFreigegeben(svc, 'meta_conversions'))) return 'aus';
+    // Nur frische Ereignisse (kein Nachmelden alter Daten) und nie mehr als die Tagesgrenze
+    if (e.zeit && Date.now() - e.zeit.getTime() > 2 * 864e5) return 'aus';
+    const { count } = await svc.from('meta_capi_events').select('event_id', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 864e5).toISOString());
+    const ueberGrenze = (count ?? 0) >= MAX_EREIGNISSE_PRO_TAG;
     const fbc = e.kontakt ? fbcAus(e.kontakt.fbclid, e.kontakt.ersterBesuch) : null;
     const { error } = await svc.from('meta_capi_events').insert({
       event_id: e.eventId,
@@ -130,9 +140,11 @@ export async function planeCapiEvent(
       test: !!test,
       user_data: e.kontakt ? baueUserData(e.kontakt, e.closeLeadId, fbc) : null,
       created_at: (e.zeit ?? new Date()).toISOString(),
+      ...(ueberGrenze ? { status: 'uebersprungen', antwort: { grund: `Tagesgrenze ${MAX_EREIGNISSE_PRO_TAG} erreicht` } } : {}),
     });
     if (error?.code === '23505') return 'doppelt';
     if (error) throw new Error(error.message);
+    if (ueberGrenze) return 'aus';
     await svc.from('scheduled_jobs').insert({
       agency_id: SALES_AGENCY_ID,
       type: 'meta.capi',
@@ -185,7 +197,8 @@ export async function sendeCapiEvent(svc: SupabaseClient, eventId: string): Prom
     event_id: string; event_name: CapiEreignis; close_lead_id: string | null; wert: number | null; fbc: string | null; test: boolean; status: string; user_data: Record<string, unknown> | null; created_at: string;
   } | null;
   if (!row) return 'unbekannt';
-  if (row.status === 'gesendet') return 'schon_gesendet';
+  // Jedes Ereignis genau ein Versuch: kein automatisches Wiederholen bei Fehlern (kein Dauerfeuer auf Meta)
+  if (row.status !== 'geplant') return `schon_${row.status}`;
 
   const token = process.env.META_CAPI_TOKEN || process.env.META_SYSTEM_USER_TOKEN;
   const fehler = async (text: string) => {
