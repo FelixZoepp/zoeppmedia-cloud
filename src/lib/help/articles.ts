@@ -13,6 +13,10 @@ export interface HelpArticle {
   topic: string;
   frage: string;
   antwort: string;
+  /** Optionale Schritt-für-Schritt-Anleitung (nummeriert unter der Antwort) */
+  schritte?: string[];
+  /** Optionaler Hinweis unter den Schritten */
+  hinweis?: string;
   /** Optionaler Link „Direkt öffnen“ */
   link?: { href: string; label: string };
 }
@@ -76,6 +80,23 @@ const KUNDE: HelpArticle[] = [
     antwort:
       'Unter „Statistiken“ siehst du den Recruiting-Trichter und die Entwicklung über die Zeit, unter „Reports“ die regelmäßigen Auswertungen.',
     link: { href: '/statistiken', label: 'Statistiken öffnen' },
+  },
+  {
+    topic: 'kampagne',
+    frage: 'Wie lade ich die Rechnungen von Meta (Facebook/Instagram) herunter?',
+    antwort:
+      'Meta stellt die Rechnungen für deine Werbeanzeigen direkt in deinem Werbekonto aus – nicht wir. Am besten lädst du sie einmal im Monat herunter, zu Monatsbeginn für den abgelaufenen Monat:',
+    schritte: [
+      'Öffne business.facebook.com/settings und melde dich bei Bedarf mit deinem Facebook-Konto an.',
+      'Klicke im linken Menü ganz unten auf „Abrechnung und Zahlungen“. Die Seite öffnet sich in einem neuen Tab.',
+      'Prüfe oben rechts, ob dein eigenes Werbekonto ausgewählt ist – bei mehreren Konten siehst du sonst die falschen Rechnungen.',
+      'Öffne oben rechts den Kalender, wähle den Zeitraum (meist den letzten Monat) und klicke auf „Aktualisieren“.',
+      'Klicke auf „Herunterladen“ → „Alle Transaktionen herunterladen (PDF)“. Du erhältst alle Rechnungen des Zeitraums in einer Datei.',
+      'Optional: Über das Download-Symbol rechts neben einer Transaktion lädst du einzelne Rechnungen herunter.',
+    ],
+    hinweis:
+      'Warum so viele kleine Rechnungen? Meta bucht am Anfang vorsichtig ab – erst kleine Beträge ab etwa 2 €, die mit der Zeit bis auf rund 500 € pro Abbuchung steigen. Das ist normal.',
+    link: { href: 'https://business.facebook.com/settings/', label: 'Meta Business-Einstellungen öffnen' },
   },
   {
     topic: 'kampagne',

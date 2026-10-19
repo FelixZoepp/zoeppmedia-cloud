@@ -53,7 +53,7 @@ export function HilfeClient({ audience, kontakt }: { audience: Audience; kontakt
   const q = norm(query.trim());
   const treffer = articles
     .map((a, i) => ({ a, i }))
-    .filter(({ a }) => (!topic || a.topic === topic) && (!q || norm(`${a.frage} ${a.antwort}`).includes(q)));
+    .filter(({ a }) => (!topic || a.topic === topic) && (!q || norm(`${a.frage} ${a.antwort} ${(a.schritte ?? []).join(' ')}`).includes(q)));
 
   return (
     <div>
@@ -161,11 +161,24 @@ export function HilfeClient({ audience, kontakt }: { audience: Audience; kontakt
                     >
                       <div className="overflow-hidden">
                         <p className="pb-2 pr-12 text-[15px] leading-relaxed text-gray-700">{a.antwort}</p>
-                        {a.link && (
-                          <Link href={a.link.href} className="mb-5 inline-flex items-center gap-1 text-[14px] font-medium text-red-800 hover:underline">
-                            {a.link.label} <ArrowUpRight className="h-4 w-4" />
-                          </Link>
+                        {a.schritte && (
+                          <ol className="mb-3 list-decimal space-y-1.5 pl-5 pr-12 text-[15px] leading-relaxed text-gray-700 marker:font-medium marker:text-red-800">
+                            {a.schritte.map((s) => (
+                              <li key={s}>{s}</li>
+                            ))}
+                          </ol>
                         )}
+                        {a.hinweis && <p className="mb-3 mr-12 rounded-lg bg-panel px-3 py-2 text-[14px] leading-relaxed text-gray-600">{a.hinweis}</p>}
+                        {a.link &&
+                          (a.link.href.startsWith('http') ? (
+                            <a href={a.link.href} target="_blank" rel="noopener noreferrer" className="mb-5 inline-flex items-center gap-1 text-[14px] font-medium text-red-800 hover:underline">
+                              {a.link.label} <ArrowUpRight className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <Link href={a.link.href} className="mb-5 inline-flex items-center gap-1 text-[14px] font-medium text-red-800 hover:underline">
+                              {a.link.label} <ArrowUpRight className="h-4 w-4" />
+                            </Link>
+                          ))}
                         {!a.link && <div className="pb-3" />}
                       </div>
                     </div>
