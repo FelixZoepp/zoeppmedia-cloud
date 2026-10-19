@@ -78,6 +78,14 @@ export const FREIGABEN = {
       'Kontaktdaten gehen nur verschlüsselt (SHA-256) an Meta. Sparsam: jedes Ereignis genau einmal, nur frische Ereignisse (nichts nachgemeldet), höchstens 25 pro Tag, kein automatisches Wiederholen. Testmodus ohne Freigabe: Test-Code aus dem Events Manager in system_einstellungen „meta_capi_test_code“ – dann nur unter „Ereignisse testen“ sichtbar.',
     wirkt: 'Daten an Meta (keine Nachricht an Leads oder Kunden)',
   },
+  upsell_protokoll: {
+    titel: '🔁 Upsell-Protokoll umsetzen',
+    was:
+      '„5 - Gesprächsprotokoll (Upsell)“ → Close: Strategietermin gelegt → Upsell-Deal „Strategietermin gelegt“ (25 %) · Konzepttermin → „Konzept präsentiert“ (40 %) · Entscheidungstermin → „Entscheidung offen“ (60 %, ohne alle Entscheider 45 % + Aufgabe) · ' +
+      'Verschoben ohne Datum → Aufgabe „neuen Termin legen“ · Kein Potenzial jetzt → Deal verloren + Wiedervorlage in 3 Monaten · Verloren → Deal verloren mit Grund · Nicht erreicht → gesperrt bis Kalender/morgen · No-Show → Aufgabe · Kunde unzufrieden → Aufgabe „mit Fulfillment klären“. ' +
+      'Der Auftragswert aus dem Protokoll landet im Deal (einmalig/monatlich). „Abgeschlossen“ → „Upsell – Gewonnen“ läuft immer. Der Lead bleibt „Kunde“.',
+    wirkt: 'Deals, Felder und Aufgaben in Close (keine Nachricht an Kunden)',
+  },
   upsell_waechter: {
     titel: '🔁 Upsell-Wächter',
     was:

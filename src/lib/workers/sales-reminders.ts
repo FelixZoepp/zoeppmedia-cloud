@@ -410,7 +410,7 @@ export async function gespraechDokumentiert(
     .from('close_protokolle')
     .select('typ')
     .eq('lead_id', leadId)
-    .in('typ', ['setting', 'closing', 'follow_up'])
+    .in('typ', ['setting', 'closing', 'follow_up', 'upsell'])
     .gte('datum', ab)
     .limit(1);
   if (prot?.length) return `Gesprächsprotokoll (${(prot[0] as { typ: string }).typ}) in Close`;

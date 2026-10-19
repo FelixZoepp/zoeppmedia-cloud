@@ -480,7 +480,11 @@ function felderAus(a: CloseCustomActivity): Record<string, string | null> {
 export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: string, jetzt: Date = new Date()): Promise<string> {
   const a = await closeJson<CloseCustomActivity>(`/activity/custom/${activityId}/`);
   if (a.status && a.status !== 'published') return 'entwurf';
-  const typ = TYP_NAME[a.custom_activity_type_id];
+  let typ: string | undefined = TYP_NAME[a.custom_activity_type_id];
+  // Upsell-Protokoll: Typ-ID kommt aus der Einrichtung (system_einstellungen)
+  const { ladeUpsellKonfig, setzeUpsellProtokollUm } = await import('./upsell-protokoll');
+  const upsellKonfig = typ ? null : await ladeUpsellKonfig(svc);
+  if (!typ && upsellKonfig?.typ === a.custom_activity_type_id) typ = 'upsell';
   if (!typ) return 'fremder_typ';
   const felder = felderAus(a);
 
@@ -489,7 +493,9 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   const { data: vorhanden } = await svc.from('close_protokolle').select('id, aktionen').eq('id', a.id).maybeSingle();
   const alteAktionen = (vorhanden as { aktionen: { schluessel?: string } | null } | null)?.aktionen ?? null;
   const schluesselFelder =
-    typ === 'follow_up'
+    typ === 'upsell' && upsellKonfig
+      ? ['ergebnis', 'erreicht', 'kalender', 'wert', 'zufrieden'].map((k) => upsellKonfig.felder[k] ?? k)
+      : typ === 'follow_up'
       ? [FOLLOWUP_FELDER_IDS.erreicht, FOLLOWUP_FELDER_IDS.ergebnis, FOLLOWUP_FELDER_IDS.kalender]
       : typ === 'closing'
         ? [CLOSING_FELDER.naechsterSchritt, CLOSING_FELDER.kalender]
@@ -499,6 +505,9 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
   const schluessel = schluesselFelder.map((f) => felder[f] ?? '').join('|');
 
   let aktionen: Record<string, unknown> | null = null;
+  if (typ === 'upsell' && upsellKonfig && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
+    aktionen = { ...(await setzeUpsellProtokollUm(svc, upsellKonfig, { lead_id: a.lead_id, user_id: a.user_id, felder }, jetzt)), schluessel };
+  }
   const regeln = typ === 'terminierung' ? regelnTerminierung : typ === 'follow_up' ? regelnFollowUp : typ === 'closing' ? regelnClosing : typ === 'setting' ? regelnSetting : null;
   if (regeln && a.lead_id && (!alteAktionen || alteAktionen.schluessel !== schluessel)) {
     let plan = regeln(felder, jetzt);

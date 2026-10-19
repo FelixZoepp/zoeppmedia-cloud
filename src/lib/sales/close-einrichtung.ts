@@ -187,6 +187,21 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'slack_diagnose', wert: JSON.stringify(await slackDiagnose()), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    // „5 - Gesprächsprotokoll (Upsell)“ anlegen (Typ + Felder), IDs merken
+    if (name === 'upsell_protokoll') {
+      const { UPSELL_FELDER, UPSELL_KONFIG_KEY, UPSELL_PROTOKOLL_NAME } = await import('./upsell-protokoll');
+      const typen = await close<{ data: Array<{ id: string; name: string }> }>(`/custom_activity/?_limit=100`);
+      const typId =
+        typen.data.find((t) => t.name.trim() === UPSELL_PROTOKOLL_NAME)?.id ??
+        (await close<{ id: string }>(`/custom_activity/`, {
+          method: 'POST',
+          body: JSON.stringify({ name: UPSELL_PROTOKOLL_NAME, description: 'Gespräch mit Bestandskunden über Verlängerung, Upgrade, mehr Stellen. Die Cloud setzt danach den Upsell-Deal (Stufe, Chance, Wert) und legt Aufgaben an.' }),
+        })).id;
+      const erg = await richteProtokollFelderEin(typId, UPSELL_FELDER);
+      await svc.from('system_einstellungen').upsert({ key: UPSELL_KONFIG_KEY, wert: JSON.stringify({ typ: typId, felder: erg.ids }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      await svc.from('system_einstellungen').upsert({ key: 'upsell_protokoll_einrichtung', wert: JSON.stringify({ typId, ...erg }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'smartview_eingetragen') {
       const { passeEingetragenViewAn } = await import('./close-smartviews');
       await passeEingetragenViewAn();
