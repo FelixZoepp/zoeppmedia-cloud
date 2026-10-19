@@ -520,11 +520,20 @@ export async function GET(request: NextRequest) {
         case 'sales.close_buchung': {
           const { bucheSettingInClose, bucheBeratungInClose } = await import('@/lib/sales/funnel-lead');
           const buchung = payload as unknown as import('@/lib/sales/funnel-lead').BuchungFuerClose;
+          // Abgesagte Buchung derselben Gesprächsart kurz davor = Verschiebung → nach dem Eintragen in Close markieren
+          const { findeVorherigenTermin, markiereVerschiebung } = await import('@/lib/sales/verschiebung-close');
+          const { gespraechAusTermin } = await import('@/lib/sales/verschiebung');
+          const vorher = await findeVorherigenTermin(svc, buchung).catch(() => null);
+          const gleicheArt = vorher && (gespraechAusTermin(vorher.eventType) === 'closing') === (buchung.chain === 'beratung');
+          let leadId: string;
           if (buchung.chain === 'beratung') {
             const { data: feld } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_lead_feld_closing_termin').maybeSingle();
-            await bucheBeratungInClose(buchung, (feld as { wert: string } | null)?.wert ?? null);
+            ({ leadId } = await bucheBeratungInClose(buchung, (feld as { wert: string } | null)?.wert ?? null));
           } else {
-            await bucheSettingInClose(buchung);
+            ({ leadId } = await bucheSettingInClose(buchung));
+          }
+          if (vorher && gleicheArt) {
+            await markiereVerschiebung(svc, leadId, buchung, vorher).catch((err) => console.error('[sales] Verschiebung nicht markiert:', err));
           }
           break;
         }
