@@ -278,6 +278,19 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'close_opp_status_ergebnis', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    // Nur „Gesperrt bis“ setzen (Status bleibt): lead_gesperrt:<lead_…>=<ISO-Datum>[;…]
+    if (name.startsWith('lead_gesperrt:')) {
+      const erg: Record<string, string> = {};
+      for (const paar of name.slice('lead_gesperrt:'.length).split(';')) {
+        const [lead, bis] = paar.split('=');
+        if (!/^lead_\w+$/.test(lead ?? '') || Number.isNaN(Date.parse(bis ?? ''))) continue;
+        await close(`/lead/${lead}/`, { method: 'PUT', body: JSON.stringify({ 'custom.cf_ivdENLjTV0OBF9z2It0W5CikYZMBZbE54BgcbINdO9S': new Date(bis).toISOString() }) })
+          .then(() => (erg[lead] = `gesperrt bis ${new Date(bis).toISOString()}`))
+          .catch((err) => (erg[lead] = `Fehler: ${err instanceof Error ? err.message : String(err)}`));
+      }
+      await svc.from('system_einstellungen').upsert({ key: 'close_lead_gesperrt_ergebnis', wert: JSON.stringify(erg), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     // Lead unqualifiziert + gesperrt bis: lead_sperren:<lead_…>=<ISO-Datum>[;…]
     if (name.startsWith('lead_sperren:')) {
       const erg: Record<string, string> = {};

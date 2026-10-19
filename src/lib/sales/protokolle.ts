@@ -205,7 +205,11 @@ export function regelnSetting(felder: Record<string, string | null>, jetzt: Date
     };
   }
   // No-Show → Deal auf „Setting – No Show“: das startet die No-Show-Automatik (Rückfrage + Rückholung)
-  if (ergebnis.startsWith('No-Show')) return { oppStatus: 'setting_no_show' };
+  // … und 1 Tag gesperrt (wie „nicht erreicht“), damit er nicht sofort wieder in den Anruflisten steht
+  if (ergebnis.startsWith('No-Show')) {
+    const bis = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : new Date(jetzt.getTime() + 864e5).toISOString();
+    return { oppStatus: 'setting_no_show', gesperrtBis: bis };
+  }
   if (!ergebnis.startsWith('Unqualifiziert') || !kalender || new Date(kalender).getTime() <= jetzt.getTime()) return {};
   const grund = felder[SETTING_FELDER.grund];
   const uhr = new Date(kalender).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
