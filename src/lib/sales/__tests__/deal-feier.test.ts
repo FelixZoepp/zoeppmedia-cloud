@@ -13,3 +13,11 @@ describe('istGewonnen', () => {
     expect(istGewonnen({ object_type: 'lead', action: 'updated', data: { status_id: OPP_GEWONNEN } })).toBe(false);
   });
 });
+
+describe('istGewonnen – Upsell-Pipeline', () => {
+  it('„Upsell - Gewonnen“ zählt als Abschluss', () => {
+    const UP = 'stat_7NL2g8Yj20LVCQZtfAtLD3oe5DDZkMNHSJmsK9XEcAX';
+    expect(istGewonnen({ object_type: 'opportunity', action: 'updated', changed_fields: ['status_id'], data: { status_id: UP }, previous_data: { status_id: 'stat_x' } })).toBe(true);
+    expect(istGewonnen({ object_type: 'opportunity', action: 'updated', changed_fields: ['status_id'], data: { status_id: UP }, previous_data: { status_id: UP } })).toBe(false);
+  });
+});

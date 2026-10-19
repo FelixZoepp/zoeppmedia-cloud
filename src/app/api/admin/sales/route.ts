@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { closeAll } from '@/lib/sales-controlling/quellen';
+import { UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
 
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 const CLOSE_BASE = 'https://api.close.com/api/v1';
@@ -57,8 +58,9 @@ export async function GET(req: Request) {
 
   // 1. Fetch pipeline to get status labels
   const pipeline = await closeGet(`/pipeline/${PIPELINE_ID}/`);
+  const upsellPipeline = await closeGet(`/pipeline/${UPSELL_PIPELINE_ID}/`).catch(() => ({ statuses: [] }));
   const statusMap: Record<string, { label: string; type: string }> = {};
-  for (const s of pipeline.statuses ?? []) {
+  for (const s of [...(pipeline.statuses ?? []), ...(upsellPipeline.statuses ?? [])]) {
     statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
   }
 
@@ -80,8 +82,11 @@ export async function GET(req: Request) {
   };
   // Close API already filters by pipeline_id server-side, no need to double-filter
   // (some responses omit pipeline_id field which would incorrectly drop deals)
-  const allOppData = { data: await closeAll<RawOpp>(`/opportunity/?pipeline_id=${PIPELINE_ID}&_order_by=date_created`) };
-  const allOpportunities: RawOpp[] = allOppData.data ?? [];
+  const upsellOpps = await closeAll<RawOpp>(`/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&_order_by=date_created`).catch(() => [] as RawOpp[]);
+  const upsellIds = new Set(upsellOpps.map((o) => o.id));
+  const allOpportunities: RawOpp[] = [...(await closeAll<RawOpp>(`/opportunity/?pipeline_id=${PIPELINE_ID}&_order_by=date_created`)), ...upsellOpps].sort((a, b) =>
+    (a.date_created ?? '').localeCompare(b.date_created ?? ''),
+  );
 
   // Build lookup: first opportunity id per lead (sorted by date_created asc)
   const firstOppPerLead = new Map<string, string>();
@@ -131,7 +136,8 @@ export async function GET(req: Request) {
       date_created: opp.date_created,
       date_updated: opp.date_updated,
       // First deal per lead = neukunde, any subsequent = bestandskunde (upsell)
-      deal_type: (firstOppPerLead.get(opp.lead_id) === opp.id ? 'neukunde' : 'bestandskunde') as 'neukunde' | 'bestandskunde',
+      // Upsell-Pipeline = immer Bestandskunde
+      deal_type: (!upsellIds.has(opp.id) && firstOppPerLead.get(opp.lead_id) === opp.id ? 'neukunde' : 'bestandskunde') as 'neukunde' | 'bestandskunde',
     };
   });
 

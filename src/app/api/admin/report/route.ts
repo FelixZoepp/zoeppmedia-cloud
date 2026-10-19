@@ -3,6 +3,7 @@ import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { closeAll, type CloseOppRoh } from '@/lib/sales-controlling/quellen';
+import { UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
 
 const META_API_VERSION = 'v21.0';
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -144,17 +145,23 @@ interface PipelineDeal {
 }
 
 async function fetchClosePipeline() {
-  // Get pipeline statuses — only D2D pipeline status IDs
+  // Status der Pipelines „D2D Sales“ + „Upsell (Bestandskunden)“
   const pipeline = await closeGet(`/pipeline/${CLOSE_PIPELINE_ID}/`);
+  const upsellPipeline = await closeGet(`/pipeline/${UPSELL_PIPELINE_ID}/`).catch(() => ({ statuses: [] }));
   const statusMap: Record<string, { label: string; type: string }> = {};
   const validStatusIds = new Set<string>();
-  for (const s of pipeline.statuses ?? []) {
+  for (const s of [...(pipeline.statuses ?? []), ...(upsellPipeline.statuses ?? [])]) {
     statusMap[s.id] = { label: s.label, type: s.type ?? 'active' };
     validStatusIds.add(s.id);
   }
 
-  // Fetch all opportunities and strictly filter to D2D pipeline status IDs
-  const allOppData = { data: await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_order_by=date_created`) };
+  // Alle Opportunities beider Pipelines (chronologisch, damit „erster Deal je Lead“ stimmt)
+  const allOppData = {
+    data: [
+      ...(await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_order_by=date_created`)),
+      ...(await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&_order_by=date_created`).catch(() => [] as CloseOppRoh[])),
+    ].sort((x, y) => (x.date_created ?? '').localeCompare(y.date_created ?? '')),
+  };
   const allOpps = (allOppData.data ?? []).filter(
     (o: { status_id: string }) => validStatusIds.has(o.status_id)
   );

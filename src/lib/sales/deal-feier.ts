@@ -11,17 +11,20 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SALES_AGENCY_ID } from './calendly-chain';
 import { slackKanal } from '@/lib/slack/kanaele';
 import { berlinMonatsStart } from '@/lib/zeit/berlin';
+import { UPSELL_STATUS } from './pipelines';
 
 export const OPP_GEWONNEN = 'stat_BFVJiIlomolS2JMTSHc49cHnvh2Rl1IuWnudLEYRh0n';
+/** Gewonnen in „D2D Sales“ oder „Upsell (Bestandskunden)“ */
+const GEWONNEN_STATUS = new Set([OPP_GEWONNEN, UPSELL_STATUS.gewonnen]);
 
 /** Feier-GIF (von Felix ausgesucht, liegt öffentlich unter public/icons) */
 export const FEIER_GIF = 'https://cloud.zoeppmedia.de/icons/deal-feier.gif';
 
 /** Webhook-Ereignis: wurde die Opportunity gerade gewonnen? (rein, testbar) */
 export function istGewonnen(ev: { object_type?: string; action?: string; changed_fields?: string[]; data?: { status_id?: string }; previous_data?: { status_id?: string } } | undefined): boolean {
-  if (ev?.object_type !== 'opportunity' || ev.data?.status_id !== OPP_GEWONNEN) return false;
+  if (ev?.object_type !== 'opportunity' || !GEWONNEN_STATUS.has(ev.data?.status_id ?? '')) return false;
   if (ev.action === 'created') return true;
-  return ev.action === 'updated' && (ev.changed_fields ?? []).includes('status_id') && ev.previous_data?.status_id !== OPP_GEWONNEN;
+  return ev.action === 'updated' && (ev.changed_fields ?? []).includes('status_id') && !GEWONNEN_STATUS.has(ev.previous_data?.status_id ?? '');
 }
 
 export async function planeDealFeier(svc: SupabaseClient, oppId: string): Promise<void> {
@@ -55,7 +58,7 @@ export async function feiereDeal(svc: SupabaseClient, oppId: string): Promise<st
   });
   if (!res.ok) throw new Error(`Close ${res.status}`);
   const opp = (await res.json()) as CloseOpp;
-  if (opp.status_id !== OPP_GEWONNEN) return 'nicht_gewonnen';
+  if (!GEWONNEN_STATUS.has(opp.status_id)) return 'nicht_gewonnen';
 
   const gif = FEIER_GIF;
   const volumen = (opp.value ?? 0) / 100;
