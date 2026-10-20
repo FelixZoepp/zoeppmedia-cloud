@@ -1,5 +1,6 @@
 /**
- * Kalender des Kunden (Google Kalender oder Microsoft 365/Outlook) mit einem Klick verbinden (OAuth):
+ * Kalender des Kunden verbinden – Google Kalender oder Microsoft 365/Outlook per OAuth (ein Klick),
+ * Apple/iCloud per CalDAV mit app-spezifischem Passwort (siehe apple-caldav.ts):
  * - belegte Zeiten lesen → freie Slots für Vorstellungsgespräch/Probetag
  * - Termine direkt im Kundenkalender eintragen (Bewerber als Gast eingeladen)
  * Env: GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET
@@ -9,13 +10,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { decryptSecret, encryptSecret } from '@/lib/crypto';
+import { appleBelegt, appleEintragen, appleLoeschen, appleVerschieben, entdeckeKalender, waehleKalender, type AppleZugang } from './apple-caldav';
 
-export type KalenderProvider = 'google' | 'microsoft';
+export type KalenderProvider = 'google' | 'microsoft' | 'apple';
+export type OAuthProvider = Exclude<KalenderProvider, 'apple'>;
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
-export const redirectUri = (p: KalenderProvider) => `${APP_URL()}/api/kalender/callback/${p}`;
+export const redirectUri = (p: OAuthProvider) => `${APP_URL()}/api/kalender/callback/${p}`;
 
 export function providerBereit(p: KalenderProvider): boolean {
+  if (p === 'apple') return true; // kein App-Zugang nötig – der Kunde nutzt ein app-spezifisches Passwort
   return p === 'google' ? !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) : !!(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
 }
 
@@ -48,7 +52,7 @@ export function pruefeState(state: string, jetzt = Date.now()): { agencyId: stri
 
 /* ── OAuth ───────────────────────────────────────────────────────────────── */
 
-export function authUrl(p: KalenderProvider, state: string): string {
+export function authUrl(p: OAuthProvider, state: string): string {
   if (p === 'google') {
     const q = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID ?? '',
@@ -81,7 +85,7 @@ interface TokenAntwort {
   id_token?: string;
 }
 
-async function tokenAnfrage(p: KalenderProvider, body: Record<string, string>): Promise<TokenAntwort> {
+async function tokenAnfrage(p: OAuthProvider, body: Record<string, string>): Promise<TokenAntwort> {
   const url = p === 'google' ? 'https://oauth2.googleapis.com/token' : 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
   const creds =
     p === 'google'
@@ -104,7 +108,7 @@ function emailAusIdToken(idToken?: string): string | null {
 }
 
 /** Callback: Code tauschen und Verbindung speichern (alte Verbindung des Kunden wird deaktiviert) */
-export async function verbindeKalender(svc: SupabaseClient, p: KalenderProvider, code: string, agencyId: string, userId: string): Promise<{ email: string | null }> {
+export async function verbindeKalender(svc: SupabaseClient, p: OAuthProvider, code: string, agencyId: string, userId: string): Promise<{ email: string | null }> {
   const t = await tokenAnfrage(p, { grant_type: 'authorization_code', code, redirect_uri: redirectUri(p) });
   if (!t.refresh_token) throw new Error('Kein dauerhafter Zugriff erteilt – bitte erneut verbinden und alle Berechtigungen bestätigen');
   const email = emailAusIdToken(t.id_token);
@@ -126,10 +130,34 @@ export async function verbindeKalender(svc: SupabaseClient, p: KalenderProvider,
   return { email };
 }
 
+/** Apple: Apple-ID + app-spezifisches Passwort prüfen, Kalender finden und Verbindung speichern */
+export async function verbindeApple(svc: SupabaseClient, agencyId: string, userId: string, appleId: string, passwort: string): Promise<{ email: string; kalender: string }> {
+  const zugang: AppleZugang = { appleId: appleId.trim(), passwort: passwort.replace(/\s+/g, '') };
+  const { home, kalender } = await entdeckeKalender(zugang);
+  const ziel = waehleKalender(kalender);
+  if (!ziel) throw new Error('In diesem iCloud-Konto gibt es keinen beschreibbaren Kalender');
+  const { data: neu, error } = await svc.from('kalender_verbindungen').insert({
+    aktiv: false,
+    agency_id: agencyId,
+    provider: 'apple',
+    konto_email: zugang.appleId,
+    kalender_id: ziel.url,
+    caldav_home: home,
+    refresh_token_enc: encryptSecret(zugang.passwort),
+    verbunden_von: userId,
+  }).select('id').single();
+  if (error || !neu) throw new Error(`Kalender nicht gespeichert: ${error?.message ?? ''}`);
+  await svc.from('kalender_verbindungen').update({ aktiv: false, updated_at: new Date().toISOString() }).eq('agency_id', agencyId).eq('aktiv', true);
+  const { error: aErr } = await svc.from('kalender_verbindungen').update({ aktiv: true, updated_at: new Date().toISOString() }).eq('id', (neu as { id: string }).id);
+  if (aErr) throw new Error(`Kalender nicht aktiviert: ${aErr.message}`);
+  return { email: zugang.appleId, kalender: ziel.name };
+}
+
 interface Verbindung {
   id: string;
   provider: KalenderProvider;
   kalender_id: string;
+  caldav_home: string | null;
   refresh_token_enc: string;
   access_token_enc: string | null;
   access_bis: string | null;
@@ -137,11 +165,26 @@ interface Verbindung {
 }
 
 export async function ladeVerbindung(svc: SupabaseClient, agencyId: string): Promise<Verbindung | null> {
-  const { data } = await svc.from('kalender_verbindungen').select('id, provider, kalender_id, refresh_token_enc, access_token_enc, access_bis, konto_email').eq('agency_id', agencyId).eq('aktiv', true).maybeSingle();
+  const { data } = await svc.from('kalender_verbindungen').select('id, provider, kalender_id, caldav_home, refresh_token_enc, access_token_enc, access_bis, konto_email').eq('agency_id', agencyId).eq('aktiv', true).maybeSingle();
   return (data as Verbindung | null) ?? null;
 }
 
+const appleZugang = (v: Verbindung): AppleZugang => ({ appleId: v.konto_email ?? '', passwort: decryptSecret(v.refresh_token_enc) });
+
+/** Apple-Fehler an der Verbindung merken (z. B. Passwort widerrufen), dann weiterwerfen */
+async function mitAppleFehler<T>(svc: SupabaseClient, v: Verbindung, f: () => Promise<T>): Promise<T> {
+  try {
+    const r = await f();
+    if (v.provider === 'apple') await svc.from('kalender_verbindungen').update({ fehler: null }).eq('id', v.id).not('fehler', 'is', null);
+    return r;
+  } catch (e) {
+    await svc.from('kalender_verbindungen').update({ fehler: (e instanceof Error ? e.message : String(e)).slice(0, 300), updated_at: new Date().toISOString() }).eq('id', v.id);
+    throw e;
+  }
+}
+
 async function zugriff(svc: SupabaseClient, v: Verbindung): Promise<string> {
+  if (v.provider === 'apple') throw new Error('Apple nutzt keinen OAuth-Zugriff');
   if (v.access_token_enc && v.access_bis && new Date(v.access_bis).getTime() > Date.now()) return decryptSecret(v.access_token_enc);
   try {
     const t = await tokenAnfrage(v.provider, { grant_type: 'refresh_token', refresh_token: decryptSecret(v.refresh_token_enc) });
@@ -168,6 +211,7 @@ async function zugriff(svc: SupabaseClient, v: Verbindung): Promise<string> {
 export async function belegteZeiten(svc: SupabaseClient, agencyId: string, von: Date, bis: Date): Promise<Array<{ starts_at: string; ends_at: string }> | null> {
   const v = await ladeVerbindung(svc, agencyId);
   if (!v) return null;
+  if (v.provider === 'apple') return mitAppleFehler(svc, v, () => appleBelegt(appleZugang(v), v.caldav_home ?? v.kalender_id, von, bis));
   const token = await zugriff(svc, v);
   if (v.provider === 'google') {
     const res = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
@@ -207,6 +251,7 @@ export async function trageTerminEin(
     const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
     if (!darfKontakt(await ladeSchalter(svc), { email: t.gastEmail, agencyId })) t = { ...t, gastEmail: null };
   }
+  if (v.provider === 'apple') return { eventId: await mitAppleFehler(svc, v, () => appleEintragen(appleZugang(v), v.kalender_id, t)), provider: 'apple' };
   const token = await zugriff(svc, v);
   if (v.provider === 'google') {
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(v.kalender_id)}/events?sendUpdates=${t.gastEmail ? 'all' : 'none'}`, {
@@ -243,6 +288,7 @@ export async function trageTerminEin(
 export async function loescheTermin(svc: SupabaseClient, agencyId: string, eventId: string, provider: KalenderProvider): Promise<void> {
   const v = await ladeVerbindung(svc, agencyId);
   if (!v || v.provider !== provider) return;
+  if (v.provider === 'apple') return mitAppleFehler(svc, v, () => appleLoeschen(appleZugang(v), eventId));
   const token = await zugriff(svc, v);
   const url =
     provider === 'google'
@@ -255,6 +301,7 @@ export async function loescheTermin(svc: SupabaseClient, agencyId: string, event
 export async function aktualisiereTermin(svc: SupabaseClient, agencyId: string, eventId: string, provider: KalenderProvider, start: Date, ende: Date): Promise<void> {
   const v = await ladeVerbindung(svc, agencyId);
   if (!v || v.provider !== provider) return;
+  if (v.provider === 'apple') return mitAppleFehler(svc, v, () => appleVerschieben(appleZugang(v), eventId, start, ende));
   const token = await zugriff(svc, v);
   const res =
     provider === 'google'

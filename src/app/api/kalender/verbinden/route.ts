@@ -17,5 +17,7 @@ export async function GET(req: NextRequest) {
   const nonce = randomBytes(16).toString('base64url');
   const res = NextResponse.redirect(authUrl(p, baueState(agencyId, user.id, Date.now(), nonce)));
   res.cookies.set('zm_kalender_nonce', nonce, { httpOnly: true, secure: true, sameSite: 'lax', path: '/api/kalender', maxAge: 15 * 60 });
+  // Aus dem Onboarding gestartet → nach der Anmeldung zurück ins Onboarding
+  res.cookies.set('zm_kalender_zurueck', req.nextUrl.searchParams.get('zurueck') === 'onboarding' ? 'onboarding' : 'settings', { httpOnly: true, secure: true, sameSite: 'lax', path: '/api/kalender', maxAge: 15 * 60 });
   return res;
 }

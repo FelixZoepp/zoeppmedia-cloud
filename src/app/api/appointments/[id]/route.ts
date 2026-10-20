@@ -154,7 +154,7 @@ export async function PATCH(
       const { createAdminClient } = await import('@/lib/supabase/admin');
       const k = await import('@/lib/kalender/kunden-kalender');
       const svc = createAdminClient();
-      const provider = appointment.kalender_provider as 'google' | 'microsoft';
+      const provider = appointment.kalender_provider as import('@/lib/kalender/kunden-kalender').KalenderProvider;
       if (cancelled) {
         await k.loescheTermin(svc, appointment.agency_id, appointment.kalender_event_id, provider);
       } else {

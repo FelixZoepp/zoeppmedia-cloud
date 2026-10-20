@@ -150,9 +150,16 @@ export const STEPS: StepDef[] = [
   { key: 'o_whatsapp', phase: 'onboarding', titel: 'WhatsApp-Nummer verbunden', wer: 'kunde', funktion: 'csm', frist_tage: 3, auto: 'whatsapp_verbunden', optional: true },
   {
     key: 'o_kalender', phase: 'onboarding', titel: 'Kalender verbunden',
-    beschreibung: 'Einstellungen → Kalender → mit Google oder Outlook verbinden. Dann tragen wir Vorstellungsgespräche und Probetage direkt in deinen Kalender ein und sehen deine freien Zeiten.',
+    beschreibung: 'Einstellungen → Kalender → Google, Outlook oder Apple verbinden. Dann tragen wir Vorstellungsgespräche und Probetage direkt in deinen Kalender ein und sehen deine freien Zeiten.',
     wer: 'kunde', funktion: 'innendienst', frist_tage: 3, auto: 'kalender_verbunden',
-    anleitung: { schritte: ['In der Zoepp Cloud links auf Einstellungen → Kalender', 'Auf „Mit Google Kalender verbinden“ bzw. „Mit Outlook verbinden“ klicken', 'Mit deinem Firmenkonto anmelden und den Zugriff bestätigen – fertig'] },
+    anleitung: {
+      schritte: [
+        'In der Zoepp Cloud links auf Einstellungen → Kalender',
+        'Google oder Outlook: auf „Verbinden“ klicken, mit deinem Konto anmelden und den Kalender-Zugriff bestätigen – fertig',
+        'Apple (iCloud): auf appleid.apple.com → Anmeldung und Sicherheit → App-spezifische Passwörter ein Passwort „Zoepp Cloud“ erstellen',
+        'Apple-ID und das 16-stellige Passwort in der Cloud eintragen → „Apple Kalender verbinden“',
+      ],
+    },
   },
   { key: 'o_zugaenge_geprueft', phase: 'onboarding', titel: 'Alle Zugänge geprüft', beschreibung: 'Meta: Seite, Instagram, Werbekonto, Pixel, Domain, Zahlungsmethode. Indeed: Admin-Zugang da, Zahlungsmethode hinterlegt, Weiterleitung bewerber+<Kunden-ID>@zoepp-gruppe.de in der Anzeige eingetragen (Adresse unter Anbindung).', wer: 'zoepp', funktion: 'media_buyer', frist_tage: 4 },
   {

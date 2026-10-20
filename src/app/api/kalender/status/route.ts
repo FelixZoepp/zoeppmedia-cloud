@@ -14,7 +14,7 @@ export async function GET() {
   const k = await kontext();
   if (!k) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { data } = await createAdminClient().from('kalender_verbindungen').select('provider, konto_email, fehler, created_at').eq('agency_id', k.agencyId).eq('aktiv', true).maybeSingle();
-  return NextResponse.json({ verbindung: data ?? null, google: providerBereit('google'), microsoft: providerBereit('microsoft') });
+  return NextResponse.json({ verbindung: data ?? null, google: providerBereit('google'), microsoft: providerBereit('microsoft'), apple: providerBereit('apple'), darfVerbinden: ['agency_owner', 'admin', 'employee'].includes(k.user.role) });
 }
 
 /** DELETE – Kalender trennen */

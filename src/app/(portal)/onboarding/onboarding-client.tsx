@@ -11,8 +11,9 @@ import { HandelsregisterUpload } from '@/components/onboarding/handelsregister-u
 import {
   Briefcase, MapPin, Palette, Phone, User, ChevronRight, ChevronLeft, Check,
   ShieldCheck, DollarSign, Building2, Sparkles, Video,
-  Globe, Settings, UserPlus, CreditCard, Code, FileText, Copy,
+  Globe, Settings, UserPlus, CreditCard, Code, FileText, Copy, CalendarCheck,
 } from 'lucide-react';
+import { KalenderVerbinden } from '@/components/kalender/kalender-verbinden';
 import { indeedZugangSchritte, type Baustein } from '@/lib/fulfillment/pakete';
 
 const steps = [
@@ -21,6 +22,7 @@ const steps = [
   { id: 3, title: 'Unternehmen & Extras', icon: Sparkles },
   { id: 4, title: 'Kontakt', icon: Phone },
   { id: 5, title: 'Meta & Indeed Zugang', icon: ShieldCheck },
+  { id: 6, title: 'Kalender', icon: CalendarCheck },
 ];
 
 const productOptions = [
@@ -179,6 +181,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
     3: 'Unternehmen & Extras',
     4: 'Kontakt',
     5: zugangTitel,
+    6: 'Kalender',
   };
 
   const trackStepStart = useCallback((stepNum: number) => {
@@ -915,6 +918,21 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
           </div>
         )}
 
+        {/* Step 6: Kalender verbinden (Google, Outlook oder Apple) */}
+        {step === 6 && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-[17px] font-semibold">Kalender verbinden</h2>
+              <p className="mt-1 text-[14px] text-gray-600">
+                Damit Bewerber nur Termine bekommen, wenn du wirklich Zeit hast – und jedes Vorstellungsgespräch automatisch bei dir im Kalender steht.
+              </p>
+            </div>
+            <KalenderVerbinden zurueck="onboarding" />
+            <p className="text-[13px] text-gray-500">Gerade nicht zur Hand? Du kannst das Onboarding trotzdem abschließen und den Kalender später unter Einstellungen → Kalender verbinden.</p>
+            {error && <p className="text-red-600 text-xs bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
           {step > 1 ? (
@@ -929,7 +947,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
           <div className="flex items-center gap-3">
             <span className="text-xs text-green-600 font-medium">Automatisch gespeichert</span>
 
-            {step < 5 ? (
+            {step < 6 ? (
               <Button onClick={() => {
                 trackStepComplete(step);
                 setStep(step + 1);
