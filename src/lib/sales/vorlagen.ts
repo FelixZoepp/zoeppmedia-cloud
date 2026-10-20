@@ -40,6 +40,15 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     ],
   },
   {
+    // Ersetzt beratung_reminder_1h: deren Zoom-Button zeigt auf ressourcen.felixzoepp.de/zoom/… (short.io, 404)
+    name: 'beratung_reminder_1h_v2',
+    category: 'UTILITY',
+    body: "Hallo {{1}}, in einer Stunde geht's los. Felix wartet um {{2}} Uhr im Zoom.\n\nÜber den Button unten kommst du direkt ins Meeting.",
+    variables: ['vorname', 'uhrzeit'],
+    beispiel: ['Mehmet', '14:00'],
+    buttons: [{ type: 'URL', text: 'Zum Zoom-Meeting', url: 'https://cloud.zoeppmedia.de/zoom/{{1}}', example: ['https://cloud.zoeppmedia.de/zoom/abc123'] }],
+  },
+  {
     // Kunden-Erinnerung an offene Aufgaben (Zugänge, Formular …) – siehe fulfillment/kunden-erinnerung.ts
     name: 'kunde_aufgaben_erinnerung',
     category: 'UTILITY',
