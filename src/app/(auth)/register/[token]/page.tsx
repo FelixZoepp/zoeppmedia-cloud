@@ -2,7 +2,7 @@
 import { SplitText } from '@/components/ui/motion';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,22 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // E-Mail kommt aus der Einladung (die Registrierung akzeptiert nur genau diese Adresse)
+  const [emailFest, setEmailFest] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/auth/register?token=${encodeURIComponent(token)}`)
+      .then(async (r) => {
+        const d = (await r.json().catch(() => ({}))) as { email?: string; name?: string; error?: string };
+        if (!r.ok) return setError(d.error ?? 'Ungültiger Einladungslink.');
+        if (d.email) {
+          setEmail(d.email);
+          setEmailFest(true);
+        }
+        if (d.name) setName((n) => n || d.name!);
+      })
+      .catch(() => {});
+  }, [token]);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +73,8 @@ export default function RegisterPage() {
           </div>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-2">E-Mail</label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required icon={<Mail className="w-4 h-4" />} placeholder="name@firma.de" />
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} readOnly={emailFest} required icon={<Mail className="w-4 h-4" />} placeholder="name@firma.de" />
+            {emailFest && <p className="mt-1.5 text-xs text-gray-500">Die Adresse, an die deine Einladung ging.</p>}
           </div>
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-2">Passwort (min. 8 Zeichen)</label>

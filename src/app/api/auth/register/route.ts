@@ -2,6 +2,17 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendWelcomeEmail } from '@/lib/email/resend';
 
+/** GET ?token= – eingeladene E-Mail für das Formular (nur mit gültigem, offenem Link) */
+export async function GET(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get('token');
+  if (!token) return NextResponse.json({ error: 'Ungültiger Einladungslink.' }, { status: 400 });
+  const { data: invite } = await createAdminClient().from('invite_tokens').select('email, name, redeemed, expires_at').eq('token', token).maybeSingle();
+  if (!invite) return NextResponse.json({ error: 'Ungültiger Einladungslink.' }, { status: 404 });
+  if (invite.redeemed) return NextResponse.json({ error: 'Dieser Einladungslink wurde bereits verwendet. Bitte melde dich direkt an.' }, { status: 410 });
+  if (new Date(invite.expires_at) < new Date()) return NextResponse.json({ error: 'Dieser Einladungslink ist abgelaufen. Bitte frag bei Zoepp Media einen neuen an.' }, { status: 410 });
+  return NextResponse.json({ email: invite.email, name: invite.name ?? '' });
+}
+
 export async function POST(request: NextRequest) {
   const { token, name, email: emailEingabe, password } = await request.json();
 
