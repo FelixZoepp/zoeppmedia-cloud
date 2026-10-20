@@ -9,7 +9,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SALES_AGENCY_ID } from './calendly-chain';
-import { D2D_PIPELINE_ID } from './pipelines';
+import { istUpsellStatus } from './pipelines';
 
 export const SELBSTBUCHER_ERGEBNIS = 'Bucht sich selbst ein';
 const CLOSE_BASE = 'https://api.close.com/api/v1';
@@ -50,9 +50,9 @@ export async function pruefeSelbstbucher(svc: SupabaseClient, payload: { protoko
   const s = data as { lead_id: string; zugesagt_am: string; ergebnis: string } | null;
   if (!s || s.ergebnis !== 'offen') return 'erledigt';
 
-  const res = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${s.lead_id}&pipeline_id=${D2D_PIPELINE_ID}&_fields=id,date_created`, { headers: closeHeaders(), cache: 'no-store' });
+  const res = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${s.lead_id}&_fields=id,date_created,status_id`, { headers: closeHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error(`Close ${res.status}`);
-  const opps = ((await res.json()) as { data: Array<{ date_created: string }> }).data;
+  const opps = ((await res.json()) as { data: Array<{ date_created: string; status_id: string }> }).data.filter((o) => !istUpsellStatus(o.status_id));
   // Kleine Toleranz: Deal im selben Moment wie das Protokoll angelegt (Buchung noch während des Calls)
   const gebucht = opps.some((o) => new Date(o.date_created).getTime() >= new Date(s.zugesagt_am).getTime() - 10 * 60_000);
 

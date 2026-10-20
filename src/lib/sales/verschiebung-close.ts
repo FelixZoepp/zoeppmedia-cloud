@@ -9,7 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { addCloseNote } from './close';
 import { SALES_AGENCY_ID } from './calendly-chain';
 import { notifySales } from './notify';
-import { D2D_PIPELINE_ID } from './pipelines';
+import { istUpsellStatus } from './pipelines';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 
@@ -71,8 +71,8 @@ export async function markiereVerschiebung(
 
   const apiKey = process.env.CLOSE_API_KEY;
   if (apiKey) {
-    const res = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&pipeline_id=${D2D_PIPELINE_ID}&_fields=id,note`, { headers: closeHeaders(apiKey) });
-    const opp = res.ok ? ((await res.json()) as { data: Array<{ id: string; note: string | null }> }).data[0] : undefined;
+    const res = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&_fields=id,note,status_id`, { headers: closeHeaders(apiKey) });
+    const opp = res.ok ? ((await res.json()) as { data: Array<{ id: string; note: string | null; status_id: string }> }).data.find((o) => !istUpsellStatus(o.status_id)) : undefined;
     if (opp) {
       const art = b.chain === 'beratung' ? 'Beratungsgespräch' : 'Setting';
       const note = `${art} über Calendly: ${zeitText(b.startTime)} Uhr (verschoben von ${zeitText(vorher.startTime)} Uhr)${opp.note ? `\n\n${opp.note}` : ''}`;

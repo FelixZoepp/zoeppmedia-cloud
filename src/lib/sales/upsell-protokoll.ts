@@ -9,7 +9,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { FeldSoll } from './close-einrichtung';
-import { UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
+import { UPSELL_FILTER, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
 import { VERLUSTGRUENDE, VERLUSTGRUND_FELD } from './close-aufraeumen';
 
 export const UPSELL_PROTOKOLL_NAME = '5 - Gesprächsprotokoll (Upsell)';
@@ -170,7 +170,7 @@ export async function fuehreUpsellAus(leadId: string, plan: UpsellPlan, userId: 
 
   if (Object.keys(deal).length) {
     const { data } = await close<{ data: Array<{ id: string; date_created: string }> }>(
-      `/opportunity/?lead_id=${leadId}&pipeline_id=${UPSELL_PIPELINE_ID}&status_type=active&_fields=id,date_created`,
+      `/opportunity/?lead_id=${leadId}&${UPSELL_FILTER}&status_type=active&_fields=id,date_created`,
     );
     const offen = [...data].sort((a, b) => b.date_created.localeCompare(a.date_created))[0];
     if (offen) {

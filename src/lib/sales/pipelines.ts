@@ -16,6 +16,15 @@ export const UPSELL_STATUS = {
   verloren: 'stat_gkZ8TgDDZPJOzHkRNL9Pjxt6XbDu6O34uA4KLCnpTOf',
 } as const;
 
+export const UPSELL_STATUS_IDS: readonly string[] = Object.values(UPSELL_STATUS);
+export const istUpsellStatus = (statusId: string | null | undefined): boolean => !!statusId && UPSELL_STATUS_IDS.includes(statusId);
+
+/**
+ * Close kennt beim Auflisten von Deals KEINEN Filter `pipeline_id` – er wird still ignoriert und liefert alle Deals.
+ * Deshalb über die Status-IDs filtern: Upsell serverseitig mit diesem Parameter, D2D clientseitig mit `!istUpsellStatus`.
+ */
+export const UPSELL_FILTER = `status_id__in=${UPSELL_STATUS_IDS.join(',')}`;
+
 /** Lead-Status „Kunde“ / „Ex-Kunde“ → neue Deals gehören in die Upsell-Pipeline */
 export function istBestandskunde(statusLabel: string | null | undefined): boolean {
   return ['kunde', 'ex-kunde'].includes((statusLabel ?? '').trim().toLowerCase());

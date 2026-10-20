@@ -8,7 +8,7 @@
 import { createHmac } from 'crypto';
 import { addCloseNote, findCloseLeadId } from './close';
 import { DATUM_EINTRAGUNG_CF, LEADQUELLE_CF, UTM_CF, leadquelleAusUtm } from './leadquelle';
-import { istBestandskunde, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
+import { istBestandskunde, UPSELL_FILTER, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky'; // D2D Sales
@@ -305,7 +305,7 @@ async function aktualisiereBuchungsLead(apiKey: string, leadId: string, status: 
  * auf `ziel` heben (spätere Stufen nicht zurückstufen), sonst neu anlegen.
  */
 async function upsellDealFuerBuchung(apiKey: string, leadId: string, ziel: string, note: string): Promise<string> {
-  const offen = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&pipeline_id=${UPSELL_PIPELINE_ID}&_fields=id,status_id`, { headers: closeHeaders(apiKey) });
+  const offen = await fetch(`${CLOSE_BASE}/opportunity/?lead_id=${leadId}&status_type=active&${UPSELL_FILTER}&_fields=id,status_id`, { headers: closeHeaders(apiKey) });
   if (!offen.ok) throw new Error(`Close-Opportunities nicht lesbar (${offen.status})`);
   const vorhanden = ((await offen.json()) as { data: Array<{ id: string; status_id: string }> }).data[0];
   if (vorhanden) {

@@ -91,10 +91,11 @@ async function getCloseRevenue(since?: string, until?: string): Promise<CloseRev
     }
 
     // Fetch opportunities, filtered by date if provided
-    let oppPath = `/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=value,status_type,status_id,lead_id,date_created`;
+    let oppPath = `/opportunity/?_fields=value,status_type,status_id,lead_id,date_created`;
     if (since) oppPath += `&date_created__gte=${since}`;
     if (until) oppPath += `&date_created__lte=${until}T23:59:59`;
-    const opps = await closeAll<{ value: number; status_type: string; status_id: string; lead_id: string }>(oppPath);
+    // Close filtert nicht nach pipeline_id → nur Deals mit Status der D2D-Pipeline
+    const opps = (await closeAll<{ value: number; status_type: string; status_id: string; lead_id: string }>(oppPath)).filter((o) => statusMap[o.status_id]);
 
     // Fetch unique leads to check attribution
     const uniqueLeadIds = [...new Set(opps.map((o) => o.lead_id))];

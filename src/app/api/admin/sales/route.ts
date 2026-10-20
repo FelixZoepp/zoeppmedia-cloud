@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { closeAll } from '@/lib/sales-controlling/quellen';
-import { UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
+import { istUpsellStatus, UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
 
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky';
 const CLOSE_BASE = 'https://api.close.com/api/v1';
@@ -80,11 +80,10 @@ export async function GET(req: Request) {
     contact_name: string;
     lead_name: string;
   };
-  // Close API already filters by pipeline_id server-side, no need to double-filter
-  // (some responses omit pipeline_id field which would incorrectly drop deals)
-  const upsellOpps = await closeAll<RawOpp>(`/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&_order_by=date_created`).catch(() => [] as RawOpp[]);
-  const upsellIds = new Set(upsellOpps.map((o) => o.id));
-  const allOpportunities: RawOpp[] = [...(await closeAll<RawOpp>(`/opportunity/?pipeline_id=${PIPELINE_ID}&_order_by=date_created`)), ...upsellOpps].sort((a, b) =>
+  // Close filtert NICHT nach pipeline_id (wird still ignoriert) → einmal alle Deals laden; Upsell an der Status-ID erkennen
+  const alleOpps = await closeAll<RawOpp>(`/opportunity/?_order_by=date_created`);
+  const upsellIds = new Set(alleOpps.filter((o) => istUpsellStatus(o.status_id)).map((o) => o.id));
+  const allOpportunities: RawOpp[] = [...alleOpps].sort((a, b) =>
     (a.date_created ?? '').localeCompare(b.date_created ?? ''),
   );
 

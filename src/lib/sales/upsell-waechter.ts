@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { istFreigegeben } from '@/lib/freigaben';
-import { UPSELL_PIPELINE_ID } from './pipelines';
+import { UPSELL_FILTER } from './pipelines';
 
 const CLOSE = 'https://api.close.com/api/v1';
 export const UPSELL_STEHT_AB_TAGEN = 5;
@@ -53,7 +53,7 @@ type Opp = { id: string; lead_id: string; lead_name: string | null; status_label
 /** Alle offenen Upsell-Deals mit nächstem Schritt und letzter Bewegung (nur lesen) */
 export async function ladeUpsellDeals(jetzt: Date = new Date()): Promise<UpsellDeal[]> {
   const { data } = await close<{ data: Opp[] }>(
-    `/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&status_type=active&_limit=200&_fields=id,lead_id,lead_name,status_label,value,user_id,date_updated`,
+    `/opportunity/?${UPSELL_FILTER}&status_type=active&_limit=200&_fields=id,lead_id,lead_name,status_label,value,user_id,date_updated`,
   );
   const out: UpsellDeal[] = [];
   for (const o of data) {

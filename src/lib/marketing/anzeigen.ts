@@ -7,7 +7,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
-import { META_FILTER, closeAll, CLOSE_PIPELINE_ID } from '@/lib/sales-controlling/quellen';
+import { META_FILTER, closeAll } from '@/lib/sales-controlling/quellen';
+import { istUpsellStatus } from '@/lib/sales/pipelines';
 
 const CLOSING_STUFEN = new Set([
   'stat_RjrZL3ifb4mKNiPEFFX1IQgse1fbI94R9XZgere2wZT', // Closing – Terminiert
@@ -147,7 +148,9 @@ export async function ladeAnzeigen(svc: SupabaseClient, tage = 30, jetzt: Date =
     metaAnzeigen(von, bis).catch((e) => (console.error('[anzeigen] Meta', e), null)),
     metaAnzeigen(gestern, gestern).catch(() => null),
     svc.from('lead_herkunft').select('lead_id, utm_content, utm_campaign, utm_source').gte('eingetragen_am', `${von}T00:00:00Z`),
-    closeAll<{ id: string; lead_id: string; status_id: string; value: number | null }>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_fields=id,lead_id,status_id,value`).catch(() => []),
+    closeAll<{ id: string; lead_id: string; status_id: string; value: number | null }>(`/opportunity/?_fields=id,lead_id,status_id,value`)
+      .then((alle) => alle.filter((o) => !istUpsellStatus(o.status_id)))
+      .catch(() => []),
     metaGet<MetaAnzeigeRoh & { publisher_platform: string }>('insights', {
       level: 'account',
       fields: 'spend,impressions,inline_link_clicks,actions',

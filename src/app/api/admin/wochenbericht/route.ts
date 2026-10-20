@@ -122,8 +122,8 @@ async function fetchCloseDeals(): Promise<CloseDeal[]> {
 
   const allOppData = {
     data: [
-      ...(await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&_order_by=date_created`)),
-      ...(await closeAll<CloseOppRoh>(`/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&_order_by=date_created`).catch(() => [] as CloseOppRoh[])),
+      // Close filtert nicht nach pipeline_id: einmal alle Deals laden, unten über die Status-IDs beider Pipelines eingrenzen
+      ...(await closeAll<CloseOppRoh>(`/opportunity/?_order_by=date_created`)),
     ].sort((x, y) => (x.date_created ?? '').localeCompare(y.date_created ?? '')),
   };
   const allOpps = (allOppData.data ?? []).filter(

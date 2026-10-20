@@ -2,7 +2,7 @@ import type { CloseStatus, MetaZahlen, Opp, StatusEvent } from './compute';
 import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import type { Anruf, Aufgabe } from './detail';
 
-import { UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
+import { UPSELL_FILTER, UPSELL_PIPELINE_ID } from '@/lib/sales/pipelines';
 
 /**
  * Datenquellen für das Sales-Controlling: Close (Pipelines „D2D Sales“ + „Upsell (Bestandskunden)“) und Meta Ads.
@@ -81,10 +81,11 @@ export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) =
   const oppFelder = '_fields=id,lead_id,lead_name,status_id,value,confidence,date_created,date_won,user_id';
   const [pipeline, oppsRaw, upsellPipeline, upsellRaw, eventsRaw, usersRaw] = await Promise.all([
     closeGet<{ statuses: CloseStatus[] }>(`/pipeline/${CLOSE_PIPELINE_ID}/`),
-    closeAll<OppRoh>(`/opportunity/?pipeline_id=${CLOSE_PIPELINE_ID}&${oppFelder}`),
+    // Close filtert nicht nach pipeline_id → alle Deals laden, unten nach Status-IDs der Pipeline trennen
+    closeAll<OppRoh>(`/opportunity/?${oppFelder}`),
     // Upsell-Pipeline: fehlt sie (oder ist Close kurz weg), rechnet das Controlling wie bisher nur mit D2D
     closeGet<{ statuses: CloseStatus[] }>(`/pipeline/${UPSELL_PIPELINE_ID}/`).catch(() => ({ statuses: [] as CloseStatus[] })),
-    closeAll<OppRoh>(`/opportunity/?pipeline_id=${UPSELL_PIPELINE_ID}&${oppFelder}`).catch(() => [] as OppRoh[]),
+    closeAll<OppRoh>(`/opportunity/?${UPSELL_FILTER}&${oppFelder}`).catch(() => [] as OppRoh[]),
     ladeStatuswechsel(historieAb),
     closeAll<{ id: string; first_name?: string; last_name?: string; email?: string }>(`/user/?_fields=id,first_name,last_name,email`).catch(() => []),
   ]);
