@@ -14,3 +14,11 @@ describe('Pipeline-Filter (Close kennt kein pipeline_id beim Auflisten)', () => 
     expect(istUpsellStatus(null)).toBe(false);
   });
 });
+
+describe('Wächter-Aufgabe erkennen', async () => {
+  const { istWaechterAufgabe, aufgabenText } = await import('../upsell-waechter');
+  it('nur die Wächter-Aufgabe, nicht die Protokoll-Wiedervorlage', () => {
+    expect(istWaechterAufgabe(aufgabenText('Solerey', 0))).toBe(true);
+    expect(istWaechterAufgabe('🔁 Upsell-Potenzial bei Solerey erneut prüfen')).toBe(false);
+  });
+});

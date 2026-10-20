@@ -517,6 +517,11 @@ export async function GET(request: NextRequest) {
           if (!res.ok) throw new Error(`Gespräche-Route ${res.status}`);
           break;
         }
+        case 'sales.upsell_aufgaben_aufraeumen': {
+          const { raeumeFalscheUpsellAufgabenAuf } = await import('@/lib/sales/upsell-waechter');
+          await raeumeFalscheUpsellAufgabenAuf();
+          break;
+        }
         case 'sales.sprachnachricht_nachtragen': {
           const { trageSprachnachrichtNach } = await import('@/lib/whatsapp/transkript');
           await trageSprachnachrichtNach(svc, payload as unknown as { media_id: string; wa_message_id: string; wa_account_id: string; phone: string });

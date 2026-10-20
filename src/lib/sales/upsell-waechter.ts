@@ -44,6 +44,9 @@ export function problemVon(d: Pick<UpsellDeal, 'naechsterSchritt' | 'tageOhneBew
   return null;
 }
 
+/** Erkennt genau die Wächter-Aufgabe (nicht z. B. „🔁 Upsell-Potenzial … erneut prüfen“ aus dem Protokoll) */
+export const istWaechterAufgabe = (text: string): boolean => text.startsWith(`${AUFGABE_PREFIX} `) && text.includes(': nächsten Schritt festlegen');
+
 export function aufgabenText(firma: string, wert: number): string {
   return `${AUFGABE_PREFIX} ${firma} (${Math.round(wert).toLocaleString('de-DE')} €): nächsten Schritt festlegen – Termin legen oder Aufgabe mit Datum`;
 }
@@ -64,7 +67,7 @@ export async function ladeUpsellDeals(jetzt: Date = new Date()): Promise<UpsellD
     ]);
     const letzte = [o.date_updated, akt.data[0]?.date_created].filter(Boolean).sort().pop() as string;
     const termin = termine.data.filter((t) => t.starts_at && new Date(t.starts_at).getTime() > jetzt.getTime()).sort((a, b) => a.starts_at!.localeCompare(b.starts_at!))[0];
-    const echteAufgabe = aufgaben.data.filter((t) => !t.text.startsWith(AUFGABE_PREFIX)).sort((a, b) => (a.date ?? '9').localeCompare(b.date ?? '9'))[0];
+    const echteAufgabe = aufgaben.data.filter((t) => !istWaechterAufgabe(t.text)).sort((a, b) => (a.date ?? '9').localeCompare(b.date ?? '9'))[0];
     const naechsterSchritt = termin
       ? `Termin ${new Date(termin.starts_at!).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}${termin.title ? ` (${termin.title})` : ''}`
       : echteAufgabe
@@ -80,7 +83,7 @@ export async function ladeUpsellDeals(jetzt: Date = new Date()): Promise<UpsellD
       letzteBewegung: letzte,
       tageOhneBewegung: Math.max(0, Math.floor((jetzt.getTime() - new Date(letzte).getTime()) / 864e5)),
       naechsterSchritt,
-      waechterAufgabeOffen: aufgaben.data.some((t) => t.text.startsWith(AUFGABE_PREFIX)),
+      waechterAufgabeOffen: aufgaben.data.some((t) => istWaechterAufgabe(t.text)),
     });
   }
   return out.sort((a, b) => b.wert - a.wert);
@@ -101,4 +104,32 @@ export async function pruefeUpsellDeals(svc: SupabaseClient, jetzt: Date = new D
     aufgaben++;
   }
   return { deals: deals.length, aufgaben };
+}
+
+/**
+ * Einmal-Aufräumen (Job sales.upsell_aufgaben_aufraeumen): Bis 20.10. hat der Wächter wegen des ignorierten
+ * pipeline_id-Filters für JEDEN offenen Deal eine Upsell-Aufgabe angelegt. Löscht offene Wächter-Aufgaben auf
+ * Leads ohne offenen Upsell-Deal. Echte Upsell-Deals behalten ihre Aufgabe.
+ */
+export async function raeumeFalscheUpsellAufgabenAuf(): Promise<{ geloescht: number; behalten: number }> {
+  const { data: upsell } = await close<{ data: Array<{ lead_id: string }> }>(`/opportunity/?${UPSELL_FILTER}&status_type=active&_limit=200&_fields=lead_id`);
+  const echteLeads = new Set(upsell.map((o) => o.lead_id));
+  const kandidaten: Array<{ id: string; lead_id: string }> = [];
+  for (let skip = 0; skip < 5000; skip += 100) {
+    const seite = await close<{ data: Array<{ id: string; lead_id: string; text: string }>; has_more?: boolean }>(`/task/?is_complete=false&_limit=100&_skip=${skip}&_fields=id,lead_id,text`);
+    kandidaten.push(...seite.data.filter((t) => istWaechterAufgabe(t.text)));
+    if (!seite.has_more || !seite.data.length) break;
+  }
+  let geloescht = 0;
+  let behalten = 0;
+  for (const t of kandidaten) {
+    if (echteLeads.has(t.lead_id)) {
+      behalten++;
+      continue;
+    }
+    const res = await fetch(`${CLOSE}/task/${t.id}/`, { method: 'DELETE', headers: headers() });
+    if (res.ok) geloescht++;
+  }
+  console.log(`[upsell-waechter] Aufräumen: ${geloescht} gelöscht, ${behalten} behalten`);
+  return { geloescht, behalten };
 }
