@@ -517,6 +517,16 @@ export async function GET(request: NextRequest) {
           if (!res.ok) throw new Error(`Gespräche-Route ${res.status}`);
           break;
         }
+        case 'admin.einladung_senden': {
+          const { ladeZumKundenEin } = await import('@/lib/admin/einladung-job');
+          console.log('[admin.einladung_senden]', await ladeZumKundenEin(svc, payload as unknown as { agency_id: string; email: string; name?: string; role?: string }));
+          break;
+        }
+        case 'admin.kunde_anlegen': {
+          const { legeKundenAn } = await import('@/lib/admin/einladung-job');
+          console.log('[admin.kunde_anlegen]', await legeKundenAn(svc, payload as unknown as { name: string; contact_name: string; email: string; phone?: string }));
+          break;
+        }
         case 'sales.upsell_aufgaben_aufraeumen': {
           const { raeumeFalscheUpsellAufgabenAuf } = await import('@/lib/sales/upsell-waechter');
           await raeumeFalscheUpsellAufgabenAuf();

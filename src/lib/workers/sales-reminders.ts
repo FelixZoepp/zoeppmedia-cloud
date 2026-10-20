@@ -319,9 +319,10 @@ export async function processSalesReminder(
       bypassQuietHours: true,
     });
   } else {
-    // beratung_reminder_1h: {{1}} vorname, {{2}} uhrzeit + Zoom-Button
+    // beratung_reminder_1h(_v2): {{1}} vorname, {{2}} uhrzeit + Zoom-Button (_v2 zeigt direkt auf cloud.zoeppmedia.de/zoom)
     await sendSalesTemplate(svc, agencyId, ctx, 'beratung_reminder_1h', {
       bodyParams: [vorname, uhrzeit],
+      v2BodyParams: [vorname, uhrzeit],
       urlButtonParam: payload.calendly_event_id,
       bypassQuietHours: true,
     });
