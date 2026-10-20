@@ -234,7 +234,7 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
  * Schreibt niemanden an (kein Bot, keine Automationen) – der Innendienst bekommt nur einen Anruf-Auftrag.
  * Erledigt = nur bei Erfolg; nach 5 Versuchen „aufgegeben“.
  */
-export async function holeIndeedMailsNach(svc: SupabaseClient, tage = 30): Promise<{ geprueft: number; nachgeholt: number; neu: number; fehler: number }> {
+export async function holeIndeedMailsNach(svc: SupabaseClient, tage = 90): Promise<{ geprueft: number; nachgeholt: number; neu: number; fehler: number }> {
   const seit = new Date(Date.now() - tage * 864e5).toISOString();
   // 1. Offene Abruf-Fehler
   const { data: offen } = await svc
