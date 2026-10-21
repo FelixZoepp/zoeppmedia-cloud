@@ -25,3 +25,11 @@ describe('baueRueckrufAufgabe', () => {
     expect(a.text).toContain('Mitentscheider: Partner Tom');
   });
 });
+
+describe('istImCall', () => {
+  it('erkennt „bin im Zoom“ & Co.', async () => {
+    const { istImCall } = await import('../noshow-antwort');
+    for (const t of ['Bin im Zoom', 'Drinnen', 'bin schon drin', 'Ich warte im Meeting', 'bin da!']) expect(istImCall(t)).toBe(true);
+    for (const t of ['Morgen ab 17 Uhr', 'Donnerstag passt', 'Ich kann heute nicht', 'Da bin ich unterwegs']) expect(istImCall(t)).toBe(false);
+  });
+});

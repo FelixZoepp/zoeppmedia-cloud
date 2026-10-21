@@ -1,4 +1,4 @@
-import type { CloseStatus, MetaZahlen, Opp, StatusEvent } from './compute';
+import { klassifiziere, type CloseStatus, type MetaZahlen, type Opp, type Stufe, type StatusEvent } from './compute';
 import { metaAdAccountId, metaAdsToken } from '@/lib/meta/ad-account';
 import type { Anruf, Aufgabe } from './detail';
 
@@ -57,6 +57,45 @@ export async function closeAll<T>(path: string, max = 5000): Promise<T[]> {
 }
 
 /** Begrenzte Parallelität für viele Einzelabrufe */
+/** Stufen, die zeigen: das Gespräch hat doch stattgefunden */
+const DOCH_GEHALTEN: Record<'setting_noshow' | 'closing_noshow', Stufe[]> = {
+  setting_noshow: ['setting_followup', 'closing', 'closing_followup', 'angebot', 'cc2', 'won'],
+  closing_noshow: ['closing_followup', 'angebot', 'cc2', 'won'],
+};
+const KORREKTUR_FENSTER = 3 * 3600_000;
+
+/**
+ * Versehentliche No-Shows herausrechnen (rein, testbar): Wird ein Deal auf „No Show“ gesetzt und innerhalb von
+ * 3 Stunden direkt auf eine Stufe weitergeschoben, die nur nach einem gehaltenen Gespräch möglich ist
+ * (Follow-up, Angebot, CC2, gewonnen …), war der Lead doch da (z. B. später in den Zoom gekommen).
+ * Der No-Show-Wechsel entfällt, der Folgewechsel startet wieder bei der Stufe davor.
+ */
+export function ohneFalscheNoShows(events: StatusEvent[], statuses: CloseStatus[]): StatusEvent[] {
+  const byId = new Map(statuses.map((s) => [s.id, s]));
+  const sortiert = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const letzter = new Map<string, number>();
+  const out: Array<StatusEvent | null> = [];
+  for (const ev of sortiert) {
+    const i = letzter.get(ev.opportunity_id);
+    const vorher = i === undefined ? null : out[i];
+    const vorStufe = vorher ? klassifiziere(byId.get(vorher.new_status_id)) : null;
+    if (
+      vorher &&
+      (vorStufe === 'setting_noshow' || vorStufe === 'closing_noshow') &&
+      ev.old_status_id === vorher.new_status_id &&
+      new Date(ev.date).getTime() - new Date(vorher.date).getTime() <= KORREKTUR_FENSTER &&
+      DOCH_GEHALTEN[vorStufe].includes(klassifiziere(byId.get(ev.new_status_id)))
+    ) {
+      out[i!] = null;
+      out.push({ ...ev, old_status_id: vorher.old_status_id });
+    } else {
+      out.push(ev);
+    }
+    letzter.set(ev.opportunity_id, out.length - 1);
+  }
+  return out.filter((e): e is StatusEvent => e !== null);
+}
+
 async function inBatches<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = [];
   for (let i = 0; i < items.length; i += size) out.push(...(await Promise.all(items.slice(i, i + size).map(fn))));
@@ -111,9 +150,9 @@ export async function ladeClose(historieAb: string, quellenFür: (opps: Opp[]) =
     ...upsellRaw.filter((o) => upsellValid.has(o.status_id)).map((o) => zuOpp(o, true)),
   ];
   const oppIds = new Set(opps.map((o) => o.id));
-  const events: StatusEvent[] = eventsRaw
+  const events: StatusEvent[] = ohneFalscheNoShows(eventsRaw
     .filter((e) => oppIds.has(e.opportunity_id))
-    .map((e) => ({ opportunity_id: e.opportunity_id, old_status_id: e.old_status_id, new_status_id: e.new_status_id, date: e.date_created, user_id: e.user_id }));
+    .map((e) => ({ opportunity_id: e.opportunity_id, old_status_id: e.old_status_id, new_status_id: e.new_status_id, date: e.date_created, user_id: e.user_id })), statuses);
   const users = new Map(usersRaw.map((u) => [u.id, [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email || u.id]));
 
   // Leadquelle für die relevanten Deals: wenige per Einzelabruf, viele über die Lead-Liste
@@ -184,8 +223,23 @@ async function metaInsights(params: Record<string, string>): Promise<MetaInsight
   url.searchParams.set('filtering', META_FILTER);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url.toString(), { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Meta ${res.status}`);
+  if (!res.ok) {
+    const fehler = ((await res.json().catch(() => ({}))) as { error?: { message?: string; code?: number } }).error;
+    throw new Error(`Meta ${res.status}${fehler?.code ? ` (Code ${fehler.code})` : ''}: ${fehler?.message ?? 'unbekannter Fehler'}`);
+  }
   return ((await res.json()) as { data?: MetaInsight[] }).data ?? [];
+}
+
+/** Warum fehlen die Werbezahlen? null = Meta Ads antwortet, sonst Grund für die Anzeige */
+export async function metaAdsProblem(): Promise<string | null> {
+  if (!metaAdsToken()) return 'In Vercel fehlt META_ACCESS_TOKEN bzw. META_SYSTEM_USER_TOKEN (mit Recht ads_read).';
+  const heute = new Date().toISOString().slice(0, 10);
+  try {
+    await metaInsights({ time_range: JSON.stringify({ since: heute, until: heute }) });
+    return null;
+  } catch (err) {
+    return `${err instanceof Error ? err.message : String(err)} – Werbekonto ${metaAdAccountId()}`;
+  }
 }
 
 /** Spend + Leads für einen Zeitraum [von, bis) – bis ist exklusiv */

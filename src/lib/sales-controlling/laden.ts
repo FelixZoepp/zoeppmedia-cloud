@@ -1,7 +1,7 @@
 /** Sales-Controlling laden: Zeiträume, Close- und Meta-Daten, Berechnung. */
 import { berechneSalesControlling, type Opp } from '@/lib/sales-controlling/compute';
 import { berechneUpsell } from '@/lib/sales-controlling/upsell';
-import { ladeAnrufe, ladeAufgaben, ladeClose, ladeErledigteAufgaben, ladeMetaMonate, ladeMetaZeitraum } from '@/lib/sales-controlling/quellen';
+import { ladeAnrufe, ladeAufgaben, ladeClose, ladeErledigteAufgaben, ladeMetaMonate, ladeMetaZeitraum, metaAdsProblem } from '@/lib/sales-controlling/quellen';
 import { berechneAuslastung, SCHWELLEN_KEYS, schwellenAus, STANDARD_SCHWELLEN, type Schwellen } from '@/lib/sales-controlling/auslastung';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { berechneDetails } from '@/lib/sales-controlling/detail';
@@ -74,7 +74,7 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
     const [close, metaZeitraum, metaVergleich, metaMonate, anrufe, aufgaben, erledigteAufgaben, schwellen] = await Promise.all([
       // Quellen nur für Deals aus Zeitraum + Vergleichszeitraum nachladen
       ladeClose(historieAb, (opps: Opp[]) => opps.filter((o) => o.date_created >= vgVon && o.date_created < zeitraum.bis)),
-      ladeMetaZeitraum(zeitraum.von, zeitraum.bis).catch(() => null),
+      ladeMetaZeitraum(zeitraum.von, zeitraum.bis).catch((err) => (console.error('[vertrieb] Meta', err), null)),
       ladeMetaZeitraum(vgVon, zeitraum.von).catch(() => null),
       ladeMetaMonate(sechsMonate, iso(jetzt)).catch(() => new Map()),
       ladeAnrufe(anrufeAb).catch((err) => (console.error('[vertrieb] Anrufe', err), null)),
@@ -86,6 +86,7 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
     return {
       ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
       metaVerbunden: metaZeitraum !== null,
+      metaProblem: metaZeitraum === null ? await metaAdsProblem() : null,
       upsell: berechneUpsell({ opps: close.opps, statuses: close.statuses, zeitraum, jetzt }),
       selbstbucher: await import('@/lib/sales/selbstbucher')
         .then(({ ladeSelbstbucher }) => ladeSelbstbucher(createAdminClient(), zeitraum.von, zeitraum.bis))

@@ -128,12 +128,36 @@ const RUECKFRAGE_LABEL: Record<OffeneRueckfrage['art'], string> = {
 };
 const NACHRICHT_LABEL: Record<OffeneRueckfrage['art'], string> = { setting: 'No-Show', closing: 'No-Show', nicht_erreicht: 'Nicht-erreicht', absage: 'Absage', eintrag: 'Eintragungs' };
 
+/** „Bin im Zoom“, „bin drin“, „warte“ … → der Lead ist gerade im Call, kein Verschiebewunsch (rein, testbar) */
+export function istImCall(text: string): boolean {
+  return /\b(im|in|ins)\s+(den\s+|dem\s+)?(zoom|meeting|call)\b|\bbin\s+(schon\s+|jetzt\s+)?(da|drin|drinnen|online|im\s+zoom)\b|^\s*(drin|drinnen|bin da)\s*[.!]*\s*$|\bwarte\s+(schon\s+)?(im|auf)\b/i.test(text);
+}
+
 export async function verarbeiteNoShowAntwort(
   svc: SupabaseClient,
   input: { agencyId: string; candidateId: string; candidateName: string; candidatePhone: string; conversationId: string; text: string },
   offen: OffeneRueckfrage,
   jetzt: Date = new Date(),
 ): Promise<void> {
+  // Lead sitzt im Zoom und wartet: sofort Bescheid geben statt Rückruf-Aufgabe anzulegen
+  if ((offen.art === 'setting' || offen.art === 'closing') && istImCall(input.text)) {
+    await notifySales(svc, {
+      emoji: '🚨',
+      title: `${input.candidateName} ist doch im Call!`,
+      body: `Antwort auf die No-Show-Nachricht: „${input.text.trim().slice(0, 200)}“\nJetzt reingehen – und den No-Show in Close zurücksetzen.`,
+      type: 'task_due',
+      phone: input.candidatePhone,
+      conversationId: input.conversationId,
+    });
+    await logActivity(svc, {
+      agency_id: input.agencyId,
+      candidate_id: input.candidateId,
+      action: `Antwort auf No-Show-Rückfrage: ist im Call (${offen.art === 'closing' ? 'Beratungsgespräch' : 'Erstgespräch'})`,
+      action_type: 'other',
+      metadata: { kind: 'sales_noshow_antwort', art: offen.art, im_call: true },
+    });
+    return;
+  }
   const wunsch = await liesWunsch(input.text, jetzt, offen.vorschlaege).catch((err) => {
     console.error('[sales] Wunschzeit nicht lesbar:', err);
     return null;

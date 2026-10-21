@@ -15,7 +15,7 @@ import { TagesberichtBereich } from './tagesbericht-bereich';
 import type { Auslastung } from '@/lib/sales-controlling/auslastung';
 import type { Upsell } from '@/lib/sales-controlling/upsell';
 
-type Daten = SalesControlling & { upsell?: Upsell; selbstbucher?: { zugesagt: number; gebucht: number; nichtGebucht: number; offen: number; quote: number | null } | null; metaVerbunden: boolean; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
+type Daten = SalesControlling & { upsell?: Upsell; selbstbucher?: { zugesagt: number; gebucht: number; nichtGebucht: number; offen: number; quote: number | null } | null; metaVerbunden: boolean; metaProblem?: string | null; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
 
 const eur = (n: number | null | undefined, digits = 0) =>
   n === null || n === undefined ? '–' : `${n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })} €`;
@@ -516,7 +516,7 @@ function MarketingBereich({ d }: { d: Daten }) {
       <h2 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.02em]">
         <Megaphone className="h-5 w-5 text-red-800" /> Marketing <span className="text-[13px] font-normal text-gray-500">· {d.zeitraum.label}</span>
       </h2>
-      {!d.metaVerbunden && <p className="mt-1 text-[12.5px] text-amber-700">Meta Ads ist nicht verbunden – Kosten fehlen.</p>}
+      {!d.metaVerbunden && <p className="mt-1 text-[12.5px] text-amber-700">Meta Ads ist nicht verbunden – Kosten fehlen.{d.metaProblem ? ` Grund: ${d.metaProblem}` : ''}</p>}
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Kennzahl label="Werbeausgaben" wert={eur(m.spend)} delta={<Delta jetzt={m.spend} vorher={m.vergleich.spend} invert einheit=" €" />} />
         <Kennzahl label="Meta-Leads" wert={zahl(m.metaLeads)} sub={`CPL ${eur(m.cpl, 2)}`} delta={<Delta jetzt={m.metaLeads} vorher={m.vergleich.metaLeads} />} />
