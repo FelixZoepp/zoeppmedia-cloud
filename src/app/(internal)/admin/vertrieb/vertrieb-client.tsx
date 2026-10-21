@@ -14,8 +14,9 @@ import { AuslastungBereich } from './auslastung-bereich';
 import { TagesberichtBereich } from './tagesbericht-bereich';
 import type { Auslastung } from '@/lib/sales-controlling/auslastung';
 import type { Upsell } from '@/lib/sales-controlling/upsell';
+import type { Skalierung } from '@/lib/sales-controlling/skalierung';
 
-type Daten = SalesControlling & { upsell?: Upsell; selbstbucher?: { zugesagt: number; gebucht: number; nichtGebucht: number; offen: number; quote: number | null } | null; metaVerbunden: boolean; metaProblem?: string | null; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
+type Daten = SalesControlling & { upsell?: Upsell; skalierung?: Skalierung; selbstbucher?: { zugesagt: number; gebucht: number; nichtGebucht: number; offen: number; quote: number | null } | null; metaVerbunden: boolean; metaProblem?: string | null; details: SalesDetails; auslastung?: Auslastung; telefonieVerbunden: boolean; aufgabenVerbunden: boolean };
 
 const eur = (n: number | null | undefined, digits = 0) =>
   n === null || n === undefined ? '–' : `${n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })} €`;
@@ -208,6 +209,7 @@ export function VertriebClient() {
                 <Verlauf d={d} />
               </div>
               <Funnel d={d} />
+              {d.skalierung && <SkalierungBereich k={d.skalierung} metaProblem={d.metaVerbunden ? null : d.metaProblem ?? 'Meta Ads nicht verbunden'} />}
               {d.upsell && <UpsellBereich u={d.upsell} label={d.zeitraum.label} pipeline={d.upsellPipeline} />}
             </>
           )}
@@ -450,6 +452,65 @@ function Rückwärts({ d }: { d: Daten }) {
             })}
           </tbody>
         </table>
+      </div>
+    </Card>
+  );
+}
+
+/* ── Skalierung ──────────────────────────────────────────────── */
+
+function SkalierungBereich({ k, metaProblem }: { k: Skalierung; metaProblem: string | null }) {
+  return (
+    <Card>
+      <h2 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.02em]">
+        <TrendingUp className="h-5 w-5 text-red-800" /> Skalierung <span className="text-[13px] font-normal text-gray-500">· letzte {k.tage} Tage</span>
+      </h2>
+      <p className="mt-1 text-[12.5px] text-gray-500">
+        Leads = neue Anfragen in Close. Gehaltene Settings wie in der Auslastung. Voller Setter = {k.setterOptimum} gehaltene Settings je Werktag.
+      </p>
+      {metaProblem && <p className="mt-1 text-[12.5px] text-amber-700">Ohne Meta-Kosten fehlen Kosten je Lead und Budget. Grund: {metaProblem}</p>}
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kennzahl label="Werbebudget / Tag" wert={eur(k.spendProTag)} sub={k.spend === null ? 'Meta fehlt' : `${eur(k.spend)} in ${k.tage} Tagen`} />
+        <Kennzahl label="Leads / Tag" wert={zahl(k.leadsProTag)} sub={`${k.leads} Leads in ${k.tage} Tagen`} />
+        <Kennzahl label="Kosten je Lead" wert={eur(k.kostenJeLead)} />
+        <Kennzahl label="Lead → gehaltenes Setting" wert={pct(k.settingQuote)} sub={`${k.settings} Settings · Ø ${zahl(k.settingsProWerktag)} je Werktag`} />
+      </div>
+      <div className="mt-4 rounded-[16px] bg-panel p-4 text-[14px] leading-relaxed">
+        <p className="font-medium">Für einen voll ausgelasteten Setter ({k.setterOptimum} Settings/Werktag)</p>
+        <p className="mt-1 text-gray-700">
+          {k.leadsFuerSetter === null ? (
+            'Noch zu wenig Daten (keine Leads oder Settings im Zeitraum).'
+          ) : (
+            <>
+              braucht es <span className="font-semibold text-gray-900">{k.leadsFuerSetter} Leads pro Tag</span>
+              {k.budgetFuerSetter !== null && (
+                <>
+                  {' '}≈ <span className="font-semibold text-gray-900">{eur(k.budgetFuerSetter)} Werbebudget pro Tag</span>
+                  {k.mehrBudgetProTag !== null && <> ({k.mehrBudgetProTag > 0 ? `+${eur(k.mehrBudgetProTag)} zum heutigen Budget` : 'heutiges Budget reicht'})</>}
+                </>
+              )}
+              . Aktuell ist ein Setter zu {k.auslastungProzent ?? '–'} % ausgelastet.
+            </>
+          )}
+        </p>
+      </div>
+      <div className="mt-3 rounded-[16px] bg-panel p-4 text-[14px] leading-relaxed">
+        <p className="font-medium">Weg zu {eur(k.ziel.betrag)} im Monat</p>
+        {k.ziel.leadsProTag === null ? (
+          <p className="mt-1 text-gray-700">Noch keine gewonnenen Neukunden in den letzten {k.ziel.volumenTage} Tagen – Volumen je Lead unbekannt.</p>
+        ) : (
+          <p className="mt-1 text-gray-700">
+            Jeder Lead bringt im Schnitt <span className="font-semibold text-gray-900">{eur(k.ziel.volumenJeLead)}</span> Neukunden-Volumen (letzte {k.ziel.volumenTage} Tage)
+            {k.ziel.upsellProMonat > 0 && <>, Upsells laufen mit ca. {eur(k.ziel.upsellProMonat)} im Monat</>}. Dafür braucht es{' '}
+            <span className="font-semibold text-gray-900">{k.ziel.leadsProTag} Leads pro Tag</span>
+            {k.ziel.budgetProTag !== null && (
+              <>
+                {' '}≈ <span className="font-semibold text-gray-900">{eur(k.ziel.budgetProTag)} Werbebudget pro Tag</span> ({eur(k.ziel.budgetProMonat)} im Monat)
+              </>
+            )}
+            {k.ziel.setter !== null && <> und rund {zahl(k.ziel.setter)} voll ausgelastete Setter</>}.
+          </p>
+        )}
       </div>
     </Card>
   );

@@ -5,6 +5,7 @@ import { ladeAnrufe, ladeAufgaben, ladeClose, ladeErledigteAufgaben, ladeMetaMon
 import { berechneAuslastung, SCHWELLEN_KEYS, schwellenAus, STANDARD_SCHWELLEN, type Schwellen } from '@/lib/sales-controlling/auslastung';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { berechneDetails } from '@/lib/sales-controlling/detail';
+import { berechneSkalierung, SKALIERUNG_TAGE } from '@/lib/sales-controlling/skalierung';
 import { berlinTag } from '@/lib/zeit/berlin';
 
 
@@ -82,6 +83,9 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
       ladeErledigteAufgaben(zeitraum.von).catch((err) => (console.error('[vertrieb] erledigte Aufgaben', err), null)),
       ladeSchwellen(),
     ]);
+    // Skalierung: immer die letzten 14 Tage, unabhängig vom gewählten Zeitraum
+    const skalierungBis = iso(new Date(jetzt.getTime() + TAG));
+    const metaSkalierung = await ladeMetaZeitraum(iso(new Date(jetzt.getTime() - (SKALIERUNG_TAGE - 1) * TAG)), skalierungBis).catch(() => null);
 
     return {
       ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
@@ -113,6 +117,7 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
         jetzt,
         schwellen,
       }),
+      skalierung: berechneSkalierung({ opps: close.opps, statuses: close.statuses, events: close.events, meta: metaSkalierung, schwellen, jetzt, ziel: ZIEL }),
       telefonieVerbunden: anrufe !== null,
       aufgabenVerbunden: aufgaben !== null,
     };
