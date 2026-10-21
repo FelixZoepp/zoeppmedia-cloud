@@ -522,6 +522,11 @@ export async function GET(request: NextRequest) {
           console.log('[admin.einladung_senden]', await ladeZumKundenEin(svc, payload as unknown as { agency_id: string; email: string; name?: string; role?: string }));
           break;
         }
+        case 'diagnose.meta_ads': {
+          const { diagnoseMetaAds } = await import('@/lib/meta/diagnose');
+          await svc.from('scheduled_jobs').update({ payload: { ...payload, ergebnis: await diagnoseMetaAds() } }).eq('id', job.id);
+          break;
+        }
         case 'fulfillment.bilder_slack': {
           const { meldeNeueBilder } = await import('@/lib/kunden-bilder');
           console.log('[bilder-slack]', job.agency_id, await meldeNeueBilder(svc, job.agency_id));
