@@ -3,7 +3,7 @@
  * ohne ihn auszugeben – nur ob gesetzt, welche Rechte er hat und ob er das Werbekonto lesen darf.
  */
 
-import { metaAdAccountId } from './ad-account';
+import { metaAdAccountId, metaAdsToken } from './ad-account';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const NAMEN = ['META_ACCESS_TOKEN', 'META_SYSTEM_USER_TOKEN', 'META_CAPI_TOKEN'] as const;
@@ -41,6 +41,18 @@ export async function diagnoseMetaAds() {
       werbekonten: konten.ok ? ((konten.data.data as Array<{ account_id: string; name: string }>) ?? []).map((k) => `act_${k.account_id} ${k.name}`) : fehlerText(konten.data),
       werbezahlen: insights.ok ? `ok (Spend 7 Tage: ${((insights.data.data as Array<{ spend?: string }>) ?? [])[0]?.spend ?? 0})` : fehlerText(insights.data),
     };
+  }
+  // Spend und Meta-Leads je Tag (letzte 14 Tage) mit dem Token, den die Werbezahlen nutzen
+  const token = metaAdsToken();
+  if (token) {
+    const tage = await graph(`/${konto}/insights?fields=spend,actions&date_preset=last_14d&time_increment=1&limit=31`, token);
+    ergebnis.tage = tage.ok
+      ? ((tage.data.data as Array<{ date_start: string; spend?: string; actions?: Array<{ action_type: string; value: string }> }>) ?? []).map((t) => ({
+          tag: t.date_start,
+          spend: Number(t.spend ?? 0),
+          leads: Number((t.actions ?? []).find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')?.value ?? 0),
+        }))
+      : fehlerText(tage.data);
   }
   return ergebnis;
 }
