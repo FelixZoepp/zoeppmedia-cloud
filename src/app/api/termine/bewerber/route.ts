@@ -17,9 +17,11 @@ export async function GET(req: NextRequest) {
     .eq('agency_id', agencyId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
-    .limit(12);
+    .limit(40);
   if (q) query = query.or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: 'Suche fehlgeschlagen' }, { status: 500 });
-  return NextResponse.json(data ?? []);
+  // Ohne Telefon und E-Mail lässt sich niemand einladen (z. B. Indeed-Platzhalter, deren Daten noch nachgeholt werden)
+  const erreichbar = ((data ?? []) as Array<{ phone: string | null; email: string | null }>).filter((b) => b.phone || b.email);
+  return NextResponse.json(erreichbar.slice(0, 12));
 }
