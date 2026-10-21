@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { META_PARTNER_ID, META_CHECKLISTE_PDF, phaseLabel, type Phase } from '@/lib/fulfillment/catalog';
 import type { StepView } from '@/lib/fulfillment/views';
 import { Fahrplan } from '@/components/dashboard/fahrplan';
+import { KundenBilderUpload } from '@/components/fulfillment/kunden-bilder-upload';
 
 interface Aufgaben {
   phase: Phase;
@@ -70,6 +71,8 @@ function AufgabeCard({ step, onDone }: { step: StepView; onDone: (kommentar?: st
           </span>
         </div>
       )}
+
+      {step.step_key === 'o_bilder' && <KundenBilderUpload />}
 
       {open && step.anleitung && (
         <div className="mt-3 rounded-lg bg-gray-50 p-3 text-sm">

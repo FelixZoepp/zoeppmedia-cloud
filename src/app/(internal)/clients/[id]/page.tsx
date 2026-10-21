@@ -23,7 +23,7 @@ import { agencyLogo } from '@/lib/branding/logo';
 import {
   ArrowLeft, Users, UserCheck, TrendingUp, Calendar, AlertTriangle,
   BookOpen, CheckCircle, ChevronRight, Target, Activity, ExternalLink,
-  ListChecks, Clock, AlertCircle, Map as MapIcon, FileText, Plug, Phone,
+  ListChecks, Clock, AlertCircle, Map as MapIcon, FileText, Plug, Phone, Image as ImageIcon,
 } from 'lucide-react';
 import type { Agency, AgencyProblem, PlaybookEntry, ActivityLogEntry, PerspectiveFunnel, OnboardingProgress } from '@/lib/types/database';
 import { ActivityFeed } from '@/components/activity-feed';
@@ -552,6 +552,13 @@ export default function ClientDetailPage() {
             >
               <Plug size={14} />
               Integrationen
+            </Link>
+            <Link
+              href={`/clients/${id}/bilder`}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 shadow-sm transition-colors"
+            >
+              <ImageIcon size={14} />
+              Bilder
             </Link>
             <Link
               href={`/clients/${id}/transkript`}

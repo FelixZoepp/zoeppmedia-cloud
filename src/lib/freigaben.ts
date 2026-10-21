@@ -192,6 +192,11 @@ export const FREIGABEN = {
       'bekommt der Kundenbetreuer eine interne Aufgabe mit den Gründen – je Kunde und Grund höchstens eine offene.',
     wirkt: 'Nur interne Aufgaben – keine Nachricht an Kunden',
   },
+  kunden_bilder_slack: {
+    titel: '🖼️ Kundenbilder in Slack',
+    was: 'Lädt ein Kunde unter „Deine Aufgaben → Bilder & Branding“ Bilder hoch, kommt eine Slack-Nachricht in den Fulfillment-Kanal (sonst Marketing): welcher Kunde, wie viele Fotos von sich / Team / Arbeitsalltag / Logo, Link zu den Bildern. Mehrere Bilder innerhalb von 5 Minuten kommen als eine Nachricht.',
+    wirkt: 'Nur intern in Slack – keine Nachricht an den Kunden',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;

@@ -108,7 +108,7 @@ export const STEPS: StepDef[] = [
   },
   {
     key: 'o_bilder', phase: 'onboarding', titel: 'Bilder & Branding hochgeladen',
-    beschreibung: 'Logo, Farben, Fotos vom Team und vom Arbeitsalltag.', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true,
+    beschreibung: 'Am wichtigsten: Fotos von dir selbst. Dazu Team, Arbeitsalltag und Logo – direkt hier hochladen, dann auf „Erledigt“.', wer: 'kunde', funktion: 'media_buyer', frist_tage: 3, pruefen: true,
     nur: ['meta'],
   },
   meta('o_meta_seite', 'Zugriff auf Facebook-Seite gegeben', [
