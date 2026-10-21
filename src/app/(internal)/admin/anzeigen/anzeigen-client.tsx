@@ -83,7 +83,7 @@ export function AnzeigenClient() {
       )}
       {d && (
         <>
-          {!d.metaVerbunden && <Card padding="none" className="p-4 text-sm text-amber-800 bg-amber-50">⚠️ Meta Ads nicht verbunden (META_ACCESS_TOKEN / META_AD_ACCOUNT_ID) – nur Leads aus dem Funnel sichtbar.</Card>}
+          {!d.metaVerbunden && <Card padding="none" className="p-4 text-sm text-amber-800 bg-amber-50">⚠️ Meta Ads nicht verbunden (META_SYSTEM_USER_TOKEN mit ads_read) – nur Leads aus dem Funnel sichtbar.</Card>}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
             {kachel('💸 Ausgaben', eur(d.summe.ausgaben), `gestern ${eur(d.summe.ausgabenGestern)}`)}
             {kachel('🧲 Leads', z(d.summe.leads), `Ø ${eur(d.summe.cpl)} pro Lead`)}

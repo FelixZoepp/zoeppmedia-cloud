@@ -12,9 +12,9 @@ export function metaAdAccountId(): string | undefined {
   return normalisiereAdAccount(process.env.META_AD_ACCOUNT_ID) ?? ZOEPP_AD_ACCOUNT;
 }
 
-/** Schlüssel für die Werbezahlen: eigener Ads-Token, sonst der Systembenutzer-Token (braucht ads_read) */
+/** Schlüssel für die Werbezahlen: Systembenutzer-Token (läuft nicht ab, braucht ads_read), sonst der alte Ads-Token */
 export function metaAdsToken(): string | undefined {
-  return process.env.META_ACCESS_TOKEN || process.env.META_SYSTEM_USER_TOKEN || undefined;
+  return process.env.META_SYSTEM_USER_TOKEN || process.env.META_ACCESS_TOKEN || undefined;
 }
 
 /** Schlüssel für die Werbekonten der Kunden: Systembenutzer-Token (Partnerzugriff), sonst der Ads-Token */

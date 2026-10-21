@@ -277,7 +277,7 @@ export async function sendeAbendbericht(svc: SupabaseClient, tag: string): Promi
   if (marketingKanal) {
     const teile: Abschnitt[] = d.metaVerbunden
       ? zeitraeume.map((x) => ({ titel: x.titel, felder: marketingFelder(summiere(x.tage.map((t) => d.marketing.get(t) ?? LEER_MARKETING), LEER_MARKETING)) }))
-      : [{ titel: '⚠️ *Meta Ads nicht verbunden*', felder: ['META_ACCESS_TOKEN / META_AD_ACCOUNT_ID fehlen in Vercel.'] }];
+      : [{ titel: '⚠️ *Meta Ads nicht verbunden*', felder: ['META_SYSTEM_USER_TOKEN (ads_read) fehlt oder ist ungültig.'] }];
     const fuss = '🔗 <https://cloud.zoeppmedia.de/admin/marketing|Meta Ads> · Zahlen aus Meta Ads und den Funnel-Eintragungen';
     await postSlack(marketingKanal, baueBlocks(`📣 Marketing · ${datum}${zusatz}`, teile, fuss), `Marketing ${datum}`).catch((e) => fehler.push(String(e)));
   }
