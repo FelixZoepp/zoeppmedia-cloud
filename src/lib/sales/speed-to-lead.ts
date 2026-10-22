@@ -9,6 +9,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { istAusgeschlosseneQuelle } from './leadquelle';
 import { SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID } from './calendly-chain';
 import { versandZeit } from './eintrag-kette';
 import { findeBuchung } from './eintragungen';
@@ -111,7 +112,7 @@ export async function pruefeAnruf(svc: SupabaseClient, payload: { lead_id: strin
   }
   const { data } = await svc.from('sales_eintragungen').select('lead_id, name, email, phone, quelle, eingetragen_am, gebucht_am, ergebnis').eq('lead_id', payload.lead_id).maybeSingle();
   const e = data as { lead_id: string; name: string | null; email: string | null; phone: string | null; quelle: string | null; eingetragen_am: string; gebucht_am: string | null; ergebnis: string | null } | null;
-  if (!e || e.ergebnis === 'manuell') return 'unbekannt';
+  if (!e || e.ergebnis === 'manuell' || istAusgeschlosseneQuelle(e.quelle)) return 'unbekannt';
   if (e.gebucht_am || (await findeBuchung(svc, e))) return 'gebucht';
   const grund = await schonBearbeitet(e.lead_id, e.eingetragen_am);
   if (grund) return grund;

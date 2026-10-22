@@ -8,7 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SALES_AGENCY_ID } from './calendly-chain';
 import { addCloseTaskForLead, ladeCloseLead, setzeCloseLeadquelle } from './close';
-import { automatischeLeadquelle, istFunnelLead } from './leadquelle';
+import { automatischeLeadquelle, istAusgeschlosseneQuelle, istFunnelLead } from './leadquelle';
 import { notifySales } from './notify';
 
 export const WARTEZEIT_MIN = 10;
@@ -28,6 +28,7 @@ export function ergebnisFuer(eingetragen: Date, gebucht: Date | null, jetzt: Dat
 export async function erfasseEintragung(svc: SupabaseClient, leadId: string): Promise<boolean> {
   const lead = await ladeCloseLead(leadId);
   if (!lead) return false;
+  if (istAusgeschlosseneQuelle(lead.quelle)) return false;
   const eingetragen = new Date(lead.felder.datumEintragung ?? lead.erstellt);
   const { error } = await svc.from('sales_eintragungen').upsert(
     { lead_id: lead.id, name: lead.name, email: lead.email, phone: lead.phone, quelle: lead.quelle, eingetragen_am: eingetragen.toISOString() },
@@ -105,6 +106,11 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
     if (auto) await setzeCloseLeadquelle(e.lead_id, auto).catch((err) => console.error('[sales] Leadquelle nicht gesetzt:', err));
     e.quelle = lead.quelle ?? auto ?? e.quelle;
     await svc.from('sales_eintragungen').update({ quelle: e.quelle }).eq('lead_id', e.lead_id);
+  }
+  // Alte Quelle (LinkedIn-Fahrplan): nicht bearbeiten, nicht zählen
+  if (istAusgeschlosseneQuelle(e.quelle)) {
+    await svc.from('sales_eintragungen').update({ ergebnis: 'manuell' }).eq('lead_id', e.lead_id);
+    return 'manuell';
   }
 
   // Buchung evtl. noch nicht zugeordnet (z. B. andere Schreibweise der Nummer) → in den Calendly-Buchungen nachsehen

@@ -18,6 +18,7 @@ import { logActivity } from '@/lib/activity/log';
 import { ensureSalesProspect, normalizeToE164, SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID } from './calendly-chain';
 import { buildClickToken } from './tracking';
 import { findeBuchung } from './eintragungen';
+import { istAusgeschlosseneQuelle } from './leadquelle';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const MIN = 60_000;
@@ -105,9 +106,9 @@ export type KettenErgebnis = 'gesendet' | 'gebucht' | 'opportunity' | 'geantwort
 
 /** Job sales.eintrag_kette */
 export async function verarbeiteEintragKette(svc: SupabaseClient, payload: { lead_id: string; schritt: 1 | 2 | 3 }, jetzt: Date = new Date()): Promise<KettenErgebnis> {
-  const { data } = await svc.from('sales_eintragungen').select('lead_id, name, email, phone, eingetragen_am, gebucht_am, ergebnis').eq('lead_id', payload.lead_id).maybeSingle();
-  const e = data as { lead_id: string; name: string | null; email: string | null; phone: string | null; eingetragen_am: string; gebucht_am: string | null; ergebnis: string | null } | null;
-  if (!e || e.ergebnis === 'manuell') return 'unbekannt';
+  const { data } = await svc.from('sales_eintragungen').select('lead_id, name, email, phone, quelle, eingetragen_am, gebucht_am, ergebnis').eq('lead_id', payload.lead_id).maybeSingle();
+  const e = data as { lead_id: string; name: string | null; email: string | null; phone: string | null; quelle: string | null; eingetragen_am: string; gebucht_am: string | null; ergebnis: string | null } | null;
+  if (!e || e.ergebnis === 'manuell' || istAusgeschlosseneQuelle(e.quelle)) return 'unbekannt';
   const eingetragen = new Date(e.eingetragen_am);
   const weiter = async () => {
     if (payload.schritt < 3) await planeSchritt(svc, e.lead_id, (payload.schritt + 1) as 2 | 3, eingetragen, jetzt);

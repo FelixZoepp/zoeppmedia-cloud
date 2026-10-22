@@ -31,3 +31,13 @@ describe('Leadquelle', () => {
     expect(automatischeLeadquelle({ ...leer, utmSource: 'ig', utmMedium: 'paid' })).toBe('Meta Ads – Instagram');
   });
 });
+
+describe('istAusgeschlosseneQuelle', () => {
+  it('LinkedIn-Fahrplan/Roadmap ausschließen, andere Quellen nicht', async () => {
+    const { istAusgeschlosseneQuelle } = await import('../leadquelle');
+    expect(istAusgeschlosseneQuelle('LinkedIn - Roadmap Download')).toBe(true);
+    expect(istAusgeschlosseneQuelle('Fahrplan LinkedIn')).toBe(true);
+    expect(istAusgeschlosseneQuelle('Meta Ads – Instagram')).toBe(false);
+    expect(istAusgeschlosseneQuelle(null)).toBe(false);
+  });
+});

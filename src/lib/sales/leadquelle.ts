@@ -94,3 +94,8 @@ export function automatischeLeadquelle(f: LeadFelder): string | null {
   if (!istFunnelLead(f)) return null;
   return leadquelleAusUtm(f) ?? 'Funnel (ohne UTM)';
 }
+
+/** Alte Quellen, die nicht mehr bearbeitet werden (LinkedIn-Fahrplan/„Roadmap Download“): keine Kette, kein Anruf-Alarm, keine Eintragungs-Zahlen (rein, testbar) */
+export function istAusgeschlosseneQuelle(quelle: string | null | undefined): boolean {
+  return /roadmap|fahrplan/i.test(quelle ?? '');
+}
