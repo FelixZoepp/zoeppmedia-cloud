@@ -10,6 +10,7 @@ import { SALES_AGENCY_ID } from './calendly-chain';
 import { addCloseTaskForLead, ladeCloseLead, setzeCloseLeadquelle } from './close';
 import { automatischeLeadquelle, istAusgeschlosseneQuelle, istFunnelLead } from './leadquelle';
 import { notifySales } from './notify';
+import { istReportQuelle, markiereReportBuchung } from './report';
 
 export const WARTEZEIT_MIN = 10;
 const MIN = 60_000;
@@ -29,6 +30,8 @@ export async function erfasseEintragung(svc: SupabaseClient, leadId: string): Pr
   const lead = await ladeCloseLead(leadId);
   if (!lead) return false;
   if (istAusgeschlosseneQuelle(lead.quelle)) return false;
+  // Report-Funnel hat eine eigene Strecke (sales/report.ts)
+  if (istReportQuelle(lead.quelle)) return false;
   const eingetragen = new Date(lead.felder.datumEintragung ?? lead.erstellt);
   const { error } = await svc.from('sales_eintragungen').upsert(
     { lead_id: lead.id, name: lead.name, email: lead.email, phone: lead.phone, quelle: lead.quelle, eingetragen_am: eingetragen.toISOString() },
@@ -50,6 +53,7 @@ export async function erfasseEintragung(svc: SupabaseClient, leadId: string): Pr
 
 /** Buchung (Calendly) einer Eintragung zuordnen – über E-Mail oder Telefonnummer */
 export async function markiereBuchung(svc: SupabaseClient, b: { email: string | null; phone: string | null; gebuchtAm: Date }): Promise<void> {
+  await markiereReportBuchung(svc, b).catch((err) => console.error('[sales] Report-Buchung nicht zugeordnet:', err));
   const seit = new Date(b.gebuchtAm.getTime() - 30 * 864e5).toISOString();
   const { data } = await svc
     .from('sales_eintragungen')
@@ -107,8 +111,8 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
     e.quelle = lead.quelle ?? auto ?? e.quelle;
     await svc.from('sales_eintragungen').update({ quelle: e.quelle }).eq('lead_id', e.lead_id);
   }
-  // Alte Quelle (LinkedIn-Fahrplan): nicht bearbeiten, nicht zählen
-  if (istAusgeschlosseneQuelle(e.quelle)) {
+  // Alte Quelle (LinkedIn-Fahrplan) oder Report-Funnel (eigene Strecke): hier nicht bearbeiten, nicht zählen
+  if (istAusgeschlosseneQuelle(e.quelle) || istReportQuelle(e.quelle)) {
     await svc.from('sales_eintragungen').update({ ergebnis: 'manuell' }).eq('lead_id', e.lead_id);
     return 'manuell';
   }

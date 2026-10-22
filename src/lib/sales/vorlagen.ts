@@ -21,6 +21,20 @@ export interface SalesVorlage {
 
 export const SALES_VORLAGEN: SalesVorlage[] = [
   {
+    // Report-Funnel (sales/report.ts): direkt nach dem Download – {{2}} = Titel des Reports
+    name: 'report_versand',
+    category: 'MARKETING',
+    body:
+      'Hallo {{1}}, hier ist dein Report „{{2}}“. Über den Button unten öffnest du ihn direkt als PDF.\n\n' +
+      'Wenn du wissen willst, wie du das in deinem Vertrieb konkret umsetzt: Im Erstgespräch gehen wir es in 15 Minuten am Telefon gemeinsam für dich durch.',
+    variables: ['vorname', 'titel'],
+    beispiel: ['Mehmet', 'Vertriebsaufbau 2026'],
+    buttons: [
+      { type: 'URL', text: 'Report öffnen', url: 'https://cloud.zoeppmedia.de/api/report/{{1}}', example: ['https://cloud.zoeppmedia.de/api/report/abc123'] },
+      { type: 'URL', text: 'Erstgespräch buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] },
+    ],
+  },
+  {
     name: 'setting_buchung_v2',
     category: 'UTILITY',
     body:

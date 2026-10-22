@@ -197,6 +197,39 @@ export const EINGETRAGEN_VIEW = {
   ),
 };
 
+/**
+ * „📄 3.4 Report runtergeladen – kein Termin“: Report-Funnel-Leads (Leadquelle „Report – …“) im Leadpool/Interessiert,
+ * mit Telefon, nicht gesperrt, ohne gebuchtes Erstgespräch – neueste zuerst (sales/report.ts).
+ */
+export const REPORT_VIEW = {
+  name: '📄 3.4 Report runtergeladen – kein Termin',
+  s_query: sQuery(
+    and(
+      cf('cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8', { mode: 'full_words', type: 'text', value: 'Report' }),
+      leadStatus(STATUS.leadpool, STATUS.interessiert),
+      hatTelefon,
+      nichtGesperrt,
+      cf(F.settingTermin, { type: 'exists' }, true),
+    ),
+    [sortierung('date_created', 'desc')],
+  ),
+};
+
+/** Report-View anlegen bzw. aktualisieren (nur diese eine, die anderen bleiben unberührt) */
+export async function passeReportViewAn(svc: SupabaseClient): Promise<string> {
+  const { data: gemerkt } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_smartview_ids').maybeSingle();
+  const ids: Record<string, string> = (gemerkt as { wert: string } | null)?.wert ? JSON.parse((gemerkt as { wert: string }).wert) : {};
+  const bekannt = ids[REPORT_VIEW.name];
+  if (bekannt) {
+    await close(`/saved_search/${bekannt}/`, { method: 'PUT', body: JSON.stringify({ s_query: REPORT_VIEW.s_query }) });
+    return `angepasst (${bekannt})`;
+  }
+  const neu = await close<{ id: string }>(`/saved_search/`, { method: 'POST', body: JSON.stringify({ name: REPORT_VIEW.name, type: 'lead', s_query: REPORT_VIEW.s_query, is_shared: true }) });
+  ids[REPORT_VIEW.name] = neu.id;
+  await svc.from('system_einstellungen').upsert({ key: 'close_smartview_ids', wert: JSON.stringify(ids), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  return `neu (${neu.id})`;
+}
+
 /** Nur diese eine View aktualisieren (Name bleibt, wie er in Close steht) */
 export async function passeEingetragenViewAn(): Promise<void> {
   await close(`/saved_search/${EINGETRAGEN_VIEW.id}/`, { method: 'PUT', body: JSON.stringify({ s_query: EINGETRAGEN_VIEW.s_query }) });

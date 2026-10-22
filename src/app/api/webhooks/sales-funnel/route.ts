@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { istReportFunnel, reportQuelle, starteReport } from '@/lib/sales/report';
 import { leseFunnelLead, salesFunnelWebhookToken, uebernehmeFunnelLead } from '@/lib/sales/funnel-lead';
 
 /**
@@ -63,6 +64,12 @@ export async function POST(request: NextRequest) {
           { onConflict: 'lead_id', ignoreDuplicates: true },
         )
         .then(({ error }) => error && console.error('[sales-funnel] Herkunft:', error.message));
+    }
+    // Report-Funnel: Slack an Felix, WhatsApp mit PDF, 10-Min-Check (sales/report.ts) – scheitert nie den Webhook
+    if (istReportFunnel(lead.funnelName)) {
+      await starteReport(svc, { leadId: ergebnis.leadId, neu: ergebnis.neu, report: reportQuelle(lead.funnelName), name: lead.name, email: lead.email, phone: lead.phone }).catch((e) =>
+        console.error('[sales-funnel] Report-Strecke:', e),
+      );
     }
     if (externalId) await svc.from('sales_funnel_eingaenge').update({ status: 'fertig', erledigt_am: new Date().toISOString(), lead_id: ergebnis.leadId }).eq('external_id', externalId);
     // Meta Conversions API: jede Eintragung als „Lead“ (nur mit Freigabe/Testmodus, scheitert nie den Webhook)

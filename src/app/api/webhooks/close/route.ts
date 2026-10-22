@@ -88,6 +88,11 @@ export async function POST(request: NextRequest) {
   // Anruf → in 3 Min. prüfen, ob der Lead erreicht wurde (sonst 1 Tag gesperrt)
   if (ev?.object_type === 'activity.call' && ev.object_id) {
     try {
+      const leadId = ev.lead_id ?? ev.data?.lead_id;
+      if (leadId && ev.action === 'created') {
+        const { markiereReportAnruf } = await import('@/lib/sales/report');
+        await markiereReportAnruf(createAdminClient(), leadId).catch((e) => console.error('[close-webhook] Report-Anruf:', e));
+      }
       const { planeAnrufPruefung } = await import('@/lib/sales/anruf-sperre');
       await planeAnrufPruefung(createAdminClient(), ev.object_id);
       // Gespräch ohne Protokoll? (20 Min. später prüfen)

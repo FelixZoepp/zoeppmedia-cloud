@@ -192,6 +192,21 @@ export const FREIGABEN = {
       'bekommt der Kundenbetreuer eine interne Aufgabe mit den Gründen – je Kunde und Grund höchstens eine offene.',
     wirkt: 'Nur interne Aufgaben – keine Nachricht an Kunden',
   },
+  report_intern: {
+    titel: '📄 Report-Funnel: Slack + Anruf-Aufgabe',
+    was:
+      'Lädt jemand über einen Perspective-Funnel mit „Report“ im Namen den Report runter, kommt sofort eine Slack-Nachricht in #03-sales, in der du getaggt wirst („jetzt anrufen“, mit Telefonnummer und Close-Link). ' +
+      'Hat er 10 Minuten später keinen Termin gebucht, bekommt er in Close die Aufgabe „📄 Report runtergeladen, kein Termin – jetzt anrufen“ und du eine zweite Slack-Nachricht. ' +
+      'Report-Leads laufen getrennt vom normalen Funnel: keine Eintrag-Kette, kein Speed-Alarm, eigene Zahlen unter Vertrieb → Report-Funnel und eigener Smart View „📄 3.4 Report runtergeladen – kein Termin“. Die Zahlen werden auch ohne Freigabe erfasst.',
+    wirkt: 'Nur intern (Slack + Close-Aufgabe) – keine Nachricht an Leads',
+  },
+  report_whatsapp: {
+    titel: '📲 Report per WhatsApp verschicken',
+    was:
+      'Direkt nach dem Download bekommt der Lead die WhatsApp-Vorlage report_versand: „Hallo …, hier ist dein Report „…“ …“ mit den Buttons „Report öffnen“ (PDF, Öffnen wird gezählt) und „Erstgespräch buchen“ (Calendly, Klick wird verfolgt). ' +
+      'Einmal je Download, sofort (auch abends – er hat den Report gerade selbst angefordert), nicht nach STOP. Die Vorlage muss bei Meta freigegeben und das PDF unter Vertrieb → Report-Funnel hinterlegt sein. Aus: nur an Testnummern.',
+    wirkt: 'WhatsApp an den Lead – einmal, ausgelöst durch seinen eigenen Download',
+  },
   kunden_bilder_slack: {
     titel: '🖼️ Kundenbilder in Slack',
     was: 'Lädt ein Kunde unter „Deine Aufgaben → Bilder & Branding“ Bilder hoch, kommt eine Slack-Nachricht in den Fulfillment-Kanal (sonst Marketing): welcher Kunde, wie viele Fotos von sich / Team / Arbeitsalltag / Logo, Link zu den Bildern. Mehrere Bilder innerhalb von 5 Minuten kommen als eine Nachricht.',

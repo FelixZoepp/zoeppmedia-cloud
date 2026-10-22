@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, 
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
 import { GespraecheBereich } from './gespraeche-bereich';
 import { EintragungenBereich } from './eintragungen-bereich';
+import { ReportBereich } from './report-bereich';
 import { StehendeDealsBereich } from './stehende-deals-bereich';
 import type { SalesControlling } from '@/lib/sales-controlling/compute';
 import type { SalesDetails } from '@/lib/sales-controlling/detail';
@@ -231,6 +232,7 @@ export function VertriebClient() {
                 <ClosingBereich d={d} />
               </div>
               <EintragungenBereich zeitraum={zeitraum} />
+              <ReportBereich zeitraum={zeitraum} />
               <WhatsAppBereich zeitraum={zeitraum} />
               <Problemfelder d={d} nur={['Setting', 'Closing', 'Pipeline']} titel="Problemfelder Sales" />
               <ShowDetail s={d.details.shows} durchlauf={d.details.durchlauf} />

@@ -221,6 +221,11 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'terminierung_selbstbucher', wert: JSON.stringify({ ok: true, choices: [...new Set([...choices, SELBSTBUCHER_ERGEBNIS])] }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    if (name === 'smartview_report') {
+      const { passeReportViewAn } = await import('./close-smartviews');
+      await svc.from('system_einstellungen').upsert({ key: 'close_smartview_report', wert: JSON.stringify({ ergebnis: await passeReportViewAn(svc), am: new Date().toISOString() }), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'smartview_eingetragen') {
       const { passeEingetragenViewAn } = await import('./close-smartviews');
       await passeEingetragenViewAn();

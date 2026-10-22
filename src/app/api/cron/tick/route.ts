@@ -407,6 +407,16 @@ export async function GET(request: NextRequest) {
           console.log('[anruf-sperre]', await pruefeAnruf(svc, payload as { anruf_id: string; versuch?: number }));
           break;
         }
+        case 'sales.report_whatsapp': {
+          const { sendeReportWhatsApp } = await import('@/lib/sales/report');
+          console.log('[report]', await sendeReportWhatsApp(svc, payload as { download_id: string }));
+          break;
+        }
+        case 'sales.report_check': {
+          const { pruefeReport } = await import('@/lib/sales/report');
+          console.log('[report]', await pruefeReport(svc, payload as { download_id: string }, todayBerlin()));
+          break;
+        }
         case 'sales.eintrag_kette': {
           const { verarbeiteEintragKette } = await import('@/lib/sales/eintrag-kette');
           console.log('[eintrag-kette]', await verarbeiteEintragKette(svc, payload as { lead_id: string; schritt: 1 | 2 | 3 }));

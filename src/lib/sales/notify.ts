@@ -17,6 +17,10 @@ export interface SalesNotice {
   phone?: string | null;
   /** Konversation in der Sales-Inbox → Button "Chat öffnen" */
   conversationId?: string | null;
+  /** Slack-Nutzer, der in der Nachricht erwähnt wird (z. B. Felix) */
+  erwaehnen?: string | null;
+  /** Close-Lead → Button "In Close öffnen" */
+  closeLeadId?: string | null;
 }
 
 function appUrl(): string {
@@ -29,23 +33,16 @@ function inboxPath(conversationId: string): string {
 
 /** Slack-Nachricht (Block Kit) für einen Sales-Hinweis bauen. */
 export function buildSalesSlackMessage(n: SalesNotice): { text: string; blocks: unknown[] } {
-  const lines = [`${n.emoji} *${n.title}*`, n.body];
+  const tag = n.erwaehnen ? `<@${n.erwaehnen}> ` : '';
+  const lines = [`${tag}${n.emoji} *${n.title}*`, n.body];
   if (n.phone) lines.push(`📱 ${n.phone}`);
 
   const blocks: unknown[] = [{ type: 'section', text: { type: 'mrkdwn', text: lines.join('\n') } }];
-  if (n.conversationId) {
-    blocks.push({
-      type: 'actions',
-      elements: [
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: 'Chat öffnen' },
-          url: `${appUrl()}${inboxPath(n.conversationId)}`,
-        },
-      ],
-    });
-  }
-  return { text: `${n.emoji} ${n.title}: ${n.body}`, blocks };
+  const buttons: unknown[] = [];
+  if (n.conversationId) buttons.push({ type: 'button', text: { type: 'plain_text', text: 'Chat öffnen' }, url: `${appUrl()}${inboxPath(n.conversationId)}` });
+  if (n.closeLeadId) buttons.push({ type: 'button', text: { type: 'plain_text', text: 'In Close öffnen' }, url: `https://app.close.com/lead/${n.closeLeadId}/` });
+  if (buttons.length) blocks.push({ type: 'actions', elements: buttons });
+  return { text: `${tag}${n.emoji} ${n.title}: ${n.body}`, blocks };
 }
 
 export async function postSalesSlack(n: SalesNotice): Promise<void> {
