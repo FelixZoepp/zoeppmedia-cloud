@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import type { ApplicationRow } from '@/components/kanban/board';
 import type { PipelineStage } from '@/lib/types/database';
 import { AbsageKnopf } from '@/components/candidates/absage-knopf';
+import { AbsageDialog } from '@/components/candidates/absage-dialog';
 import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 
 type ColumnKey = 'name' | 'job' | 'stage' | 'source' | 'score' | 'phone' | 'email' | 'applied_at';
@@ -63,7 +64,7 @@ export function ApplicationTableView({
   const [bulkModal, setBulkModal] = useState<'stage' | 'assign' | 'delete' | null>(null);
   const [bulkStageId, setBulkStageId] = useState('');
   const [bulkAssignTo, setBulkAssignTo] = useState('');
-  const [bulkRejectionReason, setBulkRejectionReason] = useState('');
+  const [bulkAbsageOffen, setBulkAbsageOffen] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
 
   // Determine if the currently selected bulk stage is a rejection stage
@@ -79,7 +80,7 @@ export function ApplicationTableView({
 
   // Reset rejection reason when stage selection changes
   useEffect(() => {
-    if (!selectedStageIsRejection) setBulkRejectionReason('');
+    if (!selectedStageIsRejection) setBulkAbsageOffen(false);
   }, [selectedStageIsRejection]);
 
   const filtered = useMemo(() => {
@@ -114,14 +115,17 @@ export function ApplicationTableView({
     });
   }
 
-  async function executeBulk(action: 'set_stage' | 'assign' | 'delete') {
+  async function executeBulk(action: 'set_stage' | 'assign' | 'delete', absage?: { code: string; notiz: string | null }) {
     if (selected.size === 0) return;
     setBulkLoading(true);
     try {
       const body: Record<string, unknown> = { ids: Array.from(selected), action };
       if (action === 'set_stage') {
         body.stage_id = bulkStageId;
-        if (selectedStageIsRejection) body.rejection_reason = bulkRejectionReason;
+        if (selectedStageIsRejection) {
+          if (!absage) return setBulkAbsageOffen(true);
+          body.absage = absage;
+        }
       }
       if (action === 'assign') body.assigned_to = bulkAssignTo || null;
 
@@ -139,7 +143,7 @@ export function ApplicationTableView({
       toast.success(`${result.affected} Bewerbung(en) aktualisiert`);
       setSelected(new Set());
       setBulkModal(null);
-      setBulkRejectionReason('');
+      setBulkAbsageOffen(false);
       onRefresh();
     } catch {
       toast.error('Fehler bei Mehrfachaktion');
@@ -292,24 +296,13 @@ export function ApplicationTableView({
           <Select value={bulkStageId} onChange={(e) => setBulkStageId(e.target.value)}
             options={[{ value: '', label: 'Stufe wählen' }, ...stages.map((s) => ({ value: s.id, label: s.name }))]} />
           {selectedStageIsRejection && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Absagegrund <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                rows={3}
-                placeholder="Bitte Absagegrund eingeben..."
-                value={bulkRejectionReason}
-                onChange={(e) => setBulkRejectionReason(e.target.value)}
-              />
-            </div>
+            <p className="text-[13px] text-gray-500">Im nächsten Schritt wählst du den Absagegrund.</p>
           )}
           <div className="flex gap-3">
             <Button variant="ghost" className="flex-1" onClick={() => setBulkModal(null)}>Abbrechen</Button>
             <Button
               className="flex-1"
-              disabled={!bulkStageId || bulkLoading || (selectedStageIsRejection && !bulkRejectionReason.trim())}
+              disabled={!bulkStageId || bulkLoading}
               onClick={() => executeBulk('set_stage')}
             >
               {bulkLoading ? 'Wird gesetzt...' : 'Übernehmen'}
@@ -317,6 +310,14 @@ export function ApplicationTableView({
           </div>
         </div>
       </Modal>
+
+      <AbsageDialog
+        open={bulkAbsageOffen}
+        anzahl={selected.size}
+        laeuft={bulkLoading}
+        onClose={() => setBulkAbsageOffen(false)}
+        onBestaetigt={(a) => void executeBulk('set_stage', a)}
+      />
 
       <Modal open={bulkModal === 'assign'} onClose={() => setBulkModal(null)} title="Zuweisen" width="max-w-sm">
         <div className="space-y-4">

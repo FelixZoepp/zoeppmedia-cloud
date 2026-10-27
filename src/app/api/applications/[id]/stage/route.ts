@@ -5,6 +5,8 @@ import { logActivity } from '@/lib/activity/log';
 import { logAudit } from '@/lib/audit/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { scheduleStageReminders } from '@/lib/workers/sla-reminders';
+import { absageAusBody, ablehngrundText } from '@/lib/recruiting/absagegruende';
+import { absageAmBewerber } from '@/lib/recruiting/absage-speichern';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PATCH(
@@ -20,7 +22,7 @@ export async function PATCH(
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const body = await request.json();
-  const { stage_id, rejection_reason } = body;
+  const { stage_id } = body;
   if (!stage_id) return NextResponse.json({ error: 'stage_id erforderlich' }, { status: 400 });
 
   const supabase = await createServerClient();
@@ -44,10 +46,14 @@ export async function PATCH(
 
   if (!newStage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
 
-  // Absagegrund prüfen
-  if (newStage.stage_type === 'rejected' && !rejection_reason?.trim()) {
-    return NextResponse.json({ error: 'Absagegrund erforderlich' }, { status: 400 });
+  // Absagegrund prüfen (Katalog-Code oder Alt-Text)
+  let absage: { code: string; notiz: string | null } | null = null;
+  if (newStage.stage_type === 'rejected') {
+    const a = absageAusBody(body);
+    if ('fehler' in a) return NextResponse.json({ error: a.fehler }, { status: 400 });
+    absage = a;
   }
+  const rejection_reason = absage ? ablehngrundText(absage.code, absage.notiz) : null;
 
   // Status ableiten
   let newStatus: string = 'open';
@@ -87,6 +93,9 @@ export async function PATCH(
     changed_by: user.id,
   });
 
+  // Absagegrund am Bewerber speichern bzw. leeren, wenn er wieder aktiv wird
+  await absageAmBewerber(supabase, { candidateId: app.candidate_id, agencyId, absage, userId: user.id, phaseId: app.stage_id });
+
   // Auch candidates.current_stage_id aktualisieren (Bestandskompatibilitaet)
   await supabase
     .from('candidates')
@@ -102,7 +111,7 @@ export async function PATCH(
     new_stage_name: newStage.name,
     changed_by: user.id,
   };
-  if (rejection_reason) metadata.rejection_reason = rejection_reason;
+  if (absage) Object.assign(metadata, { rejection_reason, absage_code: absage.code, absage_notiz: absage.notiz });
 
   await logActivity(supabase, {
     agency_id: agencyId,

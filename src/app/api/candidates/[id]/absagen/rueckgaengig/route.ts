@@ -5,7 +5,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { stageVonId } from '@/lib/pipeline/get-stages';
 import { logActivity } from '@/lib/activity/log';
-import { SCHNELL_ABSAGE_ART, SCHNELL_ABSAGE_GRUND, mitProtokoll, pruefeUndo } from '@/lib/recruiting/schnell-absage';
+import { SCHNELL_ABSAGE_ART, mitProtokoll, pruefeUndo } from '@/lib/recruiting/schnell-absage';
+import { ABSAGE_LEER } from '@/lib/recruiting/absagegruende';
 
 /**
  * Schnell-Absage rückgängig: Phase, Bewerbungen, Gespräche und Termine wiederherstellen.
@@ -22,8 +23,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const body = await request.json().catch(() => null);
 
-  const { data: cand } = await supabase.from('candidates').select('id, agency_id, ablehngrund').eq('id', id).maybeSingle();
-  const candidate = cand as { id: string; agency_id: string; ablehngrund: string | null } | null;
+  const { data: cand } = await supabase.from('candidates').select('id, agency_id').eq('id', id).maybeSingle();
+  const candidate = cand as { id: string; agency_id: string } | null;
   if (!candidate) return NextResponse.json({ error: 'Bewerber nicht gefunden.' }, { status: 404 });
   const agencyId = candidate.agency_id;
   const svc = createAdminClient();
@@ -47,7 +48,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   // 1. Phase zurück (RLS prüft Schreibrecht)
   const update: Record<string, unknown> = { current_stage_id: stage?.id ?? null };
-  if (undo.grundGesetzt && candidate.ablehngrund === SCHNELL_ABSAGE_GRUND) update.ablehngrund = null;
+  // Von der Absage gesetzter Grund → wieder leeren, damit er nicht mehr in der Auswertung zählt
+  if (undo.grundGesetzt) Object.assign(update, ABSAGE_LEER);
   const { data: updated, error } = await supabase.from('candidates').update(update).eq('id', id).select('id');
   if (error) return NextResponse.json({ error: 'Update fehlgeschlagen.' }, { status: 500 });
   if (!updated?.length) return NextResponse.json({ error: 'Kein Zugriff auf diesen Bewerber.' }, { status: 403 });

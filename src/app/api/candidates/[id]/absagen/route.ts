@@ -7,9 +7,9 @@ import { stageVomTyp, getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { stopCadence } from '@/lib/cadence/engine';
 import { fireEvent } from '@/lib/automations/fire';
 import { logActivity } from '@/lib/activity/log';
+import { absageFelder, pruefeAbsage } from '@/lib/recruiting/absagegruende';
 import {
   SCHNELL_ABSAGE_ART,
-  SCHNELL_ABSAGE_GRUND,
   baueUndo,
   istAbgesagtStage,
   jobFilterOr,
@@ -17,10 +17,11 @@ import {
 } from '@/lib/recruiting/schnell-absage';
 
 /**
- * Schnell-Absage: Bewerber in „Abgesagt“ schieben und alles stoppen, was ihn noch kontaktieren würde
+ * Absage: Bewerber in „Abgesagt“ schieben und alles stoppen, was ihn noch kontaktieren würde
  * (Anrufversuche, KI-Agent, geplante Jobs, künftige Termine). Bewerber bekommt KEINE Nachricht.
+ * Body: { code, notiz? } – Grund aus dem Katalog ist Pflicht (Auswertung „Absagegründe“).
  */
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,13 +29,16 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   const profil = await getCurrentUser();
   if (!profil || !canWriteRole(profil.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
 
+  const grund = pruefeAbsage(await request.json().catch(() => null));
+  if ('fehler' in grund) return NextResponse.json({ error: grund.fehler }, { status: 400 });
+
   // RLS: nur sichtbare Bewerber
   const { data: cand } = await supabase
     .from('candidates')
-    .select('id, agency_id, current_stage_id, ablehngrund, cadence_active')
+    .select('id, agency_id, current_stage_id, cadence_active')
     .eq('id', id)
     .maybeSingle();
-  const candidate = cand as { id: string; agency_id: string; current_stage_id: string | null; ablehngrund: string | null; cadence_active: boolean | null } | null;
+  const candidate = cand as { id: string; agency_id: string; current_stage_id: string | null; cadence_active: boolean | null } | null;
   if (!candidate) return NextResponse.json({ error: 'Bewerber nicht gefunden.' }, { status: 404 });
   const agencyId = candidate.agency_id;
 
@@ -65,11 +69,14 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   // Einladungen ohne Zeit (noch nicht gebucht) oder in der Zukunft
   const einladungen = ((ap ?? []) as Array<{ id: string; status: string | null; starts_at: string | null }>).filter((a) => !a.starts_at || a.starts_at >= jetzt);
 
-  const grundGesetzt = !candidate.ablehngrund?.trim();
+  // Grund wird immer gesetzt → beim Rückgängigmachen wieder leeren
+  const grundGesetzt = true;
 
-  // 1. Phase setzen – RLS entscheidet über Schreibrecht (0 Zeilen = kein Zugriff)
-  const update: Record<string, unknown> = { current_stage_id: ziel.id };
-  if (grundGesetzt) update.ablehngrund = SCHNELL_ABSAGE_GRUND;
+  // 1. Phase + Absagegrund setzen – RLS entscheidet über Schreibrecht (0 Zeilen = kein Zugriff)
+  const update: Record<string, unknown> = {
+    current_stage_id: ziel.id,
+    ...absageFelder({ code: grund.code, notiz: grund.notiz, userId: user.id, phaseId: candidate.current_stage_id, jetzt }),
+  };
   const { data: updated, error: updateError } = await supabase.from('candidates').update(update).eq('id', id).select('id');
   if (updateError) return NextResponse.json({ error: 'Update fehlgeschlagen.' }, { status: 500 });
   if (!updated?.length) return NextResponse.json({ error: 'Kein Zugriff auf diesen Bewerber.' }, { status: 403 });
@@ -125,9 +132,9 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
     agency_id: agencyId,
     user_id: user.id,
     candidate_id: id,
-    action: 'Bewerber abgesagt (Schnell-Absage)',
+    action: `Bewerber abgesagt: ${update.ablehngrund as string}`,
     action_type: 'other',
-    metadata: { art: SCHNELL_ABSAGE_ART, stage_id: ziel.id, rueckgaengig, gestoppt },
+    metadata: { art: SCHNELL_ABSAGE_ART, stage_id: ziel.id, absage_code: grund.code, absage_notiz: grund.notiz, rueckgaengig, gestoppt },
   });
 
   fireEvent('stage_changed', agencyId, { candidate_id: id, extra: { new_stage_id: ziel.id, schnell_absage: true } }).catch(() => {});

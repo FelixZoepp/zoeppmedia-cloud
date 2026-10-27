@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { fireEvent } from '@/lib/automations/fire';
+import { absageAusBody, absageFelder, ABSAGE_LEER } from '@/lib/recruiting/absagegruende';
 
 export async function PATCH(
   request: NextRequest,
@@ -12,17 +13,30 @@ export async function PATCH(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { stage_id, rejection_reason } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { stage_id } = body as { stage_id?: string };
 
   if (!stage_id) {
     return NextResponse.json({ error: 'stage_id erforderlich.' }, { status: 400 });
   }
 
-  // Update candidate's current stage (+ Absagegrund, falls mitgeschickt)
+  // Ziel „Abgesagt“ → Absagegrund aus dem Katalog ist Pflicht
+  const [{ data: zielStage }, { data: vorher }] = await Promise.all([
+    supabase.from('pipeline_stages').select('stage_type, name').eq('id', stage_id).maybeSingle(),
+    supabase.from('candidates').select('current_stage_id, abgesagt_am').eq('id', id).maybeSingle(),
+  ]);
+  const ziel = zielStage as { stage_type: string | null; name: string | null } | null;
+  const istAbsage = ziel?.stage_type === 'rejected' || /^abgesagt/i.test(ziel?.name ?? '');
+  const alt = vorher as { current_stage_id: string | null; abgesagt_am: string | null } | null;
+
   const updatePayload: Record<string, unknown> = { current_stage_id: stage_id };
-  if (typeof rejection_reason === 'string' && rejection_reason.trim()) {
-    // Spalte heißt live „ablehngrund“ (rejection_reason/rejected_at gibt es in candidates nicht)
-    updatePayload.ablehngrund = rejection_reason.trim();
+  if (istAbsage) {
+    const absage = absageAusBody(body);
+    if ('fehler' in absage) return NextResponse.json({ error: absage.fehler }, { status: 400 });
+    Object.assign(updatePayload, absageFelder({ code: absage.code, notiz: absage.notiz, userId: user.id, phaseId: alt?.current_stage_id ?? null }));
+  } else if (alt?.abgesagt_am) {
+    // Wieder aktiv → zählt nicht mehr als Absage
+    Object.assign(updatePayload, ABSAGE_LEER);
   }
 
   const { data: updated, error: updateError } = await supabase

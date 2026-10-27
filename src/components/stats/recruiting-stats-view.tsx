@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { AnrufStatsSection } from './anruf-stats-section';
+import { AbsageStatsSection } from './absage-stats-section';
 import type { RecruitingStatsPayload, JobTableRow } from '@/lib/kpi/get-recruiting-stats';
 import type { KpiTiles } from '@/lib/kpi/recruiting-kpis';
 import { berlinTag, tagPlus } from '@/lib/zeit/berlin';
@@ -469,6 +470,7 @@ export function RecruitingStatsView() {
 
           {/* Anrufe (Erreichbarkeit, je Person, Speed-to-Lead, No-Shows) */}
           {from && to && <AnrufStatsSection from={from} to={to} />}
+          {from && to && <AbsageStatsSection from={from} to={to} />}
 
           {/* 6. Jobs-Tabelle */}
           <Card padding="md">

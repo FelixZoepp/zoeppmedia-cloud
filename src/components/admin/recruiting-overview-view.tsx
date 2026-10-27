@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AbsageUebersicht } from './absage-uebersicht';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -395,6 +396,8 @@ export function RecruitingOverviewView() {
           </div>
         )}
       </Card>
+
+      <AbsageUebersicht />
     </div>
   );
 }

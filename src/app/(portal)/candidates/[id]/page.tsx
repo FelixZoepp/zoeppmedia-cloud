@@ -12,7 +12,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { AppointmentsSection } from '@/components/candidates/appointments-section';
 import { AppointmentList } from '@/components/candidates/appointment-list';
 import { PersonaKarte } from '@/components/candidates/persona-karte';
-import { AbsageKnopf } from '@/components/candidates/absage-knopf';
+import { AbsageKnopf, bewerberAbsagen } from '@/components/candidates/absage-knopf';
+import { AbsageDialog } from '@/components/candidates/absage-dialog';
 import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 import {
   ArrowLeft,
@@ -65,6 +66,8 @@ import type {
 type CandidateDetail = {
   id: string;
   agency_id: string;
+  ablehngrund?: string | null;
+  abgesagt_am?: string | null;
   name: string;
   email: string | null;
   phone: string | null;
@@ -817,6 +820,7 @@ export default function CandidateDetailPage() {
   // Stage dropdown
   const [showStageDropdown, setShowStageDropdown] = useState(false);
   const [stageChanging, setStageChanging] = useState(false);
+  const [absageOffen, setAbsageOffen] = useState(false);
 
   // Track which app's data has been fetched to avoid redundant calls
   const fetchedAppData = useRef<Record<string, boolean>>({});
@@ -964,6 +968,12 @@ export default function CandidateDetailPage() {
   }
 
   async function changeStage(stageId: string) {
+    // „Abgesagt“ nur mit Grund – über denselben Weg wie ✕ (stoppt Anrufe, Bot, Termine)
+    if (istAbgesagtStage(stages.find((s) => s.id === stageId))) {
+      setShowStageDropdown(false);
+      setAbsageOffen(true);
+      return;
+    }
     setStageChanging(true);
     try {
       const res = await fetch(`/api/candidates/${id}/stage`, {
@@ -976,6 +986,19 @@ export default function CandidateDetailPage() {
       setStageChanging(false);
       setShowStageDropdown(false);
     }
+  }
+
+  async function absageBestaetigt(absage: { code: string; notiz: string | null }) {
+    setStageChanging(true);
+    const ok = await bewerberAbsagen(id, absage, data?.candidate ? String(data.candidate.name) : undefined, () => {
+      fetchData();
+      void fetchApplications();
+    });
+    setStageChanging(false);
+    if (!ok) return;
+    setAbsageOffen(false);
+    fetchData();
+    void fetchApplications();
   }
 
   async function logCall(e: React.FormEvent) {
@@ -1110,6 +1133,11 @@ export default function CandidateDetailPage() {
                   {currentStage.name}
                 </span>
               )}
+              {istAbgesagtStage(currentStage) && candidate.ablehngrund && (
+                <span className="text-sm text-gray-500" title={candidate.abgesagt_am ? `Abgesagt am ${new Date(candidate.abgesagt_am).toLocaleDateString('de-DE')}` : undefined}>
+                  Grund: {candidate.ablehngrund}
+                </span>
+              )}
             </div>
             <p className="text-sm text-gray-400 mt-1">
               Hinzugefügt {timeAgo(candidate.created_at)}
@@ -1160,6 +1188,13 @@ export default function CandidateDetailPage() {
             abgesagt={istAbgesagtStage(currentStage)}
             onAbgesagt={() => { fetchData(); void fetchApplications(); }}
             onWiederhergestellt={() => { fetchData(); void fetchApplications(); }}
+          />
+          <AbsageDialog
+            open={absageOffen}
+            name={String(candidate.name)}
+            laeuft={stageChanging}
+            onClose={() => setAbsageOffen(false)}
+            onBestaetigt={(a) => void absageBestaetigt(a)}
           />
         </div>
       </div>

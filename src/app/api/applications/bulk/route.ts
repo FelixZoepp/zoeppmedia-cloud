@@ -6,6 +6,8 @@ import { logAudit } from '@/lib/audit/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { absageAusBody, ablehngrundText } from '@/lib/recruiting/absagegruende';
+import { absageAmBewerber } from '@/lib/recruiting/absage-speichern';
 
 const BulkSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100),
@@ -13,6 +15,7 @@ const BulkSchema = z.object({
   stage_id: z.string().uuid().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
   rejection_reason: z.string().optional(),
+  absage: z.object({ code: z.string(), notiz: z.string().nullable().optional() }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
   const parsed = BulkSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { ids, action, stage_id, assigned_to, rejection_reason } = parsed.data;
+  const { ids, action, stage_id, assigned_to } = parsed.data;
   const supabase = await createServerClient();
   let affected = 0;
 
@@ -42,10 +45,14 @@ export async function POST(request: NextRequest) {
       .single();
     if (!stage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
 
-    // Absagegrund prüfen
-    if (stage.stage_type === 'rejected' && !rejection_reason?.trim()) {
-      return NextResponse.json({ error: 'Absagegrund erforderlich' }, { status: 400 });
+    // Absagegrund prüfen (Katalog-Code oder Alt-Text)
+    let absage: { code: string; notiz: string | null } | null = null;
+    if (stage.stage_type === 'rejected') {
+      const a = absageAusBody(parsed.data);
+      if ('fehler' in a) return NextResponse.json({ error: a.fehler }, { status: 400 });
+      absage = a;
     }
+    const rejection_reason = absage ? ablehngrundText(absage.code, absage.notiz) : null;
 
     let newStatus: string = 'open';
     if (stage.stage_type === 'hired') newStatus = 'hired';
@@ -66,6 +73,7 @@ export async function POST(request: NextRequest) {
         .eq('id', appId)
         .eq('agency_id', agencyId);
       await supabase.from('candidate_stages').insert({ candidate_id: app.candidate_id, stage_id, changed_by: user.id });
+      await absageAmBewerber(supabase, { candidateId: app.candidate_id, agencyId, absage, userId: user.id, phaseId: app.stage_id });
       await supabase.from('candidates').update({ current_stage_id: stage_id }).eq('id', app.candidate_id).eq('agency_id', agencyId);
 
       const metadata: Record<string, unknown> = {
@@ -75,7 +83,7 @@ export async function POST(request: NextRequest) {
         new_stage_name: stage.name,
         bulk: true,
       };
-      if (rejection_reason) metadata.rejection_reason = rejection_reason;
+      if (absage) Object.assign(metadata, { rejection_reason, absage_code: absage.code, absage_notiz: absage.notiz });
 
       await logActivity(supabase, {
         agency_id: agencyId,
