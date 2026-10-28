@@ -96,8 +96,9 @@ export async function POST(request: NextRequest) {
   const profile = (body.profile ?? {}) as Record<string, ProfileField>;
 
   // HTML-Funnels schicken first_name/last_name statt firstName/lastName
-  const firstName = fieldValue(profile.firstName) || fieldValue(profile.first_name);
-  const lastName = fieldValue(profile.lastName) || fieldValue(profile.last_name);
+  const props = (body.properties ?? {}) as Record<string, ProfileField>;
+  const firstName = fieldValue(profile.firstName) || fieldValue(profile.first_name) || fieldValue(props.first_name);
+  const lastName = fieldValue(profile.lastName) || fieldValue(profile.last_name) || fieldValue(props.last_name);
   const combinedName = [firstName, lastName].filter(Boolean).join(' ') || null;
 
   const name =
