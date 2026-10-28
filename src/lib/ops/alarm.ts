@@ -1,5 +1,5 @@
 /**
- * Betriebsalarm an alle Admins (Glocke + Push), gedrosselt: derselbe Alarm höchstens alle 6 Stunden.
+ * Betriebsalarm an alle Admins (Glocke + Push + Slack), gedrosselt: derselbe Alarm höchstens alle 6 Stunden.
  * Für Probleme, die sonst still bleiben würden (z. B. Bewerber-Eingang kaputt).
  */
 
@@ -21,5 +21,8 @@ export async function alarmAnAdmins(svc: SupabaseClient, alarm: { titel: string;
       push_url: alarm.link ?? '/admin/health',
     }).catch(() => {});
   }
+  // Zusätzlich nach Slack (System-Kanal bzw. DM an Felix)
+  const { sendeSystemSlack, baueAlarmNachricht } = await import('./slack-alarm');
+  await sendeSystemSlack(baueAlarmNachricht({ schluessel: alarm.titel, titel: alarm.titel, text: alarm.text, link: alarm.link ?? '/admin/health' }));
   return true;
 }

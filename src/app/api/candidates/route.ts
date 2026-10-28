@@ -5,6 +5,7 @@ import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { fireEvent } from '@/lib/automations/fire';
 import { requireAgencyScope } from '@/lib/recruiting/agency-scope';
+import { BEWERBER_LISTE_SELECT } from '@/lib/ops/abfragen';
 
 export async function GET(request: NextRequest) {
   const scope = await requireAgencyScope();
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   const { data: candidates, count } = await supabase
     .from('candidates')
-    .select('*, current_stage:pipeline_stages!candidates_current_stage_id_fkey(*)', { count: 'exact' })
+    .select(BEWERBER_LISTE_SELECT, { count: 'exact' })
     // immer nur die Bewerber der eigenen bzw. geöffneten Kunden-Cloud (intern sieht RLS alle Agenturen)
     .eq('agency_id', scope.agencyId)
     .is('deleted_at', null)

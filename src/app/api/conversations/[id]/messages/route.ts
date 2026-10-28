@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { CHAT_NACHRICHTEN_SELECT } from '@/lib/ops/abfragen';
 
 export async function GET(
   _request: NextRequest,
@@ -33,7 +34,7 @@ export async function GET(
   // Messages laden
   const { data: messages } = await svc
     .from('messages')
-    .select('id, direction, sender_type, user_id, type, body, media_path, wa_message_id, status, error_code, template_id, created_at')
+    .select(CHAT_NACHRICHTEN_SELECT)
     .eq('conversation_id', id)
     .order('created_at', { ascending: true });
 

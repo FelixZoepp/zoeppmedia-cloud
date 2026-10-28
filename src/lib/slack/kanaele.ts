@@ -1,13 +1,13 @@
 /**
- * Slack-Kanäle: zuerst aus system_einstellungen (slack_kanal_sales / _marketing / _fulfillment),
- * sonst aus den Vercel-Variablen SLACK_SALES_CHANNEL / SLACK_MARKETING_CHANNEL / SLACK_FULFILLMENT_CHANNEL.
+ * Slack-Kanäle: zuerst aus system_einstellungen (slack_kanal_sales / _marketing / _fulfillment / _system),
+ * sonst aus den Vercel-Variablen SLACK_SALES_CHANNEL / SLACK_MARKETING_CHANNEL / SLACK_FULFILLMENT_CHANNEL / SLACK_SYSTEM_CHANNEL.
  * So lassen sich Kanäle ohne Redeploy umstellen.
  */
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export type SlackBereich = 'sales' | 'marketing' | 'fulfillment';
+export type SlackBereich = 'sales' | 'marketing' | 'fulfillment' | 'system';
 
-const ENV: Record<SlackBereich, string> = { sales: 'SLACK_SALES_CHANNEL', marketing: 'SLACK_MARKETING_CHANNEL', fulfillment: 'SLACK_FULFILLMENT_CHANNEL' };
+const ENV: Record<SlackBereich, string> = { sales: 'SLACK_SALES_CHANNEL', marketing: 'SLACK_MARKETING_CHANNEL', fulfillment: 'SLACK_FULFILLMENT_CHANNEL', system: 'SLACK_SYSTEM_CHANNEL' };
 
 export async function slackKanal(bereich: SlackBereich): Promise<string | null> {
   try {

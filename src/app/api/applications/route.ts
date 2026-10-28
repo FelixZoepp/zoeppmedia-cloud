@@ -5,6 +5,7 @@ import { canWriteRole } from '@/lib/recruiting/scope';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { BEWERBUNGEN_SELECT } from '@/lib/ops/abfragen';
 
 // GET /api/applications
 export async function GET(request: NextRequest) {
@@ -22,14 +23,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createServerClient();
   let query = supabase
     .from('applications')
-    .select(
-      `
-      *,
-      candidate:candidates(id, name, phone, phone_e164, email, source, persona_typ, persona_fit),
-      job:jobs(id, title, slug),
-      stage:pipeline_stages(id, name, color, stage_type)
-    `
-    )
+    .select(BEWERBUNGEN_SELECT)
     .eq('agency_id', agencyId)
     .order('applied_at', { ascending: false });
 

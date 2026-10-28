@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
+import { INBOX_LISTE_SELECT } from '@/lib/ops/abfragen';
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -18,11 +19,7 @@ export async function GET(request: NextRequest) {
   const svc = createAdminClient();
   let query = svc
     .from('conversations')
-    .select(`
-      id, state, window_expires_at, unread_count, last_message_at, assigned_to,
-      candidate:candidates!inner(id, name, phone_e164, email, source, consent_source, created_at, location, kunde_agency_id, current_stage:pipeline_stages!candidates_current_stage_id_fkey(name, color, stage_type)),
-      application:applications(id, job:jobs(title), stage:pipeline_stages(name, color, stage_type))
-    `)
+    .select(INBOX_LISTE_SELECT)
     .eq('agency_id', agencyId)
     .order('last_message_at', { ascending: false });
 

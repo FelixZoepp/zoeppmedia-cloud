@@ -18,7 +18,6 @@ import { processBotClose } from '@/lib/workers/bot-close';
 import { processBotTurn } from '@/lib/workers/bot-process';
 import { processIngestIndeed } from '@/lib/workers/ingest-indeed';
 import { processIngestGeneric } from '@/lib/workers/ingest-generic';
-import { createNotificationForAgency } from '@/lib/notifications/create';
 import {
   processInviteFollowup,
   processReminder24h,
@@ -82,6 +81,14 @@ export async function GET(request: NextRequest) {
 
   const svc = createAdminClient();
   const startTime = Date.now();
+
+  // Herzschlag für den Wächter von außen (/api/ops/herzschlag)
+  try {
+    const { schreibeHerzschlag } = await import('@/lib/ops/system-waechter');
+    await schreibeHerzschlag(svc);
+  } catch (err) {
+    console.error('[tick] Herzschlag:', err);
+  }
   let eventsProcessed = 0;
   let eventsFailed = 0;
   let jobsProcessed = 0;
@@ -140,15 +147,7 @@ export async function GET(request: NextRequest) {
           .update({ status: 'dead', error: errorMsg })
           .eq('id', event.id);
 
-        // Admin-Benachrichtigung bei dead events (R1: Typ 'system')
-        if (event.agency_id) {
-          await createNotificationForAgency(svc, event.agency_id, {
-            title: 'Webhook-Verarbeitung fehlgeschlagen',
-            body: `Event ${event.id} (${event.source}) konnte nach 5 Versuchen nicht verarbeitet werden.`,
-            type: 'system',
-            push_url: '/settings',
-          }).catch(() => {});
-        }
+        // Meldung nur intern: der System-Wächter meldet gescheiterte Events gesammelt in Slack (nicht an den Kunden)
       } else {
         // C1: retry_at via Backoff setzen damit claim_inbox_events die Row überspringt
         await svc.from('events_inbox')
@@ -195,6 +194,14 @@ export async function GET(request: NextRequest) {
     await planeVorlagenPflege(svc, SALES_AGENCY_ID);
   } catch (err) {
     console.error('[tick] Vorlagen-Pflege nicht geplant:', err);
+  }
+
+  // System-Wächter alle 5 Minuten (Ausfälle → Slack)
+  try {
+    const { planeSystemWaechter } = await import('@/lib/ops/system-waechter');
+    await planeSystemWaechter(svc);
+  } catch (err) {
+    console.error('[tick] System-Wächter nicht geplant:', err);
   }
 
   // Bewerber-Eingang: Abruf-Fehler stündlich nachholen, täglich auf ausbleibende Bewerber prüfen
@@ -392,6 +399,11 @@ export async function GET(request: NextRequest) {
           console.log('[indeed-nachholen]', JSON.stringify(await holeIndeedMailsNach(svc)));
           break;
         }
+        case 'ops.system_waechter': {
+          const { pruefeSystem } = await import('@/lib/ops/system-waechter');
+          console.log('[system-waechter]', JSON.stringify(await pruefeSystem(svc)));
+          break;
+        }
         case 'ops.eingangs_waechter': {
           const { pruefeEingang } = await import('@/lib/ops/eingangs-waechter');
           console.log('[eingangs-waechter]', JSON.stringify(await pruefeEingang(svc)));
@@ -542,6 +554,15 @@ export async function GET(request: NextRequest) {
           console.log('[bilder-slack]', job.agency_id, await meldeNeueBilder(svc, job.agency_id));
           break;
         }
+        case 'admin.test_bewerber_push': {
+          // Testlauf: Push „Neuer Bewerber“ an das Kunden-Team für einen vorhandenen Test-Bewerber (keine Nachricht an Bewerber)
+          const p = payload as unknown as { agency_id: string; candidate_id: string };
+          const { data: c } = await svc.from('candidates').select('id, name, phone').eq('id', p.candidate_id).eq('agency_id', p.agency_id).maybeSingle();
+          if (!c) throw new Error('Test-Bewerber nicht gefunden');
+          const { sendeBewerberMeldung } = await import('@/lib/notifications/neuer-bewerber');
+          await sendeBewerberMeldung(svc, p.agency_id, { candidateId: c.id, name: c.name, phone: c.phone, quelle: 'Test' });
+          break;
+        }
         case 'admin.kunde_anlegen': {
           const { legeKundenAn } = await import('@/lib/admin/einladung-job');
           console.log('[admin.kunde_anlegen]', await legeKundenAn(svc, payload as unknown as { name: string; contact_name: string; email: string; phone?: string }));
@@ -616,15 +637,7 @@ export async function GET(request: NextRequest) {
           .update({ status: 'dead', last_error: errorMsg, updated_at: new Date().toISOString() })
           .eq('id', job.id);
 
-        // Admin-Benachrichtigung bei dead jobs (R1: Typ 'system')
-        if (job.agency_id) {
-          await createNotificationForAgency(svc, job.agency_id, {
-            title: 'Geplanter Job fehlgeschlagen',
-            body: `Job ${job.id} (${job.type}) ist nach 5 Versuchen gescheitert.`,
-            type: 'system',
-            push_url: '/settings',
-          }).catch(() => {});
-        }
+        // Meldung nur intern: der System-Wächter meldet gescheiterte Jobs gesammelt in Slack (nicht an den Kunden)
       } else {
         // Retry mit Backoff
         const nextRun = new Date(Date.now() + getRetryDelay(job.attempts));
