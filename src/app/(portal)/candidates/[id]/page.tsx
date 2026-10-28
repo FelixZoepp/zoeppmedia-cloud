@@ -1106,7 +1106,7 @@ export default function CandidateDetailPage() {
     <div className="max-w-[1400px]">
       {/* Back button */}
       <button
-        onClick={() => router.push('/dashboard')}
+        onClick={() => router.push('/candidates')}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors mb-6 cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
