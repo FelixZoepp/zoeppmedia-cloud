@@ -4,6 +4,7 @@
  * Spec Abschn. 11+13, Orchestrator-Ruling 5.
  */
 
+import { secretGleich } from '@/lib/security/webhook-secret';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processInbound } from '@/lib/workers/whatsapp-inbound';
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
   if (!cronSecret) {
     return NextResponse.json({ error: 'CRON_SECRET nicht konfiguriert' }, { status: 500 });
   }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!secretGleich(request.headers.get('authorization'), `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

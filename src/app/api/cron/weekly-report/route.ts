@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { automatikAktiv, sendeWochenberichte } from '@/lib/wochenbericht/versand';
 
@@ -8,7 +9,7 @@ export const maxDuration = 300;
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET nicht konfiguriert' }, { status: 500 });
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!secretGleich(request.headers.get('authorization'), `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const svc = createAdminClient();

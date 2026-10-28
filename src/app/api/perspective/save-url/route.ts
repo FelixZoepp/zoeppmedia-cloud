@@ -14,6 +14,10 @@ export async function POST(request: NextRequest) {
   if (!agency_id || !url) {
     return NextResponse.json({ error: 'agency_id und url sind erforderlich' }, { status: 400 });
   }
+  // Wird als Link angezeigt – nur https (kein javascript:)
+  if (typeof url !== 'string' || !/^https:\/\/[^\s]+$/i.test(url.trim())) {
+    return NextResponse.json({ error: 'Bitte einen https-Link angeben.' }, { status: 400 });
+  }
 
   const supabase = createAdminClient();
 

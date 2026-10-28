@@ -68,7 +68,8 @@ export function normalizeLesson(row: Record<string, unknown>): Lesson {
     sort_order: typeof row.sort_order === 'number' ? row.sort_order : 0,
     status: row.status === 'entwurf' ? 'entwurf' : 'veroeffentlicht',
     typ: row.typ === 'text' ? 'text' : 'video',
-    content_html: (row.content_html as string | null) ?? null,
+    // Auch beim Ausliefern filtern – falls HTML am Editor vorbei in die Tabelle geschrieben wurde
+    content_html: typeof row.content_html === 'string' && row.content_html ? sanitizeLessonHtml(row.content_html) : null,
     tags: arr<string>(row.tags),
     thumbnail_url: (row.thumbnail_url as string | null) ?? null,
     kapitel: arr<Kapitel>(row.kapitel).filter((k) => typeof k?.sekunden === 'number' && typeof k?.titel === 'string'),

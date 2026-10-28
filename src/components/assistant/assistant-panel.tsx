@@ -34,15 +34,20 @@ function renderInline(text: string, keyBase: string) {
     if (m[1]) parts.push(<strong key={`${keyBase}-b${i++}`}>{m[1]}</strong>);
     else if (m[2] && m[3]) {
       const href = m[3];
+      // Externe Links nur auf bekannte Domains – sonst könnte eingeschleuster Text (z. B. im Bewerbernamen)
+      // die KI zu einem Link bringen, der Daten an fremde Server übergibt
+      const extern = /^https:\/\/([a-z0-9-]+\.)*(zoeppmedia\.de|zoepp-gruppe\.de|calendly\.com|meta\.com|facebook\.com|google\.com)(\/|$)/i.test(href);
       parts.push(
-        href.startsWith('/') ? (
+        href.startsWith('/') && !href.startsWith('//') ? (
           <Link key={`${keyBase}-l${i++}`} href={href} className="font-medium text-red-800 underline underline-offset-2">
             {m[2]}
           </Link>
-        ) : (
+        ) : extern ? (
           <a key={`${keyBase}-l${i++}`} href={href} target="_blank" rel="noopener noreferrer" className="font-medium text-red-800 underline underline-offset-2">
             {m[2]}
           </a>
+        ) : (
+          m[2]
         ),
       );
     }

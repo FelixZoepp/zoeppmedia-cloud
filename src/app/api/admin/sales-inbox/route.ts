@@ -18,6 +18,11 @@ export async function GET(request: NextRequest) {
   if (!(await isAdmin(supabase))) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
+  // Links von fremden Seiten schalten nicht um (CSRF) – Push-Links und eigene Seiten schon
+  const fetchSite = request.headers.get('sec-fetch-site');
+  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
 

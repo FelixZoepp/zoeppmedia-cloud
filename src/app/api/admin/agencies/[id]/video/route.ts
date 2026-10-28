@@ -60,7 +60,10 @@ export async function PATCH(
   const updates: Record<string, unknown> = {};
 
   if ('dankevideo_url' in body) {
-    updates.dankevideo_url = body.dankevideo_url || null;
+    // Der Link wird Bewerbern geschickt (/video/<token> leitet dorthin weiter) – nur https, kein javascript:/http
+    const url = typeof body.dankevideo_url === 'string' ? body.dankevideo_url.trim() : '';
+    if (url && !/^https:\/\/[^\s]+$/i.test(url)) return NextResponse.json({ error: 'Bitte einen https-Link angeben.' }, { status: 400 });
+    updates.dankevideo_url = url || null;
   }
   if ('dankevideo_active' in body) {
     updates.dankevideo_active = !!body.dankevideo_active;

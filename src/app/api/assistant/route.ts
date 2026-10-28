@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit } from '@/lib/security/rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
 import { anthropicClient } from '@/lib/ai/anthropic';
 import { getCurrentUser, getEffectiveAgencyId, isInternal } from '@/lib/auth';
@@ -38,6 +39,13 @@ export async function POST(req: NextRequest) {
   const question = typeof body.question === 'string' ? body.question.trim().slice(0, 4000) : '';
   if (!question) return NextResponse.json({ error: 'Frage fehlt' }, { status: 400 });
   const history = Array.isArray(body.messages) ? (body.messages as Anthropic.Beta.BetaMessageParam[]) : [];
+  // Kostenbremse: max. 40 Fragen pro Stunde je Nutzer und kein beliebig großer Verlauf
+  if (!(await checkRateLimit(createAdminClient(), `assistant:${user.id}`, 40, 3600))) {
+    return NextResponse.json({ error: 'Sehr viele Fragen in kurzer Zeit – bitte in ein paar Minuten wieder.' }, { status: 429 });
+  }
+  if (JSON.stringify(history).length > 400_000) {
+    return NextResponse.json({ error: 'Das Gespräch ist sehr lang geworden – bitte ein neues beginnen.' }, { status: 400 });
+  }
   if (history.length > MAX_HISTORY) {
     return NextResponse.json({ error: 'Das Gespräch ist sehr lang geworden – bitte ein neues beginnen.' }, { status: 400 });
   }

@@ -1,3 +1,4 @@
+import { sanitizeFilterValue } from '@/lib/supabase/filters';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
   // Suche — zwei Schritte, da PostgREST kein .or() auf joined columns unterstützt (I-2).
   // Kommas im Suchbegriff werden entfernt um .or()-Syntax nicht zu brechen.
   if (search) {
-    const s = search.replace(/,/g, '');
+    const s = sanitizeFilterValue(search);
     const { data: matchingCandidates } = await svc
       .from('candidates')
       .select('id')

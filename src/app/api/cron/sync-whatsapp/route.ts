@@ -3,6 +3,7 @@
  * Spec Abschn. 7: Vorlagenverwaltung, Orchestrator-Ruling 7.
  */
 
+import { secretGleich } from '@/lib/security/webhook-secret';
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getProvider } from '@/lib/whatsapp/provider';
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
   if (!cronSecret) {
     return NextResponse.json({ error: 'CRON_SECRET nicht konfiguriert' }, { status: 500 });
   }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (!secretGleich(request.headers.get('authorization'), `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const maxDuration = 300;
@@ -9,7 +10,7 @@ export const maxDuration = 300;
  * feedback: Marketing-Auswertung aus den Gesprächen der letzten Tage. Antwortet sofort, gearbeitet wird per after().
  */
 export async function POST(req: NextRequest) {
-  if (!process.env.CRON_SECRET || req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || !secretGleich(req.headers.get('authorization'), `Bearer ${process.env.CRON_SECRET}`)) {
     return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   }
   const b = (await req.json().catch(() => ({}))) as { aktion?: string; tage?: number };

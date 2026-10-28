@@ -73,12 +73,17 @@ const ALLOWED_SET_FIELDS = new Set([
 /**
  * Resolve {{candidate.name}}, {{data.new_stage_name}}, etc. from context.
  */
-function resolveTemplate(template: string, context: AutomationContext): string {
+function resolveTemplate(template: string, context: AutomationContext, html = false): string {
   return template.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_match, path: string) => {
     const value = resolveField(path, context);
     if (value === undefined || value === null) return '';
-    return String(value);
+    // In HTML-Mails Werte escapen: Bewerber füllen Felder wie den Namen selbst aus (sonst HTML-/Link-Einschleusung)
+    return html ? escapeHtml(String(value)) : String(value);
   });
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -537,7 +542,7 @@ async function executeSendEmail(
 ): Promise<void> {
   const to = params.to as string;
   const subject = resolveTemplate(String(params.subject ?? ''), ctx);
-  const body = resolveTemplate(String(params.body ?? ''), ctx);
+  const body = resolveTemplate(String(params.body ?? ''), ctx, true);
   if (!to || !subject) return;
   // Automatische E-Mails an Bewerber erst nach Freigabe (Testadressen ausgenommen); Mails an Kunde/Team bleiben erlaubt
   if (ctx.candidate_id) {
