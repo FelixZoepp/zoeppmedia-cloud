@@ -95,8 +95,9 @@ export async function POST(request: NextRequest) {
   // --- Kontaktdaten extrahieren: Perspective-Format (profile.*.value) oder flach ---
   const profile = (body.profile ?? {}) as Record<string, ProfileField>;
 
-  const firstName = fieldValue(profile.firstName);
-  const lastName = fieldValue(profile.lastName);
+  // HTML-Funnels schicken first_name/last_name statt firstName/lastName
+  const firstName = fieldValue(profile.firstName) || fieldValue(profile.first_name);
+  const lastName = fieldValue(profile.lastName) || fieldValue(profile.last_name);
   const combinedName = [firstName, lastName].filter(Boolean).join(' ') || null;
 
   const name =
