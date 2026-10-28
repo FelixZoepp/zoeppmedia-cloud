@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const jobId = request.nextUrl.searchParams.get('job_id');
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const body = await request.json().catch(() => null);

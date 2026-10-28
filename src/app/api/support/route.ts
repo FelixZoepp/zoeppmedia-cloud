@@ -7,7 +7,7 @@ import { erstelleAnfrage, ladeAnfragen, pruefeAnfrage } from '@/lib/support/anfr
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Kunden-Cloud geöffnet' }, { status: 400 });
   try {
     const anfragen = await ladeAnfragen(createAdminClient(), { agencyId });
@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Kunden-Cloud geöffnet' }, { status: 400 });
   const p = pruefeAnfrage(await req.json().catch(() => ({})));
   if (!p.ok) return NextResponse.json({ error: p.fehler }, { status: 400 });

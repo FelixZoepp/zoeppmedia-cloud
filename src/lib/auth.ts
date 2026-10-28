@@ -20,13 +20,16 @@ export interface CurrentUser {
 // cache(): dedupes within one request (layout + page both call this)
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  // getClaims prüft das JWT lokal (asymmetrischer Schlüssel, JWKS gecacht) – kein Netzwerkaufruf zum Auth-Server.
+  // Gesperrte/deaktivierte Zugänge fängt users.aktiv unten ab.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+  if (!userId) return null;
 
   const { data } = await supabase
     .from('users')
     .select('id, email, name, role, agency_id, avatar_url, funktion, aktiv')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
 
   if (!data) return null;
@@ -49,8 +52,9 @@ export function isAgency(role: UserRole): boolean {
  * - For admins/Innendienst with an active impersonation cookie: returns the cookie value.
  * - Otherwise: returns the user's own agency_id from the users table (may be null).
  */
-export async function getEffectiveAgencyId(): Promise<string | null> {
-  const user = await getCurrentUser();
+export async function getEffectiveAgencyId(bekannt?: CurrentUser | null): Promise<string | null> {
+  // Schon geladenen Nutzer übergeben spart in API-Routen (dort wirkt cache() nicht) eine zweite Abfrage
+  const user = bekannt === undefined ? await getCurrentUser() : bekannt;
   if (!user) return null;
 
   // Admins und Innendienst (1-Klick-Login in die Kunden-Cloud)

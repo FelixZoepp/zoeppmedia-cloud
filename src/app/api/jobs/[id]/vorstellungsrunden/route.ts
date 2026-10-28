@@ -11,7 +11,7 @@ const MIGRATION_FEHLT = 'Datenbank-Änderung fehlt noch – Vorstellungsrunden s
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const { id: jobId } = await params;
@@ -68,7 +68,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const { id: jobId } = await params;

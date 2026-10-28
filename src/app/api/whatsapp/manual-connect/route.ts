@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Nur Platform-Admins können manuell verbinden' }, { status: 403 });
   }
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) {
     return NextResponse.json({ error: 'Keine Agentur — bitte zuerst impersonieren' }, { status: 403 });
   }

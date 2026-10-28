@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (user.role !== 'agency_owner' && user.role !== 'admin') {
     return NextResponse.json({ error: 'Nur Inhaber oder Admins können WhatsApp verbinden' }, { status: 403 });
   }
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const parsed = CallbackSchema.safeParse(await request.json().catch(() => null));

@@ -6,7 +6,7 @@ import { waehleVariante } from '@/lib/ads/bilder';
 /** POST { pfad } – Kunde wählt für eine Ad in seiner Freigabe eine der KI-Bildvarianten */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!user || !agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   // wie die Freigabe selbst: nur Inhaber (oder intern im Kunden-Login)
   if (user.role !== 'agency_owner' && !isInternal(user.role)) {

@@ -219,6 +219,21 @@ export const FREIGABEN = {
       'Bei Meta-Formular-Leads passiert das schon heute. Nachgeholte oder abgeglichene ältere Bewerber lösen nichts aus.',
     wirkt: 'Nur an die Cloud-Nutzer des Kunden (App/Browser) – keine Nachricht an Bewerber',
   },
+  kunden_onboarding_mail: {
+    titel: '✉️ Onboarding-Erinnerung per Mail',
+    was: 'Hat ein Kunde das Onboarding nach 2, 5 und 10 Tagen nicht ausgefüllt, bekommt der Inhaber eine Erinnerungs-Mail mit Link zum Onboarding. Aus: keine Mail, die Stufe wird trotzdem vermerkt (beim Einschalten wird nichts nachgeholt).',
+    wirkt: 'Mail an den Kunden',
+  },
+  kunden_zahlung_mail: {
+    titel: '💶 „Zahlung eingegangen“ per Mail',
+    was: 'Erkennt die Cloud die bezahlte Setup-Rechnung in Lexware, bekommt der Kunde eine Mail „Zahlung eingegangen“ mit seinem Zugang. Aus: Zugang und Freischaltung laufen trotzdem, nur die Mail entfällt – das Team bekommt einen Hinweis, den Kunden selbst zu informieren.',
+    wirkt: 'Mail an den Kunden',
+  },
+  kunden_report_auto: {
+    titel: '📊 Tag-7/14-Report automatisch senden',
+    was: 'Für Automatik-Kunden geht der Tag-7- und Tag-14-Report direkt per Mail an den Kunden. Aus: Der Report wird erstellt und wartet wie bei allen anderen Kunden auf Freigabe und Knopf.',
+    wirkt: 'Mail an den Kunden',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;

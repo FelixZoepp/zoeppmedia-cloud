@@ -6,7 +6,7 @@ import { providerBereit } from '@/lib/kalender/kunden-kalender';
 async function kontext() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   return agencyId ? { user, agencyId } : null;
 }
 

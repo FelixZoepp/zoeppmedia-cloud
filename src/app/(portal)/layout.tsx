@@ -14,7 +14,7 @@ export default async function PortalLayout({ children }: { children: React.React
   if (!user) redirect('/login');
 
   // Kunden-Logo (agencies.settings.logo_url) für Sidebar und Topbar
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   const { data: agency } = agencyId
     ? await createAdminClient().from('agencies').select('name, settings').eq('id', agencyId).maybeSingle()
     : { data: null };

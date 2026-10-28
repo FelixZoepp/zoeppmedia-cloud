@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
 
   // Admins ohne Kunden-Ansicht: Sales-WhatsApp (sonst lief der Chat nach Ablauf des Cookies ins Leere)
-  const agencyId = (await getEffectiveAgencyId()) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
+  const agencyId = (await getEffectiveAgencyId(user)) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
   // R7: return 403 instead of empty array
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 

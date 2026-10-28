@@ -3,6 +3,7 @@ import { generateReport } from './generate-report';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { versendeReport, type ReportTyp } from './versand';
 import { istAutomatikKunde } from '@/lib/fulfillment/automatik';
+import { istFreigegeben } from '@/lib/freigaben';
 
 function toDateString(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -91,7 +92,8 @@ async function erzeugeUndVersende(
   if (error || !report) throw error ?? new Error('Report nicht gespeichert');
 
   // Automatischer Versand nur für Automatik-Kunden (neue Fulfillment-Strecke); sonst wie bisher: Freigabe + Knopf
-  if (!(await istAutomatikKunde(supabase, agency.id))) {
+  // Automatischer Versand zusätzlich nur mit Freigabe „kunden_report_auto“
+  if (!(await istAutomatikKunde(supabase, agency.id)) || !(await istFreigegeben(supabase, 'kunden_report_auto').catch(() => false))) {
     await createNotificationForInternals(supabase, {
       title: `${label} Report fuer ${agency.name} bereit zur Freigabe`,
       body: `Der ${label} Report wurde automatisch generiert und wartet auf Freigabe.`,

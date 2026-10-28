@@ -30,7 +30,7 @@ export async function dialerScope(svc: SupabaseClient, opts: { intern?: boolean 
 
   // Intern, in einer Kunden-Cloud eingeloggt → nur dieser Kunde (außer im internen Dialer)
   if (!opts.intern) {
-    const effektiv = await getEffectiveAgencyId();
+    const effektiv = await getEffectiveAgencyId(user);
     if (effektiv && effektiv !== user.agency_id) return { user, agencyIds: [effektiv], einKunde: true, schreiben: true };
   }
 

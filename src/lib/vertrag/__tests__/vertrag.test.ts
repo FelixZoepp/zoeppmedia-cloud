@@ -152,9 +152,10 @@ describe('Zahlungserkennung', () => {
     await bestaetigeVertrag(client, TOKEN, eingabe, bDeps().deps, now);
   });
 
-  function zDeps(liste: LexRechnung[]) {
+  function zDeps(liste: LexRechnung[], mailErlaubt = true) {
     const calls = { laden: 0, mails: 0 };
     const deps: ZahlungDeps = {
+      mailErlaubt: async () => mailErlaubt,
       ladeRechnungen: async () => (calls.laden++, liste),
       sendZahlungEingegangen: async () => {
         calls.mails++;
@@ -219,6 +220,13 @@ describe('Zahlungserkennung', () => {
     await pruefeSetupZahlungen(client, now, deps);
     await verknuepfeSetupRechnung(client, AG, 'RE0042', deps, now);
     expect(calls.mails).toBe(1);
+  });
+
+  it('ohne Freigabe: keine Mail an den Kunden, Onboarding startet trotzdem', async () => {
+    const { deps, calls } = zDeps([rechnung({ voucherStatus: 'paid' })], false);
+    await pruefeSetupZahlungen(client, now, deps);
+    expect(calls.mails).toBe(0);
+    expect(tables.agencies.find((a) => a.id === AG)!.fulfillment_phase).toBe('onboarding');
   });
 
   it('von Hand verknüpfen per Rechnungsnummer', async () => {

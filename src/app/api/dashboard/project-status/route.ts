@@ -7,7 +7,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Kunde: eigene Agentur; Admin/Innendienst: die geöffnete Kunden-Cloud
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) {
     return NextResponse.json({ error: 'Nur fuer Agenturen' }, { status: 403 });
   }

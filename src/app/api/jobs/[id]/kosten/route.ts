@@ -8,7 +8,7 @@ import { ladeStellenKosten, zeitraum } from '@/lib/kosten/stellen';
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 403 });
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ error: 'Ungültige ID' }, { status: 400 });

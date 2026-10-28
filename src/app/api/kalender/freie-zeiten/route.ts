@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { darfKundenCloud } = await import('@/lib/kunden-cloud/zugriff');
   const intern = darfKundenCloud(user);
-  const agencyId = (intern && req.nextUrl.searchParams.get('agency')) || (await getEffectiveAgencyId());
+  const agencyId = (intern && req.nextUrl.searchParams.get('agency')) || (await getEffectiveAgencyId(user));
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   const minuten = Math.min(240, Math.max(15, Number(req.nextUrl.searchParams.get('minuten')) || 60));
   const tage = Math.min(21, Math.max(1, Number(req.nextUrl.searchParams.get('tage')) || 7));

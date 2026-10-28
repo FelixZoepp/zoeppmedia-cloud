@@ -107,6 +107,11 @@ async function loadContext(
   };
 }
 
+/** Termin hat schon begonnen → Buchungs-, Bestätigungs- und Erinnerungsnachrichten sind sinnlos */
+export function terminVorbei(startTime: string, jetzt: Date = new Date()): boolean {
+  return new Date(startTime).getTime() <= jetzt.getTime();
+}
+
 function formatVars(name: string, startTime: string): { vorname: string; datum: string; uhrzeit: string } {
   const start = new Date(startTime);
   return {
@@ -237,6 +242,8 @@ export async function processSalesBooking(
 ): Promise<void> {
   const ctx = await loadContext(svc, agencyId, payload.calendly_event_id);
   if (!ctx) return;
+  // Nach einem Ausfall nie zu einem Termin schreiben, der schon begonnen hat
+  if (terminVorbei(ctx.event.start_time)) return;
 
   const { vorname, datum, uhrzeit } = formatVars(ctx.candidate.name, ctx.event.start_time);
 
@@ -271,6 +278,8 @@ export async function processSalesConfirmation(
 ): Promise<void> {
   const ctx = await loadContext(svc, agencyId, payload.calendly_event_id);
   if (!ctx) return;
+  // Nach einem Ausfall nie zu einem Termin schreiben, der schon begonnen hat
+  if (terminVorbei(ctx.event.start_time)) return;
 
   // Ruhezeit → Job auf nächste erlaubte Zeit verschieben statt senden.
   // Aber nie hinter den Termin: dann lieber jetzt mit Bypass senden.
@@ -308,6 +317,8 @@ export async function processSalesReminder(
 ): Promise<void> {
   const ctx = await loadContext(svc, agencyId, payload.calendly_event_id);
   if (!ctx) return;
+  // Nach einem Ausfall nie zu einem Termin schreiben, der schon begonnen hat
+  if (terminVorbei(ctx.event.start_time)) return;
 
   const { vorname, uhrzeit } = formatVars(ctx.candidate.name, ctx.event.start_time);
 

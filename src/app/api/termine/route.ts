@@ -13,7 +13,7 @@ const TAG = /^\d{4}-\d{2}-\d{2}$/;
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const von = req.nextUrl.searchParams.get('von') ?? '';

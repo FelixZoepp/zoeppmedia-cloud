@@ -7,7 +7,7 @@ import { ladeEmpfehlungen } from '@/lib/empfehlungen/laden';
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Kunden-Cloud geöffnet' }, { status: 400 });
   try {
     return NextResponse.json(await ladeEmpfehlungen(createAdminClient(), agencyId));

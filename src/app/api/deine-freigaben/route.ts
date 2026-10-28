@@ -7,7 +7,7 @@ import { variantenMitVorschau, type BildVariante } from '@/lib/ads/bilder';
 /** Ads, die auf die Freigabe des Kunden warten (mit KI-Bildvarianten zur Auswahl). */
 export async function GET() {
   const user = await getCurrentUser();
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!user || !agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   const svc = createAdminClient();
   const { data } = await svc

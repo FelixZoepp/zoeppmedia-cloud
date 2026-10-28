@@ -44,13 +44,25 @@ describe('Gate: Tag-7/14-Reports', () => {
     expect(versendeReport).not.toHaveBeenCalled();
   });
 
-  it('Automatik-Kunde: Report geht automatisch raus', async () => {
+  it('Automatik-Kunde mit Freigabe: Report geht automatisch raus', async () => {
     const { client } = createFakeDb({
       agencies: [{ id: 'neu', name: 'Neu GmbH', garantie_start: vor7Tagen, automatik: true }],
       reports: [],
+      system_einstellungen: [{ key: 'automatik_freigaben', wert: JSON.stringify({ kunden_report_auto: true }) }],
     });
     await checkAndGenerateReports(client as never);
     expect(versendeReport).toHaveBeenCalledTimes(1);
+  });
+
+  it('Automatik-Kunde ohne Freigabe: Report wartet auf Freigabe', async () => {
+    const { client, tables } = createFakeDb({
+      agencies: [{ id: 'neu', name: 'Neu GmbH', garantie_start: vor7Tagen, automatik: true }],
+      reports: [],
+      system_einstellungen: [],
+    });
+    await checkAndGenerateReports(client as never);
+    expect(versendeReport).not.toHaveBeenCalled();
+    expect(tables.reports[0].status).toBe('generiert');
   });
 });
 

@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   // Admins/employees can query any agency; others only their own
   // (Innendienst/Admin ohne Parameter: die gerade geöffnete Kunden-Cloud)
-  const agencyId = isInternal(user.role) && agencyIdParam ? agencyIdParam : await getEffectiveAgencyId();
+  const agencyId = isInternal(user.role) && agencyIdParam ? agencyIdParam : await getEffectiveAgencyId(user);
 
   const stages = await getStagesForAgency(admin, agencyId);
   return NextResponse.json(stages);

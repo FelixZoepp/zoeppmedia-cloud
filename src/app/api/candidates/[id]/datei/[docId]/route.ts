@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { data: c } = await svc.from('candidates').select('agency_id').eq('id', id).maybeSingle();
   const agencyId = (c as { agency_id: string } | null)?.agency_id;
   if (!agencyId) return NextResponse.json({ error: 'Nicht gefunden' }, { status: 404 });
-  const eigene = await getEffectiveAgencyId();
+  const eigene = await getEffectiveAgencyId(user);
   if (!isInternal(user.role) && eigene !== agencyId) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
 
   const { data: doc } = await svc

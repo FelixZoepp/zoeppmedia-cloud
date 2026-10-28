@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Bitte anmelden' }, { status: 401 });
   if (!['agency_owner', 'admin', 'employee'].includes(user.role)) return NextResponse.json({ error: 'Nur der Inhaber kann den Kalender verbinden' }, { status: 403 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const body = (await req.json().catch(() => ({}))) as { apple_id?: string; passwort?: string };

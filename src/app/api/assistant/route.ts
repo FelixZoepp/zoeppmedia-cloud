@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const audience = ansicht === 'kunde' ? 'kunde' : ansicht ? 'team' : audienceFor(user.role);
   const funktion = ansicht ? ANSICHTEN[ansicht].funktion : (user.funktion ?? null);
   // Kunde: eigene Agentur. Intern: nur wenn gerade eine Kunden-Cloud geöffnet ist (nicht die interne Sales-Agentur).
-  const effektiv = await getEffectiveAgencyId();
+  const effektiv = await getEffectiveAgencyId(user);
   const intern = isInternal(user.role) && audience !== 'kunde';
   const imKunden = intern && !!effektiv && effektiv !== user.agency_id && effektiv !== SALES_AGENCY_ID;
   const ctx: ToolContext = {

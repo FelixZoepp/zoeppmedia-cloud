@@ -10,7 +10,7 @@ const MONAT = /^\d{4}-\d{2}-01$/;
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: isInternal(user.role) ? 'Bitte zuerst eine Kunden-Cloud öffnen' : 'Keine Agentur zugeordnet' }, { status: 400 });
   const daten = await ladeRoiUebersicht(createAdminClient(), agencyId);
   return NextResponse.json({ ...daten, schreiben: canWriteRole(user.role) });
@@ -38,7 +38,7 @@ async function speichern(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Nur lesender Zugriff' }, { status: 403 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur zugeordnet' }, { status: 400 });
 
   const body = (await req.json().catch(() => ({}))) as { eintraege?: Eintrag[] } & Eintrag;

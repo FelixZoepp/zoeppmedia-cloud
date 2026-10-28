@@ -12,7 +12,7 @@ export default async function AnrufenPage() {
   if (!user) redirect('/login');
 
   // Intern ohne geöffnete Kunden-Cloud: erst einen Kunden wählen
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (isInternal(user.role) && (!agencyId || agencyId === user.agency_id)) {
     return (
       <div className="max-w-3xl">

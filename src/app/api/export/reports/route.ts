@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createServerClient();
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   const period = request.nextUrl.searchParams.get('period') ?? 'all';
 
   // Kalendergrenzen in Berliner Zeit – identisch mit GET /api/reports (Montag als Wochenbeginn)

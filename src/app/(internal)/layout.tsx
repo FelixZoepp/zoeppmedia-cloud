@@ -16,14 +16,17 @@ export default async function InternalLayout({ children }: { children: React.Rea
   if (!user) redirect('/login');
   if (!isInternal(user.role)) redirect('/dashboard');
 
-  const ansicht = await aktiveAnsicht(user);
-  // „SOP aufnehmen“: Admins immer, Mitarbeiter nur wenn in der Akademie freigeschaltet
-  const aufnahmeErlaubt = await darfAufnehmen(createAdminClient(), user).catch(() => false);
+  // Unabhängige Schritte parallel (früher nacheinander – jeder Klick wartete auf alle)
+  const supabase = await createServerClient();
+  const [ansicht, aufnahmeErlaubt, { data: aal }] = await Promise.all([
+    aktiveAnsicht(user),
+    // „SOP aufnehmen“: Admins immer, Mitarbeiter nur wenn in der Akademie freigeschaltet
+    darfAufnehmen(createAdminClient(), user).catch(() => false),
+    // 2FA-Stufe aus der Sitzung (lokal, ohne Netzwerkaufruf); nextLevel aal2 = verifizierter Faktor vorhanden
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
 
   // --- 2FA Admin-Gate (env-gated) ---
-  const supabase = await createServerClient();
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
   // Hard-gate: wenn REQUIRE_ADMIN_2FA=true und Nutzer noch auf aal1 → redirect
   if (
     process.env.REQUIRE_ADMIN_2FA === 'true' &&
@@ -34,8 +37,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
   }
 
   // Soft-banner: kein Flag gesetzt, aber kein verified Faktor → dezenter Hinweis
-  const { data: factors } = await supabase.auth.mfa.listFactors();
-  const hasVerifiedTotp = factors?.totp?.some((f) => f.status === 'verified') ?? false;
+  const hasVerifiedTotp = aal?.nextLevel === 'aal2';
   const showBanner =
     process.env.REQUIRE_ADMIN_2FA !== 'true' && user.role === 'admin' && !hasVerifiedTotp;
 

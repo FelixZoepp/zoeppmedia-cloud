@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (isInternal(user.role) && agencyIdParam) {
     agencyId = agencyIdParam;
   } else {
-    agencyId = await getEffectiveAgencyId();
+    agencyId = await getEffectiveAgencyId(user);
   }
 
   if (!agencyId) {

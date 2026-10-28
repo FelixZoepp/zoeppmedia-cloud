@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 async function kontext() {
   const user = await getCurrentUser();
   if (!user) return { fehler: NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 }) };
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return { fehler: NextResponse.json({ error: 'Keine Agentur' }, { status: 403 }) };
   return { user, agencyId };
 }

@@ -22,7 +22,7 @@ function makeSvc(approvedTemplates: Record<string, { id: string; name: string }>
   const rows: Record<string, unknown> = {
     calendly_events: {
       id: 'row-evt', candidate_id: 'p-1', agency_id: 'sales', status: 'scheduled',
-      start_time: '2026-10-05T16:00:00Z', end_time: '2026-10-05T16:15:00Z',
+      start_time: '2099-10-05T16:00:00Z', end_time: '2099-10-05T16:15:00Z',
     },
     candidates: { id: 'p-1', name: 'Felix Testkunde', phone_e164: '+4915202159031', whatsapp_opt_in: true },
     conversations: { id: 'conv-1', wa_account_id: 'wa-1' },
@@ -109,5 +109,14 @@ describe('processSalesUnconfirmedCheck', () => {
     const { processSalesUnconfirmedCheck } = await import('../sales-reminders');
     await processSalesUnconfirmedCheck(svcWith(true), 'sales', { calendly_event_id: 'evt-1', chain: 'setting' });
     expect(createNotificationForInternals).not.toHaveBeenCalled();
+  });
+});
+
+describe('terminVorbei', () => {
+  it('erkennt begonnene Termine', async () => {
+    const { terminVorbei } = await import('../sales-reminders');
+    const jetzt = new Date('2026-10-28T12:00:00Z');
+    expect(terminVorbei('2026-10-28T11:59:00Z', jetzt)).toBe(true);
+    expect(terminVorbei('2026-10-28T12:15:00Z', jetzt)).toBe(false);
   });
 });

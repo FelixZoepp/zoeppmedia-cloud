@@ -15,7 +15,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const svc = createAdminClient();

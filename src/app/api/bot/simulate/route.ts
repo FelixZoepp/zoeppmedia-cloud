@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
   }
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) {
     return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   }

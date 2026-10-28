@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   }
 
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) {
     return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   }

@@ -9,7 +9,7 @@ export async function GET() {
   const supabase = await createServerClient();
 
   // Kunden exportieren ihre Bewerber; intern die geöffnete Kunden-Cloud (ohne geöffnete Cloud: alle)
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId && !isInternal(user.role)) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   let query = supabase
     .from('candidates')

@@ -144,6 +144,9 @@ async function runDailyJobs() {
 
   if (pendingAgencies?.length) {
     const { sendOnboardingReminder } = await import('@/lib/email/resend');
+    // Ohne Freigabe keine Mail – die Stufe wird trotzdem vermerkt, damit beim Einschalten nichts nachgeholt wird
+    const { istFreigegeben } = await import('@/lib/freigaben');
+    const mailFreigegeben = await istFreigegeben(supabase, 'kunden_onboarding_mail');
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
 
     for (const agency of pendingAgencies as Array<{ id: string; created_at: string; onboarding_erinnerungen: number | null }>) {
@@ -153,7 +156,7 @@ async function runDailyJobs() {
       if (faellig <= bisher) continue;
 
       const owner = ownerByAgency.get(agency.id);
-      if (owner) {
+      if (owner && mailFreigegeben) {
         try {
           await sendOnboardingReminder(owner.email, owner.name, `${appUrl}/onboarding`);
           remindersS++;

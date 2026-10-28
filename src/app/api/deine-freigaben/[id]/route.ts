@@ -5,7 +5,7 @@ import { customerDecision } from '@/lib/ads/ads';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!user || !agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   // Ad-Freigaben gegenüber der Agentur: nur Inhaber (oder intern im Kunden-Login)
   if (user.role !== 'agency_owner' && !isInternal(user.role)) {

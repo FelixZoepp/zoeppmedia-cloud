@@ -31,7 +31,7 @@ export async function POST(
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
   // Admins ohne Kunden-Ansicht: Sales-WhatsApp (sonst lief der Chat nach Ablauf des Cookies ins Leere)
-  const agencyId = (await getEffectiveAgencyId()) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
+  const agencyId = (await getEffectiveAgencyId(user)) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   // FormData parsen

@@ -5,7 +5,7 @@ import { loadCustomerTasks } from '@/lib/fulfillment/views';
 
 export async function GET() {
   const user = await getCurrentUser();
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!user || !agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   return NextResponse.json(await loadCustomerTasks(createAdminClient(), agencyId));
 }

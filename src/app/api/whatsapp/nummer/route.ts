@@ -13,7 +13,7 @@ const CODE_FENSTER_MIN = 15;
 async function kontext() {
   const user = await getCurrentUser();
   if (!user || (user.role !== 'agency_owner' && user.role !== 'admin')) return null;
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   return agencyId ? { agencyId } : null;
 }
 

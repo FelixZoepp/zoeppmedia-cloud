@@ -12,6 +12,7 @@ import { setStepStatus } from '@/lib/fulfillment/engine';
 import { createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { sendZahlungEingegangen } from '@/lib/email/resend';
+import { istFreigegeben } from '@/lib/freigaben';
 
 /** Höchstens alle 15 Minuten bei Lexware nachfragen (Tick läuft minütlich, Lexware hat ein Rate-Limit) */
 export const ZAHLUNGSCHECK_INTERVALL_MS = 15 * 60 * 1000;
@@ -32,6 +33,8 @@ export interface ZahlungDeps {
   /** Neueste Rechnungen aus Lexware (offen/bezahlt) */
   ladeRechnungen: () => Promise<LexRechnung[]>;
   sendZahlungEingegangen: typeof sendZahlungEingegangen;
+  /** Freigabe „kunden_zahlung_mail“ (für Tests überschreibbar) */
+  mailErlaubt?: (svc: SupabaseClient) => Promise<boolean>;
 }
 
 async function ladeLexRechnungen(): Promise<LexRechnung[]> {
@@ -81,7 +84,7 @@ export async function setupZahlungEingegangen(
   vertragId: string,
   agencyId: string,
   rechnungNr: string | null,
-  deps: Pick<ZahlungDeps, 'sendZahlungEingegangen'> = defaultDeps,
+  deps: Pick<ZahlungDeps, 'sendZahlungEingegangen' | 'mailErlaubt'> = defaultDeps,
   now: Date = new Date(),
 ): Promise<boolean> {
   const { data: moved } = await svc
@@ -130,7 +133,18 @@ export async function setupZahlungEingegangen(
     entity_id: agencyId,
   }).catch(() => {});
 
-  if (agency?.email) {
+  // Mail an den Kunden nur mit Freigabe – sonst informiert das Team selbst (nichts wird später nachgeholt)
+  const mailErlaubt = await (deps.mailErlaubt ?? ((c: SupabaseClient) => istFreigegeben(c, 'kunden_zahlung_mail')))(svc).catch(() => false);
+  if (agency?.email && !mailErlaubt) {
+    await createNotificationForInternals(svc, {
+      title: `Bitte ${firma} informieren: Zahlung eingegangen`,
+      body: 'Die automatische Mail „Zahlung eingegangen“ ist unter Freigaben aus. Bitte den Kunden selbst informieren, dass das Onboarding startet.',
+      type: 'system',
+      entity_type: 'agency',
+      entity_id: agencyId,
+    }).catch(() => {});
+  }
+  if (agency?.email && mailErlaubt) {
     try {
       const base = process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de';
       const { weiterUrl } = await import('./bestaetigen');

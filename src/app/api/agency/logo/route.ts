@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { agency_id?: string; logo_url?: string | null };
   let agencyId: string | null;
   if (isInternal(user.role)) {
-    agencyId = body.agency_id ?? (await getEffectiveAgencyId());
+    agencyId = body.agency_id ?? (await getEffectiveAgencyId(user));
   } else if (user.role === 'agency_owner' || user.role === 'agency_member') {
     agencyId = user.agency_id;
   } else {

@@ -13,7 +13,7 @@ export default async function HilfePage() {
   // Kunden: ihren Ansprechpartner bei Zoepp Media zeigen (agencies.csm_user_id), falls hinterlegt
   let kontakt: Ansprechpartner | null = null;
   if (!isInternal(user.role)) {
-    const agencyId = await getEffectiveAgencyId();
+    const agencyId = await getEffectiveAgencyId(user);
     if (agencyId) {
       const svc = createAdminClient();
       const { data: agency } = await svc.from('agencies').select('csm_user_id').eq('id', agencyId).maybeSingle();

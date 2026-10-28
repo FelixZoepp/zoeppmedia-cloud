@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.redirect(new URL('/login', req.url));
   if (!['agency_owner', 'admin', 'employee'].includes(user.role)) return NextResponse.json({ error: 'Nur der Inhaber kann den Kalender verbinden' }, { status: 403 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   const p = req.nextUrl.searchParams.get('provider') as KalenderProvider | null;
   if (p !== 'google' && p !== 'microsoft') return NextResponse.json({ error: 'Unbekannter Anbieter' }, { status: 400 });

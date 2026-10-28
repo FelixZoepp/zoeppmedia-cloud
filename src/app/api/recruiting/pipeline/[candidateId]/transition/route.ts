@@ -47,7 +47,7 @@ export async function POST(
       return NextResponse.json({ error: 'Bewerber nicht gefunden' }, { status: 404 });
     }
 
-    if (candidate.agency_id !== (await getEffectiveAgencyId())) {
+    if (candidate.agency_id !== (await getEffectiveAgencyId(user))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
   }

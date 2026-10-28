@@ -6,7 +6,7 @@ import { completeCustomerStep } from '@/lib/fulfillment/engine';
 /** Kunde hakt eine eigene Aufgabe ab (mit Prüfung → geht zum Team, sonst direkt erledigt). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!user || !agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { kommentar?: string };

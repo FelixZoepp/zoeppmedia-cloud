@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
     agencyId = agencyIdParam;
   } else {
-    agencyId = await getEffectiveAgencyId();
+    agencyId = await getEffectiveAgencyId(user);
   }
 
   const admin = createAdminClient();

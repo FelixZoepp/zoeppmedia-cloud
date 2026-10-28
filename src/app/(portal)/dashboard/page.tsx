@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   // Kunde: eigene Agentur; Admin/Innendienst: die gerade geöffnete Kunden-Cloud
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) redirect(isInternal(user.role) ? '/innendienst' : '/login');
 
   const supabase = await createServerClient();

@@ -20,7 +20,7 @@ async function bewerberImZugriff(id: string) {
   const { data } = await svc.from('candidates').select(FELDER).eq('id', id).maybeSingle();
   const c = data as (Record<string, unknown> & { id: string; agency_id: string; name: string; email: string | null }) | null;
   if (!c) return { fehler: NextResponse.json({ error: 'Bewerber nicht gefunden' }, { status: 404 }) };
-  const effektiv = await getEffectiveAgencyId();
+  const effektiv = await getEffectiveAgencyId(user);
   // Kunde: nur eigene Agentur. Intern: nur in der gerade geöffneten Kunden-Cloud.
   if (effektiv !== c.agency_id) return { fehler: NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 }) };
   return { user, svc, c };

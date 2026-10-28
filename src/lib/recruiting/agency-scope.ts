@@ -9,7 +9,7 @@ import { getCurrentUser, getEffectiveAgencyId, isInternal, type CurrentUser } fr
 export async function requireAgencyScope(): Promise<{ user: CurrentUser; agencyId: string } | NextResponse> {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
-  const agencyId = await getEffectiveAgencyId();
+  const agencyId = await getEffectiveAgencyId(user);
   if (!agencyId) {
     return NextResponse.json(
       { error: isInternal(user.role) ? 'Bitte zuerst in eine Kunden-Cloud einloggen.' : 'Keine Agentur zugeordnet' },
