@@ -98,5 +98,8 @@ export async function GET(request: NextRequest) {
   );
   // Sales-Inbox (interne Agentur) zeigt Leads statt Bewerber
   res.headers.set('x-inbox-kind', agencyId === SALES_AGENCY_ID ? 'sales' : 'recruiting');
+  // Ohne verbundene WhatsApp-Nummer bleibt die Inbox leer → Hinweis in der Oberfläche
+  const { count: nummern } = await svc.from('whatsapp_accounts').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('status', 'connected');
+  res.headers.set('x-whatsapp-verbunden', nummern ? '1' : '0');
   return res;
 }

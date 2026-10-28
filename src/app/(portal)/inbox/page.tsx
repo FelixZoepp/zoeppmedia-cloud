@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { ConversationList } from '@/components/inbox/conversation-list';
 import { ChatPane } from '@/components/inbox/chat-pane';
 import { CandidateSidebar } from '@/components/inbox/candidate-sidebar';
@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { createClient } from '@/lib/supabase/client';
 import { MessageCircle } from 'lucide-react';
+import Link from 'next/link';
+import { buttonStyles } from '@/components/ui/button';
 import type { InboxKind } from '@/components/inbox/format';
 
 export default function InboxPage() {
@@ -18,6 +20,8 @@ export default function InboxPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [kind, setKind] = useState<InboxKind>('recruiting');
+  // Keine WhatsApp-Nummer verbunden → Hinweis statt leerer Liste
+  const [nummerVerbunden, setNummerVerbunden] = useState(true);
   // Sales-Inbox: Leads oder Kunden
   const [gruppe, setGruppe] = useState<'leads' | 'kunden'>('leads');
   // Kontakt-Details nur auf breiten Bildschirmen direkt offen, sonst verdecken sie den Chat
@@ -35,6 +39,7 @@ export default function InboxPage() {
       const data = await res.json();
       setConversations(Array.isArray(data) ? data : []);
       setKind(res.headers.get('x-inbox-kind') === 'sales' ? 'sales' : 'recruiting');
+      setNummerVerbunden(res.headers.get('x-whatsapp-verbunden') !== '0');
     } else {
       // Keine veraltete Liste stehen lassen (sonst falsches 24-h-Fenster und leerer Chat)
       setConversations([]);
@@ -116,12 +121,35 @@ export default function InboxPage() {
     return () => { supabase.removeChannel(channel); };
   }, [supabase, selectedId]);
 
+  // Chatfenster füllt den Bildschirm bis unten (Handy: über der Tab-Leiste), egal was darüber steht
+  const fensterRef = useRef<HTMLDivElement>(null);
+  const [fensterHoehe, setFensterHoehe] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const messen = () => {
+      const el = fensterRef.current;
+      if (!el) return;
+      const handy = window.matchMedia('(max-width: 767px)').matches;
+      const unten = handy ? 104 : 36; // Tab-Leiste + Abstand bzw. Rand der Inhaltsfläche
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setFensterHoehe(Math.max(420, Math.round(window.innerHeight - top - unten)));
+    };
+    messen();
+    window.addEventListener('resize', messen);
+    const ro = new ResizeObserver(messen);
+    if (fensterRef.current?.parentElement) ro.observe(fensterRef.current.parentElement);
+    return () => {
+      window.removeEventListener('resize', messen);
+      ro.disconnect();
+    };
+  }, [selectedId, nummerVerbunden, kind]);
+
   const selectedConv = conversations.find((c) => (c as { id: string }).id === selectedId) || null;
 
   const unread = conversations.reduce((n, c) => n + ((c as { unread_count?: number }).unread_count ?? 0), 0);
 
   return (
     <div>
+      <div className={selectedId ? 'hidden md:block' : undefined}>
       <PageHeader
         title={kind === 'sales' ? 'Sales-WhatsApp' : 'Inbox'}
         description={
@@ -131,6 +159,22 @@ export default function InboxPage() {
         }
         counter={unread > 0 ? `${unread} ungelesen` : undefined}
       />
+      </div>
+
+      {!loading && !nummerVerbunden && (
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5 text-sm text-amber-900">
+            <MessageCircle className="mt-0.5 h-4 w-4 flex-none" />
+            <p>
+              <strong>Noch keine WhatsApp-Nummer verbunden.</strong> Deshalb erscheinen hier noch keine Chats. Sobald deine Nummer verbunden ist, landen alle
+              WhatsApp-Gespräche mit Bewerbern automatisch hier.
+            </p>
+          </div>
+          <Link href="/settings/whatsapp" className={`${buttonStyles('primary')} flex-none`}>
+            Nummer verbinden
+          </Link>
+        </div>
+      )}
 
       {kind === 'sales' && (
         <SegmentedControl
@@ -147,7 +191,11 @@ export default function InboxPage() {
         />
       )}
 
-      <div className="relative flex h-[calc(100dvh-300px)] min-h-[500px] overflow-hidden rounded-xl bg-card shadow-sm md:h-[calc(100dvh-268px)]">
+      <div
+        ref={fensterRef}
+        style={fensterHoehe ? { height: fensterHoehe } : undefined}
+        className="relative flex h-[calc(100dvh-220px)] min-h-[420px] overflow-hidden rounded-xl bg-card shadow-sm"
+      >
         {/* Gesprächsliste (Handy: nur ohne offene Konversation) */}
         <div className={`${selectedId ? 'hidden lg:flex' : 'flex'} w-full flex-shrink-0 flex-col border-hair lg:w-[340px] lg:border-r`}>
           <ConversationList
