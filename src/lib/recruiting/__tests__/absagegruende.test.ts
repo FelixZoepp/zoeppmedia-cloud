@@ -25,7 +25,7 @@ describe('Absagegründe', () => {
   });
 
   it('ablehngrundText und AGG-Hinweis', () => {
-    expect(ablehngrundText('nicht_erreichbar', null)).toBe('Nicht erreichbar');
+    expect(ablehngrundText('nicht_erreichbar', null)).toBe('Meldet sich nicht / nicht erreichbar');
     expect(ablehngrundText('sonstiges', 'kein Interesse')).toBe('Sonstiges: kein Interesse');
     expect(aggHinweis('ist zu alt')).toBe(true);
     expect(aggHinweis('Frau passt nicht ins Team')).toBe(true);
