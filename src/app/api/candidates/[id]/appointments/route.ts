@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { probetagLabel, probetagTage, probetagZeiten } from '@/lib/termine/probetag';
 import { createServerClient } from '@/lib/supabase/server';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
@@ -69,7 +70,14 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const typeLabel = body.type === 'probetag' ? 'Probetag' : 'Vorstellungsgespräch';
+  // Probetag-Format des Kunden: 1 Tag, 3 Tage hintereinander oder Probewoche
+  const { data: agency } = await supabase
+    .from('agencies')
+    .select('name, email, settings')
+    .eq('id', candidate.agency_id)
+    .single();
+  const tage = body.type === 'probetag' ? probetagTage(agency?.settings) : 1;
+  const typeLabel = body.type === 'probetag' ? probetagLabel(tage) : 'Vorstellungsgespräch';
   await logActivity(supabase, {
     agency_id: candidate.agency_id,
     user_id: user.id,
@@ -84,11 +92,6 @@ export async function POST(
     extra: { appointment_id: data.id, type: body.type },
   }).catch(() => {});
 
-  const { data: agency } = await supabase
-    .from('agencies')
-    .select('name, email')
-    .eq('id', candidate.agency_id)
-    .single();
   const agencyName = agency?.name ?? 'Zoepp Media Cloud';
   const scheduledAt = new Date(body.scheduled_at);
   const inviteBase = {
@@ -129,15 +132,25 @@ export async function POST(
     const { trageTerminEin } = await import('@/lib/kalender/kunden-kalender');
     const svc = createAdminClient();
     const minuten = Math.min(600, Math.max(15, Number(body.dauer_minuten) || (body.type === 'probetag' ? 240 : 60)));
-    const ev = await trageTerminEin(svc, candidate.agency_id, {
-      start: scheduledAt,
-      ende: new Date(scheduledAt.getTime() + minuten * 60_000),
-      titel: `${typeLabel}: ${candidate.name}`,
-      beschreibung: [`${typeLabel} mit ${candidate.name}`, candidate.phone ? `Telefon: ${candidate.phone}` : '', candidate.email ? `E-Mail: ${candidate.email}` : '', body.notes ? `Notiz: ${body.notes}` : '', `Bewerber in der Cloud: ${process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de'}/candidates/${id}`].filter(Boolean).join('\n'),
-    });
-    if (ev) {
+    const beschreibung = [`${typeLabel} mit ${candidate.name}`, candidate.phone ? `Telefon: ${candidate.phone}` : '', candidate.email ? `E-Mail: ${candidate.email}` : '', body.notes ? `Notiz: ${body.notes}` : '', `Bewerber in der Cloud: ${process.env.NEXT_PUBLIC_APP_URL || 'https://cloud.zoeppmedia.de'}/candidates/${id}`].filter(Boolean).join('\n');
+    // Mehrere Probetage: je Tag ein Kalendereintrag (IDs kommagetrennt, damit Verschieben/Absagen alle Tage trifft)
+    const zeiten = probetagZeiten(scheduledAt, tage, minuten);
+    const ids: string[] = [];
+    let provider: string | null = null;
+    for (const [i, z] of zeiten.entries()) {
+      const ev = await trageTerminEin(svc, candidate.agency_id, {
+        start: z.start,
+        ende: z.ende,
+        titel: zeiten.length > 1 ? `Probetag ${i + 1}/${zeiten.length}: ${candidate.name}` : `${typeLabel}: ${candidate.name}`,
+        beschreibung,
+      });
+      if (!ev) break;
+      ids.push(ev.eventId);
+      provider = ev.provider;
+    }
+    if (ids.length && provider) {
       imKalender = true;
-      await svc.from('candidate_appointments').update({ kalender_event_id: ev.eventId, kalender_provider: ev.provider }).eq('id', data.id);
+      await svc.from('candidate_appointments').update({ kalender_event_id: ids.join(','), kalender_provider: provider }).eq('id', data.id);
     }
   } catch (e) {
     console.error('[termin] Kundenkalender nicht erreicht – Einladung per Mail', e);

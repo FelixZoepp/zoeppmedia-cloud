@@ -76,6 +76,8 @@ export async function POST(req: Request) {
         ...(((agencyRow as { settings?: Record<string, unknown> } | null)?.settings) ?? {}),
         has_video_shoot: !!body.has_video_shoot,
         reels_per_month: Number(body.reels_per_month) || 0,
+        // Probetag-Format (1 Tag, 3 Tage, Probewoche) – steuert die Kalendereinträge beim Probetag
+        probetag_tage: [1, 3, 5].includes(Number(body.probetag_tage)) ? Number(body.probetag_tage) : 1,
       },
     })
     .eq('id', profile.agency_id);

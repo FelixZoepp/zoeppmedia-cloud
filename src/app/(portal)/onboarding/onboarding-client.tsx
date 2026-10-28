@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { KalenderVerbinden } from '@/components/kalender/kalender-verbinden';
 import { indeedZugangSchritte, type Baustein } from '@/lib/fulfillment/pakete';
+import { PROBETAG_OPTIONEN } from '@/lib/termine/probetag';
 
 const steps = [
   { id: 1, title: 'Stelle & Produkt', icon: Briefcase },
@@ -241,6 +242,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
     career_levels: [] as string[],
     company_car_from: '',
     training_type: '',
+    probetag_tage: '1',
     // Step 3 — Unternehmen & Extras
     client_nameable: false,
     client_name: '',
@@ -295,6 +297,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
           if (data.radius_km) restored.radius_km = String(data.radius_km);
           if (data.monthly_earning_from) restored.monthly_earning_from = String(data.monthly_earning_from);
           if (data.monthly_earning_to) restored.monthly_earning_to = String(data.monthly_earning_to);
+          if (data.probetag_tage) restored.probetag_tage = String(data.probetag_tage);
           // Regions array → comma string
           if (data.regions && Array.isArray(data.regions)) restored.regions = data.regions.join(', ');
           // Arrays
@@ -347,6 +350,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
           career_levels: form.career_levels.length > 0 ? form.career_levels : null,
           company_car_from: form.company_car_from || null,
           training_type: form.training_type || null,
+          probetag_tage: Number(form.probetag_tage) || 1,
           client_nameable: form.client_nameable,
           client_name: form.client_nameable ? (form.client_name || null) : null,
           extras: form.extras.length > 0 ? form.extras : null,
@@ -412,6 +416,7 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
         career_levels: form.career_levels.length > 0 ? form.career_levels : null,
         company_car_from: form.company_car_from || null,
         training_type: form.training_type || null,
+        probetag_tage: Number(form.probetag_tage) || 1,
         client_nameable: form.client_nameable,
         client_name: form.client_nameable ? (form.client_name || null) : null,
         extras: form.extras.length > 0 ? form.extras : null,
@@ -565,6 +570,11 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Ausbildung / Einarbeitung</label>
               <Select value={form.training_type} onChange={(e) => update('training_type', e.target.value)} options={trainingTypeOptions} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Probetag *</label>
+              <Select value={form.probetag_tage} onChange={(e) => update('probetag_tage', e.target.value)} options={[...PROBETAG_OPTIONEN]} />
+              <p className="mt-1 text-[12px] text-gray-500">Wie lange kommen neue Vertriebler zur Probe? Danach richten wir die Termine in deinem Kalender aus.</p>
             </div>
           </div>
         )}

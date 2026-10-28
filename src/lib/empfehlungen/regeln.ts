@@ -55,7 +55,7 @@ export const LEISTUNGEN = {
   imagefilm: 'Imagefilm / Social-Media-Paket für eure Arbeitgebermarke',
   karriereseite: 'Eigene Karriere-Website',
   workshop: 'Recruiting-Workshop für dein Team (Gesprächsführung, Termin- und No-Show-Quote)',
-  prozess: 'CRM- und Prozessberatung',
+  prozess: 'Innendienst – unser Team ruft deine Bewerber für dich an und vereinbart die Termine',
   budget: 'Mehr Werbebudget bzw. zusätzliche Kanäle (Meta + Indeed)',
   persona: '12 Persona-Typen – Persönlichkeitstest für Vertriebsbewerber: 48 Fragen in 5 Minuten, 12 Vertriebstypen, Warnsignale und Interviewleitfaden',
 } as const;
@@ -149,9 +149,9 @@ export function berechneEmpfehlungen(l: KundenLage): Empfehlung[] {
     e.push({
       id: 'leistung_prozess',
       art: 'leistung',
-      titel: 'Mehr Bewerber in Einstellungen verwandeln',
+      titel: 'Innendienst: Wir rufen deine Bewerber an',
       warum: `${l.offen} Bewerber stehen noch im Eingang${l.kontaktquote !== null ? `, kontaktiert wurden ${l.kontaktquote} %` : ''}.`,
-      nutzen: `${LEISTUNGEN.prozess} – damit jeder Bewerber sauber und schnell bearbeitet wird.`,
+      nutzen: `${LEISTUNGEN.prozess} – damit jeder Bewerber schnell erreicht wird.`,
       prio: 1,
     });
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { probetagZeiten } from '@/lib/termine/probetag';
 import { createServerClient } from '@/lib/supabase/server';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { logActivity } from '@/lib/activity/log';
@@ -155,12 +156,14 @@ export async function PATCH(
       const k = await import('@/lib/kalender/kunden-kalender');
       const svc = createAdminClient();
       const provider = appointment.kalender_provider as import('@/lib/kalender/kunden-kalender').KalenderProvider;
+      // Mehrere Probetage: kommagetrennte IDs, je Tag ein Eintrag
+      const ids = String(appointment.kalender_event_id).split(',').filter(Boolean);
       if (cancelled) {
-        await k.loescheTermin(svc, appointment.agency_id, appointment.kalender_event_id, provider);
+        for (const eventId of ids) await k.loescheTermin(svc, appointment.agency_id, eventId, provider);
       } else {
-        const start = new Date(body.scheduled_at);
         const minuten = appointment.type === 'probetag' ? 240 : 60;
-        await k.aktualisiereTermin(svc, appointment.agency_id, appointment.kalender_event_id, provider, start, new Date(start.getTime() + minuten * 60_000));
+        const zeiten = probetagZeiten(new Date(body.scheduled_at), ids.length, minuten);
+        for (const [i, eventId] of ids.entries()) await k.aktualisiereTermin(svc, appointment.agency_id, eventId, provider, zeiten[i].start, zeiten[i].ende);
       }
       kalenderNachgezogen = true;
     } catch (e) {
