@@ -34,6 +34,7 @@ export const ABSAGE_GRUENDE: AbsageGrund[] = [
   { code: 'sprache', label: 'Sprachkenntnisse reichen nicht', gruppe: 'voraussetzungen' },
   { code: 'zeitlich_nicht_verfuegbar', label: 'Zeitlich nicht verfügbar', gruppe: 'voraussetzungen' },
   { code: 'unter_18', label: 'Unter 18', gruppe: 'voraussetzungen' },
+  { code: 'nicht_passend_position', label: 'Passt nicht zur Position', gruppe: 'voraussetzungen' },
   { code: 'nur_festanstellung', label: 'Will nur Festanstellung', gruppe: 'erwartung' },
   { code: 'verdienst_erwartung', label: 'Falsche Verdienst-Erwartung', gruppe: 'erwartung' },
   { code: 'nach_probetag_abgelehnt', label: 'Nach Probetag abgelehnt', gruppe: 'probetag' },

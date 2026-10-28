@@ -135,6 +135,15 @@ function evaluateCondition(fieldValue: unknown, operator: string, conditionValue
 
 // --- Action execution ---
 
+const NACH_AUSSEN = ['send_template', 'send_message', 'send_email', 'start_bot', 'schedule_job', 'call_webhook'];
+
+async function istAbsagePhase(supabase: SupabaseClient, stageId: unknown): Promise<boolean> {
+  if (typeof stageId !== 'string' || !stageId) return false;
+  const { data } = await supabase.from('pipeline_stages').select('stage_type, name').eq('id', stageId).maybeSingle();
+  const s = data as { stage_type: string | null; name: string | null } | null;
+  return s?.stage_type === 'rejected' || /^abgesagt/i.test(s?.name ?? '');
+}
+
 interface ActionDetail {
   status?: 'success' | 'skipped';
   response_status?: number;
@@ -145,8 +154,9 @@ async function executeAction(
   action: Action,
   context: AutomationContext
 ): Promise<ActionDetail | void> {
-  // Schnell-Absage („passt nicht“): nie eine Nachricht an den Bewerber auslösen – auch nicht über geplante Jobs oder Webhooks (z. B. Zapier)
-  if (context.data?.schnell_absage === true && ['send_template', 'send_message', 'send_email', 'start_bot', 'schedule_job', 'call_webhook'].includes(action.type)) {
+  // Absagen bleiben intern (Schnell-Absage und jede Verschiebung nach „Abgesagt“): nie eine Nachricht an den Bewerber auslösen –
+  // auch nicht über geplante Jobs oder Webhooks (z. B. Zapier)
+  if (NACH_AUSSEN.includes(action.type) && (context.data?.schnell_absage === true || (await istAbsagePhase(supabase, context.data?.new_stage_id)))) {
     return { status: 'skipped' };
   }
   switch (action.type) {
