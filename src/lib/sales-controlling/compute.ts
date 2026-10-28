@@ -63,6 +63,8 @@ export interface Eingaben {
   metaVergleich: MetaZahlen | null;
   /** YYYY-MM → Spend/Leads */
   metaMonate: Map<string, MetaZahlen>;
+  /** YYYY-MM-DD → Spend/Leads (für die Wellen) */
+  metaTage?: Map<string, MetaZahlen>;
   zeitraum: { von: string; bis: string; label: string };
   jetzt: Date;
   ziel: number;
@@ -308,6 +310,57 @@ export function berechneUpsellPipeline(e: Pick<Eingaben, 'opps' | 'statuses'>, j
   };
 }
 
+export interface VerlaufPunkt {
+  /** Erster Tag des Abschnitts (YYYY-MM-DD) */
+  tag: string;
+  spend: number;
+  metaLeads: number;
+  anfragen: number;
+  settings: number;
+  closings: number;
+}
+
+/**
+ * Verlauf im Zeitraum für die Wellen in den Kennzahlen: je Tag, ab 45 Tagen je Woche.
+ * Endet heute (laufender Monat zeigt keine leeren Tage in der Zukunft).
+ */
+export function tagesVerlauf(e: Eingaben, ü: Übergang[], morgen: string): VerlaufPunkt[] {
+  const bis = e.zeitraum.bis < morgen ? e.zeitraum.bis : morgen;
+  const tage: string[] = [];
+  for (let t = new Date(`${e.zeitraum.von}T12:00:00Z`); isoTag(t) < bis; t = new Date(t.getTime() + TAG)) tage.push(isoTag(t));
+  if (tage.length < 3) return [];
+  const schritt = tage.length > 45 ? 7 : 1;
+  const punkte: VerlaufPunkt[] = [];
+  const index = new Map<string, number>();
+  tage.forEach((t, i) => {
+    if (i % schritt === 0) punkte.push({ tag: t, spend: 0, metaLeads: 0, anfragen: 0, settings: 0, closings: 0 });
+    index.set(t, punkte.length - 1);
+  });
+  const bei = (d: string) => {
+    const i = index.get(d.slice(0, 10));
+    return i === undefined ? null : punkte[i];
+  };
+  for (const [tag, m] of e.metaTage ?? []) {
+    const p = bei(tag);
+    if (p) {
+      p.spend += m.spend;
+      p.metaLeads += m.leads;
+    }
+  }
+  for (const o of e.opps) if (!o.upsell) {
+    const p = bei(o.date_created);
+    if (p) p.anfragen++;
+  }
+  for (const x of ü) {
+    const p = bei(x.date);
+    if (!p) continue;
+    if (x.nach === 'setting' && x.von !== 'setting') p.settings++;
+    if (istClosingGebucht(x)) p.closings++;
+  }
+  for (const p of punkte) p.spend = Math.round(p.spend * 100) / 100;
+  return punkte;
+}
+
 export function berechneSalesControlling(e: Eingaben) {
   const statusById = new Map(e.statuses.map((s) => [s.id, s]));
   const stufeVon = (id: string | null) => (id ? klassifiziere(statusById.get(id)) : null);
@@ -358,6 +411,7 @@ export function berechneSalesControlling(e: Eingaben) {
     roas: spend > 0 ? r1(z.volumenNeu / spend) : null,
     quellen: [...quellen.entries()].map(([quelle, anzahl]) => ({ quelle, anzahl })).sort((a, b) => b.anzahl - a.anzahl),
     vergleich: { spend: e.metaVergleich?.spend ?? 0, metaLeads: e.metaVergleich?.leads ?? 0, neueAnfragen: vg.neueAnfragen },
+    verlauf: tagesVerlauf(e, ü, morgen),
   };
 
   // ── Pipeline (aktueller Stand) ──

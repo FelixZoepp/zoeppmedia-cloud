@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, Loader2, Megaphone, PhoneCall, RefreshCw, Repeat, Target, TrendingUp, Users } from 'lucide-react';
 import { Avatar, Button, Card, CountUp, PageHeader, SegmentedControl } from '@/components/ui';
 import { GespraecheBereich } from './gespraeche-bereich';
@@ -40,13 +40,57 @@ function Delta({ jetzt, vorher, invert = false, einheit = '' }: { jetzt: number 
   );
 }
 
-function Kennzahl({ label, wert, sub, delta }: { label: string; wert: string; sub?: React.ReactNode; delta?: React.ReactNode }) {
+/** Weiche Kurve durch die Punkte (Catmull-Rom → Bézier) */
+function kurve(p: Array<[number, number]>): string {
+  let d = `M${p[0][0]},${p[0][1]}`;
+  for (let i = 0; i < p.length - 1; i++) {
+    const [a, b, c, e] = [p[i - 1] ?? p[i], p[i], p[i + 1], p[i + 2] ?? p[i + 1]];
+    d += ` C${b[0] + (c[0] - a[0]) / 6},${b[1] + (c[1] - a[1]) / 6} ${c[0] - (e[0] - b[0]) / 6},${c[1] - (e[1] - b[1]) / 6} ${c[0]},${c[1]}`;
+  }
+  return d;
+}
+
+/** Welle am Kartenboden: Verlauf im Zeitraum (je Tag bzw. Woche) */
+function Welle({ werte }: { werte: Array<number | null> }) {
+  const id = useId();
+  // Lücken (z. B. Kosten ohne Setting an dem Tag) mit dem letzten Wert füllen
+  const v: Array<number | null> = [];
+  for (const w of werte) v.push(w ?? v[v.length - 1] ?? null);
+  const zahlen = v.filter((w): w is number => w !== null);
+  // Ohne Ausschlag (alles 0) keine Welle
+  if (zahlen.length < 3 || zahlen.every((w) => w === 0)) return null;
+  const min = Math.min(...zahlen);
+  const max = Math.max(...zahlen);
+  const B = 200;
+  const H = 48;
+  const punkte = v.map((w, i): [number, number] => [(i / (v.length - 1)) * B, H - 4 - (((w ?? min) - min) / (max - min || 1)) * (H - 12)]);
+  const linie = kurve(punkte);
   return (
-    <div className="rounded-[16px] bg-panel p-4">
+    <svg viewBox={`0 0 ${B} ${H}`} preserveAspectRatio="none" className="pointer-events-none -mx-4 -mb-4 mt-3 block h-12 w-[calc(100%+2rem)]" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#991b1b" stopOpacity="0.22" />
+          <stop offset="100%" stopColor="#991b1b" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${linie} L${B},${H} L0,${H} Z`} fill={`url(#${id})`} />
+      <path d={linie} fill="none" stroke="#991b1b" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function Kennzahl({ label, wert, sub, delta, welle }: { label: string; wert: string; sub?: React.ReactNode; delta?: React.ReactNode; welle?: Array<number | null> }) {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-[16px] bg-panel p-4">
       <p className="text-[13px] text-gray-600">{label}</p>
       <p className="mt-1.5 text-[26px] font-semibold leading-none tracking-[-0.03em]">{wert}</p>
       {sub && <p className="mt-1.5 text-[12.5px] text-gray-600">{sub}</p>}
       {delta && <div className="mt-1">{delta}</div>}
+      {welle && (
+        <div className="mt-auto">
+          <Welle werte={welle} />
+        </div>
+      )}
     </div>
   );
 }
@@ -574,6 +618,7 @@ function UpsellBereich({ u, label, pipeline }: { u: Upsell; label: string; pipel
 function MarketingBereich({ d }: { d: Daten }) {
   const m = d.marketing;
   const summe = m.quellen.reduce((s, q) => s + q.anzahl, 0) || 1;
+  const vl = m.verlauf ?? [];
   return (
     <Card>
       <h2 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.02em]">
@@ -581,10 +626,10 @@ function MarketingBereich({ d }: { d: Daten }) {
       </h2>
       {!d.metaVerbunden && <p className="mt-1 text-[12.5px] text-amber-700">Meta Ads ist nicht verbunden – Kosten fehlen.{d.metaProblem ? ` Grund: ${d.metaProblem}` : ''}</p>}
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Kennzahl label="Werbeausgaben" wert={eur(m.spend)} delta={<Delta jetzt={m.spend} vorher={m.vergleich.spend} invert einheit=" €" />} />
-        <Kennzahl label="Meta-Leads" wert={zahl(m.metaLeads)} sub={`CPL ${eur(m.cpl, 2)}`} delta={<Delta jetzt={m.metaLeads} vorher={m.vergleich.metaLeads} />} />
-        <Kennzahl label="Anfragen im CRM" wert={zahl(m.neueAnfragen)} sub={`${eur(m.kostenProAnfrage)} je Anfrage`} delta={<Delta jetzt={m.neueAnfragen} vorher={m.vergleich.neueAnfragen} />} />
-        <Kennzahl label="Kosten je Setting" wert={eur(m.kostenProSetting)} />
+        <Kennzahl label="Werbeausgaben" wert={eur(m.spend)} delta={<Delta jetzt={m.spend} vorher={m.vergleich.spend} invert einheit=" €" />} welle={d.metaVerbunden ? vl.map((p) => p.spend) : undefined} />
+        <Kennzahl label="Meta-Leads" wert={zahl(m.metaLeads)} sub={`CPL ${eur(m.cpl, 2)}`} delta={<Delta jetzt={m.metaLeads} vorher={m.vergleich.metaLeads} />} welle={d.metaVerbunden ? vl.map((p) => p.metaLeads) : undefined} />
+        <Kennzahl label="Anfragen im CRM" wert={zahl(m.neueAnfragen)} sub={`${eur(m.kostenProAnfrage)} je Anfrage`} delta={<Delta jetzt={m.neueAnfragen} vorher={m.vergleich.neueAnfragen} />} welle={vl.map((p) => p.anfragen)} />
+        <Kennzahl label="Kosten je Setting" wert={eur(m.kostenProSetting)} welle={d.metaVerbunden ? vl.map((p) => (p.settings ? p.spend / p.settings : null)) : undefined} />
         <Kennzahl label="Kosten je Kunde" wert={eur(m.kundenakquisekosten)} sub="Werbekosten ÷ Neukunden" />
         <Kennzahl label="ROAS" wert={m.roas === null ? '–' : `${zahl(m.roas)}×`} sub="Neukunden-Volumen ÷ Werbekosten" />
       </div>
@@ -619,7 +664,7 @@ function SettingBereich({ d }: { d: Daten }) {
         <Quote label="Show-Quote" wert={z.settingShowQuote} ziel={70} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <Kennzahl label="Terminiert" wert={zahl(z.settingGebucht)} delta={<Delta jetzt={z.settingGebucht} vorher={v.settingGebucht} />} />
+        <Kennzahl label="Terminiert" wert={zahl(z.settingGebucht)} delta={<Delta jetzt={z.settingGebucht} vorher={v.settingGebucht} />} welle={d.marketing.verlauf?.map((p) => p.settings)} />
         <Kennzahl label="Gehalten" wert={zahl(z.settingGehalten)} />
         <Kennzahl label="No-Shows" wert={zahl(z.settingNoShow)} sub={`No-Show-Quote ${pct(z.settingShowQuote === null ? null : 100 - z.settingShowQuote)}`} delta={<Delta jetzt={z.settingNoShow} vorher={v.settingNoShow} invert />} />
         <Kennzahl label="Weiter ins Closing" wert={pct(z.settingZuClosing)} sub="Closings ÷ gehaltene Settings" />
@@ -647,7 +692,7 @@ function ClosingBereich({ d }: { d: Daten }) {
         <Quote label="Show-Quote" wert={z.closingShowQuote} ziel={80} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <Kennzahl label="Terminiert (inkl. CC2)" wert={zahl(z.closingGebucht)} delta={<Delta jetzt={z.closingGebucht} vorher={v.closingGebucht} />} />
+        <Kennzahl label="Terminiert (inkl. CC2)" wert={zahl(z.closingGebucht)} delta={<Delta jetzt={z.closingGebucht} vorher={v.closingGebucht} />} welle={d.marketing.verlauf?.map((p) => p.closings)} />
         <Kennzahl label="Gehalten" wert={zahl(z.closingGehalten)} sub={`${zahl(z.angebote)} Angebote verschickt`} />
         <Kennzahl label="Abschlussquote" wert={pct(z.closingZuAbschluss)} sub={`${z.gewonnen} gewonnen · ${z.verloren} verloren`} />
         <Kennzahl label="Ø Deal" wert={eur(z.schnittDeal)} sub={z.zyklusTage !== null ? `Ø ${z.zyklusTage} Tage bis zum Abschluss` : undefined} />

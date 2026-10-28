@@ -1,7 +1,7 @@
 /** Sales-Controlling laden: Zeiträume, Close- und Meta-Daten, Berechnung. */
 import { berechneSalesControlling, type Opp } from '@/lib/sales-controlling/compute';
 import { berechneUpsell } from '@/lib/sales-controlling/upsell';
-import { ladeAnrufe, ladeAufgaben, ladeClose, ladeErledigteAufgaben, ladeMetaMonate, ladeMetaZeitraum, metaAdsProblem } from '@/lib/sales-controlling/quellen';
+import { ladeAnrufe, ladeAufgaben, ladeClose, ladeErledigteAufgaben, ladeMetaMonate, ladeMetaTage, ladeMetaZeitraum, metaAdsProblem } from '@/lib/sales-controlling/quellen';
 import { berechneAuslastung, SCHWELLEN_KEYS, schwellenAus, STANDARD_SCHWELLEN, type Schwellen } from '@/lib/sales-controlling/auslastung';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { berechneDetails } from '@/lib/sales-controlling/detail';
@@ -72,12 +72,13 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
     // Anrufe für Zeitraum, Vergleich und den 8-Wochen-Trend
     const anrufeAb = [iso(new Date(jetzt.getTime() - 60 * TAG)), vgVon].sort()[0];
 
-    const [close, metaZeitraum, metaVergleich, metaMonate, anrufe, aufgaben, erledigteAufgaben, schwellen] = await Promise.all([
+    const [close, metaZeitraum, metaVergleich, metaMonate, metaTage, anrufe, aufgaben, erledigteAufgaben, schwellen] = await Promise.all([
       // Quellen nur für Deals aus Zeitraum + Vergleichszeitraum nachladen
       ladeClose(historieAb, (opps: Opp[]) => opps.filter((o) => o.date_created >= vgVon && o.date_created < zeitraum.bis)),
       ladeMetaZeitraum(zeitraum.von, zeitraum.bis).catch((err) => (console.error('[vertrieb] Meta', err), null)),
       ladeMetaZeitraum(vgVon, zeitraum.von).catch(() => null),
       ladeMetaMonate(sechsMonate, iso(jetzt)).catch(() => new Map()),
+      ladeMetaTage(zeitraum.von, zeitraum.bis).catch(() => new Map()),
       ladeAnrufe(anrufeAb).catch((err) => (console.error('[vertrieb] Anrufe', err), null)),
       ladeAufgaben().catch((err) => (console.error('[vertrieb] Aufgaben', err), null)),
       ladeErledigteAufgaben(zeitraum.von).catch((err) => (console.error('[vertrieb] erledigte Aufgaben', err), null)),
@@ -88,7 +89,7 @@ export async function ladeSalesControlling(z: Zeitraum, jetzt: Date = new Date()
     const metaSkalierung = await ladeMetaZeitraum(iso(new Date(jetzt.getTime() - (SKALIERUNG_TAGE - 1) * TAG)), skalierungBis).catch(() => null);
 
     return {
-      ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, zeitraum, jetzt, ziel: ZIEL }),
+      ...berechneSalesControlling({ ...close, metaZeitraum, metaVergleich, metaMonate, metaTage, zeitraum, jetzt, ziel: ZIEL }),
       metaVerbunden: metaZeitraum !== null,
       metaProblem: metaZeitraum === null ? await metaAdsProblem() : null,
       upsell: berechneUpsell({ opps: close.opps, statuses: close.statuses, zeitraum, jetzt }),

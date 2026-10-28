@@ -251,6 +251,14 @@ export async function ladeMetaZeitraum(von: string, bis: string): Promise<MetaZa
   return rows.reduce((s, r) => ({ spend: s.spend + Number(r.spend ?? 0), leads: s.leads + metaLeads(r) }), { spend: 0, leads: 0 });
 }
 
+/** Spend + Leads je Tag (YYYY-MM-DD) für [von, bis) – für die Wellen in den Kennzahlen */
+export async function ladeMetaTage(von: string, bis: string): Promise<Map<string, MetaZahlen>> {
+  const ende = new Date(new Date(bis).getTime() - 864e5).toISOString().slice(0, 10);
+  if (ende < von) return new Map();
+  const rows = await metaInsights({ time_range: JSON.stringify({ since: von, until: ende }), time_increment: '1', limit: '400' });
+  return new Map(rows.map((r) => [String(r.date_start).slice(0, 10), { spend: Number(r.spend ?? 0), leads: metaLeads(r) }]));
+}
+
 /** Spend + Leads je Monat (YYYY-MM) */
 export async function ladeMetaMonate(von: string, bis: string): Promise<Map<string, MetaZahlen>> {
   const rows = await metaInsights({ time_range: JSON.stringify({ since: von, until: bis }), time_increment: 'monthly' });
