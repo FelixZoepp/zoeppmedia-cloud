@@ -1,6 +1,7 @@
 import { displayTemplateBody, friendlyWhatsAppError } from '@/lib/whatsapp/template-text';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(
@@ -12,7 +13,8 @@ export async function GET(
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
 
-  const agencyId = await getEffectiveAgencyId();
+  // Admins ohne Kunden-Ansicht: Sales-WhatsApp (sonst lief der Chat nach Ablauf des Cookies ins Leere)
+  const agencyId = (await getEffectiveAgencyId()) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
   // R7: return 403 instead of empty array
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 

@@ -35,6 +35,9 @@ export default function InboxPage() {
       const data = await res.json();
       setConversations(Array.isArray(data) ? data : []);
       setKind(res.headers.get('x-inbox-kind') === 'sales' ? 'sales' : 'recruiting');
+    } else {
+      // Keine veraltete Liste stehen lassen (sonst falsches 24-h-Fenster und leerer Chat)
+      setConversations([]);
     }
     setLoading(false);
     // Deep-Link aus Push-Benachrichtigungen: /inbox?conversation=<id> einmalig öffnen

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /** Kontakt der Konversation umbenennen (z. B. automatisch aus WhatsApp angelegte Nummern). */
@@ -7,7 +8,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (user.role === 'agency_viewer') return NextResponse.json({ error: 'Keine Berechtigung' }, { status: 403 });
-  const agencyId = await getEffectiveAgencyId();
+  // Admins ohne Kunden-Ansicht: Sales-WhatsApp (sonst lief der Chat nach Ablauf des Cookies ins Leere)
+  const agencyId = (await getEffectiveAgencyId()) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   const { id } = await params;

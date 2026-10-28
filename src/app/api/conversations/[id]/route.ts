@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
+import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cancelBotTimers } from '@/lib/bot/timers';
@@ -14,7 +15,8 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Nicht autorisiert' }, { status: 401 });
   if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Keine Schreibrechte' }, { status: 403 });
 
-  const agencyId = await getEffectiveAgencyId();
+  // Admins ohne Kunden-Ansicht: Sales-WhatsApp (sonst lief der Chat nach Ablauf des Cookies ins Leere)
+  const agencyId = (await getEffectiveAgencyId()) ?? (user.role === 'admin' ? SALES_AGENCY_ID : null);
   if (!agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
 
   // Body parsen

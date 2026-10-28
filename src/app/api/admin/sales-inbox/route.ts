@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    maxAge: 3600,
+    maxAge: 8 * 3600,
     secure: process.env.NODE_ENV === 'production',
   });
 
