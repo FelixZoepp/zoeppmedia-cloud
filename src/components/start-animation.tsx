@@ -14,8 +14,8 @@ var handy=window.matchMedia&&matchMedia('(pointer: coarse) and (max-width: 820px
 if(!app&&!handy)return;
 try{if(sessionStorage.getItem('zm_start'))return;sessionStorage.setItem('zm_start','1');}catch(e){}
 d.classList.add('zm-start');
-setTimeout(function(){d.classList.add('zm-start-aus');},1500);
-setTimeout(function(){d.classList.remove('zm-start','zm-start-aus');},1950);
+setTimeout(function(){d.classList.add('zm-start-aus');},650);
+setTimeout(function(){d.classList.remove('zm-start','zm-start-aus');},900);
 }catch(e){}})();`;
 
 export function StartAnimation() {

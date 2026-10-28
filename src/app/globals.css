@@ -284,7 +284,7 @@ html.zm-start #zm-start {
   position: fixed; inset: 0; z-index: 2147483647;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   background: radial-gradient(circle at 50% 42%, #2a0a0a 0%, #0a0a0a 62%);
-  transition: opacity 0.4s ease;
+  transition: opacity 0.25s ease;
 }
 html.zm-start-aus #zm-start { opacity: 0; pointer-events: none; }
 html.zm-start body { overflow: hidden; }
@@ -292,16 +292,16 @@ html.zm-start body { overflow: hidden; }
 .zm-start-logo {
   width: 96px; height: 96px;
   filter: drop-shadow(0 0 18px rgba(220, 38, 38, 0.55));
-  animation: zm-drehen 1.3s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation: zm-drehen 0.7s cubic-bezier(0.65, 0, 0.35, 1) both;
 }
 .zm-start-name {
   color: #fff; font-weight: 700; letter-spacing: 0.32em; font-size: 15px; padding-left: 0.32em;
-  animation: zm-name 0.9s ease 0.45s both;
+  animation: zm-name 0.5s ease 0.2s both;
 }
 @keyframes zm-drehen {
   0% { transform: scale(0.6) rotateY(0deg); opacity: 0; }
   20% { opacity: 1; }
-  100% { transform: scale(1) rotateY(720deg); opacity: 1; }
+  100% { transform: scale(1) rotateY(360deg); opacity: 1; }
 }
 @keyframes zm-name {
   from { opacity: 0; transform: translateY(6px); }

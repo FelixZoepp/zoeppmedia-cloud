@@ -73,8 +73,18 @@ export function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000);
-    return () => clearInterval(interval);
+    // Nur abfragen, solange der Tab sichtbar ist; beim Zurückkommen sofort aktualisieren
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchNotifications();
+    }, 30_000);
+    const sichtbar = () => {
+      if (document.visibilityState === 'visible') fetchNotifications();
+    };
+    document.addEventListener('visibilitychange', sichtbar);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', sichtbar);
+    };
   }, [fetchNotifications]);
 
   // Close dropdown on outside click
