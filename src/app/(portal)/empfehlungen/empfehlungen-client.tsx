@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, BrainCircuit, Check, CheckCircle2, Clapperboard, Globe, Lightbulb, Loader2, Lock, Megaphone, Package, Rocket, Sparkles, Users, Workflow } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BrainCircuit, Check, CheckCircle2, Clapperboard, Globe, Lightbulb, Loader2, Megaphone, Package, Rocket, Sparkles, Users, Workflow } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button, Card, Modal, PageHeader } from '@/components/ui';
 import type { Empfehlung, KundenLage } from '@/lib/empfehlungen/regeln';
-import { freischaltKarten, type FreischaltKarte } from '@/lib/empfehlungen/leistungen';
+import { kundenEmpfehlungen, type FreischaltKarte } from '@/lib/empfehlungen/leistungen';
 
 interface Daten {
   lage: KundenLage | null;
@@ -58,8 +58,9 @@ export function EmpfehlungenClient() {
     setNotiz('');
   }
 
-  const tipps = d?.empfehlungen.filter((e) => e.art === 'tipp') ?? [];
-  const karten = d ? freischaltKarten(d.lage, d.empfehlungen) : [];
+  // Bewusst wenig: die zwei wichtigsten Tipps und höchstens zwei passende Maßnahmen
+  const tipps = (d?.empfehlungen.filter((e) => e.art === 'tipp') ?? []).slice(0, 2);
+  const karten = d ? kundenEmpfehlungen(d.lage, d.empfehlungen) : [];
   const l = d?.lage;
 
   return (
@@ -133,9 +134,9 @@ export function EmpfehlungenClient() {
               {karten.length > 0 && (
                 <section>
                   <h2 className="mb-1 flex items-center gap-2 px-1 text-[20px] font-medium tracking-[-0.02em]">
-                    <Rocket className="h-5 w-5 text-red-800" /> Freischaltbare Funktionen
+                    <Rocket className="h-5 w-5 text-red-800" /> Unsere Empfehlung für dich
                   </h2>
-                  <p className="mb-4 px-1 text-[13.5px] text-gray-600">Noch gesperrt in deiner Cloud – schalte frei, was dich jetzt am schnellsten wachsen lässt.</p>
+                  <p className="mb-4 px-1 text-[13.5px] text-gray-600">Passend zu deiner aktuellen Lage – frag einfach unverbindlich an, dein Ansprechpartner meldet sich.</p>
                   <div className="space-y-5">
                     {karten.map((k, i) => (
                       <GesperrteKarte key={k.id} k={k} index={i} angefragt={gemeldet.has(k.id)} onFreischalten={() => setOffen({ id: k.id, titel: k.titel })} />
@@ -148,11 +149,11 @@ export function EmpfehlungenClient() {
         </div>
       )}
 
-      <Modal open={!!offen} onClose={() => setOffen(null)} title="Freischaltung anfragen">
+      <Modal open={!!offen} onClose={() => setOffen(null)} title="Unverbindlich anfragen">
         {offen && (
           <div className="space-y-4">
             <p className="text-[14.5px] text-gray-700">
-              Du möchtest <strong className="text-ink">„{offen.titel}“</strong> freischalten. Dein Ansprechpartner meldet sich zeitnah bei dir, bespricht Umfang und Start – unverbindlich.
+              Du interessierst dich für <strong className="text-ink">„{offen.titel}“</strong>. Dein Ansprechpartner meldet sich zeitnah bei dir und bespricht mit dir, ob und wie es für dich passt – unverbindlich.
             </p>
             <label className="block">
               <span className="mb-1 block text-[13px] font-medium text-gray-600">Notiz (optional)</span>
@@ -170,7 +171,7 @@ export function EmpfehlungenClient() {
                 Abbrechen
               </Button>
               <Button onClick={melden} disabled={sendet} className="flex-1">
-                {sendet ? <Loader2 className="animate-spin" /> : <Sparkles />} Jetzt freischalten
+                {sendet ? <Loader2 className="animate-spin" /> : <Sparkles />} Anfrage senden
               </Button>
             </div>
           </div>
@@ -190,7 +191,7 @@ const ICONS: Record<FreischaltKarte['icon'], React.ReactNode> = {
   paket: <Package />,
 };
 
-/** Große gesperrte Funktion: alle Vorteile, Kundenbeispiel, „Jetzt freischalten“ */
+/** Empfohlene Maßnahme: Begründung, Vorteile, Kundenbeispiel, „Unverbindlich anfragen“ */
 function GesperrteKarte({ k, index, angefragt, onFreischalten }: { k: FreischaltKarte; index: number; angefragt: boolean; onFreischalten: () => void }) {
   return (
     <Card
@@ -199,8 +200,8 @@ function GesperrteKarte({ k, index, angefragt, onFreischalten }: { k: Freischalt
       style={{ '--d': `${Math.min(index, 8) * 60}ms` } as React.CSSProperties}
     >
       {/* Schloss-Band */}
-      <div className="absolute right-0 top-0 flex items-center gap-1.5 rounded-bl-[16px] bg-ink px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-white">
-        <Lock className="h-3.5 w-3.5" /> Gesperrt
+      <div className="absolute right-0 top-0 flex items-center gap-1.5 rounded-bl-[16px] bg-gradient-to-b from-red-700 to-red-950 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-white">
+        <Sparkles className="h-3.5 w-3.5" /> Für dich empfohlen
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
@@ -219,7 +220,7 @@ function GesperrteKarte({ k, index, angefragt, onFreischalten }: { k: Freischalt
             <p className="mt-4 flex items-start gap-2 rounded-[14px] bg-red-50 px-3.5 py-2.5 text-[14px] text-red-900">
               <Sparkles className="mt-0.5 h-4 w-4 flex-none" />
               <span>
-                <strong>Für dich empfohlen:</strong> {k.warum}
+                <strong>Warum jetzt:</strong> {k.warum}
               </span>
             </p>
           )}
@@ -238,14 +239,14 @@ function GesperrteKarte({ k, index, angefragt, onFreischalten }: { k: Freischalt
           <div className="mt-6">
             {angefragt ? (
               <p className="inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2.5 text-[14.5px] font-medium text-green-800">
-                <CheckCircle2 className="h-5 w-5" /> Freischaltung angefragt – dein Ansprechpartner meldet sich
+                <CheckCircle2 className="h-5 w-5" /> Angefragt – dein Ansprechpartner meldet sich
               </p>
             ) : (
               <div className="flex flex-wrap items-center gap-3">
                 <Button size="lg" onClick={onFreischalten}>
-                  <Lock /> Jetzt freischalten
+                  <Sparkles /> Unverbindlich anfragen
                 </Button>
-                <span className="text-[13px] text-gray-500">Unverbindlich – dein Ansprechpartner bespricht alles mit dir.</span>
+                <span className="text-[13px] text-gray-500">Kostet nichts – dein Ansprechpartner meldet sich bei dir.</span>
               </div>
             )}
           </div>

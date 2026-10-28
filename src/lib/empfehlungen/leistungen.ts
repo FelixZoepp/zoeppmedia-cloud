@@ -185,3 +185,24 @@ export function freischaltKarten(lage: KundenLage | null, empfehlungen: Empfehlu
     .map((l) => ({ ...l, empfohlen: empfohlen.has(l.id), warum: empfohlen.get(l.id)?.warum ?? null }))
     .sort((a, b) => Number(b.empfohlen) - Number(a.empfohlen) || (empfohlen.get(a.id)?.prio ?? 9) - (empfohlen.get(b.id)?.prio ?? 9));
 }
+
+/** Pakete (Growth/Scale) bespricht der Ansprechpartner – auf der Kundenseite nur konkrete Maßnahmen */
+const NUR_MASSNAHMEN = (l: Leistung) => l.icon !== 'paket';
+
+/**
+ * Die ein bis zwei Maßnahmen, die für diesen Kunden JETZT passen – aus seinen Zahlen (Empfehlungen der Regeln).
+ * Greift keine Regel, gibt es genau eine passende Standard-Maßnahme: Karriere-Website, sonst Imagefilm.
+ */
+export function kundenEmpfehlungen(lage: KundenLage | null, empfehlungen: Empfehlung[], max = 2): FreischaltKarte[] {
+  const verfuegbar = freischaltKarten(lage, empfehlungen).filter(NUR_MASSNAHMEN);
+  const passend = verfuegbar.filter((k) => k.empfohlen).slice(0, max);
+  if (passend.length) return passend;
+
+  const ersatz = verfuegbar.find((k) => k.id === 'leistung_karriereseite') ?? verfuegbar.find((k) => k.id === 'leistung_imagefilm');
+  if (!ersatz) return [];
+  const warum =
+    ersatz.id === 'leistung_karriereseite'
+      ? 'Bewerber googeln dich, bevor sie zum Gespräch kommen – mit eigener Karriereseite wirkst du sofort glaubwürdig.'
+      : 'Echte Einblicke ins Team bringen Bewerber, die wirklich zu euch passen – und machen deine Anzeigen günstiger.';
+  return [{ ...ersatz, empfohlen: true, warum }];
+}

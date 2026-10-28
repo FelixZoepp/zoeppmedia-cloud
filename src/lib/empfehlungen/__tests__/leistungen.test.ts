@@ -19,3 +19,25 @@ describe('freischaltKarten', () => {
     expect(ids).not.toContain('leistung_karriereseite');
   });
 });
+
+import { kundenEmpfehlungen } from '../leistungen';
+
+describe('kundenEmpfehlungen', () => {
+  const e = (id: string, prio: number) => ({ id, art: 'leistung' as const, titel: '', warum: `wegen ${id}`, nutzen: '', prio });
+
+  it('höchstens zwei Maßnahmen, wichtigste zuerst, keine Pakete', () => {
+    const k = kundenEmpfehlungen(lage, [e('leistung_growth', 1), e('leistung_imagefilm', 3), e('leistung_workshop', 2), e('leistung_prozess', 1)]);
+    expect(k.map((x) => x.id)).toEqual(['leistung_prozess', 'leistung_workshop']);
+  });
+
+  it('ohne passende Regel genau eine konkrete Maßnahme: Karriere-Website', () => {
+    const k = kundenEmpfehlungen(lage, []);
+    expect(k).toHaveLength(1);
+    expect(k[0]).toMatchObject({ id: 'leistung_karriereseite', empfohlen: true });
+    expect(k[0].warum).toBeTruthy();
+  });
+
+  it('hat der Kunde schon eine Karriereseite, kommt der Imagefilm', () => {
+    expect(kundenEmpfehlungen({ ...lage, karriereseite: true }, []).map((x) => x.id)).toEqual(['leistung_imagefilm']);
+  });
+});
