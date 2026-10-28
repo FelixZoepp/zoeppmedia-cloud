@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   let candidatesQuery = supabase
     .from('candidates')
-    .select('id, created_at, current_stage:pipeline_stages(name)');
+    .select('id, created_at, current_stage:pipeline_stages!candidates_current_stage_id_fkey(name)');
 
   if (agencyId) candidatesQuery = candidatesQuery.eq('agency_id', agencyId);
   if (fromDate) candidatesQuery = candidatesQuery.gte('created_at', fromDate.toISOString());

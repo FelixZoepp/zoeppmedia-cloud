@@ -219,7 +219,7 @@ const bewerberSuchen: ToolDef = {
     if (q.length < 2) return { fehler: 'Bitte mindestens 2 Zeichen' };
     const { data } = await ctx.svc
       .from('candidates')
-      .select('name, phone_e164, email, source, created_at, current_stage:pipeline_stages(name)')
+      .select('name, phone_e164, email, source, created_at, current_stage:pipeline_stages!candidates_current_stage_id_fkey(name)')
       .eq('agency_id', ctx.agencyId)
       .is('deleted_at', null)
       .or(`name.ilike.%${q}%,phone_e164.ilike.%${q}%,email.ilike.%${q}%`)

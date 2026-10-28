@@ -27,7 +27,7 @@ export async function GET(
   // All candidates for this agency
   const { data: candidates } = await admin
     .from('candidates')
-    .select('*, current_stage:pipeline_stages(*)')
+    .select('*, current_stage:pipeline_stages!candidates_current_stage_id_fkey(*)')
     .eq('agency_id', id)
     .order('created_at', { ascending: false });
 

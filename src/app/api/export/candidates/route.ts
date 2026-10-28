@@ -13,7 +13,7 @@ export async function GET() {
   if (!agencyId && !isInternal(user.role)) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
   let query = supabase
     .from('candidates')
-    .select('name, email, phone, source, current_stage:pipeline_stages(name), created_at')
+    .select('name, email, phone, source, current_stage:pipeline_stages!candidates_current_stage_id_fkey(name), created_at')
     .order('created_at', { ascending: false });
 
   if (agencyId) {

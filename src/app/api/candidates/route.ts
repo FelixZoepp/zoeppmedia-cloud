@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const { data: candidates, count } = await supabase
     .from('candidates')
-    .select('*, current_stage:pipeline_stages(*)', { count: 'exact' })
+    .select('*, current_stage:pipeline_stages!candidates_current_stage_id_fkey(*)', { count: 'exact' })
     // immer nur die Bewerber der eigenen bzw. geöffneten Kunden-Cloud (intern sieht RLS alle Agenturen)
     .eq('agency_id', scope.agencyId)
     .is('deleted_at', null)

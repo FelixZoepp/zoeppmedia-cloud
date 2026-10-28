@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     .from('conversations')
     .select(`
       id, state, window_expires_at, unread_count, last_message_at, assigned_to,
-      candidate:candidates!inner(id, name, phone_e164, email, source, consent_source, created_at, location, kunde_agency_id, current_stage:pipeline_stages(name, color, stage_type)),
+      candidate:candidates!inner(id, name, phone_e164, email, source, consent_source, created_at, location, kunde_agency_id, current_stage:pipeline_stages!candidates_current_stage_id_fkey(name, color, stage_type)),
       application:applications(id, job:jobs(title), stage:pipeline_stages(name, color, stage_type))
     `)
     .eq('agency_id', agencyId)
