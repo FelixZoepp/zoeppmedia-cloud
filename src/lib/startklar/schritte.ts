@@ -3,7 +3,7 @@
  * Reine Auswertung (testbar) – die Rohdaten liefert `ladeStartklar` (./laden.ts).
  */
 
-export type StartklarKey = 'onboarding' | 'team' | 'whatsapp' | 'absendernummer' | 'masterclass' | 'anruf';
+export type StartklarKey = 'onboarding' | 'handy' | 'team' | 'whatsapp' | 'absendernummer' | 'masterclass' | 'anruf';
 
 export interface StartklarRohdaten {
   onboardingAbgeschlossen: boolean;
@@ -15,6 +15,8 @@ export interface StartklarRohdaten {
   outboundPhone: string | null;
   masterclassGestartet: boolean;
   anrufe: number;
+  /** Geräte mit aktiven Push-Benachrichtigungen (alle Kunden-Logins) */
+  pushGeraete: number;
 }
 
 export interface StartklarSchritt {
@@ -40,6 +42,7 @@ export const istDeutscheNummer = (n: string | null | undefined) => !!n && /^\+49
 export function werteStartklarAus(d: StartklarRohdaten): Startklar {
   const schritte: StartklarSchritt[] = [
     { key: 'onboarding', titel: 'Onboarding ausgefüllt', erklaerung: 'Ein Formular mit allem, was wir für deine Kampagne brauchen.', href: '/onboarding', erledigt: d.onboardingAbgeschlossen },
+    { key: 'handy', titel: 'Cloud aufs Handy + Benachrichtigungen', erklaerung: 'Als App zum Startbildschirm hinzufügen – dann ploppt jeder neue Bewerber sofort auf.', href: '/app-installieren', erledigt: d.pushGeraete > 0 },
     { key: 'team', titel: 'Team eingeladen', erklaerung: 'Lade die Kollegen ein, die Bewerber anrufen und Termine machen.', href: '/settings/team', erledigt: d.nutzer > 1 || d.teamEinladungen > 0 },
     { key: 'whatsapp', titel: 'WhatsApp verbunden', erklaerung: 'Verbinde deine Nummer – die Anleitung führt dich Schritt für Schritt.', href: '/settings/whatsapp', erledigt: d.whatsappVerbunden },
     { key: 'absendernummer', titel: 'Absendernummer für Anrufe', erklaerung: 'Richten wir für dich ein – melde dich, falls sie fehlt.', href: null, erledigt: istDeutscheNummer(d.outboundPhone) },

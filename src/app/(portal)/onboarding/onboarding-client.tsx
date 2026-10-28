@@ -443,7 +443,8 @@ export function OnboardingClient({ bausteine }: OnboardingClientProps) {
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
     // Small delay to let the DB update onboarding_completed before the proxy checks
     await new Promise(r => setTimeout(r, 500));
-    window.location.href = '/dashboard';
+    // Letzter Schritt: Cloud als App aufs Handy + Benachrichtigungen
+    window.location.href = '/app-installieren?nach=onboarding';
   }
 
   return (

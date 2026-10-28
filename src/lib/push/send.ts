@@ -28,8 +28,11 @@ function ensureConfigured(): boolean {
  * Sendet eine Web-Push-Nachricht an alle Geräte der angegebenen User.
  * Tote Subscriptions (404/410) werden automatisch entfernt.
  */
-export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
-  if (userIds.length === 0 || !ensureConfigured()) return;
+/** Sind die VAPID-Schlüssel gesetzt? Ohne sie geht keine Push-Nachricht raus. */
+export const pushEingerichtet = () => !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && !!process.env.VAPID_PRIVATE_KEY;
+
+export async function sendPushToUsers(userIds: string[], payload: PushPayload): Promise<number> {
+  if (userIds.length === 0 || !ensureConfigured()) return 0;
 
   const admin = createAdminClient();
   const { data: subs } = await admin
@@ -37,19 +40,23 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
     .select('id, endpoint, p256dh, auth')
     .in('user_id', userIds);
 
-  if (!subs?.length) return;
+  if (!subs?.length) return 0;
 
   const json = JSON.stringify(payload);
 
+  let gesendet = 0;
   await Promise.all(
     subs.map(async (sub) => {
       // Altbestand mit fremden Endpoints nicht beliefern
       if (!istErlaubterPushEndpoint(sub.endpoint)) return;
       try {
+        // urgency high: Handy zeigt die Nachricht sofort an (auch im Stromsparmodus), TTL 1 h
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          json
+          json,
+          { urgency: 'high', TTL: 3600 }
         );
+        gesendet++;
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;
         if (status === 404 || status === 410) {
@@ -58,4 +65,5 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
       }
     })
   );
+  return gesendet;
 }
