@@ -41,7 +41,8 @@ export async function PATCH(
     .from('pipeline_stages')
     .select('id, stage_type, name, requires_documents')
     .eq('id', stage_id)
-    .eq('agency_id', agencyId)
+    // Standard-Phasen (agency_id = null) gelten für alle Kunden, sonst nur die eigenen
+    .or(`agency_id.eq.${agencyId},agency_id.is.null`)
     .single();
 
   if (!newStage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });

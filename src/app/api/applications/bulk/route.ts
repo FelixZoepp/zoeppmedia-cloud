@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       .from('pipeline_stages')
       .select('id, stage_type, name')
       .eq('id', stage_id)
-      .eq('agency_id', agencyId)
+      // Standard-Phasen (agency_id = null) gelten für alle Kunden, sonst nur die eigenen
+      .or(`agency_id.eq.${agencyId},agency_id.is.null`)
       .single();
     if (!stage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
 
