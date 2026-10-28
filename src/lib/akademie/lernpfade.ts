@@ -24,7 +24,7 @@ export const LERNPFADE: Record<string, Record<Stufe, string[]>> = {
   },
   closing: {
     'Tag 1': ['closing-auftrag', 'rolle-closing', 'skript-closing', 'closing-gespraech'],
-    'Woche 1': ['after-close', 'close-pflege', 'skript-einwaende', 'muster-closing-recovery'],
+    'Woche 1': ['after-close', 'close-pflege', 'skript-einwaende'],
     'Woche 2': ['vertrag-bestaetigung', 'testimonial-verlaengerung'],
   },
   csm: {
