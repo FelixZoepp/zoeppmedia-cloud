@@ -24,7 +24,7 @@ export interface AbsageGrund {
 }
 
 export const ABSAGE_GRUENDE: AbsageGrund[] = [
-  { code: 'nicht_erreichbar', label: 'Nicht erreichbar', gruppe: 'erscheinen' },
+  { code: 'nicht_erreichbar', label: 'Meldet sich nicht / nicht erreichbar', gruppe: 'erscheinen' },
   { code: 'termin_nicht_erschienen', label: 'Zum Gespräch nicht erschienen', gruppe: 'erscheinen' },
   { code: 'probetag_nicht_erschienen', label: 'Zum Probetag nicht erschienen', gruppe: 'erscheinen' },
   { code: 'wenig_energie', label: 'Wenig Energie / Einsatzbereitschaft am Telefon', gruppe: 'eindruck' },
