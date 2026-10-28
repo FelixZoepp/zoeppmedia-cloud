@@ -16,6 +16,7 @@ import { logActivity } from '@/lib/activity/log';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { normalizePhoneE164 } from '@/lib/phone';
 import { alarmAnAdmins } from '@/lib/ops/alarm';
+import { meldeNeuenBewerber } from '@/lib/notifications/neuer-bewerber';
 
 type Anhang = { filename?: string; content_type?: string; content?: string };
 
@@ -222,6 +223,11 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
       .update({ location: cv.location || null, experience_summary: cv.experience_summary || null, last_employer: cv.last_employer || null, indeed_job_title: parsed.jobTitle || null })
       .eq('id', result.candidateId)
       .eq('agency_id', agencyId);
+    if (!opts.nachholen) {
+      await meldeNeuenBewerber(svc, agencyId, { candidateId: result.candidateId, name, phone: telefon, quelle: 'Indeed' }).catch((err) =>
+        console.error('[indeed] Bewerber-Push fehlgeschlagen:', err),
+      );
+    }
   }
 
   await log('processed', { agency_id: agencyId, candidate_id: result.candidateId });
