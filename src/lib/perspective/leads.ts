@@ -4,6 +4,7 @@ import { findDuplicateCandidate } from '@/lib/candidates/find-duplicate';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
+import { meldeNeuenBewerber } from '@/lib/notifications/neuer-bewerber';
 import { autoStelle, istKampagnenId, ladeZuordnung, merkeAutoZuordnung, type Utm } from '@/lib/kosten/kampagnen';
 
 export interface FunnelLead {
@@ -122,6 +123,11 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
   await planeFunnelDateien(svc, agencyId, c.id, lead.angaben).catch((err) => console.error('[perspective] Datei-Übernahme nicht geplant:', err));
 
   if (lead.automationen) fireEvent('candidate_created', agencyId, { candidate_id: c.id }).catch(() => {});
+  if (lead.automationen) {
+    await meldeNeuenBewerber(svc, agencyId, { candidateId: c.id, name: c.name, phone: lead.phone, quelle: 'Funnel' }).catch((err) =>
+      console.error('[perspective] Bewerber-Push fehlgeschlagen:', err),
+    );
+  }
 
   const blacklist = await checkBlacklist(svc, agencyId, lead.email, lead.phone);
   if (blacklist.is_blacklisted) {

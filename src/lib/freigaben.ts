@@ -212,6 +212,13 @@ export const FREIGABEN = {
     was: 'Lädt ein Kunde unter „Deine Aufgaben → Bilder & Branding“ Bilder hoch, kommt eine Slack-Nachricht in den Fulfillment-Kanal (sonst Marketing): welcher Kunde, wie viele Fotos von sich / Team / Arbeitsalltag / Logo, Link zu den Bildern. Mehrere Bilder innerhalb von 5 Minuten kommen als eine Nachricht.',
     wirkt: 'Nur intern in Slack – keine Nachricht an den Kunden',
   },
+  bewerber_push: {
+    titel: '🔔 Push bei neuem Bewerber (Funnel + Indeed)',
+    was:
+      'Kommt ein neuer Bewerber über den Perspective-Funnel oder Indeed rein, bekommt das Team des Kunden sofort eine Benachrichtigung in der Cloud (Glocke) und – wenn auf dem Gerät erlaubt – eine Push-Nachricht „Neuer Bewerber: Name · Jetzt anrufen“. ' +
+      'Bei Meta-Formular-Leads passiert das schon heute. Nachgeholte oder abgeglichene ältere Bewerber lösen nichts aus.',
+    wirkt: 'Nur an die Cloud-Nutzer des Kunden (App/Browser) – keine Nachricht an Bewerber',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;
