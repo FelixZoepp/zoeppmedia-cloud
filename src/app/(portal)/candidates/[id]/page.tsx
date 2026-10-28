@@ -1117,11 +1117,11 @@ export default function CandidateDetailPage() {
       {/*  HEADER                                                       */}
       {/* ============================================================ */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 items-start gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0">
             <User className="w-7 h-7 text-gray-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <SplitText as="h1" text={String(candidate.name)} className="text-[clamp(26px,2.6vw,34px)] font-semibold leading-[1.15] tracking-[-0.035em]" />
               <Badge tone={source.tone}>{source.label}</Badge>
@@ -1151,7 +1151,8 @@ export default function CandidateDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Handy: Knöpfe umbrechen, damit „Absagen“ nicht rechts aus dem Bild rutscht */}
+        <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0 sm:justify-end">
           {candidate.phone && (
             <a
               href={`tel:${candidate.phone}`}
@@ -1236,7 +1237,7 @@ export default function CandidateDetailPage() {
         {/* ========================================================== */}
         {/*  LEFT: Tabs (3/5)                                           */}
         {/* ========================================================== */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="min-w-0 lg:col-span-3 space-y-4">
           {/* Tab bar */}
           <SegmentedControl
             items={TAB_ITEMS}
@@ -1569,7 +1570,7 @@ export default function CandidateDetailPage() {
         {/* ========================================================== */}
         {/*  RIGHT SIDEBAR (2/5)                                        */}
         {/* ========================================================== */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           {/* Status Card */}
           <Card padding="md">
             <SectionHeader icon={<CircleDot className="w-4 h-4 text-gray-600" />} title="Status" />
