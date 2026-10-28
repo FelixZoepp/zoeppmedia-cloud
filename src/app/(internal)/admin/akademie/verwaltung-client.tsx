@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Mic, Square, Upload, Sparkles, ThumbsDown, ThumbsUp, Check, X, Plus } from 'lucide-react';
 import { Badge, Card, Input, PageHeader, SegmentedControl } from '@/components/ui';
 import { SopAufnahmen } from './sop-aufnahmen';
+import { hochladen } from '@/components/akademie/aufnahme-werkzeuge';
 
 type Tab = 'sop' | 'aufnahmen' | 'entwuerfe' | 'einspeisen' | 'luecken' | 'zugriffe' | 'feedback';
 
@@ -81,6 +82,20 @@ function Aufnahmen() {
     }
   }
 
+  async function dateiHochladen(key: string, datei: File) {
+    try {
+      const r = await json<{ signedUrl: string; pfad: string }>('/api/akademie/videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, dateiname: datei.name, groesse: datei.size }),
+      });
+      await hochladen(r.signedUrl, datei, datei.type || 'application/octet-stream', (n) => setMsg(`Lädt hoch … ${Math.round((n / datei.size) * 100)} %`));
+      await speichern(key, { datei_pfad: r.pfad });
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  }
+
   if (!d) return <Card className="p-5 text-[15px] text-gray-500">{msg ?? 'Lädt …'}</Card>;
   const fertig = d.alle.filter((v) => v.status !== 'aufnahme_noetig');
   return (
@@ -105,6 +120,10 @@ function Aufnahmen() {
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                   <Input value={urls[v.key] ?? ''} onChange={(e) => setUrls({ ...urls, [v.key]: e.target.value })} placeholder="Video-Link (Loom, YouTube, Vimeo, Drive)" className="flex-1" />
                   <button className={primaer} disabled={!urls[v.key]} onClick={() => speichern(v.key, { video_url: urls[v.key] })}>Link speichern</button>
+                  <label className={`${sekundaer} cursor-pointer`}>
+                    <Upload className="h-4 w-4" /> Datei hochladen
+                    <input type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov" className="hidden" onChange={(e) => e.target.files?.[0] && dateiHochladen(v.key, e.target.files[0])} />
+                  </label>
                   <button className={sekundaer} onClick={() => speichern(v.key, { status: 'nicht_noetig' })}>Nicht nötig</button>
                 </div>
               </div>

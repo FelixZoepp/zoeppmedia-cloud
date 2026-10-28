@@ -66,7 +66,11 @@ export default async function AkademieArtikelPage({ params }: { params: Promise<
         {video && (
           <div className="mt-5">
             {datei ? (
-              <video src={datei} controls preload="metadata" className="aspect-video w-full rounded-[14px] bg-black" />
+              /\.(mp3|m4a|wav|ogg)$/i.test(video?.video_url ?? '') ? (
+                <audio src={datei} controls preload="metadata" className="w-full" />
+              ) : (
+                <video src={datei} controls preload="metadata" className="aspect-video w-full rounded-[14px] bg-black" />
+              )
             ) : embed ? (
               <div className="relative aspect-video overflow-hidden rounded-[14px] bg-black">
                 <iframe src={embed} className="absolute inset-0 h-full w-full" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen title={video.titel} />
