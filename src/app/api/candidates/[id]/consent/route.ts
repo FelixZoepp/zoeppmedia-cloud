@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth';
+import { canWriteRole } from '@/lib/recruiting/scope';
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
@@ -44,6 +45,8 @@ export async function POST(
 
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Einwilligungen (DSGVO-Nachweis) darf ein Nur-Lese-Zugang nicht setzen
+  if (!canWriteRole(currentUser.role)) return NextResponse.json({ error: 'Dein Zugang ist nur zum Ansehen.' }, { status: 403 });
 
   const body = await request.json();
   const { channel, event_type, source, evidence } = body as {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser, isInternal } from '@/lib/auth';
+import { canWriteRole } from '@/lib/recruiting/scope';
 import { createNotification } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import type { ProjectTaskStatus } from '@/lib/types/database';
@@ -56,6 +57,7 @@ export async function PATCH(
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Dein Zugang ist nur zum Ansehen.' }, { status: 403 });
 
   const supabase = createAdminClient();
 

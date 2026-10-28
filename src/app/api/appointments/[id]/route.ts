@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSchreibNutzer } from '@/lib/recruiting/agency-scope';
 import { probetagZeiten } from '@/lib/termine/probetag';
 import { createServerClient } from '@/lib/supabase/server';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -57,8 +58,8 @@ export async function PATCH(
   const { id } = await params;
   const supabase = await createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireSchreibNutzer();
+  if (user instanceof NextResponse) return user;
 
   const body = await request.json();
 

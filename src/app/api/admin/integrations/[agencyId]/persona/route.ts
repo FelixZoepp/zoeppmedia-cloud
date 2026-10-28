@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
-import { isInternalUser } from '@/lib/admin';
+import { isAdmin, isInternalUser } from '@/lib/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { encryptSecret, decryptSecret } from '@/lib/crypto';
 import { ladePersonaSettings } from '@/lib/persona/konfig';
 import { testeVerbindung } from '@/lib/persona/client';
 
-async function pruefen(agencyId: string) {
+async function pruefen(agencyId: string, nurAdmin = false) {
   const supabase = await createServerClient();
-  if (!(await isInternalUser(supabase))) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  // Schlüssel/Secret ändern nur Admins (das neue Secret steht im Klartext in der Antwort)
+  if (!(await (nurAdmin ? isAdmin(supabase) : isInternalUser(supabase)))) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   if (!isUuid(agencyId)) return NextResponse.json({ error: 'Ungültige Agentur-ID' }, { status: 400 });
   return null;
 }
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ age
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ agencyId: string }> }) {
   const { agencyId } = await params;
-  const f = await pruefen(agencyId);
+  const f = await pruefen(agencyId, true);
   if (f) return f;
   const body = (await req.json().catch(() => ({}))) as { aktiv?: boolean; api_key?: string; neues_secret?: boolean };
   const svc = createAdminClient();

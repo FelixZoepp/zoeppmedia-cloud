@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest) {
   if (alt) {
     const { error } = await svc.from('onboarding_submissions').update({ ...werte, updated_at: new Date().toISOString() }).eq('id', alt.id).eq('agency_id', k.agencyId);
     if (error) return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
-    if (alt.handelsregister_pfad && alt.handelsregister_pfad !== body.pfad) await svc.storage.from(DOKUMENTE_BUCKET).remove([alt.handelsregister_pfad]);
+    if (alt.handelsregister_pfad && alt.handelsregister_pfad !== body.pfad && istEigenerPfad(alt.handelsregister_pfad, k.agencyId)) await svc.storage.from(DOKUMENTE_BUCKET).remove([alt.handelsregister_pfad]);
   } else {
     const { error } = await svc.from('onboarding_submissions').insert({ ...werte, agency_id: k.agencyId, status: 'in_progress' });
     if (error) return NextResponse.json({ error: 'Speichern fehlgeschlagen' }, { status: 500 });
@@ -77,7 +77,8 @@ export async function DELETE() {
   const svc = createAdminClient();
   const alt = await letzterEintrag(svc, k.agencyId);
   if (alt?.handelsregister_pfad) {
-    await svc.storage.from(DOKUMENTE_BUCKET).remove([alt.handelsregister_pfad]);
+    // Nur Dateien im eigenen Ordner löschen (der Pfad steht in der Tabelle und ist nicht vertrauenswürdig)
+    if (istEigenerPfad(alt.handelsregister_pfad, k.agencyId)) await svc.storage.from(DOKUMENTE_BUCKET).remove([alt.handelsregister_pfad]);
     await svc.from('onboarding_submissions').update({ handelsregister_pfad: null, handelsregister_dateiname: null, handelsregister_am: null }).eq('id', alt.id).eq('agency_id', k.agencyId);
   }
   return NextResponse.json({ ok: true });
@@ -100,7 +101,8 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
   const e = data as (Omit<Eintrag, 'id'> & { firmen_strasse: string | null; firmen_plz: string | null; firmen_ort: string | null; company_name: string | null }) | null;
   let url: string | null = null;
-  if (e?.handelsregister_pfad) {
+  // Nur Dateien im Ordner dieses Kunden signieren – sonst ließe sich über einen eingetragenen fremden Pfad ein fremdes Dokument abrufen
+  if (e?.handelsregister_pfad && istEigenerPfad(e.handelsregister_pfad, agencyId)) {
     const { data: s } = await svc.storage.from(DOKUMENTE_BUCKET).createSignedUrl(e.handelsregister_pfad, 600);
     url = s?.signedUrl ?? null;
   }

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, isInternal } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
+import { darfWerbung } from '@/lib/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { uploadImage, createAdCreative, createAd } from '@/lib/meta/api';
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || !isInternal(user.role)) {
+  if (!user || !darfWerbung(user)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
+import { darfWerbung } from '@/lib/admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { aktiviereKampagne, ladeKampagne, legeKampagneAn, pruefeVoraussetzungen } from '@/lib/meta/kampagne';
 
@@ -31,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
  */
 export async function POST(req: NextRequest, { params }: Ctx) {
   const user = await getCurrentUser();
-  if (!user || !isInternal(user.role)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
+  if (!user || !darfWerbung(user)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { aktion?: string; wert?: boolean };
   const svc = createAdminClient();

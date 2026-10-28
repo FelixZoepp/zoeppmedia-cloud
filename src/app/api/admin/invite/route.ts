@@ -1,12 +1,15 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
-import { isAdmin, isInternalUser } from '@/lib/admin';
+import { isAdmin } from '@/lib/admin';
+import { getCurrentUser } from '@/lib/auth';
+import { darfKundenCloud } from '@/lib/kunden-cloud/zugriff';
 import { NextResponse } from 'next/server';
 import { sendInviteEmail } from '@/lib/email/resend';
 
 export async function POST(request: Request) {
   const supabase = await createServerClient();
-  if (!(await isInternalUser(supabase))) {
+  // Kunden-Zugänge (Inhaber!) vergeben nur Admin und Innendienst – sonst könnte sich jeder Mitarbeiter in jede Kunden-Cloud einladen
+  if (!darfKundenCloud(await getCurrentUser())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 

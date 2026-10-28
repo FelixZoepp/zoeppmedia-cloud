@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
+import { canWriteRole } from '@/lib/recruiting/scope';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { completeCustomerStep } from '@/lib/fulfillment/engine';
 
@@ -8,6 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const user = await getCurrentUser();
   const agencyId = await getEffectiveAgencyId(user);
   if (!user || !agencyId) return NextResponse.json({ error: 'Keine Agentur' }, { status: 403 });
+  if (!canWriteRole(user.role)) return NextResponse.json({ error: 'Dein Zugang ist nur zum Ansehen.' }, { status: 403 });
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { kommentar?: string };
 

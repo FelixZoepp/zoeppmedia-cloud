@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSchreibNutzer } from '@/lib/recruiting/agency-scope';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
 
@@ -53,8 +54,8 @@ export async function POST(
   const { id } = await params;
   const supabase = await createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireSchreibNutzer();
+  if (user instanceof NextResponse) return user;
 
   const { data: profile } = await supabase
     .from('users')
@@ -178,8 +179,8 @@ export async function DELETE(
   const { id } = await params;
   const supabase = await createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireSchreibNutzer();
+  if (user instanceof NextResponse) return user;
 
   const { data: candidate } = await supabase
     .from('candidates')

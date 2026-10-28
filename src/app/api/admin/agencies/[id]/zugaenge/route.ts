@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { darfKundenCloud } from '@/lib/kunden-cloud/zugriff';
 import { KUNDEN_ROLLEN, type KundenRolle } from '@/lib/agency-team/access';
 import { appUrl, sendeEinladung } from '@/lib/agency-team/einladung';
 
@@ -19,10 +20,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ users: users ?? [], einladungen: einladungen ?? [] });
 }
 
-/** POST { email, name?, role } – Kunden-Login einladen (intern) */
+/** POST { email, name?, role } – Kunden-Login einladen (nur Admin und Innendienst) */
 export async function POST(req: NextRequest, { params }: Ctx) {
   const user = await getCurrentUser();
-  if (!user || !isInternal(user.role)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
+  if (!user || !darfKundenCloud(user)) return NextResponse.json({ error: 'Kein Zugriff' }, { status: 403 });
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { email?: string; name?: string; role?: string };
   const email = body.email?.trim().toLowerCase() ?? '';
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const role = (KUNDEN_ROLLEN as readonly string[]).includes(body.role ?? '') ? (body.role as KundenRolle) : 'agency_owner';
 
   const svc = createAdminClient();
-  const { data: vorhanden } = await svc.from('users').select('id').ilike('email', email).maybeSingle();
+  const { data: vorhanden } = await svc.from('users').select('id').eq('email', email).maybeSingle();
   if (vorhanden) return NextResponse.json({ error: 'Für diese E-Mail gibt es schon einen Zugang.' }, { status: 409 });
 
   const { data: invite, error } = await svc

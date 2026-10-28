@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSchreibNutzer } from '@/lib/recruiting/agency-scope';
 import { createServerClient } from '@/lib/supabase/server';
 import { logActivity } from '@/lib/activity/log';
 import { handleCallResultForCadence } from '@/lib/cadence/on-call-result';
@@ -36,8 +37,8 @@ export async function POST(
   const { id } = await params;
   const supabase = await createServerClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireSchreibNutzer();
+  if (user instanceof NextResponse) return user;
 
   const body = await request.json();
   const svc = createAdminClient();
