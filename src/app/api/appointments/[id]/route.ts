@@ -172,7 +172,7 @@ export async function PATCH(
     }
   }
 
-  // Verschiebung/Absage → Mail an Bewerber + Kalender-Update an den Kunden
+  // Verschiebung/Absage → Kalender-Update an den Kunden (Bewerber-Mail nur bei Verschiebung mit Freigabe)
   if (rescheduled || cancelled) {
     const kind = cancelled ? 'abgesagt' as const : 'verschoben' as const;
     const method = cancelled ? 'CANCEL' as const : 'REQUEST' as const;
@@ -198,7 +198,13 @@ export async function PATCH(
         agencyName,
       };
 
-      if (candidate.email) {
+      // Absage: nie eine Mail an den Bewerber (auch nicht mit Grund) – nur intern + Kundenkalender.
+      // Verschiebung: nur, wenn der Bewerber-Kontakt freigegeben ist (Admin → Bewerber-Kontakt).
+      const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+      const { createAdminClient } = await import('@/lib/supabase/admin');
+      const mailAnBewerber =
+        !cancelled && !!candidate.email && darfKontakt(await ladeSchalter(createAdminClient()), { email: candidate.email, agencyId: appointment.agency_id as string });
+      if (mailAnBewerber && candidate.email) {
         sendAppointmentUpdateEmail(
           candidate.email,
           candidate.name,
@@ -206,7 +212,6 @@ export async function PATCH(
           scheduledAt,
           agencyName,
           inviteBase.notes,
-          kind,
           buildAppointmentInvite({ ...inviteBase, attendeeEmail: candidate.email, attendeeName: candidate.name }),
         ).catch(() => {});
       }

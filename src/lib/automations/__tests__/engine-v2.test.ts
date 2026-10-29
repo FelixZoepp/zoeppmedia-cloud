@@ -325,6 +325,22 @@ describe('Automations v2 — neue Aktionen', () => {
     expect(call[1].payload.type).toBe('template');
   });
 
+  it('abgesagter Termin: send_template wird nie ausgeführt', async () => {
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+    vi.mocked(sendWhatsAppMessage).mockClear();
+
+    const svc = makeSvcForSendTemplate('preset-bewerbung');
+
+    await fireAutomations(svc, {
+      trigger_event: 'appointment.cancelled',
+      agency_id: 'ag-1',
+      candidate_id: 'cand-1',
+      conversation_id: 'conv-1',
+    });
+
+    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+
   it('send_message wird bei geschlossenem Fenster mit Log übersprungen', async () => {
     const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
     vi.mocked(sendWhatsAppMessage).mockRejectedValue(new Error('Fenster geschlossen'));

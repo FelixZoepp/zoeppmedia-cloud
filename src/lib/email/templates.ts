@@ -133,6 +133,7 @@ export function appointmentConfirmationTemplate(
 </body></html>`;
 }
 
+/** Terminverschiebung an den Bewerber (eine Absage-Mail an Bewerber gibt es bewusst nicht) */
 export function appointmentUpdateTemplate(
   candidateName: string,
   typeLabel: string,
@@ -140,13 +141,7 @@ export function appointmentUpdateTemplate(
   timeStr: string,
   agencyName: string,
   notes: string | null,
-  kind: 'verschoben' | 'abgesagt',
 ): string {
-  const headline = kind === 'verschoben' ? 'Dein Termin wurde verschoben' : 'Dein Termin wurde abgesagt';
-  const intro =
-    kind === 'verschoben'
-      ? `Hallo ${esc(candidateName)}, dein <strong>${typeLabel}</strong> bei <strong>${esc(agencyName)}</strong> findet zu einer neuen Zeit statt:`
-      : `Hallo ${esc(candidateName)}, dein <strong>${typeLabel}</strong> bei <strong>${esc(agencyName)}</strong> am ${dateStr} um ${timeStr} Uhr wurde leider abgesagt.`;
   return `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -154,12 +149,11 @@ export function appointmentUpdateTemplate(
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="padding:32px 40px 24px;text-align:center;">
       <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">${esc(agencyName)}</h2>
-      <p style="margin:0;font-size:13px;color:#888;">${kind === 'verschoben' ? 'Terminänderung' : 'Terminabsage'}</p>
+      <p style="margin:0;font-size:13px;color:#888;">Terminänderung</p>
     </div>
     <div style="padding:0 40px 32px;">
-      <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">${headline}</h1>
-      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 24px;">${intro}</p>
-      ${kind === 'verschoben' ? `
+      <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Dein Termin wurde verschoben</h1>
+      <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 24px;">Hallo ${esc(candidateName)}, dein <strong>${typeLabel}</strong> bei <strong>${esc(agencyName)}</strong> findet zu einer neuen Zeit statt:</p>
       <div style="background:#f5f5f7;border-radius:12px;padding:20px 24px;margin:0 0 24px;">
         <p style="margin:0 0 6px;font-size:15px;color:#111;"><strong>📅 ${dateStr}</strong></p>
         <p style="margin:0;font-size:15px;color:#111;"><strong>🕐 ${timeStr} Uhr</strong></p>
@@ -167,10 +161,7 @@ export function appointmentUpdateTemplate(
       </div>
       <p style="font-size:14px;color:#666;line-height:1.6;margin:0;">
         Bitte sei pünktlich. Falls du den neuen Termin nicht wahrnehmen kannst, gib bitte rechtzeitig Bescheid.
-      </p>` : `
-      <p style="font-size:14px;color:#666;line-height:1.6;margin:0;">
-        Bei Fragen melde dich gerne direkt bei ${esc(agencyName)}.
-      </p>`}
+      </p>
     </div>
   </div>
 </body></html>`;

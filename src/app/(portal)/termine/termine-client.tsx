@@ -388,7 +388,7 @@ function TerminDetails({ t, onStatus }: { t: Termin; onStatus: (s: TerminStatus)
               size="sm"
               variant="ghost"
               disabled={busy}
-              onClick={() => confirm('Termin wirklich absagen? Der Bewerber bekommt eine Absage per E-Mail.') && aktion('abgesagt')}
+              onClick={() => confirm('Termin wirklich absagen? Das wird nur intern vermerkt – der Bewerber bekommt keine Nachricht.') && aktion('abgesagt')}
             >
               Absagen
             </Button>

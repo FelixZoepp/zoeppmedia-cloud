@@ -159,9 +159,14 @@ async function executeAction(
   action: Action,
   context: AutomationContext
 ): Promise<ActionDetail | void> {
-  // Absagen bleiben intern (Schnell-Absage und jede Verschiebung nach „Abgesagt“): nie eine Nachricht an den Bewerber auslösen –
-  // auch nicht über geplante Jobs oder Webhooks (z. B. Zapier)
-  if (NACH_AUSSEN.includes(action.type) && (context.data?.schnell_absage === true || (await istAbsagePhase(supabase, context.data?.new_stage_id)))) {
+  // Absagen bleiben intern (Schnell-Absage, jede Verschiebung nach „Abgesagt“, abgesagte Termine): nie eine Nachricht an den
+  // Bewerber auslösen – auch nicht mit Grund, über geplante Jobs oder Webhooks (z. B. Zapier)
+  if (
+    NACH_AUSSEN.includes(action.type) &&
+    (context.trigger_event === 'appointment.cancelled' ||
+      context.data?.schnell_absage === true ||
+      (await istAbsagePhase(supabase, context.data?.new_stage_id)))
+  ) {
     return { status: 'skipped' };
   }
   switch (action.type) {

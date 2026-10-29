@@ -108,8 +108,11 @@ export async function POST(
   };
 
   // Bestätigungs-Mail + Kalender-Einladung an den Bewerber
+  // Nur mit freigegebenem Bewerber-Kontakt (Admin → Bewerber-Kontakt) – sonst geht keine Mail raus
   let confirmationSent = false;
-  if (candidate.email) {
+  const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+  const { createAdminClient: adminFuerSchalter } = await import('@/lib/supabase/admin');
+  if (candidate.email && darfKontakt(await ladeSchalter(adminFuerSchalter()), { email: candidate.email, agencyId: candidate.agency_id })) {
     try {
       await sendAppointmentConfirmationEmail(
         candidate.email,

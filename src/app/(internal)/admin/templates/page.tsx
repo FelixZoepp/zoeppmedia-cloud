@@ -17,9 +17,6 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   phone_script: 'Telefon-Skript',
   vg_leitfaden: 'VG-Leitfaden',
   follow_up: 'Follow-Up Scripts',
-  absage_telefon: 'Absage: Telefonisch',
-  absage_vg: 'Absage: Nach VG',
-  absage_schriftlich: 'Absage: Schriftlich',
   indeed: 'Indeed-Vorlage',
 };
 
@@ -32,9 +29,6 @@ const CONTENT_TYPE_ORDER = [
   'phone_script',
   'vg_leitfaden',
   'follow_up',
-  'absage_telefon',
-  'absage_vg',
-  'absage_schriftlich',
   'indeed',
 ];
 

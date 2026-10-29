@@ -597,7 +597,6 @@ export interface SurveyScheduleItem {
 export type TemplateContentType =
   | 'ad_winkel_1' | 'ad_winkel_2' | 'ad_winkel_3'
   | 'funnel' | 'phone_script' | 'vg_leitfaden' | 'follow_up'
-  | 'absage_telefon' | 'absage_vg' | 'absage_schriftlich'
   | 'indeed' | 'generator_rules';
 
 export type TemplateBranch = 'solar' | 'glasfaser' | 'strom_gas' | 'telko' | 'versicherung' | 'all';

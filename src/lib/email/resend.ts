@@ -116,6 +116,7 @@ export async function sendAppointmentConfirmationEmail(
   });
 }
 
+/** Terminverschiebung an den Bewerber. Absagen gehen nie per Mail an Bewerber raus. */
 export async function sendAppointmentUpdateEmail(
   to: string,
   candidateName: string,
@@ -123,20 +124,15 @@ export async function sendAppointmentUpdateEmail(
   scheduledAt: Date,
   agencyName: string,
   notes: string | null,
-  kind: 'verschoben' | 'abgesagt',
   ics?: string,
 ) {
   const { dateStr, timeStr } = formatBerlin(scheduledAt);
-  const subject =
-    kind === 'verschoben'
-      ? `Terminänderung: ${typeLabel} jetzt am ${dateStr}`
-      : `Terminabsage: ${typeLabel} am ${dateStr}`;
   return getResend().emails.send({
     from: `${agencyName} via Zoepp Media Cloud <noreply@zoepp-gruppe.de>`,
     to,
-    subject,
-    html: appointmentUpdateTemplate(candidateName, typeLabel, dateStr, timeStr, agencyName, notes, kind),
-    attachments: ics ? icsAttachment(ics, kind === 'abgesagt' ? 'CANCEL' : 'REQUEST') : undefined,
+    subject: `Terminänderung: ${typeLabel} jetzt am ${dateStr}`,
+    html: appointmentUpdateTemplate(candidateName, typeLabel, dateStr, timeStr, agencyName, notes),
+    attachments: ics ? icsAttachment(ics, 'REQUEST') : undefined,
   });
 }
 
