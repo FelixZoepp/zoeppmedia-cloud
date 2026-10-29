@@ -9,6 +9,7 @@ import { createHmac } from 'crypto';
 import { addCloseNote, findCloseLeadId } from './close';
 import { DATUM_EINTRAGUNG_CF, LEADQUELLE_CF, UTM_CF, leadquelleAusUtm } from './leadquelle';
 import { istReportFunnel, reportQuelle } from './report';
+import { BRIEF_FUNNEL } from './brief';
 import { istBestandskunde, UPSELL_FILTER, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
@@ -147,7 +148,8 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
   // Report-Funnel: eigene Leadquelle (getrennte Zahlen), UTM bleibt in den UTM-Feldern
   const quelle = istReportFunnel(l.funnelName)
     ? reportQuelle(l.funnelName)
-    : (leadquelleAusUtm({ utmSource: l.utm.source, utmMedium: l.utm.medium, utmCampaign: l.utm.campaign }) ?? `Perspective-Funnel${l.funnelName ? ` – ${l.funnelName}` : ''}`);
+    : (leadquelleAusUtm({ utmSource: l.utm.source, utmMedium: l.utm.medium, utmCampaign: l.utm.campaign }) ??
+      (l.funnelName === BRIEF_FUNNEL ? BRIEF_FUNNEL : `Perspective-Funnel${l.funnelName ? ` – ${l.funnelName}` : ''}`));
   const custom: Record<string, string> = { [`custom.${LEADQUELLE_CF}`]: quelle };
   if (l.utm.source) custom[`custom.${UTM_CF.source}`] = l.utm.source;
   if (l.utm.medium) custom[`custom.${UTM_CF.medium}`] = l.utm.medium;
