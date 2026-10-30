@@ -49,3 +49,20 @@ describe('Cash-Plan', () => {
     expect(endetBald([a, v({ kunde: 'Krüger', monatlich: 3500 })], '2026-11-01').map((x) => x.kunde)).toEqual(['Meier']);
   });
 });
+
+describe('Zahlungen im Monat', () => {
+  it('zeigt nur zahlende Verträge mit neu/letzter/verlängert', async () => {
+    const { zahlungenImMonat } = await import('../cashplan');
+    const liste = [
+      v({ kunde: 'Neu', monatlich: 1000, setup: 2000, start: '2027-01-01', laufzeit_monate: 3, rechnungstag: 5 }),
+      v({ kunde: 'Endet', monatlich: 1500, start: '2026-11-01', laufzeit_monate: 3, rechnungstag: 1 }),
+      v({ kunde: 'Verlängert', monatlich: 1000, start: '2026-10-01', laufzeit_monate: 3, verlaengerung_monatlich: 800, rechnungstag: 1 }),
+      v({ kunde: 'Später', monatlich: 7000, start: '2027-03-01' }),
+    ];
+    const z = zahlungenImMonat(liste, '2027-01');
+    expect(z.map((x) => x.vertrag.kunde)).toEqual(['Endet', 'Verlängert', 'Neu']);
+    expect(z[0].letzter).toBe(true);
+    expect(z[1]).toMatchObject({ gebuehr: 800, verlaengert: true });
+    expect(z[2]).toMatchObject({ neu: true, netto: 3000, brutto: 3570 });
+  });
+});

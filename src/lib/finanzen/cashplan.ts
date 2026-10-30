@@ -101,3 +101,40 @@ export function endetBald(vertraege: FinanzVertrag[], abMonat: string, monate = 
   const fenster = new Set(monateAb(abMonat, monate));
   return vertraege.filter((v) => v.status !== 'beendet' && fenster.has(laufzeitEnde(v) ?? ''));
 }
+
+export interface Zahlung {
+  vertrag: FinanzVertrag;
+  gebuehr: number;
+  setup: number;
+  netto: number;
+  brutto: number;
+  /** Erster Monat des Vertrags */
+  neu: boolean;
+  /** Letzter Monat der Laufzeit (danach nur bei Verlängerung) */
+  letzter: boolean;
+  /** Läuft nur über die angenommene Verlängerung */
+  verlaengert: boolean;
+}
+
+/** Wer zahlt in einem Monat was – sortiert nach Rechnungstag, dann Betrag */
+export function zahlungenImMonat(vertraege: FinanzVertrag[], monat: string): Zahlung[] {
+  return vertraege
+    .map((v) => {
+      const gebuehr = gebuehrImMonat(v, monat, true);
+      const setup = setupImMonat(v, monat);
+      const i = abstand(monatKey(v.start), monat);
+      const netto = gebuehr + setup;
+      return {
+        vertrag: v,
+        gebuehr,
+        setup,
+        netto,
+        brutto: Math.round(netto * (1 + (v.ust_satz ?? 0) / 100) * 100) / 100,
+        neu: i === 0,
+        letzter: v.laufzeit_monate != null && i === v.laufzeit_monate - 1,
+        verlaengert: v.laufzeit_monate != null && i >= v.laufzeit_monate && gebuehr > 0,
+      };
+    })
+    .filter((z) => z.netto > 0)
+    .sort((a, b) => (a.vertrag.rechnungstag ?? 99) - (b.vertrag.rechnungstag ?? 99) || b.netto - a.netto);
+}

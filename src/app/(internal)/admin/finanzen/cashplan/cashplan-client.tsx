@@ -8,13 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { berechneCashplan, endetBald, laufzeitEnde, monatKey, type FinanzVertrag } from '@/lib/finanzen/cashplan';
+import dynamic from 'next/dynamic';
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, type FinanzVertrag } from '@/lib/finanzen/cashplan';
+
+const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
 
 const euro = (v: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 const MONATE = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const monatLabel = (m: string) => `${MONATE[Number(m.slice(5, 7)) - 1]} ${m.slice(2, 4)}`;
-const ZEITRAUM = [6, 14, 24];
+const monatLang = (m: string) => new Date(`${m}-01T12:00:00`).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+/** Verlauf im Diagramm: 2 Monate zurück, 12 nach vorn */
+const VERLAUF_VOR = 2;
+const VERLAUF_MONATE = 15;
 
 type Formular = {
   id?: string;
@@ -70,35 +76,57 @@ function ausVertrag(v: Vertrag): Formular {
 
 const zahlOderNull = (s: string) => (s.trim() === '' ? null : Number(s.replace(',', '.')));
 
+async function holeVertraege(): Promise<Vertrag[] | null> {
+  const res = await fetch('/api/admin/finanzen/vertraege', { cache: 'no-store' });
+  if (!res.ok) {
+    toast.error('Verträge konnten nicht geladen werden');
+    return null;
+  }
+  const json = await res.json();
+  // numeric kommt als String aus Postgres
+  return (json.vertraege as Record<string, unknown>[]).map((v) => ({
+    ...(v as unknown as Vertrag),
+    monatlich: Number(v.monatlich),
+    setup: Number(v.setup),
+    ust_satz: Number(v.ust_satz),
+    verlaengerung_monatlich: v.verlaengerung_monatlich == null ? null : Number(v.verlaengerung_monatlich),
+  }));
+}
+
 export function CashplanClient() {
   const [vertraege, setVertraege] = useState<Vertrag[] | null>(null);
-  const [monate, setMonate] = useState(14);
+  const [monat, setMonat] = useState(() => monatKey(new Date()));
+  const [vertraegeOffen, setVertraegeOffen] = useState(false);
   const [form, setForm] = useState<Formular | null>(null);
   const [busy, setBusy] = useState(false);
 
   const laden = useCallback(async () => {
-    const res = await fetch('/api/admin/finanzen/vertraege', { cache: 'no-store' });
-    if (!res.ok) return toast.error('Verträge konnten nicht geladen werden');
-    const json = await res.json();
-    // numeric kommt als String aus Postgres
-    setVertraege(
-      (json.vertraege as Record<string, unknown>[]).map((v) => ({
-        ...(v as unknown as Vertrag),
-        monatlich: Number(v.monatlich),
-        setup: Number(v.setup),
-        ust_satz: Number(v.ust_satz),
-        verlaengerung_monatlich: v.verlaengerung_monatlich == null ? null : Number(v.verlaengerung_monatlich),
-      })),
-    );
+    const liste = await holeVertraege();
+    if (liste) setVertraege(liste);
   }, []);
 
   useEffect(() => {
-    laden();
-  }, [laden]);
+    let aktiv = true;
+    holeVertraege().then((liste) => aktiv && liste && setVertraege(liste));
+    return () => {
+      aktiv = false;
+    };
+  }, []);
 
   const jetzt = monatKey(new Date());
-  const plan = useMemo(() => (vertraege ? berechneCashplan(vertraege, jetzt, monate) : []), [vertraege, jetzt, monate]);
-  const bald = useMemo(() => (vertraege ? endetBald(vertraege, jetzt, 3) : []), [vertraege, jetzt]);
+  const verlaufStart = monateAb(jetzt, 1).map((m) => {
+    const [y, mm] = m.split('-').map(Number);
+    const d = new Date(y, mm - 1 - VERLAUF_VOR, 1);
+    return monatKey(d);
+  })[0];
+  const verlauf = useMemo(() => (vertraege ? berechneCashplan(vertraege, verlaufStart, VERLAUF_MONATE) : []), [vertraege, verlaufStart]);
+  const [vormonat, folgemonat] = useMemo(() => {
+    const [y, m] = monat.split('-').map(Number);
+    return [monatKey(new Date(y, m - 2, 1)), monatKey(new Date(y, m, 1))];
+  }, [monat]);
+  const diesMonat = useMemo(() => (vertraege ? berechneCashplan(vertraege, vormonat, 2) : []), [vertraege, vormonat]);
+  const zahlungen = useMemo(() => (vertraege ? zahlungenImMonat(vertraege, monat) : []), [vertraege, monat]);
+  const bald = useMemo(() => (vertraege ? endetBald(vertraege, monat, 3) : []), [vertraege, monat]);
 
   async function speichern() {
     if (!form) return;
@@ -148,17 +176,20 @@ export function CashplanClient() {
     );
   }
 
-  const dieser = plan[0];
-  const summe = (k: 'gesamt' | 'brutto' | 'nurLaufzeit', n = plan.length) => plan.slice(0, n).reduce((s, m) => s + m[k], 0);
-  const ustQuote = dieser && dieser.gesamt ? dieser.brutto / dieser.gesamt : 1.19;
+  const [vor, dieser] = diesMonat;
   const aktive = vertraege.filter((v) => v.status !== 'beendet');
+  const diff = dieser && vor ? dieser.gesamt - vor.gesamt : 0;
+  const neue = zahlungen.filter((z) => z.neu);
+  const letzte = zahlungen.filter((z) => z.letzter);
+  const zahlendeIds = new Set(zahlungen.map((z) => z.vertrag.id));
+  const uebrige = vertraege.filter((v) => !zahlendeIds.has(v.id));
 
   return (
     <div className="max-w-6xl">
       <PageHeader
         label="FINANZEN"
         title="Cash-Plan"
-        description="Geldeingang je Monat aus allen Verträgen – Monatsgebühren plus Setup, netto und brutto"
+        description="Was in einem Monat wirklich reinkommt – Monatsgebühren plus Setup, netto und brutto"
         counter={`${aktive.length} Verträge`}
         action={
           <Button size="sm" variant="primary" onClick={() => setForm(leer())}>
@@ -168,87 +199,148 @@ export function CashplanClient() {
         }
       />
 
+      {/* Monat wählen */}
+      <div className="mb-4 flex items-center gap-2">
+        <button className="rounded-full p-2 text-gray-500 hover:bg-gray-100" aria-label="Vormonat" onClick={() => setMonat(vormonat)}>
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <h2 className="min-w-[200px] text-center text-xl font-bold capitalize text-gray-900">{monatLang(monat)}</h2>
+        <button className="rounded-full p-2 text-gray-500 hover:bg-gray-100" aria-label="Folgemonat" onClick={() => setMonat(folgemonat)}>
+          <ChevronRight className="h-5 w-5" />
+        </button>
+        {monat !== jetzt && (
+          <Button size="sm" variant="ghost" onClick={() => setMonat(jetzt)}>
+            Aktueller Monat
+          </Button>
+        )}
+      </div>
+
       {dieser && (
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi titel={`MRR ${monatLabel(dieser.monat)}`} netto={dieser.monatlich} brutto={dieser.monatlich * ustQuote} />
-          <Kpi titel={`Cash ${monatLabel(dieser.monat)} (inkl. Setup)`} netto={dieser.gesamt} brutto={dieser.brutto} />
-          <Kpi titel="Cash nächste 3 Monate" netto={summe('gesamt', 3)} brutto={summe('brutto', 3)} />
+          <Card padding="md" className="sm:col-span-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Geldeingang im Monat</p>
+            <p className="mt-1 text-4xl font-bold text-gray-900">{euro(dieser.gesamt)}</p>
+            <p className="mt-1 text-sm text-gray-600">
+              netto · <span className="font-semibold">{euro(dieser.brutto)}</span> brutto
+            </p>
+            {vor && (
+              <p className={`mt-2 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                {diff >= 0 ? '+' : ''}
+                {euro(diff)} zum Vormonat
+              </p>
+            )}
+          </Card>
+          <Kpi titel="Monatsgebühren (MRR)" netto={dieser.monatlich} brutto={zahlungen.reduce((s, z) => s + z.gebuehr * (1 + z.vertrag.ust_satz / 100), 0)} />
           <Kpi
-            titel={`Cash ${monate} Monate`}
-            netto={summe('gesamt')}
-            brutto={summe('brutto')}
-            note={`ohne Verlängerungen: ${euro(summe('nurLaufzeit'))} netto`}
+            titel="Setup-Gebühren"
+            netto={dieser.setup}
+            brutto={zahlungen.reduce((s, z) => s + z.setup * (1 + z.vertrag.ust_satz / 100), 0)}
+            note={`${zahlungen.length} zahlende Kunden${neue.length ? ` · ${neue.length} neu` : ''}`}
           />
         </div>
       )}
 
-      {bald.length > 0 && (
-        <Card padding="md" className="mb-6">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Laufzeit endet in den nächsten 3 Monaten – Verlängerung klären</p>
-          <div className="flex flex-wrap gap-2">
-            {bald.map((v) => (
-              <Badge key={v.id} tone="softAccent">
-                {v.kunde} · {euro(v.monatlich)} · bis {monatLabel(laufzeitEnde(v)!)}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      <Card padding="none" className="mb-8 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-          <p className="text-sm font-semibold text-gray-900">Geldeingang je Monat</p>
-          <div className="flex gap-1">
-            {ZEITRAUM.map((z) => (
-              <Button key={z} size="sm" variant={z === monate ? 'primary' : 'ghost'} onClick={() => setMonate(z)}>
-                {z} Mon.
-              </Button>
-            ))}
-          </div>
+      {/* Wer zahlt in diesem Monat */}
+      <Card padding="none" className="mb-6 overflow-hidden">
+        <div className="border-b border-gray-200 px-5 py-3">
+          <p className="text-sm font-semibold text-gray-900">Aktive Verträge im {monatLang(monat)} ({zahlungen.length})</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                <th className="px-5 py-3 text-left">Monat</th>
-                <th className="px-5 py-3 text-right">Monatsgebühren</th>
-                <th className="px-5 py-3 text-right">Setup</th>
-                <th className="px-5 py-3 text-right">Netto gesamt</th>
-                <th className="px-5 py-3 text-right">Brutto gesamt</th>
-                <th className="px-5 py-3 text-right">Netto ohne Verlängerung</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {plan.map((m) => (
-                <tr key={m.monat}>
-                  <td className="whitespace-nowrap px-5 py-2.5 font-medium text-gray-900">{monatLabel(m.monat)}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-700">{euro(m.monatlich)}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-700">{m.setup ? euro(m.setup) : '–'}</td>
-                  <td className="px-5 py-2.5 text-right font-semibold text-gray-900">{euro(m.gesamt)}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-700">{euro(m.brutto)}</td>
-                  <td className="px-5 py-2.5 text-right text-gray-500">{euro(m.nurLaufzeit)}</td>
+        {zahlungen.length === 0 ? (
+          <p className="px-5 py-10 text-center text-sm text-gray-400">In diesem Monat ist nichts eingeplant.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3 text-left">Kunde</th>
+                  <th className="px-5 py-3 text-left">Rechnung</th>
+                  <th className="px-5 py-3 text-left">Laufzeit</th>
+                  <th className="px-5 py-3 text-right">Monatsgebühr</th>
+                  <th className="px-5 py-3 text-right">Setup</th>
+                  <th className="px-5 py-3 text-right">Netto</th>
+                  <th className="px-5 py-3 text-right">Brutto</th>
+                  <th className="px-3 py-3" />
                 </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {zahlungen.map((z) => (
+                  <tr key={z.vertrag.id}>
+                    <td className="px-5 py-2.5">
+                      <span className="font-medium text-gray-900">{z.vertrag.kunde}</span>
+                      <span className="ml-2 inline-flex gap-1 align-middle">
+                        {z.neu && <Badge tone="success">Neu</Badge>}
+                        {z.letzter && <Badge tone="softAccent">Letzter Monat</Badge>}
+                        {z.verlaengert && <Badge tone="outline">Verlängerung angenommen</Badge>}
+                        {z.vertrag.status === 'startet' && <Badge tone="softAccent">Startet</Badge>}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-2.5 text-gray-600">{z.vertrag.rechnungstag ? `zum ${z.vertrag.rechnungstag}.` : '–'}</td>
+                    <td className="whitespace-nowrap px-5 py-2.5 text-gray-600">
+                      {laufzeitEnde(z.vertrag) ? `seit ${monatLabel(monatKey(z.vertrag.start))} · bis ${monatLabel(laufzeitEnde(z.vertrag)!)}` : `seit ${monatLabel(monatKey(z.vertrag.start))} · unbefristet`}
+                      {laufzeitEnde(z.vertrag) && z.vertrag.verlaengerung_monatlich ? <span className="text-gray-400"> → {euro(z.vertrag.verlaengerung_monatlich)}</span> : null}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-2.5 text-right text-gray-700">{z.gebuehr ? euro(z.gebuehr) : '–'}</td>
+                    <td className="whitespace-nowrap px-5 py-2.5 text-right text-gray-700">{z.setup ? euro(z.setup) : '–'}</td>
+                    <td className="whitespace-nowrap px-5 py-2.5 text-right font-semibold text-gray-900">{euro(z.netto)}</td>
+                    <td className="whitespace-nowrap px-5 py-2.5 text-right text-gray-600">
+                      {euro(z.brutto)}
+                      {z.vertrag.ust_satz === 0 && <span className="ml-1 text-xs text-gray-400">(0 % USt)</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                      <button className="p-1.5 text-gray-400 hover:text-gray-700" aria-label="Bearbeiten" onClick={() => setForm(ausVertrag(z.vertrag as Vertrag))}>
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-50 font-semibold">
+                  <td className="px-5 py-3" colSpan={3}>
+                    Summe
+                  </td>
+                  <td className="px-5 py-3 text-right">{euro(zahlungen.reduce((s, z) => s + z.gebuehr, 0))}</td>
+                  <td className="px-5 py-3 text-right">{euro(zahlungen.reduce((s, z) => s + z.setup, 0))}</td>
+                  <td className="px-5 py-3 text-right">{euro(zahlungen.reduce((s, z) => s + z.netto, 0))}</td>
+                  <td className="px-5 py-3 text-right">{euro(zahlungen.reduce((s, z) => s + z.brutto, 0))}</td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        {(letzte.length > 0 || bald.length > 0) && (
+          <div className="border-t border-gray-100 px-5 py-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Laufzeit endet bald – Verlängerung klären</p>
+            <div className="flex flex-wrap gap-2">
+              {bald.map((v) => (
+                <Badge key={v.id} tone="softAccent">
+                  {v.kunde} · {euro(v.monatlich)} · bis {monatLabel(laufzeitEnde(v)!)}
+                </Badge>
               ))}
-              <tr className="bg-gray-50 font-semibold">
-                <td className="px-5 py-3">Summe</td>
-                <td className="px-5 py-3 text-right">{euro(plan.reduce((s, m) => s + m.monatlich, 0))}</td>
-                <td className="px-5 py-3 text-right">{euro(plan.reduce((s, m) => s + m.setup, 0))}</td>
-                <td className="px-5 py-3 text-right">{euro(summe('gesamt'))}</td>
-                <td className="px-5 py-3 text-right">{euro(summe('brutto'))}</td>
-                <td className="px-5 py-3 text-right text-gray-500">{euro(summe('nurLaufzeit'))}</td>
-              </tr>
-            </tbody>
-          </table>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Entwicklung */}
+      <Card padding="md" className="mb-8">
+        <div className="mb-3 flex items-baseline justify-between">
+          <p className="text-sm font-semibold text-gray-900">Entwicklung Geldeingang (netto)</p>
+          <p className="text-xs text-gray-500">Balken anklicken, um den Monat zu öffnen</p>
         </div>
-        <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">
-          Brutto = netto + Umsatzsteuer je Vertrag (Verträge ohne USt, z. B. Ausland oder Kleinunternehmer, mit 0 %). Kosten sind nicht abgezogen.
+        <div className="h-72">
+          <CashplanChart daten={verlauf} gewaehlt={monat} onWahl={setMonat} />
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Gestrichelt: Geldeingang, wenn niemand verlängert. Gerechnet nach Rechnungsmonat; Kosten sind nicht abgezogen.
         </p>
       </Card>
 
       <Card padding="none" className="overflow-hidden">
-        <div className="border-b border-gray-200 px-5 py-3">
-          <p className="text-sm font-semibold text-gray-900">Verträge</p>
-        </div>
+        <button className="flex w-full items-center justify-between border-b border-gray-200 px-5 py-3 text-left" onClick={() => setVertraegeOffen(!vertraegeOffen)}>
+          <span className="text-sm font-semibold text-gray-900">Weitere Verträge – starten später oder beendet ({uebrige.length})</span>
+          <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${vertraegeOffen ? 'rotate-180' : ''}`} />
+        </button>
+        {vertraegeOffen && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -264,7 +356,7 @@ export function CashplanClient() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {vertraege.map((v) => {
+              {uebrige.map((v) => {
                 const ende = laufzeitEnde(v);
                 return (
                   <tr key={v.id} className={v.status === 'beendet' ? 'opacity-50' : ''}>
@@ -304,6 +396,7 @@ export function CashplanClient() {
             </tbody>
           </table>
         </div>
+        )}
       </Card>
 
       <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? 'Vertrag bearbeiten' : 'Neuer Vertrag'} width="max-w-xl">
