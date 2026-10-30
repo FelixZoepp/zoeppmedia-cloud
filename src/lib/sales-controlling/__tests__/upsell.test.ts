@@ -53,3 +53,20 @@ describe('berechneUpsell', () => {
     expect(u.nachkaeufer[0]).toMatchObject({ kunde: 'B&C Direct Sales GmbH', deals: 3, upsellVolumen: 9000 });
   });
 });
+
+describe('berechneUpsell: Deals aus der Upsell-Pipeline', () => {
+  it('ein einzelner Upsell-Deal (erster Kauf vor Close) zählt als Upsell und als reifer Kunde', () => {
+    const opps: Opp[] = [
+      { ...opp('o1', 'ocec', 'OCEC Ltd', 30000, '2026-10-26'), upsell: true },
+      { ...opp('n1', 'navi', 'Navi 8 Consulting GmbH', 2670, '2026-10-26'), upsell: true },
+      opp('neu', 'neu', 'Neukunde GmbH', 5950, '2026-10-20'),
+    ];
+    const u = berechneUpsell({ opps, statuses, zeitraum: { von: '2026-10-01', bis: '2026-11-01' }, jetzt: new Date('2026-10-30T12:00:00Z') });
+    expect(u.kundenMitUpsell).toBe(2);
+    expect(u.kundenReif).toBe(2);
+    expect(u.quoteReif).toBe(100);
+    expect(u.zeitraum.neukauf).toEqual({ anzahl: 1, volumen: 5950 });
+    expect(u.zeitraum.upsell).toEqual({ anzahl: 2, volumen: 32670 });
+    expect(u.nachkaeufer.map((x) => x.kunde)).toEqual(['OCEC Ltd', 'Navi 8 Consulting GmbH']);
+  });
+});

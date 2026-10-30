@@ -1,5 +1,6 @@
 /**
  * Upsell-Quote aus Close: Jeder gewonnene Deal nach dem ersten eines Kunden ist ein Upsell (neues Paket).
+ * Deals aus der Upsell-Pipeline (Bestandskunden) sind immer Upsells – auch wenn der erste Kauf vor Close lag (z. B. OCEC, Navi 8, Wasmund).
  * Kunde = Lead; doppelte Leads mit gleichem Firmennamen (z. B. „B&C Direct Sales“ / „B&C Direct Sales GmbH“) zählen als einer.
  * „Reife“ Kunden: erster Kauf mindestens 6 Wochen her – faire Quote, weil frische Kunden noch kaum nachkaufen konnten.
  */
@@ -41,26 +42,30 @@ export function berechneUpsell(e: { opps: Opp[]; statuses: CloseStatus[]; zeitra
   let reif = 0;
   let reifMitUpsell = 0;
   const zr = { neukauf: { anzahl: 0, volumen: 0 }, upsell: { anzahl: 0, volumen: 0 } };
-  const liste: Array<{ kunde: string; deals: number; volumen: number; upsellVolumen: number; ersterKauf: string; letzterKauf: string }> = [];
+  const liste: Array<{ kunde: string; deals: number; volumen: number; upsellVolumen: number; ersterKauf: string; letzterKauf: string; hatUpsell: boolean }> = [];
 
   for (const k of kunden.values()) {
     const deals = [...k.deals].sort((a, b) => a.datum.localeCompare(b.datum) || a.date_created.localeCompare(b.date_created));
+    const istUpsell = (d: (typeof deals)[number], i: number) => i > 0 || !!d.upsell;
     const volumen = deals.reduce((s, d) => s + d.value, 0);
-    const up = deals.slice(1).reduce((s, d) => s + d.value, 0);
+    const up = deals.reduce((s, d, i) => s + (istUpsell(d, i) ? d.value : 0), 0);
+    const hatUpsell = deals.some((d, i) => istUpsell(d, i));
+    // Erster Close-Deal schon ein Upsell → Kunde war vorher da: für die Reife zählt „schon lange Kunde“
+    const reifSeit = deals[0].upsell ? '0000-00-00' : deals[0].datum;
     gesamtVolumen += volumen;
     upsellVolumen += up;
-    if (deals.length > 1) mitUpsell++;
-    if (deals[0].datum < reifeGrenze) {
+    if (hatUpsell) mitUpsell++;
+    if (reifSeit < reifeGrenze) {
       reif++;
-      if (deals.length > 1) reifMitUpsell++;
+      if (hatUpsell) reifMitUpsell++;
     }
     deals.forEach((d, i) => {
       if (d.datum < e.zeitraum.von || d.datum >= e.zeitraum.bis) return;
-      const t = i === 0 ? zr.neukauf : zr.upsell;
+      const t = istUpsell(d, i) ? zr.upsell : zr.neukauf;
       t.anzahl++;
       t.volumen += d.value;
     });
-    liste.push({ kunde: k.name, deals: deals.length, volumen, upsellVolumen: up, ersterKauf: deals[0].datum, letzterKauf: deals[deals.length - 1].datum });
+    liste.push({ kunde: k.name, deals: deals.length, volumen, upsellVolumen: up, ersterKauf: deals[0].datum, letzterKauf: deals[deals.length - 1].datum, hatUpsell });
   }
 
   const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
@@ -80,7 +85,7 @@ export function berechneUpsell(e: { opps: Opp[]; statuses: CloseStatus[]; zeitra
     dealsProKunde: kunden.size ? Math.round((gewonnen.length / kunden.size) * 10) / 10 : null,
     /** Im gewählten Zeitraum: Neukunden- vs. Upsell-Deals */
     zeitraum: { ...zr, upsellAnteil: pct(zr.upsell.volumen, zrGesamt) },
-    nachkaeufer: liste.filter((x) => x.deals > 1).sort((a, b) => b.upsellVolumen - a.upsellVolumen),
+    nachkaeufer: liste.filter((x) => x.hatUpsell).sort((a, b) => b.upsellVolumen - a.upsellVolumen),
   };
 }
 
