@@ -13,6 +13,9 @@ import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lu
 import { abschlussQuoten, istProMonat, kontaktIds, rechnungsCheck, rechnungsplan, zahlungsmoral, type FinanzRechnung } from '@/lib/finanzen/zahlungen';
 import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
 
+import { AusgabenBereich } from './ausgaben-bereich';
+import { ausgabenImMonat, type Ausgabe, type Fixkosten } from '@/lib/finanzen/ausgaben';
+
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
 
 const euro = (v: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
@@ -98,6 +101,12 @@ async function holeRechnungen(): Promise<{ rechnungen: FinanzRechnung[]; abgleic
   return res.json();
 }
 
+async function holeAusgaben(): Promise<{ ausgaben: Ausgabe[]; fixkosten: Fixkosten[] } | null> {
+  const res = await fetch('/api/admin/finanzen/ausgaben', { cache: 'no-store' });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 async function holeVertraege(): Promise<Vertrag[] | null> {
   const res = await fetch('/api/admin/finanzen/vertraege', { cache: 'no-store' });
   if (!res.ok) {
@@ -124,19 +133,22 @@ export function CashplanClient() {
   const [busy, setBusy] = useState(false);
   const [lex, setLex] = useState<{ rechnungen: FinanzRechnung[]; abgleich: Abgleich | null }>({ rechnungen: [], abgleich: null });
   const [gleichtAb, setGleichtAb] = useState(false);
+  const [kosten, setKosten] = useState<{ ausgaben: Ausgabe[]; fixkosten: Fixkosten[] }>({ ausgaben: [], fixkosten: [] });
 
   const laden = useCallback(async () => {
-    const [liste, r] = await Promise.all([holeVertraege(), holeRechnungen()]);
+    const [liste, r, k] = await Promise.all([holeVertraege(), holeRechnungen(), holeAusgaben()]);
     if (liste) setVertraege(liste);
     if (r) setLex(r);
+    if (k) setKosten(k);
   }, []);
 
   useEffect(() => {
     let aktiv = true;
-    Promise.all([holeVertraege(), holeRechnungen()]).then(([liste, r]) => {
+    Promise.all([holeVertraege(), holeRechnungen(), holeAusgaben()]).then(([liste, r, k]) => {
       if (!aktiv) return;
       if (liste) setVertraege(liste);
       if (r) setLex(r);
+      if (k) setKosten(k);
     });
     return () => {
       aktiv = false;
@@ -250,7 +262,11 @@ export function CashplanClient() {
     })
     .sort((a, b) => a.v.start.localeCompare(b.v.start) || a.v.kunde.localeCompare(b.v.kunde));
   const startMonate = [...new Set(starts.map((x) => monatKey(x.v.start)))];
-  const verlaufMitIst = verlauf.map((m) => ({ ...m, ist: m.monat <= jetzt ? (ist.get(m.monat)?.netto ?? 0) : undefined }));
+  const verlaufMitIst = verlauf.map((m) => ({
+    ...m,
+    ist: m.monat <= jetzt ? (ist.get(m.monat)?.netto ?? 0) : undefined,
+    ausgaben: ausgabenImMonat(kosten.ausgaben, kosten.fixkosten, m.monat).gesamt || undefined,
+  }));
   const prozent = (x: number) => `${Math.round(x * 100)} %`;
 
   return (
@@ -396,6 +412,18 @@ export function CashplanClient() {
           </div>
         )}
       </Card>
+
+      {dieser && (
+        <AusgabenBereich
+          monat={monat}
+          monatName={monatLang(monat)}
+          einnahmenNetto={dieser.gesamt}
+          einnahmenIst={monat <= jetzt ? (istMonat?.netto ?? 0) : null}
+          ausgaben={kosten.ausgaben}
+          fixkosten={kosten.fixkosten}
+          neuLaden={laden}
+        />
+      )}
 
       {/* Starts nach Monat */}
       <Card padding="none" className="mb-6 overflow-hidden">

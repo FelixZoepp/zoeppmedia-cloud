@@ -4,7 +4,7 @@ import { Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, ResponsiveContai
 import type { CashMonat } from '@/lib/finanzen/cashplan';
 
 // Eigene Datei, damit recharts per next/dynamic erst bei Bedarf geladen wird
-export function CashplanChart({ daten, gewaehlt, onWahl }: { daten: Array<CashMonat & { ist?: number }>; gewaehlt: string; onWahl: (monat: string) => void }) {
+export function CashplanChart({ daten, gewaehlt, onWahl }: { daten: Array<CashMonat & { ist?: number; ausgaben?: number }>; gewaehlt: string; onWahl: (monat: string) => void }) {
   const eur = (n: number) => `${Math.round(n).toLocaleString('de-DE')} €`;
   const monat = (m: string) => new Date(`${m}-01T12:00:00`).toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
   const klick = (d: unknown) => {
@@ -30,6 +30,7 @@ export function CashplanChart({ daten, gewaehlt, onWahl }: { daten: Array<CashMo
           ))}
         </Bar>
         <Line dataKey="ist" name="Tatsächlich eingegangen" stroke="#047857" strokeWidth={2} dot={{ r: 3 }} type="monotone" connectNulls={false} />
+        <Line dataKey="ausgaben" name="Ausgaben" stroke="#d97706" strokeWidth={2} dot={{ r: 3 }} type="monotone" />
         <Line dataKey="nurLaufzeit" name="ohne Verlängerungen" stroke="#6b7280" strokeDasharray="4 4" dot={false} type="monotone" />
       </ComposedChart>
     </ResponsiveContainer>

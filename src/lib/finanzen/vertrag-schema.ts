@@ -29,3 +29,13 @@ export const vertragSchema = vertragFelder.extend({
 
 /** YYYY-MM → YYYY-MM-01 */
 export const ersterTag = (s: string | null | undefined) => (s ? `${s.slice(0, 7)}-01` : null);
+
+/** Feste Kosten (Mitarbeiter, Miete …) */
+export const fixkostenSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  kategorie: z.string().trim().min(1).max(60),
+  monatlich: z.coerce.number().min(0).max(1_000_000),
+  ab: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  bis: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  notiz: z.string().trim().max(500).nullable().optional(),
+});
