@@ -6,6 +6,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { Hochlauf } from './hochlauf';
+import type { FunnelZahlen } from '@/lib/finanzen/prognose';
 import { STANDARD_ZIELE, neukundenFuerZiel, zielZeilen, type KundenKennzahlen, type Ziele } from '@/lib/finanzen/ziele';
 
 const euro = (v: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
@@ -33,6 +35,7 @@ export function ZielTracker({
   aktiveVertraege,
   kunden,
   historie,
+  hochlaufDaten,
   gespeichert,
 }: {
   monatName: string;
@@ -44,6 +47,7 @@ export function ZielTracker({
   aktiveVertraege: number;
   kunden: KundenKennzahlen;
   historie?: { kunden: number; upsell: number; rueckgewinnung: number } | null;
+  hochlaufDaten?: { abMonat: string; startMrr: number; funnel: (Omit<FunnelZahlen, 'upsells'> & { tage: number }) | null; upsells: number };
   gespeichert: (z: Ziele) => void;
 }) {
   const [form, setForm] = useState<Record<string, string> | null>(null);
@@ -119,6 +123,19 @@ export function ZielTracker({
           {kunden.zahlend} zahlende Kunden im Monat · {kunden.neu} neu · {kunden.verloren} verloren. Lexware reicht erst bis Nov. 2023 zurück – lange Kunden wie Krüger zählen deshalb zu kurz.
         </span>
       </div>
+
+      {hochlaufDaten && (
+        <Hochlauf
+          abMonat={hochlaufDaten.abMonat}
+          startMrr={hochlaufDaten.startMrr}
+          ziel={ziele.umsatzMonat}
+          standardAbschluesse={Math.max(1, ziele.neukundenMonat)}
+          funnel={hochlaufDaten.funnel}
+          upsellsImFenster={hochlaufDaten.upsells}
+          kundenProKopf={ziele.kundenProKopf}
+          fulfillmentKoepfe={ziele.fulfillmentKoepfe}
+        />
+      )}
 
       <Modal open={!!form} onClose={() => setForm(null)} title="Ziele (Masterplan)" width="max-w-lg">
         {form && (

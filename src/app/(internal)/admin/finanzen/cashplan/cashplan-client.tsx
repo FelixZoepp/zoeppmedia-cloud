@@ -16,6 +16,7 @@ import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde
 import { AusgabenBereich } from './ausgaben-bereich';
 import { ZielTracker } from './ziel-tracker';
 import { STANDARD_ZIELE, kundenKennzahlen, type Ziele } from '@/lib/finanzen/ziele';
+import type { FunnelZahlen } from '@/lib/finanzen/prognose';
 import { ausgabenImMonat, type Ausgabe, type Fixkosten } from '@/lib/finanzen/ausgaben';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
@@ -137,6 +138,7 @@ export function CashplanClient() {
   const [gleichtAb, setGleichtAb] = useState(false);
   const [ziele, setZiele] = useState<Ziele>(STANDARD_ZIELE);
   const [d2dKontakte, setD2dKontakte] = useState<string[]>([]);
+  const [funnel, setFunnel] = useState<(FunnelZahlen & { tage: number }) | null>(null);
   const [historie, setHistorie] = useState<{ kunden: number; upsell: number; rueckgewinnung: number } | null>(null);
   const [kosten, setKosten] = useState<{ ausgaben: Ausgabe[]; fixkosten: Fixkosten[] }>({ ausgaben: [], fixkosten: [] });
 
@@ -156,6 +158,7 @@ export function CashplanClient() {
         if (j.ziele) setZiele(j.ziele);
         setHistorie(j.historie ?? null);
         setD2dKontakte(j.d2dKontakte ?? []);
+        setFunnel(j.funnel ?? null);
       })
       .catch(() => {});
     Promise.all([holeVertraege(), holeRechnungen(), holeAusgaben()]).then(([liste, r, k]) => {
@@ -438,6 +441,17 @@ export function CashplanClient() {
           aktiveVertraege={zahlungen.length}
           kunden={{ ...kundenKennzahlen(d2dKontakte.length ? lex.rechnungen.filter((r) => d2dKontakte.includes(r.kontakt ?? '')) : lex.rechnungen, monat), ...(historie ? { upsellQuote: historie.upsell / historie.kunden } : {}) }}
           historie={historie}
+          hochlaufDaten={{
+            abMonat: jetzt,
+            startMrr: berechneCashplan(vertraege, jetzt, 1)[0]?.monatlich ?? 0,
+            funnel,
+            // Upsells der letzten 30 Tage: Abschluss bei einem Kontakt, der vorher schon Rechnungen hatte
+            upsells: vertraege.filter((v) => {
+              if (!v.abschluss_am || Date.parse(v.abschluss_am) < Date.parse(heute) - 30 * 864e5) return false;
+              const ids = new Set(kontaktIds(v));
+              return lex.rechnungen.some((r) => r.contact_id && ids.has(r.contact_id) && (r.datum ?? '') < v.abschluss_am!);
+            }).length,
+          }}
           gespeichert={setZiele}
         />
       )}
