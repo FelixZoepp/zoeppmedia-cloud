@@ -1,0 +1,3 @@
+-- Kündigungsgründe erweitert (Angabe Felix 30.10.2026): Ghosting, Insolvenz/Firma aufgelöst, Laufzeit ausgelaufen, Kunde setzt nicht um
+alter table public.finanz_kunden_status drop constraint if exists finanz_kunden_status_kuendigungsgrund_check;
+alter table public.finanz_kunden_status add constraint finanz_kunden_status_kuendigungsgrund_check check (kuendigungsgrund is null or kuendigungsgrund in ('Ergebnisse', 'Preis', 'Eigener Vertrieb gescheitert', 'Kunde setzt nicht um', 'Kommunikation', 'Ghosting', 'Zahlungsausfall / Streitfall', 'Insolvenz / Firma aufgelöst', 'Laufzeit ausgelaufen', 'Projekt beendet', 'Sonstiges'));

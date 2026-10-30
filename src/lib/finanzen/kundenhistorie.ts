@@ -1,6 +1,18 @@
 /** Kundenhistorie (Direktvertrieb): Upsell, Rückgewinnung, Kündigungsgrund – Grundlage für Quoten im Masterplan */
 
-export const KUENDIGUNGSGRUENDE = ['Ergebnisse', 'Preis', 'Eigener Vertrieb gescheitert', 'Kommunikation', 'Zahlungsausfall / Streitfall', 'Projekt beendet', 'Sonstiges'] as const;
+export const KUENDIGUNGSGRUENDE = [
+  'Ergebnisse',
+  'Preis',
+  'Eigener Vertrieb gescheitert',
+  'Kunde setzt nicht um',
+  'Kommunikation',
+  'Ghosting',
+  'Zahlungsausfall / Streitfall',
+  'Insolvenz / Firma aufgelöst',
+  'Laufzeit ausgelaufen',
+  'Projekt beendet',
+  'Sonstiges',
+] as const;
 export type Kuendigungsgrund = (typeof KUENDIGUNGSGRUENDE)[number];
 
 export interface KundeStatus {
