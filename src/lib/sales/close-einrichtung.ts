@@ -352,6 +352,12 @@ export async function fuehreCloseEinrichtungAus(svc: SupabaseClient, was: string
       await svc.from('system_einstellungen').upsert({ key: 'close_smartviews_geloescht', wert: JSON.stringify(geloescht), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       continue;
     }
+    if (name === 'setter_listen') {
+      const { legeSetterListenAn } = await import('./close-smartviews');
+      const ergebnis = await legeSetterListenAn(svc);
+      await svc.from('system_einstellungen').upsert({ key: 'close_setter_listen', wert: JSON.stringify(ergebnis), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      continue;
+    }
     if (name === 'smartviews_anpassen') {
       const { passeSmartViewsAn } = await import('./close-smartviews');
       const ergebnis = await passeSmartViewsAn(svc);

@@ -48,7 +48,10 @@ const STATUS = {
   closingFollowUp: 'stat_qdOAuGHxRx66Mk45E58gOOXnceL04Iouh6nAuoEXyjy',
   angebot: 'stat_rfJv0gUGFIaEo2LQc7CkKKjSjabGuE509yRR0gZjozP',
   settingTerminiert: 'stat_ijQBHlkm3ij7uu8hnszgMzR3eIvWVKMo6vkrIVGyKBH',
+  verloren: 'stat_843j170eWlP742evQCGjL4BRdczZY4hGTTiV7s0LVZe',
 } as const;
+
+const VERLUSTGRUND_FELD = 'cf_VyMmJUFUh8pHoKi14eNuxAavZOT8LCrdpPGKXhsjie0';
 
 const LEAD_SETTING = 'stat_E0PMV0VE8R9KIyqq8aGpBMyvBqjmaih50lXRczPpQ2L';
 
@@ -75,6 +78,12 @@ const offset = (stunden: number) => ({ days: 0, hours: stunden, minutes: 0, mont
 const letzteStunden = (h: number): Q => ({
   before: { type: 'now' },
   on_or_after: { direction: 'past', moment: { type: 'now' }, offset: offset(h), type: 'offset', which_day_end: 'start' },
+  type: 'moment_range',
+});
+/** Älter als n Tage (Zeitpunkt vor jetzt − n Tage) */
+const aelterAlsTage = (tage: number): Q => ({
+  before: { direction: 'past', moment: { type: 'now' }, offset: { ...offset(0), days: tage }, type: 'offset', which_day_end: 'start' },
+  on_or_after: null,
   type: 'moment_range',
 });
 const zahl = (gte?: number, lte?: number, gt?: number): Q => ({ type: 'number_range', ...(gte !== undefined ? { gte } : {}), ...(lte !== undefined ? { lte } : {}), ...(gt !== undefined ? { gt } : {}) });
@@ -192,6 +201,8 @@ export const EINGETRAGEN_VIEW = {
       hatTelefon,
       nichtGesperrt,
       or(leadStatus(STATUS.leadpool, STATUS.interessiert), and(leadStatus(LEAD_SETTING), cf(F.settingTermin, bisJetzt), deal(STATUS.settingTerminiert))),
+      // Frische, noch nie angerufene Leads stehen in „3.0 Neu eingetragen“ – hier nicht doppelt
+      { ...and(feld('lead', 'date_created', letzteStunden(24)), feld('lead', 'num_outgoing_calls', zahl(0, 0))), negate: true },
     ),
     [sortierung('date_updated', 'asc')],
   ),
@@ -308,4 +319,61 @@ export async function loescheControllingViews(): Promise<string[]> {
     geloescht.push(v.name);
   }
   return geloescht;
+}
+
+/**
+ * Setter-Listen für den Rückstau (Vorschlag 30.10.2026):
+ *  „2.3 Verloren (Ghosting) – nach 30 Tagen nochmal“: Deal verloren mit Grund „Nicht mehr erreichbar (Ghosting)“, seit 30+ Tagen ruhig
+ *  „3.4 Alte Leads reaktivieren“: Leadpool/Interessiert, älter als 60 Tage, nie ein Erstgespräch – älteste Bewegung zuerst
+ */
+export const NEUE_SETTER_VIEWS: Array<{ name: string; s_query: Q }> = [
+  {
+    name: '👻 2.3 (QC) Verloren (Ghosting) – nach 30 Tagen nochmal',
+    s_query: sQuery(
+      and(
+        {
+          negate: false,
+          related_object_type: 'opportunity',
+          related_query: and(
+            feld('opportunity', 'status_id', { object_ids: [STATUS.verloren], reference_type: 'status.opportunity', type: 'reference' }),
+            cf(VERLUSTGRUND_FELD, term('Nicht mehr erreichbar (Ghosting)')),
+            feld('opportunity', 'date_updated', aelterAlsTage(30)),
+          ),
+          this_object_type: 'lead',
+          type: 'has_related',
+        },
+        hatTelefon,
+        nichtGesperrt,
+      ),
+      [sortierung('date_updated', 'asc')],
+    ),
+  },
+  {
+    name: '🧊 3.4 (CC) Alte Leads reaktivieren',
+    s_query: sQuery(
+      and(leadStatus(STATUS.leadpool, STATUS.interessiert), feld('lead', 'date_created', aelterAlsTage(60)), cf(F.settingTermin, { type: 'exists' }, true), hatTelefon, nichtGesperrt),
+      [sortierung('date_updated', 'asc')],
+    ),
+  },
+];
+
+/** Nur die neuen Setter-Listen anlegen/aktualisieren + Doppelung 3.0/3.1 bereinigen – die anderen Views bleiben unberührt */
+export async function legeSetterListenAn(svc: SupabaseClient): Promise<Record<string, string>> {
+  const { data: gemerkt } = await svc.from('system_einstellungen').select('wert').eq('key', 'close_smartview_ids').maybeSingle();
+  const ids: Record<string, string> = (gemerkt as { wert: string } | null)?.wert ? JSON.parse((gemerkt as { wert: string }).wert) : {};
+  const ergebnis: Record<string, string> = {};
+  for (const v of NEUE_SETTER_VIEWS) {
+    if (ids[v.name]) {
+      await close(`/saved_search/${ids[v.name]}/`, { method: 'PUT', body: JSON.stringify({ s_query: v.s_query }) });
+      ergebnis[v.name] = `angepasst (${ids[v.name]})`;
+    } else {
+      const neu = await close<{ id: string }>(`/saved_search/`, { method: 'POST', body: JSON.stringify({ name: v.name, type: 'lead', s_query: v.s_query, is_shared: true }) });
+      ids[v.name] = neu.id;
+      ergebnis[v.name] = `neu (${neu.id})`;
+    }
+  }
+  await passeEingetragenViewAn();
+  ergebnis['🤑 3.1 Eingetragen – noch kein Termin'] = 'ohne Doppelung zu 3.0';
+  await svc.from('system_einstellungen').upsert({ key: 'close_smartview_ids', wert: JSON.stringify(ids), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  return ergebnis;
 }
