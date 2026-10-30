@@ -143,3 +143,14 @@ describe('Mehrere Lexware-Kontakte je Vertrag', () => {
     expect(rechnungsCheck(vertraege, rechnungen, '2026-10', (x, m) => gebuehrImMonat(x, m, false)).luecken).toEqual([]);
   });
 });
+
+describe('Lexware-Abgleich: nur geänderte Rechnungen neu laden', () => {
+  it('gleicher Zeitpunkt in anderer Schreibweise ist keine Änderung', async () => {
+    const { brauchtDetails } = await import('../lexware-abgleich');
+    const alt = { status: 'paid', lex_aktualisiert: '2026-10-30 12:00:00+00' };
+    expect(brauchtDetails(alt, { status: 'paid', lex_aktualisiert: '2026-10-30T14:00:00.000+02:00' })).toBe(false);
+    expect(brauchtDetails(alt, { status: 'paid', lex_aktualisiert: '2026-10-30T15:00:00.000+02:00' })).toBe(true);
+    expect(brauchtDetails(alt, { status: 'open', lex_aktualisiert: '2026-10-30T14:00:00.000+02:00' })).toBe(true);
+    expect(brauchtDetails(undefined, { status: 'open', lex_aktualisiert: null })).toBe(true);
+  });
+});

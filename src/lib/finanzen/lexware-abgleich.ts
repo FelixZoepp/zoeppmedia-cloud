@@ -91,12 +91,9 @@ export async function gleicheLexwareAb(svc: SupabaseClient, opts: { maxDetails?:
     await warte(PAUSE_MS);
   }
   // Geänderte Rechnungen (Status/Bearbeitung) brauchen neue Details
-  const neuLaden = zeilen.filter((z) => {
-    const a = bekannt.get(z.voucher_id);
-    return !a || a.status !== z.status || (a.lex_aktualisiert ?? '') !== (z.lex_aktualisiert ?? '');
-  });
+  const neuLaden = new Set(zeilen.filter((z) => brauchtDetails(bekannt.get(z.voucher_id), z)).map((z) => z.voucher_id));
   for (let i = 0; i < zeilen.length; i += 200) {
-    const teil = zeilen.slice(i, i + 200).map((z) => (neuLaden.includes(z) ? { ...z, details_geladen: false } : z));
+    const teil = zeilen.slice(i, i + 200).map((z) => (neuLaden.has(z.voucher_id) ? { ...z, details_geladen: false } : z));
     const { error } = await svc.from('finanz_rechnungen').upsert(teil, { onConflict: 'voucher_id' });
     if (error) return { rechnungen: zeilen.length, details: 0, rest: 0, zugeordnet: 0, abgebrochen: error.message };
   }
@@ -147,6 +144,19 @@ export async function gleicheLexwareAb(svc: SupabaseClient, opts: { maxDetails?:
     .from('system_einstellungen')
     .upsert({ key: LETZTER_ABGLEICH_KEY, wert: JSON.stringify({ am: new Date().toISOString(), rechnungen: zeilen.length, rest: count ?? 0 }) }, { onConflict: 'key' });
   return { rechnungen: zeilen.length, details, rest: count ?? 0, zugeordnet, abgebrochen };
+}
+
+/** Neu laden, wenn unbekannt, Status anders oder in Lexware wirklich bearbeitet (Zeitpunkt vergleichen, nicht den Text – DB und Lexware schreiben ihn verschieden) */
+export function brauchtDetails(
+  alt: { status: string | null; lex_aktualisiert: string | null; details_geladen?: boolean } | undefined,
+  neu: { status: string | null; lex_aktualisiert: string | null },
+): boolean {
+  if (!alt) return true;
+  if (alt.status !== neu.status) return true;
+  const a = alt.lex_aktualisiert ? Date.parse(alt.lex_aktualisiert) : NaN;
+  const b = neu.lex_aktualisiert ? Date.parse(neu.lex_aktualisiert) : NaN;
+  if (Number.isNaN(a) || Number.isNaN(b)) return false;
+  return Math.abs(a - b) > 1000;
 }
 
 /** Kontaktnamen aus Lexware den Verträgen zuordnen – nur wenn genau ein Kontakt passt */
