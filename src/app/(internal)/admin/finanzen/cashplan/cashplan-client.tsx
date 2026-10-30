@@ -16,6 +16,7 @@ import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde
 import { AusgabenBereich } from './ausgaben-bereich';
 import { ZielTracker } from './ziel-tracker';
 import { KpiUebersicht } from './kpi-uebersicht';
+import { Kundenhistorie } from './kundenhistorie';
 import { kpiListe } from '@/lib/finanzen/kpis';
 import { STANDARD_ZIELE, kundenKennzahlen, type Ziele } from '@/lib/finanzen/ziele';
 import { funnelQuoten, medianTageBisUpsell, type FunnelZahlen } from '@/lib/finanzen/prognose';
@@ -711,6 +712,8 @@ export function CashplanClient() {
           </div>
         </div>
       </Card>
+
+      <Kundenhistorie geaendert={laden} />
 
       {/* Streitfälle */}
       <Card padding="none" className="mb-8 overflow-hidden">
