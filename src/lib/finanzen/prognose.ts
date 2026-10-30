@@ -21,6 +21,8 @@ export interface PrognoseAnnahmen {
   setup: number;
   einstiegMonat: number;
   einstiegMonate: number;
+  /** Ab welchem Monat nach dem Start der Upsell-Umsatz läuft (gemessen: Tage bis Upsell ÷ 30, höchstens einstiegMonate) */
+  upsellAbMonat?: number;
 }
 
 export const STANDARD_ANNAHMEN: Omit<PrognoseAnnahmen, 'abschluesseMonat' | 'startMrr'> = {
@@ -44,7 +46,12 @@ export function hochlauf(a: PrognoseAnnahmen, monate: number): number[] {
     bestand *= 1 - a.churnBestand;
     for (let k = 0; k <= t; k++) {
       const alter = t - k;
-      if (alter < a.einstiegMonate) umsatz += starter * (a.einstiegMonat + (alter === 0 ? a.setup : 0));
+      const ab = Math.min(a.einstiegMonate, Math.max(1, a.upsellAbMonat ?? a.einstiegMonate));
+      if (alter === 0) umsatz += starter * (a.einstiegMonat + a.setup);
+      else if (alter < ab) umsatz += starter * a.einstiegMonat;
+      else if (alter < a.einstiegMonate)
+        // Jahrespaket läuft ab Unterschrift: Upsell-Kunden zahlen schon den Jahresbetrag, die anderen noch den Einstieg
+        umsatz += starter * (a.upsellQuote * a.upsellMonat + (1 - a.upsellQuote) * a.einstiegMonat);
       else umsatz += starter * a.upsellQuote * a.upsellMonat * (1 - a.churnUpsell) ** (alter - a.einstiegMonate);
     }
     out.push(Math.round(umsatz));
@@ -128,4 +135,12 @@ export function funnelBedarf(abschluesse: number, q: FunnelQuoten, f: FunnelZahl
     werbung: Math.round(leads * (q.kostenProLead ?? 0)),
     gespraecheProWerktag: Math.round(((closingsGebucht + settingsGebucht) / werktage) * 10) / 10,
   };
+}
+
+/** Tage vom ersten Kauf bis zum Upsell: Median über alle Upsell-Abschlüsse */
+export function medianTageBisUpsell(tage: number[]): number | null {
+  const t = tage.filter((x) => Number.isFinite(x) && x >= 0).sort((a, b) => a - b);
+  if (!t.length) return null;
+  const m = Math.floor(t.length / 2);
+  return t.length % 2 ? t[m] : Math.round((t[m - 1] + t[m]) / 2);
 }

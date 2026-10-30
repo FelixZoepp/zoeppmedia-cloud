@@ -28,6 +28,7 @@ export function Hochlauf({
   upsellsImFenster,
   kundenProKopf,
   fulfillmentKoepfe,
+  upsellAbMonat,
 }: {
   abMonat: string;
   startMrr: number;
@@ -37,10 +38,11 @@ export function Hochlauf({
   upsellsImFenster: number;
   kundenProKopf: number;
   fulfillmentKoepfe: number;
+  upsellAbMonat?: number;
 }) {
   const [eingabe, setEingabe] = useState(String(standardAbschluesse));
   const n = Math.max(0, Math.min(100, Number(eingabe.replace(',', '.')) || 0));
-  const basis = { ...STANDARD_ANNAHMEN, startMrr };
+  const basis = { ...STANDARD_ANNAHMEN, startMrr, upsellAbMonat };
   const monate = monateAb(abMonat, 24);
   const verlauf = hochlauf({ ...basis, abschluesseMonat: n }, 24);
   const erreicht = zielErreichtNach({ ...basis, abschluesseMonat: n }, ziel);
@@ -143,7 +145,7 @@ export function Hochlauf({
             </li>
           </ul>
           <p className="mt-2 text-xs text-gray-500">
-            Annahmen: {pct(STANDARD_ANNAHMEN.startquote)} starten, {pct(STANDARD_ANNAHMEN.upsellQuote)} buchen das Jahrespaket (Ø {euro(STANDARD_ANNAHMEN.upsellMonat)}/Monat), Churn danach{' '}
+            Annahmen: Upsell ab Monat {upsellAbMonat ?? STANDARD_ANNAHMEN.einstiegMonate} (gemessen), {pct(STANDARD_ANNAHMEN.startquote)} starten, {pct(STANDARD_ANNAHMEN.upsellQuote)} buchen das Jahrespaket (Ø {euro(STANDARD_ANNAHMEN.upsellMonat)}/Monat), Churn danach{' '}
             {pct(STANDARD_ANNAHMEN.churnUpsell)}, Bestand {pct(STANDARD_ANNAHMEN.churnBestand)}.
           </p>
         </div>

@@ -47,7 +47,7 @@ export function ZielTracker({
   aktiveVertraege: number;
   kunden: KundenKennzahlen;
   historie?: { kunden: number; upsell: number; rueckgewinnung: number } | null;
-  hochlaufDaten?: { abMonat: string; startMrr: number; funnel: (Omit<FunnelZahlen, 'upsells'> & { tage: number }) | null; upsells: number };
+  hochlaufDaten?: { abMonat: string; startMrr: number; funnel: (Omit<FunnelZahlen, 'upsells'> & { tage: number }) | null; upsells: number; upsellAbMonat?: number };
   gespeichert: (z: Ziele) => void;
 }) {
   const [form, setForm] = useState<Record<string, string> | null>(null);
@@ -132,6 +132,7 @@ export function ZielTracker({
           standardAbschluesse={Math.max(1, ziele.neukundenMonat)}
           funnel={hochlaufDaten.funnel}
           upsellsImFenster={hochlaufDaten.upsells}
+          upsellAbMonat={hochlaufDaten.upsellAbMonat}
           kundenProKopf={ziele.kundenProKopf}
           fulfillmentKoepfe={ziele.fulfillmentKoepfe}
         />

@@ -15,8 +15,10 @@ import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde
 
 import { AusgabenBereich } from './ausgaben-bereich';
 import { ZielTracker } from './ziel-tracker';
+import { KpiUebersicht } from './kpi-uebersicht';
+import { kpiListe } from '@/lib/finanzen/kpis';
 import { STANDARD_ZIELE, kundenKennzahlen, type Ziele } from '@/lib/finanzen/ziele';
-import type { FunnelZahlen } from '@/lib/finanzen/prognose';
+import { funnelQuoten, medianTageBisUpsell, type FunnelZahlen } from '@/lib/finanzen/prognose';
 import { ausgabenImMonat, type Ausgabe, type Fixkosten } from '@/lib/finanzen/ausgaben';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
@@ -279,6 +281,49 @@ export function CashplanClient() {
     })
     .sort((a, b) => a.v.start.localeCompare(b.v.start) || a.v.kunde.localeCompare(b.v.kunde));
   const startMonate = [...new Set(starts.map((x) => monatKey(x.v.start)))];
+  // Upsell-Abschlüsse: Vertrag mit Abschlussdatum bei einem Kontakt, der vorher schon Rechnungen hatte
+  const ersteRechnung = new Map<string, string>();
+  for (const r of lex.rechnungen) if (r.contact_id && r.datum && r.status !== 'voided' && (!ersteRechnung.has(r.contact_id) || r.datum < ersteRechnung.get(r.contact_id)!)) ersteRechnung.set(r.contact_id, r.datum);
+  const tageBisUpsellListe = vertraege.flatMap((v) => {
+    if (!v.abschluss_am) return [];
+    const erste = kontaktIds(v).map((id) => ersteRechnung.get(id)).filter((d): d is string => !!d && d < v.abschluss_am!.slice(0, 10)).sort()[0];
+    return erste ? [Math.round((Date.parse(v.abschluss_am) - Date.parse(erste)) / 864e5)] : [];
+  });
+  const tageBisUpsell = medianTageBisUpsell(tageBisUpsellListe);
+  const upsells30 = vertraege.filter((v) => {
+    if (!v.abschluss_am || Date.parse(v.abschluss_am) < Date.parse(heute) - 30 * 864e5) return false;
+    const ids = new Set(kontaktIds(v));
+    return lex.rechnungen.some((r) => r.contact_id && ids.has(r.contact_id) && (r.datum ?? '') < v.abschluss_am!);
+  }).length;
+  // Startquote: Abschlüsse älter als 30 Tage (ohne Streitfälle) mit Zahlung danach
+  const reif = vertraege.filter((v) => v.abschluss_am && v.status !== 'streitfall' && Date.parse(v.abschluss_am) < Date.parse(heute) - 30 * 864e5);
+  const startQ = abschlussQuoten(reif, lex.rechnungen);
+  const startquote = startQ.mitErstemGeld + startQ.ohneZahlung.length ? startQ.mitErstemGeld / (startQ.mitErstemGeld + startQ.ohneZahlung.length) : null;
+  const fq = funnel ? funnelQuoten({ ...funnel, upsells: upsells30 }) : null;
+  const ausgMonat = ausgabenImMonat(kosten.ausgaben, kosten.fixkosten, monat);
+  const werbungMonat = ausgMonat.proKategorie.find((k) => k.kategorie === 'Werbung')?.betrag ?? 0;
+  const d2dKunden = kundenKennzahlen(d2dKontakte.length ? lex.rechnungen.filter((r) => d2dKontakte.includes(r.kontakt ?? '')) : lex.rechnungen, monat);
+  const kpis = kpiListe({
+    kostenProLead: fq?.kostenProLead ?? null,
+    showSetting: fq?.showSetting ?? null,
+    settingZuClosing: fq?.settingZuClosing ?? null,
+    showClosing: fq?.showClosing ?? null,
+    closingQuote: fq?.closingQuote ?? null,
+    upsellQuote: historie ? historie.upsell / historie.kunden : d2dKunden.upsellQuote,
+    tageBisUpsell,
+    startquote,
+    tageBisErstesGeld: abschluss.tageBisErstesGeld,
+    churn: d2dKunden.churn,
+    rueckgewinnungen: historie?.rueckgewinnung ?? null,
+    marge: dieser && dieser.gesamt ? (dieser.gesamt - ausgMonat.gesamt) / dieser.gesamt : null,
+    werbeanteil: dieser && dieser.monatlich ? werbungMonat / dieser.monatlich : null,
+    tageBisZahlung: moral.tageBisZahlung,
+    puenktlich: moral.puenktlich,
+    ueberfaelligBrutto: moral.ueberfaelligBrutto,
+    offeneRechnungenFehlen: check.luecken.length,
+    kundenProKopf: ziele.fulfillmentKoepfe ? zahlungen.length / ziele.fulfillmentKoepfe : null,
+    zielKundenProKopf: ziele.kundenProKopf,
+  });
   const verlaufMitIst = verlauf.map((m) => ({
     ...m,
     ist: m.monat <= jetzt ? (ist.get(m.monat)?.netto ?? 0) : undefined,
@@ -430,6 +475,8 @@ export function CashplanClient() {
         )}
       </Card>
 
+      {dieser && <KpiUebersicht kpis={kpis} />}
+
       {dieser && (
         <ZielTracker
           monatName={monatLang(monat)}
@@ -446,11 +493,8 @@ export function CashplanClient() {
             startMrr: berechneCashplan(vertraege, jetzt, 1)[0]?.monatlich ?? 0,
             funnel,
             // Upsells der letzten 30 Tage: Abschluss bei einem Kontakt, der vorher schon Rechnungen hatte
-            upsells: vertraege.filter((v) => {
-              if (!v.abschluss_am || Date.parse(v.abschluss_am) < Date.parse(heute) - 30 * 864e5) return false;
-              const ids = new Set(kontaktIds(v));
-              return lex.rechnungen.some((r) => r.contact_id && ids.has(r.contact_id) && (r.datum ?? '') < v.abschluss_am!);
-            }).length,
+            upsells: upsells30,
+            upsellAbMonat: tageBisUpsell == null ? undefined : Math.max(1, Math.round(tageBisUpsell / 30)),
           }}
           gespeichert={setZiele}
         />

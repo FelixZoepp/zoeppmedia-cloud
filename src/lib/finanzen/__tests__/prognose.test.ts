@@ -33,3 +33,15 @@ describe('Funnel', () => {
     expect(b.werbung).toBeGreaterThan(5000);
   });
 });
+
+describe('Upsell-Zeitversatz', () => {
+  it('früherer Upsell bringt im 2./3. Monat mehr Umsatz, Median der Tage', async () => {
+    const { medianTageBisUpsell } = await import('../prognose');
+    const spaet = hochlauf({ ...basis, startMrr: 0, abschluesseMonat: 10 }, 3);
+    const frueh = hochlauf({ ...basis, startMrr: 0, abschluesseMonat: 10, upsellAbMonat: 1 }, 3);
+    expect(frueh[0]).toBe(spaet[0]);
+    expect(frueh[2]).toBeGreaterThan(spaet[2]);
+    expect(medianTageBisUpsell([13, 22, 26, 35, 41, 70, 86])).toBe(35);
+    expect(medianTageBisUpsell([])).toBeNull();
+  });
+});
