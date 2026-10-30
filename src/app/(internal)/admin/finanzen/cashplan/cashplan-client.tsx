@@ -419,6 +419,7 @@ export function CashplanClient() {
           monatName={monatLang(monat)}
           einnahmenNetto={dieser.gesamt}
           einnahmenIst={monat <= jetzt ? (istMonat?.netto ?? 0) : null}
+          umsatzsteuer={Math.max(0, dieser.brutto - dieser.gesamt)}
           ausgaben={kosten.ausgaben}
           fixkosten={kosten.fixkosten}
           neuLaden={laden}

@@ -61,3 +61,25 @@ describe('Ausgaben je Monat', () => {
     expect(m.topHaendler[0]).toEqual({ haendler: 'FACEBK', betrag: 800, posten: 2 });
   });
 });
+
+describe('Rücklagen', () => {
+  it('USt-Zahllast, Lohnsteuer und 30 % auf den Überschuss; Planwerte nur ohne Kartenumsätze', async () => {
+    const { ruecklagen } = await import('../ausgaben');
+    const fix: Fixkosten[] = [
+      { id: '1', name: 'Gehälter', kategorie: 'Mitarbeiter', monatlich: 10000, ab: '2026-01-01', bis: null, notiz: null },
+      { id: '2', name: 'Lohnsteuer', kategorie: 'Lohnsteuer', monatlich: 1000, ab: '2026-01-01', bis: null, notiz: null },
+      { id: '3', name: 'Sixt', kategorie: 'Auto & Mobilität', monatlich: 1190, ab: '2026-01-01', bis: null, notiz: null, nur_planung: true },
+    ];
+    const ohneKarte = ruecklagen({ einnahmenNetto: 40000, umsatzsteuer: 7000, ausgaben: [], fix, monat: '2026-12' });
+    expect(ohneKarte).toMatchObject({ vorsteuer: 190, ustZahllast: 6810, lohnsteuer: 1000, ueberschuss: 27810 });
+    expect(ohneKarte.ertragsteuer).toBeCloseTo(8343, 0);
+    const mitKarte = ruecklagen({
+      einnahmenNetto: 40000,
+      umsatzsteuer: 7000,
+      ausgaben: [{ id: 'a', datum: '2026-12-03', haendler: 'FACEBK', betrag: 5000, kategorie: 'Werbung', privat: false, quelle: 'amex' }],
+      fix,
+      monat: '2026-12',
+    });
+    expect(mitKarte.ueberschuss).toBe(24000); // Sixt-Planwert fällt weg, Karte zählt
+  });
+});

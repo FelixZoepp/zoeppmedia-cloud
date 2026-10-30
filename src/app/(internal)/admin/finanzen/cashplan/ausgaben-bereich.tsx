@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, Trash2, Upload } from 'lucide-react';
-import { KATEGORIEN, ausgabenImMonat, fixImMonat, type Ausgabe, type Fixkosten } from '@/lib/finanzen/ausgaben';
+import { ERTRAGSTEUER_SATZ, KATEGORIEN, ausgabenImMonat, fixImMonat, ruecklagen, type Ausgabe, type Fixkosten } from '@/lib/finanzen/ausgaben';
 import { monatKey } from '@/lib/finanzen/cashplan';
 
 const euro = (v: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
@@ -18,6 +18,7 @@ export function AusgabenBereich({
   monatName,
   einnahmenNetto,
   einnahmenIst,
+  umsatzsteuer,
   ausgaben,
   fixkosten,
   neuLaden,
@@ -26,6 +27,7 @@ export function AusgabenBereich({
   monatName: string;
   einnahmenNetto: number;
   einnahmenIst: number | null;
+  umsatzsteuer: number;
   ausgaben: Ausgabe[];
   fixkosten: Fixkosten[];
   neuLaden: () => void;
@@ -36,8 +38,9 @@ export function AusgabenBereich({
   const datei = useRef<HTMLInputElement>(null);
   const m = ausgabenImMonat(ausgaben, fixkosten, monat);
   const ueberschuss = einnahmenNetto - m.gesamt;
+  const rl = ruecklagen({ einnahmenNetto, umsatzsteuer, ausgaben, fix: fixkosten, monat });
   const posten = ausgaben.filter((a) => monatKey(a.datum) === monat).sort((a, b) => b.betrag - a.betrag);
-  const fixAktiv = fixkosten.filter((f) => fixImMonat(f, monat));
+  const fixAktiv = fixkosten.filter((f) => fixImMonat(f, monat) && !(f.nur_planung && m.mitKarte));
   const letzterUmsatz = ausgaben.reduce((max, a) => (a.datum > max ? a.datum : max), '');
 
   async function hochladen(f: File) {
@@ -128,6 +131,30 @@ export function AusgabenBereich({
         </div>
       </div>
 
+      <div className="border-b border-gray-100 bg-amber-50/60 px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-800">Am Monatsende zur Seite legen (Steuerkonto)</p>
+          <p className="text-2xl font-bold text-amber-900">{euro(rl.gesamt)}</p>
+        </div>
+        <div className="mt-2 grid grid-cols-1 gap-1 text-sm sm:grid-cols-3">
+          <p className="text-gray-700">
+            Umsatzsteuer: <span className="font-semibold">{euro(rl.ustZahllast)}</span>
+            <span className="text-xs text-gray-500"> ({euro(rl.umsatzsteuer)} eingenommen − {euro(rl.vorsteuer)} Vorsteuer)</span>
+          </p>
+          <p className="text-gray-700">
+            Lohnsteuer: <span className="font-semibold">{euro(rl.lohnsteuer)}</span>
+          </p>
+          <p className="text-gray-700">
+            Körperschaft- + Gewerbesteuer: <span className="font-semibold">{euro(rl.ertragsteuer)}</span>
+            <span className="text-xs text-gray-500"> ({Math.round(ERTRAGSTEUER_SATZ * 100)} % vom Überschuss)</span>
+          </p>
+        </div>
+        <p className="mt-2 text-sm text-gray-700">
+          Danach frei verfügbar: <span className={`font-bold ${rl.frei >= 0 ? 'text-green-700' : 'text-red-700'}`}>{euro(rl.frei)}</span>
+          <span className="ml-2 text-xs text-gray-500">Schätzung – Beträge mit dem Steuerberater abgleichen. Aufgabe kommt jeden letzten Werktag.</span>
+        </p>
+      </div>
+
       {m.proKategorie.length > 0 && (
         <div className="grid grid-cols-1 gap-6 px-5 py-4 lg:grid-cols-2">
           <div>
@@ -178,7 +205,7 @@ export function AusgabenBereich({
           {fixAktiv.map((f) => (
             <div key={f.id} className="flex items-center justify-between text-sm">
               <span className="text-gray-900">
-                {f.name} <span className="text-xs text-gray-400">· {f.kategorie}</span>
+                {f.name} <span className="text-xs text-gray-400">· {f.kategorie}{f.nur_planung ? ' · Planwert, bis Kartenumsätze da sind' : ''}</span>
               </span>
               <span className="flex items-center gap-2">
                 <span className="font-semibold">{euro(f.monatlich)}</span>

@@ -38,4 +38,5 @@ export const fixkostenSchema = z.object({
   ab: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   bis: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   notiz: z.string().trim().max(500).nullable().optional(),
+  nur_planung: z.boolean().optional(),
 });

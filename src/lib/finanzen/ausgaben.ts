@@ -7,6 +7,7 @@ import { monatKey } from './cashplan';
 
 export const KATEGORIEN = [
   'Mitarbeiter',
+  'Lohnsteuer',
   'Werbung',
   'Software & Tools',
   'Auto & Mobilität',
@@ -128,6 +129,8 @@ export interface Fixkosten {
   ab: string;
   bis: string | null;
   notiz: string | null;
+  /** Läuft eigentlich über die Karte – zählt nur, solange für den Monat keine Kartenumsätze da sind */
+  nur_planung?: boolean;
 }
 
 export const fixImMonat = (f: Fixkosten, monat: string) => monatKey(f.ab) <= monat && (!f.bis || monatKey(f.bis) >= monat);
@@ -169,7 +172,7 @@ export function ausgabenImMonat(ausgaben: Ausgabe[], fix: Fixkosten[], monat: st
     haendler.set(g, h);
   }
   for (const f of fix) {
-    if (!fixImMonat(f, monat)) continue;
+    if (!fixImMonat(f, monat) || (f.nur_planung && mitKarte)) continue;
     const k = kat.get(f.kategorie) ?? { betrag: 0, posten: 0 };
     k.betrag += f.monatlich;
     k.posten++;
@@ -188,5 +191,54 @@ export function ausgabenImMonat(ausgaben: Ausgabe[], fix: Fixkosten[], monat: st
       .sort((a, b) => b.betrag - a.betrag)
       .slice(0, 10),
     mitKarte,
+  };
+}
+
+/** Pauschaler Satz für Körperschaft- + Gewerbesteuer einer UG (≈ 15,8 % + ≈ 14 %) */
+export const ERTRAGSTEUER_SATZ = 0.3;
+/** Kategorien mit deutscher Umsatzsteuer (Vorsteuer abziehbar); Meta/Software aus dem Ausland laufen über Reverse Charge */
+const MIT_VORSTEUER = new Set(['Auto & Mobilität', 'Technik & Miete', 'Material & Büro', 'Reisen & Hotel']);
+
+export interface Ruecklagen {
+  umsatzsteuer: number;
+  vorsteuer: number;
+  ustZahllast: number;
+  lohnsteuer: number;
+  ertragsteuer: number;
+  gesamt: number;
+  ueberschuss: number;
+  frei: number;
+}
+
+/**
+ * Was am Monatsende zur Seite muss (Schätzung, ersetzt keine Steuerberatung):
+ *  USt-Zahllast (eingenommene USt − Vorsteuer aus Kosten mit deutscher USt) + Lohnsteuer + 30 % Rücklage auf den Überschuss.
+ */
+export function ruecklagen(args: {
+  einnahmenNetto: number;
+  umsatzsteuer: number;
+  ausgaben: Ausgabe[];
+  fix: Fixkosten[];
+  monat: string;
+}): Ruecklagen {
+  const m = ausgabenImMonat(args.ausgaben, args.fix, args.monat);
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  let vorsteuerBasis = 0;
+  for (const a of args.ausgaben) if (monatKey(a.datum) === args.monat && !a.privat && MIT_VORSTEUER.has(a.kategorie)) vorsteuerBasis += a.betrag;
+  for (const f of args.fix) if (fixImMonat(f, args.monat) && !(f.nur_planung && m.mitKarte) && MIT_VORSTEUER.has(f.kategorie)) vorsteuerBasis += f.monatlich;
+  const vorsteuer = (vorsteuerBasis * 19) / 119;
+  const ustZahllast = Math.max(0, args.umsatzsteuer - vorsteuer);
+  const lohnsteuer = args.fix.filter((f) => fixImMonat(f, args.monat) && f.kategorie === 'Lohnsteuer').reduce((s, f) => s + f.monatlich, 0);
+  const ueberschuss = args.einnahmenNetto - m.gesamt;
+  const ertragsteuer = Math.max(0, ueberschuss) * ERTRAGSTEUER_SATZ;
+  return {
+    umsatzsteuer: r2(args.umsatzsteuer),
+    vorsteuer: r2(vorsteuer),
+    ustZahllast: r2(ustZahllast),
+    lohnsteuer: r2(lohnsteuer),
+    ertragsteuer: r2(ertragsteuer),
+    gesamt: r2(ustZahllast + lohnsteuer + ertragsteuer),
+    ueberschuss: r2(ueberschuss),
+    frei: r2(ueberschuss - ertragsteuer),
   };
 }

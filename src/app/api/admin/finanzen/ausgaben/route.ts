@@ -10,7 +10,7 @@ export async function GET() {
   seit.setMonth(seit.getMonth() - 18);
   const [a, f] = await Promise.all([
     svc.from('finanz_ausgaben').select('id, datum, haendler, betrag, kategorie, privat, quelle').gte('datum', seit.toISOString().slice(0, 10)).order('datum', { ascending: false }).limit(5000),
-    svc.from('finanz_fixkosten').select('id, name, kategorie, monatlich, ab, bis, notiz').order('monatlich', { ascending: false }),
+    svc.from('finanz_fixkosten').select('id, name, kategorie, monatlich, ab, bis, notiz, nur_planung').order('monatlich', { ascending: false }),
   ]);
   if (a.error || f.error) return NextResponse.json({ error: (a.error ?? f.error)!.message }, { status: 500 });
   return NextResponse.json({
