@@ -719,6 +719,17 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // 8. Cash-Plan: Rechnungen + Zahlungseingänge aus Lexware übernehmen (nur lesend) – alle 10 Min., kleiner Stapel
+  let lexware: Awaited<ReturnType<typeof import('@/lib/finanzen/lexware-abgleich').gleicheLexwareAb>> | null = null;
+  if (new Date().getMinutes() % 10 === 3 && Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 20_000) {
+    try {
+      const { gleicheLexwareAb } = await import('@/lib/finanzen/lexware-abgleich');
+      lexware = await gleicheLexwareAb(svc, { maxDetails: 12, zeitbudgetMs: 15_000 });
+    } catch (err) {
+      console.error('[tick] Lexware-Abgleich fehlgeschlagen:', err);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     events: { processed: eventsProcessed, failed: eventsFailed },
@@ -728,5 +739,6 @@ export async function GET(request: NextRequest) {
     funnelBauten,
     meta,
     aufnahmen,
+    lexware,
   });
 }

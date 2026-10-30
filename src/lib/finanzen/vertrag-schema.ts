@@ -17,6 +17,7 @@ export const vertragFelder = z.object({
   offen_betrag: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
   angebot: z.string().trim().max(40).nullable().optional(),
   notiz: z.string().trim().max(500).nullable().optional(),
+  lex_contact_id: z.string().trim().max(80).nullable().optional(),
 });
 
 /** Neuer Vertrag: fehlende Felder mit Standardwerten */

@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import dynamic from 'next/dynamic';
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { abschlussQuoten, istProMonat, zahlungsmoral, type FinanzRechnung } from '@/lib/finanzen/zahlungen';
 import { berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
@@ -38,6 +39,7 @@ type Formular = {
   notiz: string;
   abschluss_am: string;
   offen_betrag: string;
+  lex_contact_id: string;
 };
 
 const leer = (): Formular => ({
@@ -55,6 +57,7 @@ const leer = (): Formular => ({
   notiz: '',
   abschluss_am: '',
   offen_betrag: '',
+  lex_contact_id: '',
 });
 
 type Vertrag = FinanzVertrag & { angebot: string | null };
@@ -77,10 +80,23 @@ function ausVertrag(v: Vertrag): Formular {
     notiz: v.notiz ?? '',
     abschluss_am: v.abschluss_am ?? '',
     offen_betrag: s(v.offen_betrag),
+    lex_contact_id: (v as Vertrag & { lex_contact_id?: string | null }).lex_contact_id ?? '',
   };
 }
 
 const zahlOderNull = (s: string) => (s.trim() === '' ? null : Number(s.replace(',', '.')));
+
+interface Abgleich {
+  am: string;
+  rechnungen: number;
+  rest: number;
+}
+
+async function holeRechnungen(): Promise<{ rechnungen: FinanzRechnung[]; abgleich: Abgleich | null } | null> {
+  const res = await fetch('/api/admin/finanzen/rechnungen', { cache: 'no-store' });
+  if (!res.ok) return null;
+  return res.json();
+}
 
 async function holeVertraege(): Promise<Vertrag[] | null> {
   const res = await fetch('/api/admin/finanzen/vertraege', { cache: 'no-store' });
@@ -106,19 +122,37 @@ export function CashplanClient() {
   const [vertraegeOffen, setVertraegeOffen] = useState(false);
   const [form, setForm] = useState<Formular | null>(null);
   const [busy, setBusy] = useState(false);
+  const [lex, setLex] = useState<{ rechnungen: FinanzRechnung[]; abgleich: Abgleich | null }>({ rechnungen: [], abgleich: null });
+  const [gleichtAb, setGleichtAb] = useState(false);
 
   const laden = useCallback(async () => {
-    const liste = await holeVertraege();
+    const [liste, r] = await Promise.all([holeVertraege(), holeRechnungen()]);
     if (liste) setVertraege(liste);
+    if (r) setLex(r);
   }, []);
 
   useEffect(() => {
     let aktiv = true;
-    holeVertraege().then((liste) => aktiv && liste && setVertraege(liste));
+    Promise.all([holeVertraege(), holeRechnungen()]).then(([liste, r]) => {
+      if (!aktiv) return;
+      if (liste) setVertraege(liste);
+      if (r) setLex(r);
+    });
     return () => {
       aktiv = false;
     };
   }, []);
+
+  async function abgleichen() {
+    setGleichtAb(true);
+    const res = await fetch('/api/admin/finanzen/lexware-abgleich', { method: 'POST' });
+    setGleichtAb(false);
+    const e = (await res.json().catch(() => null)) as { rechnungen?: number; details?: number; rest?: number; abgebrochen?: string } | null;
+    if (!res.ok || !e) return toast.error('Abgleich fehlgeschlagen');
+    if (e.abgebrochen) toast.message(e.abgebrochen);
+    else toast.success(`${e.rechnungen} Rechnungen, ${e.details} Zahlungen geprüft${e.rest ? ` – noch ${e.rest} offen, einfach nochmal klicken` : ''}`);
+    laden();
+  }
 
   const jetzt = monatKey(new Date());
   const verlaufStart = monateAb(jetzt, 1).map((m) => {
@@ -154,6 +188,7 @@ export function CashplanClient() {
       notiz: form.notiz || null,
       abschluss_am: form.abschluss_am || null,
       offen_betrag: zahlOderNull(form.offen_betrag),
+      lex_contact_id: form.lex_contact_id || null,
     };
     const res = await fetch(form.id ? `/api/admin/finanzen/vertraege/${form.id}` : '/api/admin/finanzen/vertraege', {
       method: form.id ? 'PATCH' : 'POST',
@@ -194,6 +229,13 @@ export function CashplanClient() {
   const streitfaelle = vertraege.filter((v) => v.status === 'streitfall');
   const uebrige = vertraege.filter((v) => !zahlendeIds.has(v.id) && v.status !== 'streitfall');
   const quoten = streitfallQuoten(vertraege);
+  const ist = istProMonat(lex.rechnungen);
+  const istMonat = ist.get(monat);
+  const heute = new Date().toISOString().slice(0, 10);
+  const moral = zahlungsmoral(lex.rechnungen, heute);
+  const abschluss = abschlussQuoten(vertraege, lex.rechnungen);
+  const kontakte = [...new Map(lex.rechnungen.filter((r) => r.contact_id).map((r) => [r.contact_id!, r.kontakt ?? r.contact_id!])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const verlaufMitIst = verlauf.map((m) => ({ ...m, ist: m.monat <= jetzt ? (ist.get(m.monat)?.netto ?? 0) : undefined }));
   const prozent = (x: number) => `${Math.round(x * 100)} %`;
 
   return (
@@ -239,6 +281,13 @@ export function CashplanClient() {
               <p className={`mt-2 text-xs ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                 {diff >= 0 ? '+' : ''}
                 {euro(diff)} zum Vormonat
+              </p>
+            )}
+            {monat <= jetzt && (
+              <p className="mt-3 border-t border-gray-100 pt-2 text-sm text-gray-700">
+                Tatsächlich eingegangen (Lexware): <span className="font-semibold">{euro(istMonat?.netto ?? 0)}</span> netto ·{' '}
+                {euro(istMonat?.brutto ?? 0)} brutto
+                {istMonat ? <span className="text-gray-400"> · {istMonat.anzahl} Zahlungen</span> : null}
               </p>
             )}
           </Card>
@@ -340,11 +389,97 @@ export function CashplanClient() {
           <p className="text-xs text-gray-500">Balken anklicken, um den Monat zu öffnen</p>
         </div>
         <div className="h-72">
-          <CashplanChart daten={verlauf} gewaehlt={monat} onWahl={setMonat} />
+          <CashplanChart daten={verlaufMitIst} gewaehlt={monat} onWahl={setMonat} />
         </div>
         <p className="mt-2 text-xs text-gray-500">
           Gestrichelt: Geldeingang, wenn niemand verlängert. Gerechnet nach Rechnungsmonat; Kosten sind nicht abgezogen.
         </p>
+      </Card>
+
+      {/* Zahlungsmoral & Abschlüsse */}
+      <Card padding="none" className="mb-8 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-3">
+          <p className="text-sm font-semibold text-gray-900">Zahlungsmoral & Abschlüsse</p>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">
+              {lex.abgleich
+                ? `Lexware: ${lex.abgleich.rechnungen} Rechnungen, Stand ${new Date(lex.abgleich.am).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}${lex.abgleich.rest ? ` · ${lex.abgleich.rest} Zahlungen noch nicht geprüft` : ''}`
+                : 'Noch kein Abgleich mit Lexware'}
+            </span>
+            <Button size="sm" variant="secondary" disabled={gleichtAb} onClick={abgleichen}>
+              {gleichtAb ? 'Gleicht ab …' : 'Mit Lexware abgleichen'}
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 border-b border-gray-100 px-5 py-4 lg:grid-cols-4">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Ø Tage bis Zahlung</p>
+            <p className="text-2xl font-bold text-gray-900">{moral.tageBisZahlung ?? '–'}</p>
+            <p className="text-xs text-gray-500">ab Rechnungsdatum · {moral.bezahlteRechnungen} bezahlte Rechnungen</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Pünktlich bezahlt</p>
+            <p className="text-2xl font-bold text-gray-900">{moral.puenktlich == null ? '–' : prozent(moral.puenktlich)}</p>
+            <p className="text-xs text-gray-500">bis zur Fälligkeit</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Offene Rechnungen</p>
+            <p className="text-2xl font-bold text-gray-900">{euro(moral.offenBrutto)}</p>
+            <p className="text-xs text-gray-500">brutto · {moral.offenAnzahl} Rechnungen</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Überfällig</p>
+            <p className="text-2xl font-bold text-red-700">{euro(moral.ueberfaelligBrutto)}</p>
+            <p className="text-xs text-gray-500">brutto · {moral.ueberfaellig.length} Rechnungen</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-6 px-5 py-4 lg:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Abschlüsse je Monat</p>
+            {abschluss.proMonat.length === 0 ? (
+              <p className="text-sm text-gray-400">Noch keine Abschlussdaten an den Verträgen.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  {abschluss.proMonat.slice(-8).map((m) => (
+                    <tr key={m.monat}>
+                      <td className="py-1.5 text-gray-700">{monatLabel(m.monat)}</td>
+                      <td className="py-1.5 text-right font-semibold text-gray-900">{m.abschluesse} Abschlüsse</td>
+                      <td className="py-1.5 text-right text-gray-500">{m.streitfaelle ? `${m.streitfaelle} Streitfall` : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="mt-3 text-sm text-gray-700">
+              Ø vom Abschluss bis zum ersten Geld:{' '}
+              <span className="font-semibold">{abschluss.tageBisErstesGeld == null ? '–' : `${abschluss.tageBisErstesGeld} Tage`}</span>
+              <span className="text-gray-400"> ({abschluss.mitErstemGeld} Kunden mit Zahlung)</span>
+            </p>
+            {abschluss.ohneZahlung.length > 0 && (
+              <p className="mt-1 text-xs text-gray-500">Noch kein Geld seit Abschluss: {abschluss.ohneZahlung.map((v) => v.kunde).join(', ')}</p>
+            )}
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Überfällige Rechnungen</p>
+            {moral.ueberfaellig.length === 0 ? (
+              <p className="text-sm text-gray-400">Keine überfälligen Rechnungen.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  {moral.ueberfaellig.slice(0, 10).map((r) => (
+                    <tr key={r.voucher_id}>
+                      <td className="py-1.5 text-gray-900">{r.kontakt ?? '–'}</td>
+                      <td className="py-1.5 text-gray-500">{r.nummer}</td>
+                      <td className="py-1.5 text-gray-500">fällig {r.faellig ? new Date(`${r.faellig}T12:00:00`).toLocaleDateString('de-DE') : '–'}</td>
+                      <td className="py-1.5 text-right font-semibold text-red-700">{euro(r.offen ?? r.brutto ?? 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </Card>
 
       {/* Streitfälle */}
@@ -532,6 +667,20 @@ export function CashplanClient() {
                 <option value="startet">Startet</option>
                 <option value="beendet">Beendet</option>
                 <option value="streitfall">Streitfall</option>
+              </select>
+            </Feld>
+            <Feld label="Lexware-Kontakt" breit>
+              <select
+                className="h-11 w-full rounded-[12px] bg-card px-3 text-[15px] shadow-[inset_0_0_0_1.5px_var(--hair)]"
+                value={form.lex_contact_id}
+                onChange={(e) => setForm({ ...form, lex_contact_id: e.target.value })}
+              >
+                <option value="">– nicht zugeordnet –</option>
+                {kontakte.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
               </select>
             </Feld>
             <Feld label="Angebot (z. B. AG0214)">
