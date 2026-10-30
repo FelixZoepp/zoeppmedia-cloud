@@ -44,3 +44,17 @@ describe('Finanz-Aufgaben', () => {
     expect(a[0].quelle_ref).toBe('finanz:verlaengerung:m:2026-12');
   });
 });
+
+describe('Finanz-Aufgaben: Ausnahmen', () => {
+  it('keine Zahlungs-Aufgabe für Streitfälle, keine Verlängerung bei Kündigung', () => {
+    const a = planeFinanzAufgaben(
+      [r({ voucher_id: 's', contact_id: 'eike', kontakt: 'Eicke Awe' })],
+      [
+        v({ id: 'eike', kunde: 'Eike A.', status: 'streitfall', lex_contact_id: 'eike' }),
+        v({ id: 'solvon', kunde: 'Solvon', start: '2026-09-01', laufzeit_monate: 3, notiz: 'gekündigt, letzte Rate November 2026' }),
+      ],
+      '2026-10-30',
+    );
+    expect(a).toEqual([]);
+  });
+});

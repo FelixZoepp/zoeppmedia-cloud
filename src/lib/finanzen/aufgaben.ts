@@ -33,13 +33,16 @@ const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'A
 export function planeFinanzAufgaben(rechnungen: FinanzRechnung[], vertraege: Array<FinanzVertrag & { lex_contact_id?: string | null }>, heute: string): FinanzAufgabe[] {
   const out: FinanzAufgabe[] = [];
   const nichtGestartet = new Map<string, string>();
+  // Streitfälle laufen über den Streitfall-Prozess (Anwalt/Inkasso) – keine „Zahlung nachfragen“-Aufgaben
+  const streitfall = new Set<string>();
   for (const v of vertraege) {
-    if (v.status !== 'startet') continue;
-    for (const id of (v.lex_contact_id ?? '').split(',').map((x) => x.trim()).filter(Boolean)) nichtGestartet.set(id, v.kunde);
+    const ids = (v.lex_contact_id ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (v.status === 'startet') for (const id of ids) nichtGestartet.set(id, v.kunde);
+    if (v.status === 'streitfall') for (const id of ids) streitfall.add(id);
   }
   for (const r of rechnungen) {
     const offen = r.status === 'overdue' || (r.status === 'open' && !!r.faellig && r.faellig < plusTage(heute, -3));
-    if (!offen || !r.datum || r.datum < '2026-01-01') continue;
+    if (!offen || !r.datum || r.datum < '2026-01-01' || (r.contact_id && streitfall.has(r.contact_id))) continue;
     const betrag = r.offen ?? r.brutto ?? 0;
     if (betrag <= 0) continue;
     const start = r.contact_id ? nichtGestartet.get(r.contact_id) : undefined;
@@ -58,7 +61,8 @@ export function planeFinanzAufgaben(rechnungen: FinanzRechnung[], vertraege: Arr
   }
   const grenze = plusTage(heute, 60);
   for (const v of vertraege) {
-    if (v.status === 'beendet' || v.status === 'streitfall' || !v.monatlich) continue;
+    // Gekündigt (Notiz) → keine Verlängerung ansprechen
+    if (v.status === 'beendet' || v.status === 'streitfall' || !v.monatlich || /gekündigt/i.test(v.notiz ?? '')) continue;
     const ende = laufzeitEnde(v);
     if (!ende) continue;
     const letzterTag = `${ende}-28`;
