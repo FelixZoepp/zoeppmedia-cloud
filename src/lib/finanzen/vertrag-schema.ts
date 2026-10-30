@@ -12,7 +12,9 @@ export const vertragFelder = z.object({
   verlaengerung_monatlich: z.coerce.number().min(0).max(1_000_000).nullable().optional(),
   ust_satz: z.coerce.number().min(0).max(30),
   rechnungstag: z.coerce.number().int().min(1).max(31).nullable().optional(),
-  status: z.enum(['aktiv', 'startet', 'beendet']),
+  status: z.enum(['aktiv', 'startet', 'beendet', 'streitfall']),
+  abschluss_am: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  offen_betrag: z.coerce.number().min(0).max(10_000_000).nullable().optional(),
   angebot: z.string().trim().max(40).nullable().optional(),
   notiz: z.string().trim().max(500).nullable().optional(),
 });

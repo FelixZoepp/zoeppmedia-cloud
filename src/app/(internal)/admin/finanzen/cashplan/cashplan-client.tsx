@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import dynamic from 'next/dynamic';
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, type FinanzVertrag } from '@/lib/finanzen/cashplan';
+import { berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
 
@@ -36,6 +36,8 @@ type Formular = {
   status: FinanzVertrag['status'];
   angebot: string;
   notiz: string;
+  abschluss_am: string;
+  offen_betrag: string;
 };
 
 const leer = (): Formular => ({
@@ -51,6 +53,8 @@ const leer = (): Formular => ({
   status: 'aktiv',
   angebot: '',
   notiz: '',
+  abschluss_am: '',
+  offen_betrag: '',
 });
 
 type Vertrag = FinanzVertrag & { angebot: string | null };
@@ -71,6 +75,8 @@ function ausVertrag(v: Vertrag): Formular {
     status: v.status,
     angebot: v.angebot ?? '',
     notiz: v.notiz ?? '',
+    abschluss_am: v.abschluss_am ?? '',
+    offen_betrag: s(v.offen_betrag),
   };
 }
 
@@ -90,6 +96,7 @@ async function holeVertraege(): Promise<Vertrag[] | null> {
     setup: Number(v.setup),
     ust_satz: Number(v.ust_satz),
     verlaengerung_monatlich: v.verlaengerung_monatlich == null ? null : Number(v.verlaengerung_monatlich),
+    offen_betrag: v.offen_betrag == null ? null : Number(v.offen_betrag),
   }));
 }
 
@@ -145,6 +152,8 @@ export function CashplanClient() {
       status: form.status,
       angebot: form.angebot || null,
       notiz: form.notiz || null,
+      abschluss_am: form.abschluss_am || null,
+      offen_betrag: zahlOderNull(form.offen_betrag),
     };
     const res = await fetch(form.id ? `/api/admin/finanzen/vertraege/${form.id}` : '/api/admin/finanzen/vertraege', {
       method: form.id ? 'PATCH' : 'POST',
@@ -177,12 +186,15 @@ export function CashplanClient() {
   }
 
   const [vor, dieser] = diesMonat;
-  const aktive = vertraege.filter((v) => v.status !== 'beendet');
+  const aktive = vertraege.filter((v) => v.status !== 'beendet' && v.status !== 'streitfall');
   const diff = dieser && vor ? dieser.gesamt - vor.gesamt : 0;
   const neue = zahlungen.filter((z) => z.neu);
   const letzte = zahlungen.filter((z) => z.letzter);
   const zahlendeIds = new Set(zahlungen.map((z) => z.vertrag.id));
-  const uebrige = vertraege.filter((v) => !zahlendeIds.has(v.id));
+  const streitfaelle = vertraege.filter((v) => v.status === 'streitfall');
+  const uebrige = vertraege.filter((v) => !zahlendeIds.has(v.id) && v.status !== 'streitfall');
+  const quoten = streitfallQuoten(vertraege);
+  const prozent = (x: number) => `${Math.round(x * 100)} %`;
 
   return (
     <div className="max-w-6xl">
@@ -335,6 +347,87 @@ export function CashplanClient() {
         </p>
       </Card>
 
+      {/* Streitfälle */}
+      <Card padding="none" className="mb-8 overflow-hidden">
+        <div className="border-b border-gray-200 px-5 py-3">
+          <p className="text-sm font-semibold text-gray-900">Streitfälle – abgeschlossen, zahlen nicht ({streitfaelle.length})</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 border-b border-gray-100 px-5 py-4 lg:grid-cols-4">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Offen</p>
+            <p className="text-2xl font-bold text-red-700">{euro(quoten.offen)}</p>
+            <p className="text-xs text-gray-500">netto · {euro(quoten.offenBrutto)} brutto</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Abschlüsse gesamt</p>
+            <p className="text-2xl font-bold text-gray-900">{quoten.abschluesse}</p>
+            <p className="text-xs text-gray-500">Vertragsvolumen {euro(quoten.volumen)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Streitfall-Quote</p>
+            <p className="text-2xl font-bold text-gray-900">{prozent(quoten.quoteAnzahl)}</p>
+            <p className="text-xs text-gray-500">
+              {quoten.streitfaelle} von {quoten.abschluesse} Abschlüssen
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Anteil am Volumen</p>
+            <p className="text-2xl font-bold text-gray-900">{prozent(quoten.quoteVolumen)}</p>
+            <p className="text-xs text-gray-500">{euro(quoten.volumenStreit)} Vertragssumme in Streit</p>
+          </div>
+        </div>
+        {streitfaelle.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3 text-left">Kunde</th>
+                  <th className="px-5 py-3 text-left">Abschluss</th>
+                  <th className="px-5 py-3 text-right">pro Monat</th>
+                  <th className="px-5 py-3 text-right">Vertragssumme</th>
+                  <th className="px-5 py-3 text-right">Offen netto</th>
+                  <th className="px-5 py-3 text-right">Offen brutto</th>
+                  <th className="px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {[...streitfaelle]
+                  .sort((a, b) => (b.offen_betrag ?? vertragssumme(b)) - (a.offen_betrag ?? vertragssumme(a)))
+                  .map((v) => {
+                    const offen = v.offen_betrag ?? vertragssumme(v);
+                    return (
+                      <tr key={v.id}>
+                        <td className="px-5 py-2.5">
+                          <p className="font-medium text-gray-900">{v.kunde}</p>
+                          {(v.angebot || v.notiz) && <p className="text-xs text-gray-500">{[v.angebot, v.notiz].filter(Boolean).join(' · ')}</p>}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-gray-600">
+                          {v.abschluss_am ? new Date(`${v.abschluss_am}T12:00:00`).toLocaleDateString('de-DE') : '–'}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-right text-gray-700">{v.monatlich ? euro(v.monatlich) : '–'}</td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-right text-gray-700">{euro(vertragssumme(v))}</td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-right font-semibold text-red-700">
+                          {euro(offen)}
+                          {v.offen_betrag == null && <span className="ml-1 text-xs font-normal text-gray-400">(geschätzt)</span>}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-right text-gray-600">{euro(offen * (1 + v.ust_satz / 100))}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                          <button className="p-1.5 text-gray-400 hover:text-gray-700" aria-label="Bearbeiten" onClick={() => setForm(ausVertrag(v))}>
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">
+          Streitfälle zählen nicht in den Geldeingang. „Geschätzt“ = kein offener Betrag eingetragen, es zählt die ganze Vertragssumme.
+        </p>
+      </Card>
+
       <Card padding="none" className="overflow-hidden">
         <button className="flex w-full items-center justify-between border-b border-gray-200 px-5 py-3 text-left" onClick={() => setVertraegeOffen(!vertraegeOffen)}>
           <span className="text-sm font-semibold text-gray-900">Weitere Verträge – starten später oder beendet ({uebrige.length})</span>
@@ -379,7 +472,7 @@ export function CashplanClient() {
                     <td className="px-5 py-2.5 text-gray-700">{v.ust_satz} %</td>
                     <td className="px-5 py-2.5">
                       <Badge tone={v.status === 'aktiv' ? 'success' : v.status === 'startet' ? 'softAccent' : 'neutral'}>
-                        {v.status === 'aktiv' ? 'Aktiv' : v.status === 'startet' ? 'Startet' : 'Beendet'}
+                        {v.status === 'aktiv' ? 'Aktiv' : v.status === 'startet' ? 'Startet' : v.status === 'streitfall' ? 'Streitfall' : 'Beendet'}
                       </Badge>
                     </td>
                     <td className="whitespace-nowrap px-5 py-2.5 text-right">
@@ -438,11 +531,22 @@ export function CashplanClient() {
                 <option value="aktiv">Aktiv</option>
                 <option value="startet">Startet</option>
                 <option value="beendet">Beendet</option>
+                <option value="streitfall">Streitfall</option>
               </select>
             </Feld>
             <Feld label="Angebot (z. B. AG0214)">
               <Input value={form.angebot} onChange={(e) => setForm({ ...form, angebot: e.target.value })} />
             </Feld>
+            {form.status === 'streitfall' && (
+              <>
+                <Feld label="Abschluss am">
+                  <Input type="date" value={form.abschluss_am} onChange={(e) => setForm({ ...form, abschluss_am: e.target.value })} />
+                </Feld>
+                <Feld label="Offen netto (€)">
+                  <Input inputMode="decimal" value={form.offen_betrag} onChange={(e) => setForm({ ...form, offen_betrag: e.target.value })} />
+                </Feld>
+              </>
+            )}
             <Feld label="Notiz" breit>
               <Input value={form.notiz} onChange={(e) => setForm({ ...form, notiz: e.target.value })} />
             </Feld>

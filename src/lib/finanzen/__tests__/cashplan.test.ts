@@ -66,3 +66,18 @@ describe('Zahlungen im Monat', () => {
     expect(z[2]).toMatchObject({ neu: true, netto: 3000, brutto: 3570 });
   });
 });
+
+describe('Streitfälle', () => {
+  it('zählen nicht in den Geldeingang, aber in die Quoten', async () => {
+    const { streitfallQuoten } = await import('../cashplan');
+    const liste = [
+      v({ kunde: 'Zahlt', monatlich: 1000, setup: 2000, laufzeit_monate: 3 }),
+      v({ kunde: 'Streit', monatlich: 1500, setup: 3000, laufzeit_monate: 3, status: 'streitfall', offen_betrag: 4500 }),
+      v({ kunde: 'Streit2', monatlich: 3500, laufzeit_monate: 6, status: 'streitfall' }),
+    ];
+    expect(berechneCashplan(liste, '2026-11-01', 1)[0].gesamt).toBe(3000);
+    const q = streitfallQuoten(liste);
+    expect(q).toMatchObject({ abschluesse: 3, streitfaelle: 2, volumen: 33500, volumenStreit: 28500, offen: 25500, offenBrutto: 30345 });
+    expect(q.quoteAnzahl).toBeCloseTo(2 / 3);
+  });
+});

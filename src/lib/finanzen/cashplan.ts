@@ -23,9 +23,16 @@ export interface FinanzVertrag {
   verlaengerung_monatlich: number | null;
   ust_satz: number;
   rechnungstag: number | null;
-  status: 'aktiv' | 'startet' | 'beendet';
+  status: 'aktiv' | 'startet' | 'beendet' | 'streitfall';
   notiz: string | null;
+  /** Abschlussdatum (Angebot angenommen) */
+  abschluss_am?: string | null;
+  /** Offener Betrag netto bei Streitfällen */
+  offen_betrag?: number | null;
 }
+
+/** Beendete Verträge und Streitfälle zählen nicht in den Geldeingang */
+const zaehltNicht = (v: FinanzVertrag) => v.status === 'beendet' || v.status === 'streitfall';
 
 export interface CashMonat {
   monat: string; // YYYY-MM
@@ -59,7 +66,7 @@ function abstand(von: string, bis: string): number {
 
 /** Monatsgebühr eines Vertrags in einem Monat */
 export function gebuehrImMonat(v: FinanzVertrag, monat: string, mitVerlaengerung: boolean): number {
-  if (v.status === 'beendet') return 0;
+  if (zaehltNicht(v)) return 0;
   const i = abstand(monatKey(v.start), monat);
   if (i < 0) return 0;
   if (v.laufzeit_monate == null || i < v.laufzeit_monate) return v.monatlich;
@@ -67,7 +74,7 @@ export function gebuehrImMonat(v: FinanzVertrag, monat: string, mitVerlaengerung
 }
 
 export function setupImMonat(v: FinanzVertrag, monat: string): number {
-  if (v.status === 'beendet' || !v.setup) return 0;
+  if (zaehltNicht(v) || !v.setup) return 0;
   return monatKey(v.setup_monat ?? v.start) === monat ? v.setup : 0;
 }
 
@@ -99,7 +106,7 @@ export function laufzeitEnde(v: FinanzVertrag): string | null {
 /** Verträge, deren Laufzeit in den nächsten `monate` Monaten endet (für Verlängerungsgespräche) */
 export function endetBald(vertraege: FinanzVertrag[], abMonat: string, monate = 3): FinanzVertrag[] {
   const fenster = new Set(monateAb(abMonat, monate));
-  return vertraege.filter((v) => v.status !== 'beendet' && fenster.has(laufzeitEnde(v) ?? ''));
+  return vertraege.filter((v) => !zaehltNicht(v) && fenster.has(laufzeitEnde(v) ?? ''));
 }
 
 export interface Zahlung {
@@ -137,4 +144,44 @@ export function zahlungenImMonat(vertraege: FinanzVertrag[], monat: string): Zah
     })
     .filter((z) => z.netto > 0)
     .sort((a, b) => (a.vertrag.rechnungstag ?? 99) - (b.vertrag.rechnungstag ?? 99) || b.netto - a.netto);
+}
+
+/** Vertragssumme netto (Setup + Monatsgebühren über die Laufzeit; unbefristet = 12 Monate) */
+export function vertragssumme(v: FinanzVertrag): number {
+  return v.setup + v.monatlich * (v.laufzeit_monate ?? 12);
+}
+
+export interface StreitfallQuoten {
+  abschluesse: number;
+  streitfaelle: number;
+  /** Anteil Streitfälle an allen Abschlüssen (0–1) */
+  quoteAnzahl: number;
+  volumen: number;
+  volumenStreit: number;
+  /** Anteil des Vertragsvolumens in Streitfällen (0–1) */
+  quoteVolumen: number;
+  /** Offener Betrag netto (offen_betrag, sonst Vertragssumme) */
+  offen: number;
+  offenBrutto: number;
+}
+
+/** Quoten über alle Abschlüsse (aktiv, startet, beendet, Streitfall) */
+export function streitfallQuoten(vertraege: FinanzVertrag[]): StreitfallQuoten {
+  const streit = vertraege.filter((v) => v.status === 'streitfall');
+  const volumen = vertraege.reduce((s, v) => s + vertragssumme(v), 0);
+  const volumenStreit = streit.reduce((s, v) => s + vertragssumme(v), 0);
+  const offenJe = (v: FinanzVertrag) => v.offen_betrag ?? vertragssumme(v);
+  const offen = streit.reduce((s, v) => s + offenJe(v), 0);
+  const offenBrutto = streit.reduce((s, v) => s + offenJe(v) * (1 + (v.ust_satz ?? 0) / 100), 0);
+  const r = (x: number) => Math.round(x * 100) / 100;
+  return {
+    abschluesse: vertraege.length,
+    streitfaelle: streit.length,
+    quoteAnzahl: vertraege.length ? streit.length / vertraege.length : 0,
+    volumen: r(volumen),
+    volumenStreit: r(volumenStreit),
+    quoteVolumen: volumen ? volumenStreit / volumen : 0,
+    offen: r(offen),
+    offenBrutto: r(offenBrutto),
+  };
 }
