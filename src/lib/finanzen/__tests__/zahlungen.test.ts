@@ -133,3 +133,13 @@ describe('Rechnungs-Check', () => {
     ]);
   });
 });
+
+describe('Mehrere Lexware-Kontakte je Vertrag', () => {
+  it('Rechnungen beider Kontakte zählen für den Vertrag', async () => {
+    const { rechnungsCheck } = await import('../zahlungen');
+    const { gebuehrImMonat } = await import('../cashplan');
+    const vertraege = [v({ kunde: 'Özdemir', monatlich: 2000, laufzeit_monate: null, start: '2026-10-01', lex_contact_id: 'k1,k2' })];
+    const rechnungen = [r({ nummer: 'a', contact_id: 'k1', datum: '2026-10-02', netto: 1000 }), r({ nummer: 'b', contact_id: 'k2', datum: '2026-10-02', netto: 1000 })];
+    expect(rechnungsCheck(vertraege, rechnungen, '2026-10', (x, m) => gebuehrImMonat(x, m, false)).luecken).toEqual([]);
+  });
+});

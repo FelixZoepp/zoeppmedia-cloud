@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import dynamic from 'next/dynamic';
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { abschlussQuoten, istProMonat, rechnungsCheck, rechnungsplan, zahlungsmoral, type FinanzRechnung } from '@/lib/finanzen/zahlungen';
+import { abschlussQuoten, istProMonat, kontaktIds, rechnungsCheck, rechnungsplan, zahlungsmoral, type FinanzRechnung } from '@/lib/finanzen/zahlungen';
 import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
@@ -240,6 +240,16 @@ export function CashplanClient() {
   const betragImMonat = (v: FinanzVertrag, m: string) => gebuehrImMonat(v, m, false) + setupImMonat(v, m);
   const plan = rechnungsplan(vertraege, lex.rechnungen, monat, betragImMonat);
   const check = rechnungsCheck(vertraege, lex.rechnungen, jetzt, betragImMonat);
+  // Starts nach Monat: Neukunde oder neuer Vertrag bei einem Bestandskunden (es gibt schon frühere Rechnungen)
+  const starts = vertraege
+    .filter((v) => v.status !== 'streitfall' && v.status !== 'beendet' && monatKey(v.start) >= jetzt)
+    .map((v) => {
+      const ids = new Set(kontaktIds(v));
+      const bestand = lex.rechnungen.some((r) => r.contact_id && ids.has(r.contact_id) && (r.datum ?? '') < v.start.slice(0, 10) && r.status !== 'voided');
+      return { v, bestand };
+    })
+    .sort((a, b) => a.v.start.localeCompare(b.v.start) || a.v.kunde.localeCompare(b.v.kunde));
+  const startMonate = [...new Set(starts.map((x) => monatKey(x.v.start)))];
   const verlaufMitIst = verlauf.map((m) => ({ ...m, ist: m.monat <= jetzt ? (ist.get(m.monat)?.netto ?? 0) : undefined }));
   const prozent = (x: number) => `${Math.round(x * 100)} %`;
 
@@ -387,6 +397,44 @@ export function CashplanClient() {
         )}
       </Card>
 
+      {/* Starts nach Monat */}
+      <Card padding="none" className="mb-6 overflow-hidden">
+        <div className="border-b border-gray-200 px-5 py-3">
+          <p className="text-sm font-semibold text-gray-900">Starts nach Monat</p>
+          <p className="text-xs text-gray-500">Wer wann startet – Neukunde oder neuer Vertrag bei einem Bestandskunden</p>
+        </div>
+        <div className="grid grid-cols-1 gap-0 divide-y divide-gray-100 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+          {startMonate.map((m) => {
+            const liste = starts.filter((x) => monatKey(x.v.start) === m);
+            const neu = liste.filter((x) => !x.bestand);
+            return (
+              <div key={m} className="px-5 py-4">
+                <p className="text-sm font-bold capitalize text-gray-900">{monatLang(m)}</p>
+                <p className="mb-2 text-xs text-gray-500">
+                  {neu.length} Neukunden · {liste.length - neu.length} neue Verträge Bestand · {euro(liste.reduce((s, x) => s + x.v.monatlich, 0))}/Monat ·{' '}
+                  {euro(liste.reduce((s, x) => s + x.v.setup, 0))} Setup
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {liste.map(({ v, bestand }) => (
+                    <li key={v.id} className="flex items-center justify-between gap-2">
+                      <span className="text-gray-900">
+                        {v.kunde}
+                        {bestand && <span className="ml-1 text-xs text-gray-400">(Bestand)</span>}
+                        {v.status === 'startet' && <span className="ml-1 text-xs text-amber-700">noch nicht gestartet</span>}
+                      </span>
+                      <span className="whitespace-nowrap text-gray-600">
+                        {euro(v.monatlich)}
+                        {v.setup ? ` + ${euro(v.setup)}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Rechnungen: wer bekommt wann was – und was wurde vergessen */}
       <Card padding="none" className="mb-6 overflow-hidden">
         <div className="border-b border-gray-200 px-5 py-3">
@@ -406,7 +454,7 @@ export function CashplanClient() {
                   <td className="whitespace-nowrap px-5 py-2 text-right">
                     {p.geschrieben ? (
                       <Badge tone="success">Geschrieben</Badge>
-                    ) : (p.vertrag as Vertrag & { lex_contact_id?: string | null }).lex_contact_id ? (
+                    ) : kontaktIds(p.vertrag).length ? (
                       <Badge tone="softAccent">{p.datum <= heute ? 'Fehlt' : 'Noch offen'}</Badge>
                     ) : (
                       <Badge tone="neutral">Kein Lexware-Kontakt</Badge>
@@ -735,13 +783,13 @@ export function CashplanClient() {
                 <option value="streitfall">Streitfall</option>
               </select>
             </Feld>
-            <Feld label="Lexware-Kontakt" breit>
+            <Feld label="Lexware-Kontakte (mehrere möglich: Cmd/Strg + Klick)" breit>
               <select
-                className="h-11 w-full rounded-[12px] bg-card px-3 text-[15px] shadow-[inset_0_0_0_1.5px_var(--hair)]"
-                value={form.lex_contact_id}
-                onChange={(e) => setForm({ ...form, lex_contact_id: e.target.value })}
+                multiple
+                className="h-28 w-full rounded-[12px] bg-card px-3 py-2 text-[15px] shadow-[inset_0_0_0_1.5px_var(--hair)]"
+                value={form.lex_contact_id.split(',').filter(Boolean)}
+                onChange={(e) => setForm({ ...form, lex_contact_id: [...e.target.selectedOptions].map((o) => o.value).join(',') })}
               >
-                <option value="">– nicht zugeordnet –</option>
                 {kontakte.map(([id, name]) => (
                   <option key={id} value={id}>
                     {name}

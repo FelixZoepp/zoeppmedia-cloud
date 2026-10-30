@@ -74,6 +74,22 @@ export function zahlungsmoral(rechnungen: FinanzRechnung[], heute: string, seit?
   };
 }
 
+/** Lexware-Kontakte eines Vertrags (kommagetrennt, z. B. zwei Firmen eines Kunden) */
+export function kontaktIds(v: FinanzVertrag): string[] {
+  const roh = (v as FinanzVertrag & { lex_contact_id?: string | null }).lex_contact_id ?? '';
+  return roh.split(',').map((x) => x.trim()).filter(Boolean);
+}
+
+/** Jeder Kontakt → Hauptkontakt seines Vertrags, damit mehrere Kontakte wie einer zählen */
+function kontaktAlias(vertraege: FinanzVertrag[]): (id: string | null) => string | null {
+  const alias = new Map<string, string>();
+  for (const v of vertraege) {
+    const ids = kontaktIds(v);
+    for (const id of ids) if (!alias.has(id)) alias.set(id, ids[0]);
+  }
+  return (id) => (id ? (alias.get(id) ?? id) : null);
+}
+
 export interface AbschlussQuoten {
   /** Abschlüsse je Monat (abschluss_am), älteste zuerst */
   proMonat: Array<{ monat: string; abschluesse: number; streitfaelle: number }>;
@@ -93,15 +109,17 @@ export function abschlussQuoten(vertraege: FinanzVertrag[], rechnungen: FinanzRe
     if (v.status === 'streitfall') cur.streitfaelle++;
     proMonat.set(k, cur);
   }
+  const haupt = kontaktAlias(vertraege);
   const ersteZahlung = new Map<string, string[]>();
   for (const r of rechnungen) {
-    if (!bezahlt(r) || !r.contact_id) continue;
-    ersteZahlung.set(r.contact_id, [...(ersteZahlung.get(r.contact_id) ?? []), r.bezahlt_am!]);
+    const k = haupt(r.contact_id);
+    if (!bezahlt(r) || !k) continue;
+    ersteZahlung.set(k, [...(ersteZahlung.get(k) ?? []), r.bezahlt_am!]);
   }
   const dauer: number[] = [];
   const ohneZahlung: FinanzVertrag[] = [];
   for (const v of vertraege) {
-    const kid = (v as FinanzVertrag & { lex_contact_id?: string | null }).lex_contact_id;
+    const kid = kontaktIds(v)[0];
     if (!v.abschluss_am || !kid || v.status === 'streitfall') continue;
     const erste = (ersteZahlung.get(kid) ?? []).filter((d) => d >= v.abschluss_am!.slice(0, 10)).sort()[0];
     if (erste) dauer.push(tage(v.abschluss_am, erste));
@@ -142,10 +160,11 @@ export function rechnungsCheck(
   gebuehr: (v: FinanzVertrag, monat: string) => number,
   abMonat = '2026-01',
 ): RechnungsCheck {
+  const haupt = kontaktAlias(vertraege);
   const proKontaktMonat = new Map<string, number>();
   for (const r of rechnungen) {
     if (!r.contact_id || !r.datum || r.status === 'voided') continue;
-    const k = `${r.contact_id}|${monatKey(r.datum)}`;
+    const k = `${haupt(r.contact_id)}|${monatKey(r.datum)}`;
     proKontaktMonat.set(k, (proKontaktMonat.get(k) ?? 0) + nettoVon(r));
   }
   const luecken: RechnungsLuecke[] = [];
@@ -154,7 +173,7 @@ export function rechnungsCheck(
   const planJeKontakt = new Map<string, { vertraege: FinanzVertrag[]; proMonat: Map<string, number> }>();
   for (const v of vertraege) {
     if (v.status === 'streitfall' || v.status === 'beendet') continue;
-    const kid = (v as FinanzVertrag & { lex_contact_id?: string | null }).lex_contact_id;
+    const kid = kontaktIds(v)[0];
     if (!kid) {
       if (monatKey(v.start) <= bisMonat) nichtZugeordnet.push(v);
       continue;
@@ -205,16 +224,18 @@ export function rechnungsplan(
   monat: string,
   betrag: (v: FinanzVertrag, monat: string) => number,
 ): AnstehendeRechnung[] {
+  const haupt = kontaktAlias(vertraege);
   const gestellt = new Map<string, number>();
   for (const r of rechnungen) {
     if (!r.contact_id || !r.datum || r.status === 'voided' || monatKey(r.datum) !== monat) continue;
-    gestellt.set(r.contact_id, (gestellt.get(r.contact_id) ?? 0) + nettoVon(r));
+    const k = haupt(r.contact_id)!;
+    gestellt.set(k, (gestellt.get(k) ?? 0) + nettoVon(r));
   }
   return vertraege
     .map((v) => ({ v, netto: betrag(v, monat) }))
     .filter(({ netto }) => netto > 0)
     .map(({ v, netto }) => {
-      const kid = (v as FinanzVertrag & { lex_contact_id?: string | null }).lex_contact_id;
+      const kid = kontaktIds(v)[0];
       const tag = Math.min(v.rechnungstag ?? 1, 28);
       return { vertrag: v, netto, datum: `${monat}-${String(tag).padStart(2, '0')}`, geschrieben: !!kid && (gestellt.get(kid) ?? 0) >= netto * 0.95 };
     })
