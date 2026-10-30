@@ -32,6 +32,7 @@ export function ZielTracker({
   werbung,
   aktiveVertraege,
   kunden,
+  historie,
   gespeichert,
 }: {
   monatName: string;
@@ -42,6 +43,7 @@ export function ZielTracker({
   werbung: number;
   aktiveVertraege: number;
   kunden: KundenKennzahlen;
+  historie?: { kunden: number; upsell: number; rueckgewinnung: number } | null;
   gespeichert: (z: Ziele) => void;
 }) {
   const [form, setForm] = useState<Record<string, string> | null>(null);
@@ -113,6 +115,7 @@ export function ZielTracker({
           </>
         ) : null}
         <span className="block text-xs text-gray-500">
+          {historie ? `Upsell-Quote aus der Kundenhistorie Direktvertrieb: ${historie.upsell} von ${historie.kunden} Kunden · ${historie.rueckgewinnung} Rückgewinnungen. ` : ''}
           {kunden.zahlend} zahlende Kunden im Monat · {kunden.neu} neu · {kunden.verloren} verloren. Lexware reicht erst bis Nov. 2023 zurück – lange Kunden wie Krüger zählen deshalb zu kurz.
         </span>
       </div>

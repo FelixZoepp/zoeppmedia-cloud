@@ -136,6 +136,7 @@ export function CashplanClient() {
   const [lex, setLex] = useState<{ rechnungen: FinanzRechnung[]; abgleich: Abgleich | null }>({ rechnungen: [], abgleich: null });
   const [gleichtAb, setGleichtAb] = useState(false);
   const [ziele, setZiele] = useState<Ziele>(STANDARD_ZIELE);
+  const [historie, setHistorie] = useState<{ kunden: number; upsell: number; rueckgewinnung: number } | null>(null);
   const [kosten, setKosten] = useState<{ ausgaben: Ausgabe[]; fixkosten: Fixkosten[] }>({ ausgaben: [], fixkosten: [] });
 
   const laden = useCallback(async () => {
@@ -149,7 +150,11 @@ export function CashplanClient() {
     let aktiv = true;
     fetch('/api/admin/finanzen/ziele', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((j) => aktiv && j?.ziele && setZiele(j.ziele))
+      .then((j) => {
+        if (!aktiv || !j) return;
+        if (j.ziele) setZiele(j.ziele);
+        setHistorie(j.historie ?? null);
+      })
       .catch(() => {});
     Promise.all([holeVertraege(), holeRechnungen(), holeAusgaben()]).then(([liste, r, k]) => {
       if (!aktiv) return;
@@ -429,7 +434,8 @@ export function CashplanClient() {
           ueberschuss={dieser.gesamt - ausgabenImMonat(kosten.ausgaben, kosten.fixkosten, monat).gesamt}
           werbung={ausgabenImMonat(kosten.ausgaben, kosten.fixkosten, monat).proKategorie.find((k) => k.kategorie === 'Werbung')?.betrag ?? 0}
           aktiveVertraege={zahlungen.length}
-          kunden={kundenKennzahlen(lex.rechnungen, monat)}
+          kunden={{ ...kundenKennzahlen(lex.rechnungen, monat), ...(historie ? { upsellQuote: historie.upsell / historie.kunden } : {}) }}
+          historie={historie}
           gespeichert={setZiele}
         />
       )}
