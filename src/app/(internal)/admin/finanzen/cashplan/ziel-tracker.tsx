@@ -70,7 +70,7 @@ export function ZielTracker({
         <div>
           <p className="text-sm font-semibold text-gray-900">Masterplan – Ist gegen Ziel im {monatName}</p>
           <p className="text-xs text-gray-500">
-            {erreicht} von {zeilen.length} Zielen erreicht · Kunden-Kennzahlen aus den Lexware-Rechnungen
+            {erreicht} von {zeilen.length} Zielen erreicht · Kunden-Kennzahlen: Direktvertrieb, aus den Lexware-Rechnungen
           </p>
         </div>
         <Button

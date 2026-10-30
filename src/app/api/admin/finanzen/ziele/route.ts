@@ -9,14 +9,16 @@ export async function GET() {
   const svc = createAdminClient();
   const [{ data }, { data: kunden }] = await Promise.all([
     svc.from('system_einstellungen').select('wert').eq('key', ZIELE_KEY).maybeSingle(),
-    svc.from('finanz_kunden_status').select('upsell, rueckgewinnung').eq('segment', 'd2d'),
+    svc.from('finanz_kunden_status').select('upsell, rueckgewinnung, lex_kontakte').eq('segment', 'd2d'),
   ]);
   // Bewertete Direktvertriebskunden (Angabe Felix) – genauer als die Schätzung aus den Lexware-Beträgen
   const bewertet = (kunden ?? []).filter((k) => k.upsell != null);
   const historie = bewertet.length
     ? { kunden: bewertet.length, upsell: bewertet.filter((k) => k.upsell).length, rueckgewinnung: (kunden ?? []).filter((k) => k.rueckgewinnung).length }
     : null;
-  return NextResponse.json({ ziele: liesZiele(data?.wert ?? null), historie });
+  // Lexware-Kontakte der Direktvertriebskunden – Churn/Neukunden nur über dieses Segment
+  const d2dKontakte = [...new Set((kunden ?? []).flatMap((k) => (k.lex_kontakte as string[] | null) ?? []))];
+  return NextResponse.json({ ziele: liesZiele(data?.wert ?? null), historie, d2dKontakte });
 }
 
 export async function PUT(req: NextRequest) {
