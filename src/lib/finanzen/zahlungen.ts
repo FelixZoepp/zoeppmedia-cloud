@@ -114,3 +114,109 @@ export function abschlussQuoten(vertraege: FinanzVertrag[], rechnungen: FinanzRe
     ohneZahlung,
   };
 }
+
+export interface RechnungsLuecke {
+  vertrag: FinanzVertrag;
+  monat: string;
+  erwartet: number;
+  gestellt: number;
+  fehlt: number;
+}
+
+export interface RechnungsCheck {
+  luecken: RechnungsLuecke[];
+  fehltGesamt: number;
+  /** Verträge ohne Lexware-Kontakt – können nicht geprüft werden */
+  nichtZugeordnet: FinanzVertrag[];
+}
+
+/**
+ * Wurde für jeden Vertrag und Monat die erwartete Rechnung geschrieben?
+ * Vergleich je Monat: Plan (Gebühr + Setup, netto) gegen Lexware-Rechnungen des Kontakts mit Rechnungsdatum im Monat.
+ * Rechnungen im Vormonat (vorab geschrieben) zählen mit, wenn dort nichts erwartet wurde. 5 % Toleranz.
+ */
+export function rechnungsCheck(
+  vertraege: FinanzVertrag[],
+  rechnungen: FinanzRechnung[],
+  bisMonat: string,
+  gebuehr: (v: FinanzVertrag, monat: string) => number,
+  abMonat = '2026-01',
+): RechnungsCheck {
+  const proKontaktMonat = new Map<string, number>();
+  for (const r of rechnungen) {
+    if (!r.contact_id || !r.datum || r.status === 'voided') continue;
+    const k = `${r.contact_id}|${monatKey(r.datum)}`;
+    proKontaktMonat.set(k, (proKontaktMonat.get(k) ?? 0) + nettoVon(r));
+  }
+  const luecken: RechnungsLuecke[] = [];
+  const nichtZugeordnet: FinanzVertrag[] = [];
+  // Mehrere Verträge eines Kontakts teilen sich die Rechnungen → Plan je Kontakt summieren
+  const planJeKontakt = new Map<string, { vertraege: FinanzVertrag[]; proMonat: Map<string, number> }>();
+  for (const v of vertraege) {
+    if (v.status === 'streitfall' || v.status === 'beendet') continue;
+    const kid = (v as FinanzVertrag & { lex_contact_id?: string | null }).lex_contact_id;
+    if (!kid) {
+      if (monatKey(v.start) <= bisMonat) nichtZugeordnet.push(v);
+      continue;
+    }
+    const eintrag = planJeKontakt.get(kid) ?? { vertraege: [] as FinanzVertrag[], proMonat: new Map<string, number>() };
+    eintrag.vertraege.push(v);
+    let m = monatKey(v.start) > abMonat ? monatKey(v.start) : abMonat;
+    while (m <= bisMonat) {
+      const betrag = gebuehr(v, m);
+      if (betrag > 0) eintrag.proMonat.set(m, (eintrag.proMonat.get(m) ?? 0) + betrag);
+      const [y, mm] = m.split('-').map(Number);
+      m = `${y + Math.floor(mm / 12)}-${String((mm % 12) + 1).padStart(2, '0')}`;
+    }
+    planJeKontakt.set(kid, eintrag);
+  }
+  for (const [kid, { vertraege: vs, proMonat }] of planJeKontakt) {
+    let vorabUebrig = 0;
+    for (const monat of [...proMonat.keys()].sort()) {
+      const erwartet = proMonat.get(monat)!;
+      const [y, mm] = monat.split('-').map(Number);
+      const vormonat = `${mm === 1 ? y - 1 : y}-${String(mm === 1 ? 12 : mm - 1).padStart(2, '0')}`;
+      if (!proMonat.has(vormonat)) vorabUebrig += proKontaktMonat.get(`${kid}|${vormonat}`) ?? 0;
+      let gestellt = (proKontaktMonat.get(`${kid}|${monat}`) ?? 0) + vorabUebrig;
+      vorabUebrig = 0;
+      if (gestellt > erwartet) {
+        vorabUebrig = 0;
+        gestellt = Math.max(gestellt, erwartet);
+      }
+      const fehlt = Math.round((erwartet - gestellt) * 100) / 100;
+      if (fehlt > erwartet * 0.05) luecken.push({ vertrag: vs[0], monat, erwartet, gestellt: Math.round(gestellt * 100) / 100, fehlt });
+    }
+  }
+  luecken.sort((a, b) => a.monat.localeCompare(b.monat) || b.fehlt - a.fehlt);
+  return { luecken, fehltGesamt: Math.round(luecken.reduce((s, l) => s + l.fehlt, 0) * 100) / 100, nichtZugeordnet };
+}
+
+export interface AnstehendeRechnung {
+  vertrag: FinanzVertrag;
+  datum: string;
+  netto: number;
+  geschrieben: boolean;
+}
+
+/** Wer bekommt im Monat wann welche Rechnung – und ist sie schon geschrieben? */
+export function rechnungsplan(
+  vertraege: FinanzVertrag[],
+  rechnungen: FinanzRechnung[],
+  monat: string,
+  betrag: (v: FinanzVertrag, monat: string) => number,
+): AnstehendeRechnung[] {
+  const gestellt = new Map<string, number>();
+  for (const r of rechnungen) {
+    if (!r.contact_id || !r.datum || r.status === 'voided' || monatKey(r.datum) !== monat) continue;
+    gestellt.set(r.contact_id, (gestellt.get(r.contact_id) ?? 0) + nettoVon(r));
+  }
+  return vertraege
+    .map((v) => ({ v, netto: betrag(v, monat) }))
+    .filter(({ netto }) => netto > 0)
+    .map(({ v, netto }) => {
+      const kid = (v as FinanzVertrag & { lex_contact_id?: string | null }).lex_contact_id;
+      const tag = Math.min(v.rechnungstag ?? 1, 28);
+      return { vertrag: v, netto, datum: `${monat}-${String(tag).padStart(2, '0')}`, geschrieben: !!kid && (gestellt.get(kid) ?? 0) >= netto * 0.95 };
+    })
+    .sort((a, b) => a.datum.localeCompare(b.datum) || b.netto - a.netto);
+}

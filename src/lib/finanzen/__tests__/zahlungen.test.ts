@@ -109,3 +109,27 @@ describe('Lexware-Abgleich (rein)', () => {
     });
   });
 });
+
+describe('Rechnungs-Check', () => {
+  it('findet vergessene Monate und erkennt vorab geschriebene Rechnungen', async () => {
+    const { rechnungsCheck, rechnungsplan } = await import('../zahlungen');
+    const { gebuehrImMonat, setupImMonat } = await import('../cashplan');
+    const betrag = (x: FinanzVertrag, m: string) => gebuehrImMonat(x, m, false) + setupImMonat(x, m);
+    const vertraege = [
+      v({ kunde: 'Krüger', monatlich: 3500, laufzeit_monate: null, start: '2026-08-01', lex_contact_id: 'k1' }),
+      v({ kunde: 'Ohne', monatlich: 1000, start: '2026-10-01' }),
+    ];
+    const rechnungen = [
+      r({ nummer: 'a', contact_id: 'k1', datum: '2026-08-01', netto: 3500 }),
+      r({ nummer: 'b', contact_id: 'k1', datum: '2026-10-01', netto: 3500 }),
+    ];
+    const c = rechnungsCheck(vertraege, rechnungen, '2026-10', betrag);
+    expect(c.luecken.map((l) => [l.vertrag.kunde, l.monat, l.fehlt])).toEqual([['Krüger', '2026-09', 3500]]);
+    expect(c.nichtZugeordnet.map((x) => x.kunde)).toEqual(['Ohne']);
+    const plan = rechnungsplan(vertraege, rechnungen, '2026-10', betrag);
+    expect(plan.map((p) => [p.vertrag.kunde, p.geschrieben])).toEqual([
+      ['Krüger', true],
+      ['Ohne', false],
+    ]);
+  });
+});

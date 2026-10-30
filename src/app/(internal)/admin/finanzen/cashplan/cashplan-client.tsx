@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +10,8 @@ import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import dynamic from 'next/dynamic';
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { abschlussQuoten, istProMonat, zahlungsmoral, type FinanzRechnung } from '@/lib/finanzen/zahlungen';
-import { berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
+import { abschlussQuoten, istProMonat, rechnungsCheck, rechnungsplan, zahlungsmoral, type FinanzRechnung } from '@/lib/finanzen/zahlungen';
+import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
 
@@ -160,14 +160,14 @@ export function CashplanClient() {
     const d = new Date(y, mm - 1 - VERLAUF_VOR, 1);
     return monatKey(d);
   })[0];
-  const verlauf = useMemo(() => (vertraege ? berechneCashplan(vertraege, verlaufStart, VERLAUF_MONATE) : []), [vertraege, verlaufStart]);
-  const [vormonat, folgemonat] = useMemo(() => {
-    const [y, m] = monat.split('-').map(Number);
-    return [monatKey(new Date(y, m - 2, 1)), monatKey(new Date(y, m, 1))];
-  }, [monat]);
-  const diesMonat = useMemo(() => (vertraege ? berechneCashplan(vertraege, vormonat, 2) : []), [vertraege, vormonat]);
-  const zahlungen = useMemo(() => (vertraege ? zahlungenImMonat(vertraege, monat) : []), [vertraege, monat]);
-  const bald = useMemo(() => (vertraege ? endetBald(vertraege, monat, 3) : []), [vertraege, monat]);
+  // React Compiler memoisiert selbst
+  const verlauf = vertraege ? berechneCashplan(vertraege, verlaufStart, VERLAUF_MONATE) : [];
+  const [jahr, monatNr] = monat.split('-').map(Number);
+  const vormonat = monatKey(new Date(jahr, monatNr - 2, 1));
+  const folgemonat = monatKey(new Date(jahr, monatNr, 1));
+  const diesMonat = vertraege ? berechneCashplan(vertraege, vormonat, 2) : [];
+  const zahlungen = vertraege ? zahlungenImMonat(vertraege, monat) : [];
+  const bald = vertraege ? endetBald(vertraege, monat, 3) : [];
 
   async function speichern() {
     if (!form) return;
@@ -235,6 +235,9 @@ export function CashplanClient() {
   const moral = zahlungsmoral(lex.rechnungen, heute);
   const abschluss = abschlussQuoten(vertraege, lex.rechnungen);
   const kontakte = [...new Map(lex.rechnungen.filter((r) => r.contact_id).map((r) => [r.contact_id!, r.kontakt ?? r.contact_id!])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const betragImMonat = (v: FinanzVertrag, m: string) => gebuehrImMonat(v, m, false) + setupImMonat(v, m);
+  const plan = rechnungsplan(vertraege, lex.rechnungen, monat, betragImMonat);
+  const check = rechnungsCheck(vertraege, lex.rechnungen, jetzt, betragImMonat);
   const verlaufMitIst = verlauf.map((m) => ({ ...m, ist: m.monat <= jetzt ? (ist.get(m.monat)?.netto ?? 0) : undefined }));
   const prozent = (x: number) => `${Math.round(x * 100)} %`;
 
@@ -379,6 +382,67 @@ export function CashplanClient() {
               ))}
             </div>
           </div>
+        )}
+      </Card>
+
+      {/* Rechnungen: wer bekommt wann was – und was wurde vergessen */}
+      <Card padding="none" className="mb-6 overflow-hidden">
+        <div className="border-b border-gray-200 px-5 py-3">
+          <p className="text-sm font-semibold text-gray-900">Rechnungen im {monatLang(monat)}</p>
+          <p className="text-xs text-gray-500">
+            Wer wann welche Rechnung bekommt – abgeglichen mit Lexware ({plan.filter((p) => p.geschrieben).length} von {plan.length} geschrieben)
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-gray-100">
+              {plan.map((p) => (
+                <tr key={p.vertrag.id}>
+                  <td className="whitespace-nowrap px-5 py-2 text-gray-600">{new Date(`${p.datum}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</td>
+                  <td className="px-5 py-2 font-medium text-gray-900">{p.vertrag.kunde}</td>
+                  <td className="whitespace-nowrap px-5 py-2 text-right text-gray-700">{euro(p.netto)} netto</td>
+                  <td className="whitespace-nowrap px-5 py-2 text-right">
+                    {p.geschrieben ? (
+                      <Badge tone="success">Geschrieben</Badge>
+                    ) : (p.vertrag as Vertrag & { lex_contact_id?: string | null }).lex_contact_id ? (
+                      <Badge tone="softAccent">{p.datum <= heute ? 'Fehlt' : 'Noch offen'}</Badge>
+                    ) : (
+                      <Badge tone="neutral">Kein Lexware-Kontakt</Badge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {check.luecken.length > 0 && (
+          <div className="border-t border-gray-200 px-5 py-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-red-700">
+              Möglicherweise vergessene Rechnungen bis heute: {euro(check.fehltGesamt)} netto
+            </p>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-gray-100">
+                {check.luecken.map((l) => (
+                  <tr key={`${l.vertrag.id}-${l.monat}`}>
+                    <td className="py-1.5 text-gray-900">{l.vertrag.kunde}</td>
+                    <td className="py-1.5 text-gray-600">{monatLabel(l.monat)}</td>
+                    <td className="py-1.5 text-right text-gray-500">
+                      erwartet {euro(l.erwartet)} · geschrieben {euro(l.gestellt)}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-red-700">{euro(l.fehlt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-gray-500">
+              Grundlage: Monatsgebühr und Setup laut Vertrag gegen die Lexware-Rechnungen des Kontakts im selben Monat (vorab im Vormonat geschriebene zählen mit). Stimmt der Vertrag nicht, dort korrigieren.
+            </p>
+          </div>
+        )}
+        {check.nichtZugeordnet.length > 0 && (
+          <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">
+            Ohne Lexware-Kontakt (nicht prüfbar): {check.nichtZugeordnet.map((v) => v.kunde).join(', ')} – über den Stift zuordnen.
+          </p>
         )}
       </Card>
 
