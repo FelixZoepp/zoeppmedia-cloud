@@ -17,3 +17,19 @@ describe('Setter-Listen in Close', () => {
     expect(text).toContain('num_outgoing_calls');
   });
 });
+
+describe('Weitere Listen', () => {
+  it('Upsell fällig schließt Leads mit Upsell-Deal aus, Empfehlungen ersetzt die alte Liste', async () => {
+    const { WEITERE_VIEWS } = await import('../close-smartviews');
+    expect(WEITERE_VIEWS.map((v) => v.name)).toEqual([
+      '💤 0.9 Ohne Bewegung > 7 Tage',
+      '🥩 1.3 (SC) Upsell fällig – Kauf vor 3–6 Wochen',
+      '📅 1.4 (SC) CC2 / zweites Closing',
+      '🤝 3.5 (CC) Empfehlungen',
+    ]);
+    const upsell = JSON.stringify(WEITERE_VIEWS[1].s_query);
+    expect(upsell).toContain('date_won');
+    expect(upsell).toContain('"negate":true');
+    expect(WEITERE_VIEWS[3].id).toBe('save_OL2kMKPFdhp1C2gffeP880RHPcHuaMYv5mrphw8WThX');
+  });
+});

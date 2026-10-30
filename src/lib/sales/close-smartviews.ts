@@ -52,6 +52,20 @@ const STATUS = {
 } as const;
 
 const VERLUSTGRUND_FELD = 'cf_VyMmJUFUh8pHoKi14eNuxAavZOT8LCrdpPGKXhsjie0';
+const LEADQUELLE_FELD = 'cf_QiH8TTQXCkFg846D3N4qPF6STvbww7q3WJAK3Qja0n8';
+const STATUS_GEWONNEN = 'stat_BFVJiIlomolS2JMTSHc49cHnvh2Rl1IuWnudLEYRh0n';
+const STATUS_CC2 = 'stat_TTFBUyYC71TwPVSrEmD0pa0GbqRowRt71e5xI5LFMTN';
+const STATUS_CLOSING_TERMINIERT = 'stat_RjrZL3ifb4mKNiPEFFX1IQgse1fbI94R9XZgere2wZT';
+/** Alle Status der Upsell-Pipeline (Bestandskunden) */
+const UPSELL_STATUS = [
+  'stat_OBAEVAwpq09YR0N7GeuFF8Zt4QlAycUNRmf88JTZ3AN',
+  'stat_WEKJijRPsQybJcoGhit9rkhqImph7jHgS1tB1sP7iiy',
+  'stat_RrSDOCdFILg6qphuwTwkxbYWEtIYpGb9CcjeDuce6OT',
+  'stat_7kEUHW4wykcSy6Yg1bR9jdbcn6RzWO6hbPGOjIHHT6N',
+  'stat_7NL2g8Yj20LVCQZtfAtLD3oe5DDZkMNHSJmsK9XEcAX',
+  'stat_gkZ8TgDDZPJOzHkRNL9Pjxt6XbDu6O34uA4KLCnpTOf',
+];
+const EMPFEHLUNGEN_VIEW_ID = 'save_OL2kMKPFdhp1C2gffeP880RHPcHuaMYv5mrphw8WThX';
 
 const LEAD_SETTING = 'stat_E0PMV0VE8R9KIyqq8aGpBMyvBqjmaih50lXRczPpQ2L';
 
@@ -84,6 +98,12 @@ const letzteStunden = (h: number): Q => ({
 const aelterAlsTage = (tage: number): Q => ({
   before: { direction: 'past', moment: { type: 'now' }, offset: { ...offset(0), days: tage }, type: 'offset', which_day_end: 'start' },
   on_or_after: null,
+  type: 'moment_range',
+});
+/** Zwischen von und bis Tagen her */
+const vorTagen = (von: number, bis: number): Q => ({
+  before: { direction: 'past', moment: { type: 'now' }, offset: { ...offset(0), days: von }, type: 'offset', which_day_end: 'start' },
+  on_or_after: { direction: 'past', moment: { type: 'now' }, offset: { ...offset(0), days: bis }, type: 'offset', which_day_end: 'start' },
   type: 'moment_range',
 });
 const zahl = (gte?: number, lte?: number, gt?: number): Q => ({ type: 'number_range', ...(gte !== undefined ? { gte } : {}), ...(lte !== undefined ? { lte } : {}), ...(gt !== undefined ? { gt } : {}) });
@@ -326,6 +346,53 @@ export async function loescheControllingViews(): Promise<string[]> {
  *  „2.3 Verloren (Ghosting) – nach 30 Tagen nochmal“: Deal verloren mit Grund „Nicht mehr erreichbar (Ghosting)“, seit 30+ Tagen ruhig
  *  „3.4 Alte Leads reaktivieren“: Leadpool/Interessiert, älter als 60 Tage, nie ein Erstgespräch – älteste Bewegung zuerst
  */
+const dealMit = (statusIds: string[], ...weitere: Q[]): Q => ({
+  negate: false,
+  related_object_type: 'opportunity',
+  related_query: and(feld('opportunity', 'status_id', { object_ids: statusIds, reference_type: 'status.opportunity', type: 'reference' }), ...weitere),
+  this_object_type: 'lead',
+  type: 'has_related',
+});
+
+/**
+ * Weitere Listen (30.10.2026):
+ *  „💤 0.9 Ohne Bewegung > 7 Tage“ – offene Deals in No-Show/Follow-up/Angebot/terminiert, seit 7+ Tagen nicht angefasst (Pipeline-Hygiene)
+ *  „🥩 1.3 (SC) Upsell fällig“ – Kauf vor 21–45 Tagen, noch kein Deal in der Upsell-Pipeline (Median bis Upsell: ~35 Tage)
+ *  „📅 1.4 (SC) CC2 / zweites Closing“ – alle Deals in „CC2 – Terminiert“
+ *  „🤝 3.5 (CC) Empfehlungen“ – Leadquelle „Empfehlung“, noch kein Erstgespräch (ersetzt die alte, leere Liste)
+ */
+export const WEITERE_VIEWS: Array<{ id?: string; name: string; s_query: Q }> = [
+  {
+    name: '💤 0.9 Ohne Bewegung > 7 Tage',
+    s_query: sQuery(
+      dealMit(
+        [STATUS.settingNoShow, STATUS.settingFollowUp, STATUS.closingNoShow, STATUS.closingFollowUp, STATUS.angebot, STATUS.settingTerminiert, STATUS_CLOSING_TERMINIERT, STATUS_CC2],
+        feld('opportunity', 'date_updated', aelterAlsTage(7)),
+      ),
+      [sortierung('date_updated', 'asc')],
+    ),
+  },
+  {
+    name: '🥩 1.3 (SC) Upsell fällig – Kauf vor 3–6 Wochen',
+    s_query: sQuery(
+      and(dealMit([STATUS_GEWONNEN], feld('opportunity', 'date_won', vorTagen(21, 45))), { ...dealMit(UPSELL_STATUS), negate: true }),
+      [sortierung('date_updated', 'asc')],
+    ),
+  },
+  {
+    name: '📅 1.4 (SC) CC2 / zweites Closing',
+    s_query: sQuery(dealMit([STATUS_CC2]), [sortierung('date_updated', 'asc')]),
+  },
+  {
+    id: EMPFEHLUNGEN_VIEW_ID,
+    name: '🤝 3.5 (CC) Empfehlungen',
+    s_query: sQuery(
+      and(cf(LEADQUELLE_FELD, { mode: 'full_words', type: 'text', value: 'Empfehlung' }), leadStatus(STATUS.leadpool, STATUS.interessiert), cf(F.settingTermin, { type: 'exists' }, true), hatTelefon, nichtGesperrt),
+      [sortierung('date_created', 'desc')],
+    ),
+  },
+];
+
 export const NEUE_SETTER_VIEWS: Array<{ name: string; s_query: Q }> = [
   {
     name: '👻 2.3 (QC) Verloren (Ghosting) – nach 30 Tagen nochmal',
@@ -366,6 +433,18 @@ export async function legeSetterListenAn(svc: SupabaseClient): Promise<Record<st
     if (ids[v.name]) {
       await close(`/saved_search/${ids[v.name]}/`, { method: 'PUT', body: JSON.stringify({ s_query: v.s_query }) });
       ergebnis[v.name] = `angepasst (${ids[v.name]})`;
+    } else {
+      const neu = await close<{ id: string }>(`/saved_search/`, { method: 'POST', body: JSON.stringify({ name: v.name, type: 'lead', s_query: v.s_query, is_shared: true }) });
+      ids[v.name] = neu.id;
+      ergebnis[v.name] = `neu (${neu.id})`;
+    }
+  }
+  for (const v of WEITERE_VIEWS) {
+    const id = v.id ?? ids[v.name];
+    if (id) {
+      await close(`/saved_search/${id}/`, { method: 'PUT', body: JSON.stringify({ name: v.name, s_query: v.s_query }) });
+      ids[v.name] = id;
+      ergebnis[v.name] = `angepasst (${id})`;
     } else {
       const neu = await close<{ id: string }>(`/saved_search/`, { method: 'POST', body: JSON.stringify({ name: v.name, type: 'lead', s_query: v.s_query, is_shared: true }) });
       ids[v.name] = neu.id;

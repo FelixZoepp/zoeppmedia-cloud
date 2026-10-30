@@ -730,6 +730,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // 9. Finanz-Aufgaben (intern): Zahlung nachfragen (Board Buchhaltung) + Verlängerung ansprechen (Board Felix) – einmal täglich ab 7 Uhr
+  let finanzAufgaben = 0;
+  const stundeBerlin = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+  if (stundeBerlin >= 7 && Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 10_000) {
+    try {
+      const { legeFinanzAufgabenAn } = await import('@/lib/finanzen/aufgaben');
+      finanzAufgaben = await legeFinanzAufgabenAn(svc);
+    } catch (err) {
+      console.error('[tick] Finanz-Aufgaben fehlgeschlagen:', err);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     events: { processed: eventsProcessed, failed: eventsFailed },
@@ -740,5 +752,6 @@ export async function GET(request: NextRequest) {
     meta,
     aufnahmen,
     lexware,
+    finanzAufgaben,
   });
 }
