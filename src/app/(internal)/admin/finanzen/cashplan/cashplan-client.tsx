@@ -14,6 +14,8 @@ import { abschlussQuoten, istProMonat, kontaktIds, rechnungsCheck, rechnungsplan
 import { gebuehrImMonat, setupImMonat, berechneCashplan, endetBald, laufzeitEnde, monatKey, monateAb, zahlungenImMonat, streitfallQuoten, vertragssumme, type FinanzVertrag } from '@/lib/finanzen/cashplan';
 
 import { AusgabenBereich } from './ausgaben-bereich';
+import { ZielTracker } from './ziel-tracker';
+import { STANDARD_ZIELE, kundenKennzahlen, type Ziele } from '@/lib/finanzen/ziele';
 import { ausgabenImMonat, type Ausgabe, type Fixkosten } from '@/lib/finanzen/ausgaben';
 
 const CashplanChart = dynamic(() => import('./cashplan-chart').then((m) => m.CashplanChart), { ssr: false });
@@ -133,6 +135,7 @@ export function CashplanClient() {
   const [busy, setBusy] = useState(false);
   const [lex, setLex] = useState<{ rechnungen: FinanzRechnung[]; abgleich: Abgleich | null }>({ rechnungen: [], abgleich: null });
   const [gleichtAb, setGleichtAb] = useState(false);
+  const [ziele, setZiele] = useState<Ziele>(STANDARD_ZIELE);
   const [kosten, setKosten] = useState<{ ausgaben: Ausgabe[]; fixkosten: Fixkosten[] }>({ ausgaben: [], fixkosten: [] });
 
   const laden = useCallback(async () => {
@@ -144,6 +147,10 @@ export function CashplanClient() {
 
   useEffect(() => {
     let aktiv = true;
+    fetch('/api/admin/finanzen/ziele', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((j) => aktiv && j?.ziele && setZiele(j.ziele))
+      .catch(() => {});
     Promise.all([holeVertraege(), holeRechnungen(), holeAusgaben()]).then(([liste, r, k]) => {
       if (!aktiv) return;
       if (liste) setVertraege(liste);
@@ -412,6 +419,20 @@ export function CashplanClient() {
           </div>
         )}
       </Card>
+
+      {dieser && (
+        <ZielTracker
+          monatName={monatLang(monat)}
+          ziele={ziele}
+          einnahmen={dieser.gesamt}
+          monatsgebuehren={dieser.monatlich}
+          ueberschuss={dieser.gesamt - ausgabenImMonat(kosten.ausgaben, kosten.fixkosten, monat).gesamt}
+          werbung={ausgabenImMonat(kosten.ausgaben, kosten.fixkosten, monat).proKategorie.find((k) => k.kategorie === 'Werbung')?.betrag ?? 0}
+          aktiveVertraege={zahlungen.length}
+          kunden={kundenKennzahlen(lex.rechnungen, monat)}
+          gespeichert={setZiele}
+        />
+      )}
 
       {dieser && (
         <AusgabenBereich
