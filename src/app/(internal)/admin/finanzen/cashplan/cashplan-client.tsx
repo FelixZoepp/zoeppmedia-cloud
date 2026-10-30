@@ -232,7 +232,9 @@ export function CashplanClient() {
   const ist = istProMonat(lex.rechnungen);
   const istMonat = ist.get(monat);
   const heute = new Date().toISOString().slice(0, 10);
-  const moral = zahlungsmoral(lex.rechnungen, heute);
+  // Nur die letzten 12 Monate – ältere offene Posten in Lexware sind meist nur nicht als bezahlt verbucht
+  const seit12 = `${Number(heute.slice(0, 4)) - 1}${heute.slice(4)}`;
+  const moral = zahlungsmoral(lex.rechnungen, heute, seit12);
   const abschluss = abschlussQuoten(vertraege, lex.rechnungen);
   const kontakte = [...new Map(lex.rechnungen.filter((r) => r.contact_id).map((r) => [r.contact_id!, r.kontakt ?? r.contact_id!])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const betragImMonat = (v: FinanzVertrag, m: string) => gebuehrImMonat(v, m, false) + setupImMonat(v, m);
@@ -487,12 +489,12 @@ export function CashplanClient() {
             <p className="text-xs text-gray-500">bis zur Fälligkeit</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500">Offene Rechnungen</p>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Offen (12 Monate)</p>
             <p className="text-2xl font-bold text-gray-900">{euro(moral.offenBrutto)}</p>
             <p className="text-xs text-gray-500">brutto · {moral.offenAnzahl} Rechnungen</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-gray-500">Überfällig</p>
+            <p className="text-xs uppercase tracking-wider text-gray-500">Überfällig (12 Monate)</p>
             <p className="text-2xl font-bold text-red-700">{euro(moral.ueberfaelligBrutto)}</p>
             <p className="text-xs text-gray-500">brutto · {moral.ueberfaellig.length} Rechnungen</p>
           </div>

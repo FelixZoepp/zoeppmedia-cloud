@@ -60,7 +60,7 @@ export function zahlungsmoral(rechnungen: FinanzRechnung[], heute: string, seit?
   const paid = rechnungen.filter((r) => bezahlt(r) && r.datum && imZeitraum(r));
   const dauer = paid.map((r) => Math.max(0, tage(r.datum!, r.bezahlt_am!)));
   const mitFrist = paid.filter((r) => r.faellig);
-  const offen = rechnungen.filter(istOffen);
+  const offen = rechnungen.filter((r) => istOffen(r) && imZeitraum(r));
   const ueberfaellig = offen.filter((r) => r.faellig && r.faellig < heute).sort((a, b) => (a.faellig ?? '').localeCompare(b.faellig ?? ''));
   const summe = (l: FinanzRechnung[]) => r2(l.reduce((s, r) => s + (r.offen ?? r.brutto ?? 0), 0));
   return {
