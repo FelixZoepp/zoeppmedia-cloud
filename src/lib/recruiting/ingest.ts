@@ -8,6 +8,7 @@ import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { CONSENT_VERSION, CONSENT_TEXT } from '@/lib/consent/version';
 import { insertDeduped } from '@/lib/jobs/insert-deduped';
+import { ilikeExakt } from '@/lib/candidates/find-duplicate';
 
 export interface IngestInput {
   agencyId: string;
@@ -120,13 +121,13 @@ export async function ingestApplication(
     if (data) existingCandidate = data;
   }
 
-  // Fallback: E-Mail case-insensitive (nur wenn phone fehlt)
-  if (!existingCandidate && !phoneE164 && emailLower) {
+  // Fallback: E-Mail case-insensitive (auch wenn die Nummer abweicht – Indeed liefert je Weg andere Formate)
+  if (!existingCandidate && emailLower) {
     const { data } = await svc
       .from('candidates')
       .select('id, phone_e164, email')
       .eq('agency_id', input.agencyId)
-      .ilike('email', emailLower)
+      .ilike('email', ilikeExakt(emailLower))
       .is('deleted_at', null)
       .limit(1)
       .maybeSingle();

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getStagesForAgency } from '@/lib/pipeline/get-stages';
 import { findDuplicateCandidate } from '@/lib/candidates/find-duplicate';
+import { normalizePhoneE164 } from '@/lib/phone';
 import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
@@ -61,6 +62,8 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       name: lead.name || 'Unbekannt',
       email: lead.email,
       phone: lead.phone,
+      // E.164 mitschreiben – sonst ist der Bewerber für die Dublettenprüfung anderer Eingänge (Indeed/Manatal) unsichtbar
+      phone_e164: normalizePhoneE164(lead.phone),
       source: 'meta', // Perspective-Leads kommen über Meta-Anzeigen-Funnels
       meta_form: lead.funnelName,
       current_stage_id: firstStage.id,
@@ -73,9 +76,13 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
     .single();
   if (error || !candidate) {
     // Gleichzeitig vom Webhook angelegt → als doppelt werten
-    if (error?.code === '23505' && lead.externeId) {
-      const { data: schon } = await svc.from('candidates').select('id').eq('agency_id', agencyId).eq('externe_id', lead.externeId).maybeSingle();
-      if (schon) return { status: 'doppelt', candidateId: (schon as { id: string }).id };
+    if (error?.code === '23505') {
+      if (lead.externeId) {
+        const { data: schon } = await svc.from('candidates').select('id').eq('agency_id', agencyId).eq('externe_id', lead.externeId).maybeSingle();
+        if (schon) return { status: 'doppelt', candidateId: (schon as { id: string }).id };
+      }
+      const gleich = await findDuplicateCandidate(svc, agencyId, lead.email, lead.phone);
+      if (gleich) return { status: 'doppelt', candidateId: gleich.id };
     }
     return { status: 'fehler', fehler: error?.message ?? 'Bewerber konnte nicht erstellt werden' };
   }
