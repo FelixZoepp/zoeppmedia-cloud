@@ -6,6 +6,8 @@ import { logActivity } from '@/lib/activity/log';
 import { legeFunnelLeadAn } from '@/lib/perspective/leads';
 import { angabenAusProfil } from '@/lib/perspective/angaben';
 import { extrahiereUtm } from '@/lib/kosten/kampagnen';
+import { pruefeFunnelKunde } from '@/lib/perspective/zuordnung';
+import { legeAufPruefstand, meldeNeueOffene } from '@/lib/zuordnung/pruefstand';
 
 /**
  * Perspective-Funnel-Webhook. Pro Kunde wird im Funnel die URL
@@ -123,16 +125,41 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // --- Anlegen (gleiche Logik wie der automatische Perspective-Abgleich) ---
-  const ergebnis = await legeFunnelLeadAn(supabase, agencyId, {
+  const funnelName = typeof body.funnelName === 'string' ? body.funnelName : null;
+  const funnelId = typeof body.funnel_id === 'string' ? body.funnel_id : null;
+  const externeId = typeof body.id === 'string' && body.id ? `perspective:${body.id}` : null;
+  const lead = {
     name,
     email,
     phone,
-    funnelName: (body.funnelName as string) ?? null,
-    externeId: typeof body.id === 'string' && body.id ? `perspective:${body.id}` : null,
+    funnelName,
+    externeId,
     automationen: true,
     angaben: angabenAusProfil(profile),
     utm: extrahiereUtm(body),
+  };
+
+  // --- Doppelter Boden: Kunde aus dem Link muss zur festen Funnel-Zuordnung passen, sonst Prüfstand ---
+  const pruefung = await pruefeFunnelKunde(supabase, agencyId, funnelName, funnelId);
+  if (!pruefung.ok) {
+    await legeAufPruefstand(supabase, {
+      quelle: 'perspective',
+      externeRef: externeId ?? `perspective-webhook:${(email ?? phone ?? name ?? '').toLowerCase()}:${funnelName ?? ''}`,
+      agencyVorschlag: pruefung.vorschlag,
+      name,
+      daten: { lead, webhook_agency: agencyId, funnel_id: funnelId },
+      gruende: [pruefung.grund],
+      status: 'offen',
+      naechsterVersuchInMin: 60 * 24 * 365,
+    });
+    await meldeNeueOffene(supabase);
+    return NextResponse.json({ ok: true, pruefstand: true });
+  }
+
+  // --- Anlegen (gleiche Logik wie der automatische Perspective-Abgleich) ---
+  const ergebnis = await legeFunnelLeadAn(supabase, agencyId, {
+    ...lead,
+    nachweis: { quelle: 'perspective_webhook', pruefungen: pruefung.pruefungen, zeit: new Date().toISOString() },
   });
   if (ergebnis.status === 'fehler') return NextResponse.json({ error: ergebnis.fehler }, { status: 500 });
   if (ergebnis.status === 'doppelt') {
@@ -141,7 +168,7 @@ export async function POST(request: NextRequest) {
       candidate_id: ergebnis.candidateId,
       action: `Doppelte Funnel-Bewerbung erkannt: ${name ?? email ?? phone} – nicht erneut angelegt`,
       action_type: 'other',
-      metadata: { source: 'perspective', duplicate_of: ergebnis.candidateId, funnel_name: (body.funnelName as string) ?? null },
+      metadata: { source: 'perspective', duplicate_of: ergebnis.candidateId, funnel_name: funnelName },
     });
     return NextResponse.json({ ok: true, duplicate: true, candidate_id: ergebnis.candidateId });
   }

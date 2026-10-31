@@ -261,6 +261,26 @@ export async function GET(request: NextRequest) {
     console.error('[tick] Manatal-Abgleich fehlgeschlagen:', err);
   }
 
+  // Perspective-Abruf alle 5 Min.: fehlende Funnel-Bewerber holen, auch wenn ein Webhook ausgeblieben ist
+  if (new Date().getMinutes() % 5 === 2 && Date.now() - startTime < WALL_CLOCK_LIMIT_MS - 20_000) {
+    try {
+      const { holePerspectiveBewerber } = await import('@/lib/perspective/abruf');
+      await holePerspectiveBewerber(svc, new Date(), WALL_CLOCK_LIMIT_MS - 15_000 - (Date.now() - startTime));
+    } catch (err) {
+      console.error('[tick] Perspective-Abruf fehlgeschlagen:', err);
+    }
+  }
+
+  // Zuordnungs-Wächter alle 15 Min.: Abrufe hängen? Prüfstand voll? Indeed-Weiterleitung fehlt?
+  if (new Date().getMinutes() % 15 === 4) {
+    try {
+      const { pruefeZuordnungsWaechter } = await import('@/lib/zuordnung/waechter');
+      await pruefeZuordnungsWaechter(svc);
+    } catch (err) {
+      console.error('[tick] Zuordnungs-Wächter fehlgeschlagen:', err);
+    }
+  }
+
   const { data: jobs } = await svc.rpc('claim_due_jobs', { batch_size: 100 });
 
   for (const job of jobs || []) {

@@ -31,6 +31,8 @@ export interface IngestInput {
   resume?: { storagePath: string; mime: string; size: number } | null;
   /** Nachholen alter Bewerbungen: keine Automationen, kein Bot – nur Anruf-Auftrag für den Innendienst */
   ohneAutomatik?: boolean;
+  /** Woraus die Zuordnung zum Kunden belegt ist (Quellen, Prüfungen, Freigabe) – wird an der Bewerbung gespeichert */
+  nachweis?: Record<string, unknown> | null;
 }
 
 export interface IngestResult {
@@ -77,6 +79,12 @@ export async function ingestApplication(
 ): Promise<IngestResult> {
   // Validate input — throws ZodError with descriptive message on invalid input
   ingestInputSchema.parse(input);
+
+  // Mandantentrennung: Die Stelle muss zu genau diesem Kunden gehören – sonst nie anlegen
+  const { data: stelleRow } = await svc.from('jobs').select('agency_id').eq('id', input.jobId).maybeSingle();
+  if ((stelleRow as { agency_id: string } | null)?.agency_id !== input.agencyId) {
+    throw new Error(`Stelle ${input.jobId} gehört nicht zu Kunde ${input.agencyId} – Bewerber nicht angelegt`);
+  }
 
   const phoneE164 = normalizePhoneE164(input.phone);
   const phoneInvalid = input.phone != null && input.phone.trim() !== '' && phoneE164 === null;
@@ -214,6 +222,7 @@ export async function ingestApplication(
     .maybeSingle();
 
   if (recentApp) {
+    if (input.nachweis) await svc.from('applications').update({ zuordnung_nachweis: input.nachweis }).eq('id', recentApp.id).is('zuordnung_nachweis', null);
     // Kein neuer Eintrag, nur activity_log
     await logActivity(svc, {
       agency_id: input.agencyId,
@@ -254,6 +263,7 @@ export async function ingestApplication(
       source: input.source,
       source_ref: input.sourceRef || null,
       campaign: input.campaign || null,
+      zuordnung_nachweis: input.nachweis ?? null,
       status: 'open',
       applied_at: new Date().toISOString(),
     })

@@ -15,6 +15,7 @@ import { checkBlacklist } from '@/lib/candidates/blacklist-check';
 import { logActivity } from '@/lib/activity/log';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { normalizePhoneE164 } from '@/lib/phone';
+import { speichereIndeedBeleg } from '@/lib/zuordnung/belege';
 import { alarmAnAdmins } from '@/lib/ops/alarm';
 import { meldeNeuenBewerber } from '@/lib/notifications/neuer-bewerber';
 
@@ -150,6 +151,12 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
   const email = cv.email || parsed.email || null;
   const telefon = cv.phone || parsed.phone || null;
 
+  // Beleg aus dem Indeed-Konto dieses Kunden (zweite Quelle für Manatal-Bewerber) – wartende Prüfstand-Einträge sofort neu prüfen
+  if (!opts.nachholen) {
+    await speichereIndeedBeleg(svc, { agencyId, name: parsed.candidateName || name, email: parsed.email || email, phone: parsed.phone || telefon, stellentitel: parsed.jobTitle ?? null, emailId: emailId ?? null });
+    await svc.from('bewerber_pruefstand').update({ naechster_versuch: new Date().toISOString() }).eq('quelle', 'manatal').eq('agency_vorschlag', agencyId).in('status', ['wartet', 'offen']);
+  }
+
   if (!telefon && !email) {
     await log('unvollstaendig', { agency_id: agencyId, error_message: 'Weder Telefonnummer noch E-Mail in Mail/Lebenslauf' });
     await alarmAnAdmins(svc, {
@@ -205,6 +212,7 @@ export async function verarbeiteIndeedMail(svc: SupabaseClient, body: Record<str
     consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
     resume: pfad ? { storagePath: pfad, mime: 'application/pdf', size: resumeSize } : null,
     ohneAutomatik: !!opts.nachholen,
+    nachweis: { quelle: 'indeed_mail', pruefungen: [`Indeed-Mail an die Kunden-Adresse (${to.slice(0, 80)})`], email_id: emailId ?? null, zeit: new Date().toISOString() },
   });
 
   if (result.candidateCreated) {

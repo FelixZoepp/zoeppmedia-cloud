@@ -38,6 +38,8 @@ function createMockClient() {
   function nextResponse(table: string) {
     const queue = responders[table];
     if (queue && queue.length > 0) return queue.shift()!;
+    // Stelle gehört standardmäßig zum Kunden der Bewerbung
+    if (table === 'jobs') return { data: { agency_id: BASE_AGENCY_ID }, error: null };
     return defaultResponse;
   }
 
@@ -182,6 +184,12 @@ describe('ingestApplication', () => {
     // Default pipeline_stages response: always return stage-new for maybeSingle
     // This is queued once per test; the function calls getNewStageId once.
     client._enqueue('pipeline_stages', { data: { id: 'stage-new' }, error: null });
+  });
+
+  it('legt nie an, wenn die Stelle zu einem anderen Kunden gehört', async () => {
+    client._enqueue('jobs', { data: { agency_id: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }, error: null });
+    await expect(ingestApplication(client as never, baseInput)).rejects.toThrow(/gehört nicht zu Kunde/);
+    expect(client._state.candidates).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------

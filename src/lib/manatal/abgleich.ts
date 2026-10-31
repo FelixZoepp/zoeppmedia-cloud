@@ -11,7 +11,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { findeStelle } from '@/lib/indeed/mail-eingang';
-import { alarmAnAdmins } from '@/lib/ops/alarm';
+import { findeBelege } from '@/lib/zuordnung/belege';
+import { faelligeEintraege, legeAufPruefstand, meldeNeueOffene, schliessePruefstand } from '@/lib/zuordnung/pruefstand';
 
 const BASE = 'https://api.manatal.com/open/v3';
 const CURSOR_KEY = 'manatal_cursor';
@@ -209,15 +210,19 @@ export function pruefeZuordnung(d: ZuordnungsDaten): string[] {
   return fehler;
 }
 
+/** Alte Klärliste (vor dem Prüfstand) – wird beim ersten Lauf auf den Prüfstand übertragen */
 const KLAERFAELLE_KEY = 'manatal_klaerfaelle';
-/** Offener Fall: wartet auf Kontaktdaten (warten) oder ist gesperrt bis zur Klärung. Wird regelmäßig erneut geprüft. */
-interface Klaerfall { match: number; grund: string; seit: string; warten?: boolean }
+const LETZTER_LAUF_KEY = 'manatal_letzter_lauf';
 
 /** Manatal-Firmen, die bewusst nie in die Zoepp Cloud kommen (B&C läuft über die eigene B&C-Cloud) */
 export const IGNORIERTE_ORGANISATIONEN = new Set([8236648]);
 const ZEITBUDGET_MS = 25_000;
+/** So lange wartet ein Manatal-Bewerber auf den Indeed-Beleg aus dem Konto des Kunden, bevor er zur Entscheidung kommt */
+export const BELEG_WARTEZEIT_MIN = 180;
 
-type MatchErgebnis = { art: 'neu' | 'schon' | 'warten' } | { art: 'klaerfall'; grund: string };
+type MatchErgebnis =
+  | { art: 'neu' | 'schon'; agencyId: string; candidateId: string | null }
+  | { art: 'pruefstand'; status: 'wartet' | 'offen'; gruende: string[]; agencyId: string | null; name: string | null; naechsterMin: number };
 
 interface Caches {
   zuordnung: Record<string, string>;
@@ -226,20 +231,31 @@ interface Caches {
   kunden: Map<string, { id: string; name: string | null; contact_name: string | null; settings: Record<string, unknown> | null } | null>;
 }
 
-/** Einen Manatal-Match prüfen und übernehmen. Wirft bei API-/DB-Fehlern (→ später erneut). */
-async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, jetzt: Date): Promise<MatchErgebnis> {
-  const agencyId = c.zuordnung[String(m.organization)];
+/** Bewerbung jünger als die Wartezeit? (rein, testbar) */
+export function nochJung(erstellt: string, jetzt: Date, minuten: number): boolean {
+  return jetzt.getTime() - Date.parse(erstellt) < minuten * 60_000;
+}
+
+/**
+ * Einen Manatal-Match prüfen und – nur wenn alles belegt ist – übernehmen. Wirft bei API-/DB-Fehlern (→ später erneut).
+ * freigabe: Admin hat den Kunden auf dem Prüfstand bestätigt → Kunde aus der Freigabe, kein Beleg nötig (Stelle muss trotzdem zum Kunden gehören).
+ */
+async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, jetzt: Date, freigabe?: { agencyId: string; von: string }): Promise<MatchErgebnis> {
+  const agencyId = freigabe?.agencyId ?? c.zuordnung[String(m.organization)] ?? null;
   if (agencyId) {
-    const { count: schon } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', `manatal:${m.id}`);
-    if (schon) return { art: 'schon' };
+    const { data: schon } = await svc.from('applications').select('candidate_id').eq('agency_id', agencyId).eq('source_ref', `manatal:${m.id}`).limit(1).maybeSingle();
+    if (schon) return { art: 'schon', agencyId, candidateId: (schon as { candidate_id: string }).candidate_id };
   }
   const k = await manatal<ManatalKandidat>(`/candidates/${m.candidate}/`);
   if (!c.jobs.has(m.job)) c.jobs.set(m.job, await manatal<ManatalJob>(`/jobs/${m.job}/`));
   const job = c.jobs.get(m.job)!;
+  const name = (k.full_name ?? '').trim() || null;
+  const ps = (status: 'wartet' | 'offen', grund: string, naechsterMin: number): MatchErgebnis => ({ art: 'pruefstand', status, gruende: [grund], agencyId, name, naechsterMin });
+
   const telefon = manatalTelefon(k.phone_number);
   // Manatal liest Telefon/E-Mail erst 1–2 Minuten nach der Bewerbung aus dem Lebenslauf → warten statt überspringen
   if (!telefon && !k.email) {
-    return aufKontaktWarten(m.created_at, jetzt) ? { art: 'warten' } : { art: 'klaerfall', grund: `Weder Telefon noch E-Mail nach ${KONTAKT_WARTEZEIT_MIN} Minuten` };
+    return aufKontaktWarten(m.created_at, jetzt) ? ps('wartet', 'Wartet auf Telefon/E-Mail aus Manatal', 1) : ps('offen', 'Weder Telefon noch E-Mail – in Indeed nachsehen', 60);
   }
   if (!c.orgs.has(m.organization)) c.orgs.set(m.organization, (await manatal<{ name: string | null }>(`/organizations/${m.organization}/`)).name ?? null);
   if (agencyId && !c.kunden.has(agencyId)) {
@@ -247,26 +263,51 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
     c.kunden.set(agencyId, (data as never) ?? null);
   }
   const kunde = agencyId ? c.kunden.get(agencyId) ?? null : null;
-  const stelle = agencyId ? await findeStelle(svc, agencyId, job.position_name) : null;
-  if (agencyId && !stelle) return { art: 'klaerfall', grund: `Keine aktive Stelle beim Kunden für „${job.position_name ?? 'ohne Titel'}“` };
-  const { data: stelleRow } = stelle ? await svc.from('jobs').select('agency_id').eq('id', stelle.id).maybeSingle() : { data: null };
-  const fehler = pruefeZuordnung({
-    matchOrganisation: m.organization,
-    agencyId,
-    jobOrganisation: job.organization,
-    orgName: c.orgs.get(m.organization),
-    kunde: kunde ? { id: kunde.id, name: kunde.name, contact_name: kunde.contact_name } : null,
-    stelleAgencyId: (stelleRow as { agency_id: string } | null)?.agency_id,
-  });
-  if (fehler.length) return { art: 'klaerfall', grund: fehler.join('; ') };
+  if (!agencyId) return ps('offen', `Manatal-Firma „${c.orgs.get(m.organization) ?? m.organization}“ ist keinem Kunden zugeordnet`, 10);
+  const stelle = await findeStelle(svc, agencyId, job.position_name);
+  if (!stelle) return ps('offen', `Keine aktive Stelle beim Kunden für „${job.position_name ?? 'ohne Titel'}“`, 10);
+  const { data: stelleRow } = await svc.from('jobs').select('agency_id').eq('id', stelle.id).maybeSingle();
+  const stelleAgencyId = (stelleRow as { agency_id: string } | null)?.agency_id;
+
+  const pruefungen: string[] = [];
+  if (freigabe) {
+    if (stelleAgencyId !== agencyId) return ps('offen', 'Cloud-Stelle gehört nicht zu diesem Kunden', 10);
+    pruefungen.push('Stelle gehört zum Kunden', `Freigabe durch Admin`);
+  } else {
+    // Boden 1: vier Prüfungen gegen die feste Zuordnung
+    const fehler = pruefeZuordnung({
+      matchOrganisation: m.organization,
+      agencyId,
+      jobOrganisation: job.organization,
+      orgName: c.orgs.get(m.organization),
+      kunde: kunde ? { id: kunde.id, name: kunde.name, contact_name: kunde.contact_name } : null,
+      stelleAgencyId,
+    });
+    if (fehler.length) return { art: 'pruefstand', status: 'offen', gruende: fehler, agencyId, name, naechsterMin: 10 };
+    pruefungen.push('Zuordnung Firma → Kunde', 'Manatal-Stelle gehört zur Firma', 'Firmenname passt', 'Stelle gehört zum Kunden');
+
+    // Boden 2: Beleg aus dem Indeed-Konto genau dieses Kunden
+    const belege = await findeBelege(svc, { name, email: k.email, phone: telefon }, new Date(m.created_at));
+    const eigene = belege.filter((b) => b.agency_id === agencyId);
+    const fremde = [...new Set(belege.filter((b) => b.agency_id !== agencyId).map((b) => b.agency_id))];
+    if (!eigene.length && fremde.length) {
+      const { data: andere } = await svc.from('agencies').select('name').in('id', fremde);
+      return ps('offen', `Indeed-Beleg kommt aus dem Konto von ${((andere ?? []) as Array<{ name: string }>).map((x) => x.name).join(', ')} – nicht von ${kunde?.name ?? 'diesem Kunden'}`, 30);
+    }
+    if (!eigene.length) {
+      return nochJung(m.created_at, jetzt, BELEG_WARTEZEIT_MIN)
+        ? ps('wartet', 'Wartet auf den Indeed-Beleg aus dem Konto des Kunden', 5)
+        : ps('offen', `Kein Indeed-Beleg aus dem Konto von ${kunde?.name ?? 'diesem Kunden'} – Weiterleitung prüfen oder von Hand freigeben`, 30);
+    }
+    pruefungen.push(`Indeed-Beleg aus dem Konto des Kunden (${eigene[0].empfangen_am.slice(0, 16)})`);
+  }
 
   const hinweis = (kunde?.settings ?? {}).indeed_whatsapp_hinweis !== false;
-  const name = (k.full_name ?? '').trim();
   const r = await ingestApplication(svc, {
-    agencyId: agencyId!,
-    jobId: stelle!.id,
-    firstName: name.split(' ')[0] || 'Bewerber',
-    lastName: name.split(' ').slice(1).join(' ') || null,
+    agencyId,
+    jobId: stelle.id,
+    firstName: (name ?? '').split(' ')[0] || 'Bewerber',
+    lastName: (name ?? '').split(' ').slice(1).join(' ') || null,
     phone: telefon,
     email: k.email,
     source: manatalQuelle(k),
@@ -274,19 +315,38 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
     campaign: { stellentitel: job.position_name, manatal_job_id: m.job, manatal_kandidat_id: m.candidate, manatal_organisation: m.organization },
     consentWhatsapp: hinweis,
     consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
-    resume: await speichereLebenslauf(svc, agencyId!, k),
+    resume: await speichereLebenslauf(svc, agencyId, k),
+    nachweis: { quelle: 'manatal', match: m.id, pruefungen, freigabe_von: freigabe?.von ?? null, zeit: jetzt.toISOString() },
   });
-  if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId!);
-  return { art: 'neu' };
+  if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId);
+  return { art: 'neu', agencyId, candidateId: r.candidateId };
 }
 
-async function meldeKlaerfaelle(svc: SupabaseClient, neu: Array<Klaerfall & { firma: string }>): Promise<void> {
-  if (!neu.length) return;
-  const liste = neu.slice(0, 8).map((f) => `Match ${f.match} (${f.firma}): ${f.grund}`).join(' | ');
-  await alarmAnAdmins(svc, {
-    titel: `⛔ ${neu.length} Manatal-Bewerber NICHT weitergegeben (${neu.map((f) => f.match).join(',').slice(0, 60)})`,
-    text: `${liste}${neu.length > 8 ? ` | … und ${neu.length - 8} weitere` : ''}. Sie bleiben auf der Klärliste und werden alle 10 Minuten erneut geprüft.`,
+async function leereCaches(svc: SupabaseClient): Promise<Caches> {
+  return { zuordnung: await ladeZuordnung(svc), jobs: new Map(), orgs: new Map(), kunden: new Map() };
+}
+
+async function aufPruefstand(svc: SupabaseClient, m: ManatalMatch, r: Extract<MatchErgebnis, { art: 'pruefstand' }>): Promise<void> {
+  await legeAufPruefstand(svc, {
+    quelle: 'manatal',
+    externeRef: `manatal:${m.id}`,
+    agencyVorschlag: r.agencyId,
+    name: r.name,
+    daten: { match: m.id, organisation: m.organization, job: m.job, kandidat: m.candidate, beworben_am: m.created_at },
+    gruende: r.gruende,
+    status: r.status,
+    naechsterVersuchInMin: r.naechsterMin,
   });
+}
+
+/** Admin-Freigabe vom Prüfstand: Manatal-Bewerber an den gewählten Kunden übernehmen */
+export async function uebernehmeManatalMatch(svc: SupabaseClient, matchId: number, agencyId: string, von: string): Promise<{ ok: true; candidateId: string | null } | { ok: false; grund: string }> {
+  const c = await leereCaches(svc);
+  const m = await manatal<ManatalMatch>(`/matches/${matchId}/`);
+  const r = await verarbeiteMatch(svc, m, c, new Date(), { agencyId, von });
+  if (r.art === 'pruefstand') return { ok: false, grund: r.gruende.join('; ') };
+  await schliessePruefstand(svc, `manatal:${matchId}`, { agencyId, candidateId: r.candidateId, von });
+  return { ok: true, candidateId: r.candidateId };
 }
 
 /** Neue Manatal-Bewerber abholen (läuft im Minuten-Tick, wenn MANATAL_API_TOKEN gesetzt ist) */
@@ -301,44 +361,31 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
     await speichereJson(svc, CURSOR_KEY, { seit: jetzt.toISOString(), erledigt: [] });
     return ergebnis;
   }
+  const c = await leereCaches(svc);
 
-  const c: Caches = { zuordnung: await ladeZuordnung(svc), jobs: new Map(), orgs: new Map(), kunden: new Map() };
-  const klaer = (await ladeJson<Klaerfall[]>(svc, KLAERFAELLE_KEY)) ?? [];
-  let klaerGeaendert = false;
-  const neueKlaer: Array<Klaerfall & { firma: string }> = [];
-  const merke = (m: ManatalMatch, r: MatchErgebnis) => {
-    const warten = r.art === 'warten';
-    const grund = r.art === 'klaerfall' ? r.grund : 'Wartet auf Telefon/E-Mail aus Manatal';
-    const alt = klaer.find((f) => f.match === m.id);
-    if (alt) {
-      // Aus „wartet“ wird ein echter Klärfall → jetzt melden
-      if (alt.warten && !warten) {
-        Object.assign(alt, { warten: false, grund });
-        klaerGeaendert = true;
-        neueKlaer.push({ ...alt, firma: c.orgs.get(m.organization) ?? String(m.organization) });
-      }
-      return;
+  // Alte Klärliste einmalig auf den Prüfstand übertragen
+  const alt = (await ladeJson<Array<{ match: number; grund: string }>>(svc, KLAERFAELLE_KEY)) ?? [];
+  if (alt.length) {
+    for (const f of alt) {
+      await legeAufPruefstand(svc, { quelle: 'manatal', externeRef: `manatal:${f.match}`, agencyVorschlag: null, name: null, daten: { match: f.match }, gruende: [f.grund], status: 'wartet', naechsterVersuchInMin: 0 });
     }
-    const f: Klaerfall = { match: m.id, grund, seit: jetzt.toISOString(), warten };
-    klaer.push(f);
-    klaerGeaendert = true;
-    if (!warten) neueKlaer.push({ ...f, firma: c.orgs.get(m.organization) ?? String(m.organization) });
-  };
+    await speichereJson(svc, KLAERFAELLE_KEY, []);
+  }
 
-  // Offene Fälle erneut prüfen: wartende jede Minute, gesperrte alle 10 Minuten (z. B. nach neuer Zuordnung/Stelle)
-  const alleZehn = jetzt.getUTCMinutes() % 10 === 7;
-  for (const f of klaer.filter((x) => x.warten || alleZehn).slice(0, 15)) {
+  // Prüfstand: fällige Einträge erneut prüfen (z. B. Beleg inzwischen da, Zuordnung/Stelle angelegt)
+  for (const f of await faelligeEintraege(svc, 'manatal', 15)) {
     if (Date.now() > ende) break;
+    const matchId = Number(f.externe_ref.replace('manatal:', ''));
     try {
-      const m = await manatal<ManatalMatch>(`/matches/${f.match}/`);
+      const m = await manatal<ManatalMatch>(`/matches/${matchId}/`);
       const r = await verarbeiteMatch(svc, m, c, jetzt);
-      if (r.art === 'neu' || r.art === 'schon') {
-        klaer.splice(klaer.findIndex((x) => x.match === f.match), 1);
-        klaerGeaendert = true;
+      if (r.art === 'pruefstand') await aufPruefstand(svc, m, r);
+      else {
+        await schliessePruefstand(svc, f.externe_ref, { agencyId: r.agencyId, candidateId: r.candidateId });
         if (r.art === 'neu') ergebnis.neu++;
-      } else merke(m, r);
+      }
     } catch (err) {
-      console.error('[manatal] Offener Fall nicht geprüft:', f.match, err);
+      console.error('[manatal] Prüfstand-Eintrag nicht geprüft:', f.externe_ref, err);
       break;
     }
   }
@@ -360,15 +407,13 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
     else if (m.created_at === neu.seit) neu.erledigt.add(m.id);
   };
   const sichern = async () => {
-    if (klaerGeaendert) await speichereJson(svc, KLAERFAELLE_KEY, klaer);
-    klaerGeaendert = false;
     if (neu.seit !== stand0.seit || neu.erledigt.size !== stand0.erledigt.size) await speichereJson(svc, CURSOR_KEY, { seit: neu.seit, erledigt: [...neu.erledigt] });
   };
 
   let verarbeitet = 0;
   for (const m of offeneMatches(matches, stand0)) {
     if (Date.now() > ende) break;
-    // Nur bewusst ausgeschlossene Firmen (B&C) still überspringen – alles andere ohne Zuordnung wird ein Klärfall mit Alarm
+    // Nur bewusst ausgeschlossene Firmen (B&C) still überspringen – alles andere ohne Zuordnung kommt auf den Prüfstand
     if (IGNORIERTE_ORGANISATIONEN.has(m.organization) || GESPERRTE_KUNDEN.has(c.zuordnung[String(m.organization)] ?? '')) {
       ergebnis.ignoriert++;
       abhaken(m);
@@ -377,10 +422,10 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
     try {
       const r = await verarbeiteMatch(svc, m, c, jetzt);
       if (r.art === 'neu') ergebnis.neu++;
-      // Wartende und gesperrte Bewerber kommen auf die Liste offener Fälle – der Stand läuft für alle anderen Kunden weiter
-      if (r.art === 'warten' || r.art === 'klaerfall') {
-        if (r.art === 'klaerfall') ergebnis.fehler++;
-        merke(m, r);
+      // Nicht doppelt belegt → Prüfstand; der Stand läuft für alle anderen Kunden weiter
+      if (r.art === 'pruefstand') {
+        if (r.status === 'offen') ergebnis.fehler++;
+        await aufPruefstand(svc, m, r);
       }
     } catch (err) {
       // Stand nicht über diesen Bewerber hinaus schieben → nächster Tick versucht es erneut
@@ -394,7 +439,8 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
   }
 
   await sichern();
-  await meldeKlaerfaelle(svc, neueKlaer);
+  await meldeNeueOffene(svc);
+  await speichereJson(svc, LETZTER_LAUF_KEY, { zeit: jetzt.toISOString(), ...ergebnis });
   return ergebnis;
 }
 

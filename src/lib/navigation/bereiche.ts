@@ -29,6 +29,7 @@ export const ADMIN_BEREICHE: Bereich[] = [
       { label: 'Kunden-Übersicht', href: '/admin/recruiting' },
       { label: 'Innendienst', href: '/innendienst' },
       { label: 'Bewerber-Anbindung', href: '/admin/anbindung' },
+      { label: 'Prüfstand', href: '/admin/pruefstand' },
     ],
   },
   {

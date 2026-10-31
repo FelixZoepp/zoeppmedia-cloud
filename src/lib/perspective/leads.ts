@@ -26,6 +26,8 @@ export interface FunnelLead {
   angaben?: Record<string, string> | null;
   /** UTM aus dem Funnel (utm_campaign = Meta-Kampagnen-ID, utm_term = Anzeigengruppe) */
   utm?: Utm | null;
+  /** Woraus die Zuordnung zum Kunden belegt ist (wird an der Bewerbung gespeichert) */
+  nachweis?: Record<string, unknown> | null;
 }
 
 export type LeadErgebnis =
@@ -120,6 +122,7 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       source: 'meta',
       source_ref: lead.externeId ? `perspective:${lead.externeId}` : null,
       campaign: lead.funnelName || lead.utm ? { ...(lead.funnelName ? { funnel: lead.funnelName } : {}), ...(lead.utm ? { utm: lead.utm } : {}) } : null,
+      zuordnung_nachweis: lead.nachweis ?? null,
       ...(lead.eingegangenAm ? { applied_at: lead.eingegangenAm } : {}),
     });
     if (appErr) console.error('[perspective] Bewerbung nicht angelegt:', appErr.message);
