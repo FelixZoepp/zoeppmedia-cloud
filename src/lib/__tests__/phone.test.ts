@@ -21,3 +21,13 @@ describe('normalizePhoneE164', () => {
     expect(normalizePhoneE164('123')).toBeNull(); // zu kurz
   });
 });
+
+describe('normalizePhoneE164: Indeed-/Manatal-Formate', () => {
+  it('erkennt 49… ohne Plus und entfernt die 0 nach der Ländervorwahl', () => {
+    expect(normalizePhoneE164('4915112345678')).toBe('+4915112345678');
+    expect(normalizePhoneE164('49015563683589')).toBe('+4915563683589');
+    expect(normalizePhoneE164('+49 (0)151 1234 5678')).toBe('+4915112345678');
+    expect(normalizePhoneE164('+49015563683589')).toBe('+4915563683589');
+    expect(normalizePhoneE164('0151 1234 5678')).toBe('+4915112345678');
+  });
+});
