@@ -49,12 +49,20 @@ export function belegPasst(b: Pick<Beleg, 'name_norm' | 'email' | 'phone_e164'>,
 export async function findeBelege(svc: SupabaseClient, p: Person, um: Date): Promise<Beleg[]> {
   const von = new Date(um.getTime() - 3 * 864e5).toISOString();
   const bis = new Date(um.getTime() + 3 * 864e5).toISOString();
+  const tel = normalizePhoneE164(p.phone);
+  const mail = p.email?.trim().toLowerCase();
+  const n = nameNorm(p.name);
+  // Werte in Anführungszeichen (Namen enthalten Leerzeichen); Zeichen, die den Filter brechen, entfernen
+  const q = (v: string) => `"${v.replace(/["\\,()]/g, '')}"`;
+  const filter = [tel ? `phone_e164.eq.${q(tel)}` : null, mail ? `email.eq.${q(mail)}` : null, n && n.includes(' ') ? `name_norm.eq.${q(n)}` : null].filter(Boolean) as string[];
+  if (!filter.length) return [];
   const { data, error } = await svc
     .from('indeed_belege')
     .select('id, agency_id, name_norm, email, phone_e164, empfangen_am')
     .gte('empfangen_am', von)
     .lte('empfangen_am', bis)
-    .limit(2000);
+    .or(filter.join(','))
+    .limit(200);
   if (error) throw new Error(`Indeed-Belege nicht lesbar: ${error.message}`);
   return ((data ?? []) as Beleg[]).filter((b) => belegPasst(b, p));
 }

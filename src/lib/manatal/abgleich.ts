@@ -322,6 +322,8 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
     consentWhatsapp: hinweis,
     consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
     resume: await speichereLebenslauf(svc, agencyId, k),
+    // Freigabe vom Prüfstand kommt oft Stunden/Tage später → nichts automatisch verschicken
+    ohneAutomatik: !!freigabe,
     nachweis: { quelle: 'manatal', match: m.id, pruefungen, freigabe_von: freigabe?.von ?? null, zeit: jetzt.toISOString() },
   });
   if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId);
@@ -331,7 +333,8 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
 /** Ist die Person beim Kunden schon über einen eigenen Indeed-Weg (Mail/Export, nicht Manatal) angelegt? */
 async function indeedBestandBeimKunden(svc: SupabaseClient, agencyId: string, p: { email: string | null; phone: string | null }): Promise<string | null> {
   const tel = normalizePhoneE164(p.phone);
-  const filter = [tel ? `phone_e164.eq.${tel}` : null, p.email ? `email.ilike.${ilikeExakt(p.email.trim())}` : null].filter(Boolean).join(',');
+  const q = (v: string) => `"${v.replace(/["\\,()]/g, '')}"`;
+  const filter = [tel ? `phone_e164.eq.${q(tel)}` : null, p.email ? `email.ilike.${q(ilikeExakt(p.email.trim()))}` : null].filter(Boolean).join(',');
   if (!filter) return null;
   const { data: kandidaten } = await svc.from('candidates').select('id').eq('agency_id', agencyId).is('deleted_at', null).or(filter).limit(5);
   const ids = ((kandidaten ?? []) as Array<{ id: string }>).map((x) => x.id);
@@ -406,8 +409,20 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
         if (r.art === 'neu') ergebnis.neu++;
       }
     } catch (err) {
+      // Einzelner Fehler (z. B. Kandidat in Manatal gelöscht) darf nichts blockieren: später erneut, nach 10 Versuchen zur Entscheidung
       console.error('[manatal] Prüfstand-Eintrag nicht geprüft:', f.externe_ref, err);
-      break;
+      ergebnis.fehler++;
+      const grund = `Abruf-Fehler: ${err instanceof Error ? err.message.slice(0, 160) : String(err)}`;
+      await legeAufPruefstand(svc, {
+        quelle: 'manatal',
+        externeRef: f.externe_ref,
+        agencyVorschlag: f.agency_vorschlag,
+        name: f.name,
+        daten: f.daten,
+        gruende: [grund],
+        status: f.versuche >= 10 || f.status === 'offen' ? 'offen' : 'wartet',
+        naechsterVersuchInMin: Math.min(120, 2 ** Math.min(f.versuche, 7)),
+      });
     }
   }
 
@@ -449,10 +464,24 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
         await aufPruefstand(svc, m, r);
       }
     } catch (err) {
-      // Stand nicht über diesen Bewerber hinaus schieben → nächster Tick versucht es erneut
+      // Bewerber auf den Prüfstand (wird dort wiederholt) – der Stand läuft für alle anderen weiter.
+      // Klappt nicht einmal das (Datenbank weg), Stand NICHT verschieben → nächster Tick versucht es erneut.
       console.error('[manatal] Bewerber nicht übernommen:', err);
       ergebnis.fehler++;
-      break;
+      try {
+        await legeAufPruefstand(svc, {
+          quelle: 'manatal',
+          externeRef: `manatal:${m.id}`,
+          agencyVorschlag: c.zuordnung[String(m.organization)] ?? null,
+          name: null,
+          daten: { match: m.id, organisation: m.organization, job: m.job, kandidat: m.candidate, beworben_am: m.created_at },
+          gruende: [`Abruf-Fehler: ${err instanceof Error ? err.message.slice(0, 160) : String(err)}`],
+          status: 'wartet',
+          naechsterVersuchInMin: 2,
+        });
+      } catch {
+        break;
+      }
     }
     abhaken(m);
     // Stand laufend sichern: bricht ein langer Lauf ab, geht der Fortschritt nicht verloren

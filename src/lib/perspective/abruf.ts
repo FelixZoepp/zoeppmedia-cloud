@@ -56,12 +56,21 @@ export async function holePerspectiveBewerber(svc: SupabaseClient, jetzt: Date =
     return ergebnis;
   }
 
-  const { data: funnels, error } = await svc.from('perspective_funnels').select('agency_id, perspective_funnel_id, funnel_name').not('funnel_name', 'is', null);
+  // Am längsten nicht abgefragte Funnels zuerst – reicht die Zeit nicht, kommen die übrigen im nächsten Lauf dran
+  const { data: funnels, error } = await svc
+    .from('perspective_funnels')
+    .select('id, agency_id, perspective_funnel_id, funnel_name')
+    .not('funnel_name', 'is', null)
+    .order('letzter_abgleich', { ascending: true, nullsFirst: true });
   if (error) throw new Error(`Funnel-Zuordnung nicht lesbar: ${error.message}`);
   const ende = Date.now() + Math.min(budgetMs, ZEITBUDGET_MS);
 
-  for (const f of (funnels ?? []) as Array<{ agency_id: string; perspective_funnel_id: string; funnel_name: string }>) {
-    if (Date.now() > ende) break;
+  const liste = (funnels ?? []) as Array<{ id: string; agency_id: string; perspective_funnel_id: string; funnel_name: string }>;
+  for (const f of liste) {
+    if (Date.now() > ende) {
+      ergebnis.fehler.push(`${liste.length - ergebnis.funnels} Funnels aus Zeitgründen erst im nächsten Lauf`);
+      break;
+    }
     ergebnis.funnels++;
     try {
       const antwort = await mcp.tool('list_contacts', { funnelId: f.perspective_funnel_id, limit: 50, page: 0, sortField: 'ps_converted_at', sortOrder: '-1' });
@@ -70,6 +79,9 @@ export async function holePerspectiveBewerber(svc: SupabaseClient, jetzt: Date =
       const refs = kontakte.map((k) => `perspective:${k.id}`);
       const { data: schon } = await svc.from('candidates').select('externe_id').eq('agency_id', f.agency_id).in('externe_id', refs);
       const vorhanden = new Set(((schon ?? []) as Array<{ externe_id: string }>).map((x) => x.externe_id));
+      // Liegt der Bewerber auf dem Prüfstand (Webhook-Kunde ≠ Funnel-Zuordnung), entscheidet nur der Admin – nicht der Abruf
+      const { data: gesperrt } = await svc.from('bewerber_pruefstand').select('externe_ref').in('externe_ref', refs).in('status', ['offen', 'verworfen']);
+      for (const g of (gesperrt ?? []) as Array<{ externe_ref: string }>) vorhanden.add(g.externe_ref);
       for (const k of kontakte) {
         if (vorhanden.has(`perspective:${k.id}`)) continue;
         const name = [k.firstName, k.lastName].filter(Boolean).join(' ').trim() || null;
@@ -91,6 +103,7 @@ export async function holePerspectiveBewerber(svc: SupabaseClient, jetzt: Date =
     } catch (err) {
       ergebnis.fehler.push(`${f.funnel_name}: ${err instanceof Error ? err.message : String(err)}`);
     }
+    await svc.from('perspective_funnels').update({ letzter_abgleich: jetzt.toISOString() }).eq('id', f.id);
   }
   await speichere(svc, { zeit: jetzt.toISOString(), ...ergebnis });
   return ergebnis;

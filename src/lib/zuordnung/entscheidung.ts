@@ -14,6 +14,25 @@ export async function gibFrei(svc: SupabaseClient, e: PruefstandEintrag, agencyI
   if (e.status === 'freigegeben' || e.status === 'verworfen') return { ok: false, grund: 'Schon entschieden' };
   const { data: kunde } = await svc.from('agencies').select('id').eq('id', agencyId).maybeSingle();
   if (!kunde) return { ok: false, grund: 'Kunde nicht gefunden' };
+  // Atomar beanspruchen: nur eine Freigabe gewinnt (gleichzeitige Einzel-/Sammelfreigabe → keine Dubletten)
+  const { data: belegt } = await svc
+    .from('bewerber_pruefstand')
+    .update({ status: 'freigegeben', ergebnis_agency_id: agencyId, entschieden_von: von, entschieden_am: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', e.id)
+    .in('status', ['wartet', 'offen'])
+    .select('id');
+  if (!((belegt ?? []) as unknown[]).length) return { ok: false, grund: 'Schon entschieden' };
+  const r = await uebernimm(svc, e, agencyId, von);
+  if (!r.ok) {
+    // Zurück auf „offen“, damit der Fall nicht verloren geht
+    await svc.from('bewerber_pruefstand').update({ status: 'offen', ergebnis_agency_id: null, entschieden_von: null, entschieden_am: null, gruende: [r.grund] }).eq('id', e.id);
+  } else {
+    await svc.from('bewerber_pruefstand').update({ ergebnis_candidate_id: r.candidateId }).eq('id', e.id);
+  }
+  return r;
+}
+
+async function uebernimm(svc: SupabaseClient, e: PruefstandEintrag, agencyId: string, von: string): Promise<Entscheidung> {
 
   if (e.quelle === 'manatal') {
     const matchId = Number(e.externe_ref.replace('manatal:', ''));

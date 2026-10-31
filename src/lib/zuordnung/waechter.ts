@@ -57,7 +57,11 @@ export async function pruefeZuordnungsWaechter(svc: SupabaseClient, jetzt: Date 
   const manatal = await lies(svc, 'manatal_letzter_lauf');
   const perspective = (await lies(svc, 'perspective_abruf_letzter_lauf')) as { zeit?: string; verbunden?: boolean; fehler?: string[] } | null;
   const zweiStunden = new Date(jetzt.getTime() - 2 * 3600_000).toISOString();
-  const { count: offen } = await svc.from('bewerber_pruefstand').select('id', { count: 'exact', head: true }).eq('status', 'offen').lte('created_at', zweiStunden);
+  const vierStunden = new Date(jetzt.getTime() - 4 * 3600_000).toISOString();
+  const [{ count: offen }, { count: haengt }] = await Promise.all([
+    svc.from('bewerber_pruefstand').select('id', { count: 'exact', head: true }).eq('status', 'offen').lte('created_at', zweiStunden),
+    svc.from('bewerber_pruefstand').select('id', { count: 'exact', head: true }).eq('status', 'wartet').lte('created_at', vierStunden),
+  ]);
 
   // Kunden mit Manatal-Bewerbern in den letzten 7 Tagen, aber ohne Indeed-Beleg
   const sieben = new Date(jetzt.getTime() - 7 * 864e5).toISOString();
@@ -77,7 +81,7 @@ export async function pruefeZuordnungsWaechter(svc: SupabaseClient, jetzt: Date 
     manatalLauf: (manatal?.zeit as string | undefined) ?? null,
     manatalAktiv: !!process.env.MANATAL_API_TOKEN,
     perspective,
-    offenAelterAls2h: offen ?? 0,
+    offenAelterAls2h: (offen ?? 0) + (haengt ?? 0),
     ohneBelege: ohne,
   });
   for (const b of liste) await alarmAnAdmins(svc, { titel: b.titel, text: b.text, link: '/admin/pruefstand' });
