@@ -12,6 +12,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { findeStelle } from '@/lib/indeed/mail-eingang';
 import { findeBelege } from '@/lib/zuordnung/belege';
+import { normalizePhoneE164 } from '@/lib/phone';
+import { ilikeExakt } from '@/lib/candidates/find-duplicate';
 import { faelligeEintraege, legeAufPruefstand, meldeNeueOffene, schliessePruefstand } from '@/lib/zuordnung/pruefstand';
 
 const BASE = 'https://api.manatal.com/open/v3';
@@ -294,12 +296,16 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
       const { data: andere } = await svc.from('agencies').select('name').in('id', fremde);
       return ps('offen', `Indeed-Beleg kommt aus dem Konto von ${((andere ?? []) as Array<{ name: string }>).map((x) => x.name).join(', ')} – nicht von ${kunde?.name ?? 'diesem Kunden'}`, 30);
     }
-    if (!eigene.length) {
+    // Gleichwertiger Beleg: Die Person ist bei genau diesem Kunden schon über einen eigenen Indeed-Weg da
+    // (Mail-Weiterleitung oder Export aus seinem Indeed-Konto), nicht über Manatal
+    const bestehend = !eigene.length && !fremde.length ? await indeedBestandBeimKunden(svc, agencyId, { email: k.email, phone: telefon }) : null;
+    if (bestehend) pruefungen.push(`Bewerber schon über ${bestehend} aus dem Indeed-Konto des Kunden da`);
+    else if (!eigene.length) {
       return nochJung(m.created_at, jetzt, BELEG_WARTEZEIT_MIN)
         ? ps('wartet', 'Wartet auf den Indeed-Beleg aus dem Konto des Kunden', 5)
         : ps('offen', `Kein Indeed-Beleg aus dem Konto von ${kunde?.name ?? 'diesem Kunden'} – Weiterleitung prüfen oder von Hand freigeben`, 30);
     }
-    pruefungen.push(`Indeed-Beleg aus dem Konto des Kunden (${eigene[0].empfangen_am.slice(0, 16)})`);
+    if (eigene.length) pruefungen.push(`Indeed-Beleg aus dem Konto des Kunden (${eigene[0].empfangen_am.slice(0, 16)})`);
   }
 
   const hinweis = (kunde?.settings ?? {}).indeed_whatsapp_hinweis !== false;
@@ -320,6 +326,21 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
   });
   if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId);
   return { art: 'neu', agencyId, candidateId: r.candidateId };
+}
+
+/** Ist die Person beim Kunden schon über einen eigenen Indeed-Weg (Mail/Export, nicht Manatal) angelegt? */
+async function indeedBestandBeimKunden(svc: SupabaseClient, agencyId: string, p: { email: string | null; phone: string | null }): Promise<string | null> {
+  const tel = normalizePhoneE164(p.phone);
+  const filter = [tel ? `phone_e164.eq.${tel}` : null, p.email ? `email.ilike.${ilikeExakt(p.email.trim())}` : null].filter(Boolean).join(',');
+  if (!filter) return null;
+  const { data: kandidaten } = await svc.from('candidates').select('id').eq('agency_id', agencyId).is('deleted_at', null).or(filter).limit(5);
+  const ids = ((kandidaten ?? []) as Array<{ id: string }>).map((x) => x.id);
+  if (!ids.length) return null;
+  const { data: apps } = await svc.from('applications').select('source_ref').eq('agency_id', agencyId).in('candidate_id', ids);
+  const refs = ((apps ?? []) as Array<{ source_ref: string | null }>).map((a) => a.source_ref ?? '');
+  if (refs.some((r) => r.startsWith('indeed-export:'))) return 'den Indeed-Export';
+  if (refs.some((r) => r.startsWith('indeed-mail:') || r.startsWith('resend:') || r.startsWith('mail:'))) return 'die Indeed-Mail';
+  return null;
 }
 
 async function leereCaches(svc: SupabaseClient): Promise<Caches> {
