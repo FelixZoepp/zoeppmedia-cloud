@@ -1,7 +1,6 @@
 /**
  * Zuordnungs-Wächter (alle 15 Minuten im Tick): meldet, sobald ein Bewerber-Abruf hängt, Perspective nicht
- * verbunden ist, Bewerber zu lange auf dem Prüfstand liegen oder ein Kunde keine Indeed-Belege schickt
- * (Weiterleitung fehlt → seine Manatal-Bewerber können nicht doppelt belegt werden).
+ * verbunden ist oder Bewerber zu lange auf dem Prüfstand liegen.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -63,26 +62,13 @@ export async function pruefeZuordnungsWaechter(svc: SupabaseClient, jetzt: Date 
     svc.from('bewerber_pruefstand').select('id', { count: 'exact', head: true }).eq('status', 'wartet').lte('created_at', vierStunden),
   ]);
 
-  // Kunden mit Manatal-Bewerbern in den letzten 7 Tagen, aber ohne Indeed-Beleg
-  const sieben = new Date(jetzt.getTime() - 7 * 864e5).toISOString();
-  const { data: ps } = await svc.from('bewerber_pruefstand').select('agency_vorschlag').eq('quelle', 'manatal').gte('created_at', sieben).not('agency_vorschlag', 'is', null);
-  const kunden = [...new Set(((ps ?? []) as Array<{ agency_vorschlag: string }>).map((x) => x.agency_vorschlag))];
-  const ohne: string[] = [];
-  for (const id of kunden) {
-    const { count } = await svc.from('indeed_belege').select('id', { count: 'exact', head: true }).eq('agency_id', id).gte('empfangen_am', sieben);
-    if (!count) {
-      const { data: a } = await svc.from('agencies').select('name').eq('id', id).maybeSingle();
-      ohne.push((a as { name: string } | null)?.name ?? id);
-    }
-  }
-
   const liste = befunde({
     jetzt,
     manatalLauf: (manatal?.zeit as string | undefined) ?? null,
     manatalAktiv: !!process.env.MANATAL_API_TOKEN,
     perspective,
     offenAelterAls2h: (offen ?? 0) + (haengt ?? 0),
-    ohneBelege: ohne,
+    ohneBelege: [],
   });
   for (const b of liste) await alarmAnAdmins(svc, { titel: b.titel, text: b.text, link: '/admin/pruefstand' });
   return liste;

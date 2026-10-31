@@ -11,9 +11,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { findeStelle } from '@/lib/indeed/mail-eingang';
-import { findeBelege } from '@/lib/zuordnung/belege';
-import { normalizePhoneE164 } from '@/lib/phone';
-import { ilikeExakt } from '@/lib/candidates/find-duplicate';
 import { faelligeEintraege, legeAufPruefstand, meldeNeueOffene, schliessePruefstand } from '@/lib/zuordnung/pruefstand';
 
 const BASE = 'https://api.manatal.com/open/v3';
@@ -219,8 +216,6 @@ const LETZTER_LAUF_KEY = 'manatal_letzter_lauf';
 /** Manatal-Firmen, die bewusst nie in die Zoepp Cloud kommen (B&C läuft über die eigene B&C-Cloud) */
 export const IGNORIERTE_ORGANISATIONEN = new Set([8236648]);
 const ZEITBUDGET_MS = 25_000;
-/** So lange wartet ein Manatal-Bewerber auf den Indeed-Beleg aus dem Konto des Kunden, bevor er zur Entscheidung kommt */
-export const BELEG_WARTEZEIT_MIN = 180;
 
 type MatchErgebnis =
   | { art: 'neu' | 'schon'; agencyId: string; candidateId: string | null }
@@ -288,24 +283,17 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
     if (fehler.length) return { art: 'pruefstand', status: 'offen', gruende: fehler, agencyId, name, naechsterMin: 10 };
     pruefungen.push('Zuordnung Firma → Kunde', 'Manatal-Stelle gehört zur Firma', 'Firmenname passt', 'Stelle gehört zum Kunden');
 
-    // Boden 2: Beleg aus dem Indeed-Konto genau dieses Kunden
-    const belege = await findeBelege(svc, { name, email: k.email, phone: telefon }, new Date(m.created_at));
-    const eigene = belege.filter((b) => b.agency_id === agencyId);
-    const fremde = [...new Set(belege.filter((b) => b.agency_id !== agencyId).map((b) => b.agency_id))];
-    if (!eigene.length && fremde.length) {
-      const { data: andere } = await svc.from('agencies').select('name').in('id', fremde);
-      return ps('offen', `Indeed-Beleg kommt aus dem Konto von ${((andere ?? []) as Array<{ name: string }>).map((x) => x.name).join(', ')} – nicht von ${kunde?.name ?? 'diesem Kunden'}`, 30);
+    // Boden 2: feste, von einem Admin bestätigte Zuordnung der Manatal-Stellen-ID → genau dieser Kunde
+    const { data: st, error: stFehler } = await svc.from('manatal_stellen').select('agency_id, manatal_organisation').eq('manatal_job_id', m.job).maybeSingle();
+    if (stFehler) throw new Error(`Manatal-Stellen nicht lesbar: ${stFehler.message}`);
+    const stZeile = st as { agency_id: string; manatal_organisation: number | null } | null;
+    if (!stZeile) return ps('offen', `Manatal-Stelle „${job.position_name ?? m.job}“ (ID ${m.job}) ist noch keinem Kunden bestätigt – einmal mit dem Indeed-Konto abgleichen und bestätigen`, 10);
+    if (stZeile.agency_id !== agencyId) {
+      const { data: anderer } = await svc.from('agencies').select('name').eq('id', stZeile.agency_id).maybeSingle();
+      return ps('offen', `Manatal-Stelle ${m.job} ist ${(anderer as { name: string } | null)?.name ?? 'einem anderen Kunden'} bestätigt, die Manatal-Firma aber ${kunde?.name ?? 'diesem Kunden'}`, 30);
     }
-    // Gleichwertiger Beleg: Die Person ist bei genau diesem Kunden schon über einen eigenen Indeed-Weg da
-    // (Mail-Weiterleitung oder Export aus seinem Indeed-Konto), nicht über Manatal
-    const bestehend = !eigene.length && !fremde.length ? await indeedBestandBeimKunden(svc, agencyId, { email: k.email, phone: telefon }) : null;
-    if (bestehend) pruefungen.push(`Bewerber schon über ${bestehend} aus dem Indeed-Konto des Kunden da`);
-    else if (!eigene.length) {
-      return nochJung(m.created_at, jetzt, BELEG_WARTEZEIT_MIN)
-        ? ps('wartet', 'Wartet auf den Indeed-Beleg aus dem Konto des Kunden', 5)
-        : ps('offen', `Kein Indeed-Beleg aus dem Konto von ${kunde?.name ?? 'diesem Kunden'} – Weiterleitung prüfen oder von Hand freigeben`, 30);
-    }
-    if (eigene.length) pruefungen.push(`Indeed-Beleg aus dem Konto des Kunden (${eigene[0].empfangen_am.slice(0, 16)})`);
+    if (stZeile.manatal_organisation != null && stZeile.manatal_organisation !== m.organization) return ps('offen', `Manatal-Stelle ${m.job} hängt jetzt an einer anderen Manatal-Firma als bei der Bestätigung`, 30);
+    pruefungen.push(`Manatal-Stelle ${m.job} bestätigt für diesen Kunden`);
   }
 
   const hinweis = (kunde?.settings ?? {}).indeed_whatsapp_hinweis !== false;
@@ -328,22 +316,6 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
   });
   if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId);
   return { art: 'neu', agencyId, candidateId: r.candidateId };
-}
-
-/** Ist die Person beim Kunden schon über einen eigenen Indeed-Weg (Mail/Export, nicht Manatal) angelegt? */
-async function indeedBestandBeimKunden(svc: SupabaseClient, agencyId: string, p: { email: string | null; phone: string | null }): Promise<string | null> {
-  const tel = normalizePhoneE164(p.phone);
-  const q = (v: string) => `"${v.replace(/["\\,()]/g, '')}"`;
-  const filter = [tel ? `phone_e164.eq.${q(tel)}` : null, p.email ? `email.ilike.${q(ilikeExakt(p.email.trim()))}` : null].filter(Boolean).join(',');
-  if (!filter) return null;
-  const { data: kandidaten } = await svc.from('candidates').select('id').eq('agency_id', agencyId).is('deleted_at', null).or(filter).limit(5);
-  const ids = ((kandidaten ?? []) as Array<{ id: string }>).map((x) => x.id);
-  if (!ids.length) return null;
-  const { data: apps } = await svc.from('applications').select('source_ref').eq('agency_id', agencyId).in('candidate_id', ids);
-  const refs = ((apps ?? []) as Array<{ source_ref: string | null }>).map((a) => a.source_ref ?? '');
-  if (refs.some((r) => r.startsWith('indeed-export:'))) return 'den Indeed-Export';
-  if (refs.some((r) => r.startsWith('indeed-mail:') || r.startsWith('resend:') || r.startsWith('mail:'))) return 'die Indeed-Mail';
-  return null;
 }
 
 async function leereCaches(svc: SupabaseClient): Promise<Caches> {

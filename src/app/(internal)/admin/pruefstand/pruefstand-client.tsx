@@ -70,6 +70,24 @@ export function PruefstandClient() {
     await laden();
   };
 
+  const stelleBestaetigen = async (e: Eintrag) => {
+    const agency = wahl[e.id] ?? e.agency_vorschlag ?? '';
+    const job = Number(e.daten.job);
+    if (!agency || !Number.isFinite(job)) return toast.error('Bitte zuerst den Kunden wählen');
+    if (!window.confirm(`Manatal-Stelle ${job} fest „${kundeName(agency)}“ zuordnen?\n\nNur bestätigen, wenn diese Manatal-Stelle ausschließlich die Indeed-Anzeige(n) von ${kundeName(agency)} empfängt. Danach laufen alle Bewerber dieser Stelle automatisch an ${kundeName(agency)}.`)) return;
+    setLaeuft(e.id);
+    const r = await fetch('/api/admin/pruefstand/stelle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manatal_job_id: job, manatal_organisation: Number(e.daten.organisation) || undefined, agency_id: agency }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setLaeuft(null);
+    if (r.ok) toast.success('Stelle bestätigt – die Bewerber dieser Stelle werden in der nächsten Minute neu geprüft');
+    else toast.error(j.error ?? 'Fehlgeschlagen');
+    await laden();
+  };
+
   const alleFreigeben = async (agencyId: string, eintraege: Eintrag[]) => {
     if (!window.confirm(`Alle ${eintraege.length} Bewerber an „${kundeName(agencyId)}“ geben?\n\nNur bestätigen, wenn du sie im Indeed-/Meta-Konto dieses Kunden geprüft hast.`)) return;
     setLaeuft(agencyId);
@@ -90,8 +108,8 @@ export function PruefstandClient() {
         description="Bewerber, deren Kunde nicht doppelt belegt ist, gehen an niemanden – sie warten hier. Ein Bewerber bekommt nur dann einen Kunden, wenn zwei unabhängige Quellen übereinstimmen oder du ihn hier freigibst."
       />
       <Card padding="none" className="bg-blue-50 p-4 text-sm text-blue-900">
-        <b>Doppelter Boden:</b> Indeed-Bewerber aus Manatal brauchen zusätzlich die Indeed-Benachrichtigung aus dem Konto des Kunden (Weiterleitung an die Cloud-Adresse des Kunden). Meta-Bewerber müssen von einem Funnel kommen,
-        der fest diesem Kunden zugeordnet ist. Alle 5 Minuten werden Funnels und Manatal zusätzlich abgerufen – Webhooks sind nur der schnelle Weg.
+        <b>Doppelter Boden:</b> Indeed-Bewerber aus Manatal gehen nur an einen Kunden, wenn Manatal-Firmen-ID und Manatal-Stellen-ID beide fest diesem Kunden zugeordnet sind. Neue Stellen bestätigst du hier
+        einmal („Stelle bestätigen“), danach laufen sie automatisch. Meta-Bewerber müssen von einem Funnel kommen, der fest diesem Kunden zugeordnet ist. Manatal wird jede Minute, Perspective alle 5 Minuten abgerufen – Webhooks sind nur der schnelle Weg.
       </Card>
 
       {!d && <p className="text-sm text-gray-500">Lädt …</p>}
@@ -132,6 +150,11 @@ export function PruefstandClient() {
                       </option>
                     ))}
                   </select>
+                  {e.quelle === 'manatal' && e.gruende.some((g) => g.includes('keinem Kunden bestätigt')) && (
+                    <button disabled={laeuft === e.id} onClick={() => stelleBestaetigen(e)} className="rounded-lg border border-blue-600 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50">
+                      Stelle bestätigen
+                    </button>
+                  )}
                   <button disabled={laeuft === e.id} onClick={() => entscheide(e, 'freigeben')} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
                     Freigeben
                   </button>
