@@ -61,6 +61,8 @@ export function manatalTelefon(roh: string | null | undefined): string | null {
   if (!roh) return null;
   const s = roh.replace(/[^\d+]/g, '');
   if (!s) return null;
+  // „49 0155…“ (Ländervorwahl + führende 0) kommt bei Indeed vor → 0 weg, sonst greift die Dublettenprüfung nicht
+  if (/^490\d{9,11}$/.test(s)) return `+49${s.slice(3)}`;
   if (/^49\d{9,12}$/.test(s)) return `+${s}`;
   return s;
 }
@@ -200,7 +202,17 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
       if (!jobs.has(m.job)) jobs.set(m.job, await manatal<ManatalJob>(`/jobs/${m.job}/`));
       const job = jobs.get(m.job)!;
       const telefon = manatalTelefon(k.phone_number);
+      if (!telefon && !k.email && aufKontaktWarten(m.created_at, jetzt)) {
+        // Manatal liest Telefon/E-Mail erst 1–2 Minuten nach der Bewerbung aus dem Lebenslauf –
+        // Stand hier anhalten, der nächste Tick versucht es erneut (sonst ginge der Bewerber verloren)
+        break;
+      }
       if (!telefon && !k.email) {
+        await alarmAnAdmins(svc, {
+          titel: '⚠️ Manatal-Bewerber ohne Kontaktdaten',
+          text: `${k.full_name ?? 'Ein Bewerber'} („${job.position_name ?? 'ohne Titel'}“) hat in Manatal auch nach ${KONTAKT_WARTEZEIT_MIN} Minuten weder Telefon noch E-Mail – bitte in Manatal prüfen und von Hand anlegen.`,
+          agencyId,
+        });
         ergebnis.ignoriert++;
       } else {
         const stelle = await findeStelle(svc, agencyId, job.position_name);
@@ -248,6 +260,13 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
     await speichereJson(svc, CURSOR_KEY, { seit: neu.seit, erledigt: [...neu.erledigt] });
   }
   return ergebnis;
+}
+
+export const KONTAKT_WARTEZEIT_MIN = 30;
+
+/** Fehlen noch Kontaktdaten, solange die Bewerbung jünger als die Wartezeit ist → warten statt überspringen (rein, testbar) */
+export function aufKontaktWarten(matchErstellt: string, jetzt: Date): boolean {
+  return jetzt.getTime() - Date.parse(matchErstellt) < KONTAKT_WARTEZEIT_MIN * 60_000;
 }
 
 /** Noch nicht verarbeitete Matches in zeitlicher Reihenfolge (rein, testbar) */

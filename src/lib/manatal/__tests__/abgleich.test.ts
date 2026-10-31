@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches } from '../abgleich';
+import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches, aufKontaktWarten } from '../abgleich';
 import { normalizePhoneE164 } from '@/lib/phone';
 
 describe('Manatal: Telefonnummern', () => {
@@ -10,6 +10,9 @@ describe('Manatal: Telefonnummern', () => {
   it('lässt 0049 und 0… für die normale Umwandlung', () => {
     expect(normalizePhoneE164(manatalTelefon('004915112345678'))).toBe('+4915112345678');
     expect(normalizePhoneE164(manatalTelefon('0151 1234 5678'))).toBe('+4915112345678');
+  });
+  it('entfernt die 0 nach der Ländervorwahl (49015563683589)', () => {
+    expect(manatalTelefon('49015563683589')).toBe('+4915563683589');
   });
   it('leer bleibt leer', () => {
     expect(manatalTelefon(null)).toBeNull();
@@ -42,6 +45,14 @@ describe('Manatal: Kunden-Vorschlag über den Namen', () => {
   it('kein Vorschlag bei mehreren oder keinem Treffer', () => {
     expect(schlageKundenVor('Sales', kunden)).toBeNull();
     expect(schlageKundenVor('Unbekannt GmbH', kunden)).toBeNull();
+  });
+});
+
+describe('aufKontaktWarten', () => {
+  it('wartet in den ersten 30 Minuten auf Telefon/E-Mail, danach nicht mehr', () => {
+    const erstellt = '2026-10-31T11:38:37.849964Z';
+    expect(aufKontaktWarten(erstellt, new Date('2026-10-31T11:39:04Z'))).toBe(true);
+    expect(aufKontaktWarten(erstellt, new Date('2026-10-31T12:10:00Z'))).toBe(false);
   });
 });
 
