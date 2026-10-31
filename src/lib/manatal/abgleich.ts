@@ -16,7 +16,7 @@ import { alarmAnAdmins } from '@/lib/ops/alarm';
 const BASE = 'https://api.manatal.com/open/v3';
 const CURSOR_KEY = 'manatal_cursor';
 export const ZUORDNUNG_KEY = 'manatal_zuordnung';
-const MAX_SEITEN = 5;
+const MAX_SEITEN = 10;
 /** B&C läuft über die eigene B&C-Recruiting-Cloud – nie in die Zoepp Cloud übernehmen */
 export const GESPERRTE_KUNDEN = new Set(['e66b016b-7c1f-439f-990b-201ca8a61571']);
 
@@ -40,6 +40,7 @@ interface ManatalKandidat {
 interface ManatalJob {
   id: number;
   position_name: string | null;
+  organization?: number | null;
 }
 
 export function manatalAktiv(): boolean {
@@ -72,19 +73,18 @@ export function manatalQuelle(k: Pick<ManatalKandidat, 'source_details'>): 'inde
   return /indeed/i.test(k.source_details?.portal?.display_name ?? '') ? 'indeed' : 'form';
 }
 
+/** Liest eine Einstellung. Lesefehler werfen (nie „leer“ annehmen – sonst würden Bewerber als nicht zugeordnet verworfen). */
 async function ladeJson<T>(svc: SupabaseClient, key: string): Promise<T | null> {
-  const { data } = await svc.from('system_einstellungen').select('wert').eq('key', key).maybeSingle();
+  const { data, error } = await svc.from('system_einstellungen').select('wert').eq('key', key).maybeSingle();
+  if (error) throw new Error(`Einstellung ${key} nicht lesbar: ${error.message}`);
   const w = (data as { wert: unknown } | null)?.wert;
   if (w == null) return null;
-  try {
-    return (typeof w === 'string' ? JSON.parse(w) : w) as T;
-  } catch {
-    return null;
-  }
+  return (typeof w === 'string' ? JSON.parse(w) : w) as T;
 }
 
 async function speichereJson(svc: SupabaseClient, key: string, wert: unknown): Promise<void> {
-  await svc.from('system_einstellungen').upsert({ key, wert: JSON.stringify(wert), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  const { error } = await svc.from('system_einstellungen').upsert({ key, wert: JSON.stringify(wert), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  if (error) throw new Error(`Einstellung ${key} nicht gespeichert: ${error.message}`);
 }
 
 /** Firmenname vergleichbar machen: Rechtsform, Sonderzeichen und Leerzeichen weg (rein, testbar) */
@@ -153,29 +153,205 @@ export interface AbgleichErgebnis {
   fehler: number;
 }
 
+/** Zuordnungs-Prüfung vor jeder Übernahme – alle vier müssen stimmen, sonst wird der Bewerber nicht weitergegeben (rein, testbar) */
+export interface ZuordnungsDaten {
+  matchOrganisation: number;
+  /** Kunde laut Zuordnung (Manatal-Firma → Kunde) */
+  agencyId: string | undefined;
+  /** Firma der Manatal-Stelle, auf die sich beworben wurde */
+  jobOrganisation: number | null | undefined;
+  /** Name der Manatal-Firma */
+  orgName: string | null | undefined;
+  /** Kunde in der Cloud */
+  kunde: { id: string; name: string | null; contact_name: string | null } | null;
+  /** Kunde der Cloud-Stelle, in die der Bewerber käme */
+  stelleAgencyId: string | null | undefined;
+}
+
+function namensWoerter(n: string): Set<string> {
+  const norm = n
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/\(haftungsbeschränkt\)/g, ' ');
+  const stop = new Set(['gmbh', 'haftungsbeschraenkt', 'vertrieb', 'vertriebs', 'direktvertrieb', 'sales', 'solutions', 'finanz', 'consulting', 'gruppe', 'group']);
+  return new Set(norm.split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !stop.has(w)));
+}
+
+/**
+ * Passt der Name der Manatal-Firma zum Kunden (Firmen- oder Ansprechpartnername)?
+ * Gleich/enthalten – oder JEDES markante Wort der Manatal-Firma findet sich beim Kunden (Rudi ≈ Rudolf über gleichen Anfang).
+ * Ein gemeinsamer Nachname allein reicht nicht (Ömer Bilge ≠ Kadri Bilge).
+ */
+export function nameStimmt(orgName: string, kunde: { name: string | null; contact_name: string | null }): boolean {
+  const o = normName(orgName);
+  const ow = [...namensWoerter(orgName)];
+  const aehnlich = (a: string, b: string) => a === b || (a.slice(0, 3) === b.slice(0, 3) && Math.abs(a.length - b.length) <= 3);
+  for (const k of [kunde.name, kunde.contact_name]) {
+    if (!k) continue;
+    const n = normName(k);
+    if (n.length >= 4 && o.length >= 4 && (o === n || o.includes(n) || n.includes(o))) return true;
+    const kw = [...namensWoerter(k)];
+    if (ow.length && ow.every((w) => kw.some((x) => aehnlich(w, x)))) return true;
+  }
+  return false;
+}
+
+export function pruefeZuordnung(d: ZuordnungsDaten): string[] {
+  const fehler: string[] = [];
+  // 1. Feste Zuordnung Manatal-Firma → Kunde vorhanden und Kunde nicht gesperrt
+  if (!d.agencyId || GESPERRTE_KUNDEN.has(d.agencyId) || !d.kunde || d.kunde.id !== d.agencyId) fehler.push('Keine gültige Zuordnung Manatal-Firma → Kunde');
+  // 2. Die Manatal-Stelle gehört wirklich zu dieser Manatal-Firma
+  if (d.jobOrganisation == null || d.jobOrganisation !== d.matchOrganisation) fehler.push('Manatal-Stelle gehört zu einer anderen Firma');
+  // 3. Name der Manatal-Firma passt zum Kunden
+  if (!d.orgName || !d.kunde || !nameStimmt(d.orgName, d.kunde)) fehler.push(`Firmenname „${d.orgName ?? '?'}“ passt nicht zu Kunde „${d.kunde?.name ?? '?'}“`);
+  // 4. Die Cloud-Stelle gehört zu genau diesem Kunden
+  if (!d.stelleAgencyId || d.stelleAgencyId !== d.agencyId) fehler.push('Cloud-Stelle gehört nicht zu diesem Kunden');
+  return fehler;
+}
+
+const KLAERFAELLE_KEY = 'manatal_klaerfaelle';
+/** Offener Fall: wartet auf Kontaktdaten (warten) oder ist gesperrt bis zur Klärung. Wird regelmäßig erneut geprüft. */
+interface Klaerfall { match: number; grund: string; seit: string; warten?: boolean }
+
+/** Manatal-Firmen, die bewusst nie in die Zoepp Cloud kommen (B&C läuft über die eigene B&C-Cloud) */
+export const IGNORIERTE_ORGANISATIONEN = new Set([8236648]);
+const ZEITBUDGET_MS = 25_000;
+
+type MatchErgebnis = { art: 'neu' | 'schon' | 'warten' } | { art: 'klaerfall'; grund: string };
+
+interface Caches {
+  zuordnung: Record<string, string>;
+  jobs: Map<number, ManatalJob>;
+  orgs: Map<number, string | null>;
+  kunden: Map<string, { id: string; name: string | null; contact_name: string | null; settings: Record<string, unknown> | null } | null>;
+}
+
+/** Einen Manatal-Match prüfen und übernehmen. Wirft bei API-/DB-Fehlern (→ später erneut). */
+async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, jetzt: Date): Promise<MatchErgebnis> {
+  const agencyId = c.zuordnung[String(m.organization)];
+  if (agencyId) {
+    const { count: schon } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', `manatal:${m.id}`);
+    if (schon) return { art: 'schon' };
+  }
+  const k = await manatal<ManatalKandidat>(`/candidates/${m.candidate}/`);
+  if (!c.jobs.has(m.job)) c.jobs.set(m.job, await manatal<ManatalJob>(`/jobs/${m.job}/`));
+  const job = c.jobs.get(m.job)!;
+  const telefon = manatalTelefon(k.phone_number);
+  // Manatal liest Telefon/E-Mail erst 1–2 Minuten nach der Bewerbung aus dem Lebenslauf → warten statt überspringen
+  if (!telefon && !k.email) {
+    return aufKontaktWarten(m.created_at, jetzt) ? { art: 'warten' } : { art: 'klaerfall', grund: `Weder Telefon noch E-Mail nach ${KONTAKT_WARTEZEIT_MIN} Minuten` };
+  }
+  if (!c.orgs.has(m.organization)) c.orgs.set(m.organization, (await manatal<{ name: string | null }>(`/organizations/${m.organization}/`)).name ?? null);
+  if (agencyId && !c.kunden.has(agencyId)) {
+    const { data } = await svc.from('agencies').select('id, name, contact_name, settings').eq('id', agencyId).maybeSingle();
+    c.kunden.set(agencyId, (data as never) ?? null);
+  }
+  const kunde = agencyId ? c.kunden.get(agencyId) ?? null : null;
+  const stelle = agencyId ? await findeStelle(svc, agencyId, job.position_name) : null;
+  if (agencyId && !stelle) return { art: 'klaerfall', grund: `Keine aktive Stelle beim Kunden für „${job.position_name ?? 'ohne Titel'}“` };
+  const { data: stelleRow } = stelle ? await svc.from('jobs').select('agency_id').eq('id', stelle.id).maybeSingle() : { data: null };
+  const fehler = pruefeZuordnung({
+    matchOrganisation: m.organization,
+    agencyId,
+    jobOrganisation: job.organization,
+    orgName: c.orgs.get(m.organization),
+    kunde: kunde ? { id: kunde.id, name: kunde.name, contact_name: kunde.contact_name } : null,
+    stelleAgencyId: (stelleRow as { agency_id: string } | null)?.agency_id,
+  });
+  if (fehler.length) return { art: 'klaerfall', grund: fehler.join('; ') };
+
+  const hinweis = (kunde?.settings ?? {}).indeed_whatsapp_hinweis !== false;
+  const name = (k.full_name ?? '').trim();
+  const r = await ingestApplication(svc, {
+    agencyId: agencyId!,
+    jobId: stelle!.id,
+    firstName: name.split(' ')[0] || 'Bewerber',
+    lastName: name.split(' ').slice(1).join(' ') || null,
+    phone: telefon,
+    email: k.email,
+    source: manatalQuelle(k),
+    sourceRef: `manatal:${m.id}`,
+    campaign: { stellentitel: job.position_name, manatal_job_id: m.job, manatal_kandidat_id: m.candidate, manatal_organisation: m.organization },
+    consentWhatsapp: hinweis,
+    consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
+    resume: await speichereLebenslauf(svc, agencyId!, k),
+  });
+  if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId!);
+  return { art: 'neu' };
+}
+
+async function meldeKlaerfaelle(svc: SupabaseClient, neu: Array<Klaerfall & { firma: string }>): Promise<void> {
+  if (!neu.length) return;
+  const liste = neu.slice(0, 8).map((f) => `Match ${f.match} (${f.firma}): ${f.grund}`).join(' | ');
+  await alarmAnAdmins(svc, {
+    titel: `⛔ ${neu.length} Manatal-Bewerber NICHT weitergegeben (${neu.map((f) => f.match).join(',').slice(0, 60)})`,
+    text: `${liste}${neu.length > 8 ? ` | … und ${neu.length - 8} weitere` : ''}. Sie bleiben auf der Klärliste und werden alle 10 Minuten erneut geprüft.`,
+  });
+}
+
 /** Neue Manatal-Bewerber abholen (läuft im Minuten-Tick, wenn MANATAL_API_TOKEN gesetzt ist) */
 export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new Date()): Promise<AbgleichErgebnis> {
   const ergebnis: AbgleichErgebnis = { neu: 0, ignoriert: 0, fehler: 0 };
   if (!manatalAktiv()) return ergebnis;
+  const ende = Date.now() + ZEITBUDGET_MS;
 
   const stand = await ladeJson<{ seit: string; erledigt?: number[] }>(svc, CURSOR_KEY);
   if (!stand?.seit) {
-    // Erster Lauf: keine alten Bewerber nachholen
+    // Erster Lauf überhaupt: keine alten Bewerber nachholen
     await speichereJson(svc, CURSOR_KEY, { seit: jetzt.toISOString(), erledigt: [] });
     return ergebnis;
   }
 
+  const c: Caches = { zuordnung: await ladeZuordnung(svc), jobs: new Map(), orgs: new Map(), kunden: new Map() };
+  const klaer = (await ladeJson<Klaerfall[]>(svc, KLAERFAELLE_KEY)) ?? [];
+  let klaerGeaendert = false;
+  const neueKlaer: Array<Klaerfall & { firma: string }> = [];
+  const merke = (m: ManatalMatch, r: MatchErgebnis) => {
+    const warten = r.art === 'warten';
+    const grund = r.art === 'klaerfall' ? r.grund : 'Wartet auf Telefon/E-Mail aus Manatal';
+    const alt = klaer.find((f) => f.match === m.id);
+    if (alt) {
+      // Aus „wartet“ wird ein echter Klärfall → jetzt melden
+      if (alt.warten && !warten) {
+        Object.assign(alt, { warten: false, grund });
+        klaerGeaendert = true;
+        neueKlaer.push({ ...alt, firma: c.orgs.get(m.organization) ?? String(m.organization) });
+      }
+      return;
+    }
+    const f: Klaerfall = { match: m.id, grund, seit: jetzt.toISOString(), warten };
+    klaer.push(f);
+    klaerGeaendert = true;
+    if (!warten) neueKlaer.push({ ...f, firma: c.orgs.get(m.organization) ?? String(m.organization) });
+  };
+
+  // Offene Fälle erneut prüfen: wartende jede Minute, gesperrte alle 10 Minuten (z. B. nach neuer Zuordnung/Stelle)
+  const alleZehn = jetzt.getUTCMinutes() % 10 === 7;
+  for (const f of klaer.filter((x) => x.warten || alleZehn).slice(0, 15)) {
+    if (Date.now() > ende) break;
+    try {
+      const m = await manatal<ManatalMatch>(`/matches/${f.match}/`);
+      const r = await verarbeiteMatch(svc, m, c, jetzt);
+      if (r.art === 'neu' || r.art === 'schon') {
+        klaer.splice(klaer.findIndex((x) => x.match === f.match), 1);
+        klaerGeaendert = true;
+        if (r.art === 'neu') ergebnis.neu++;
+      } else merke(m, r);
+    } catch (err) {
+      console.error('[manatal] Offener Fall nicht geprüft:', f.match, err);
+      break;
+    }
+  }
+
+  // Älteste zuerst laden, damit der Stand nie über nicht geladene Bewerber springt
   const matches: ManatalMatch[] = [];
-  let url: string | null = `/matches/?page_size=100&created_at__gte=${encodeURIComponent(stand.seit)}`;
+  let url: string | null = `/matches/?page_size=100&ordering=created_at&created_at__gte=${encodeURIComponent(stand.seit)}`;
   for (let i = 0; url && i < MAX_SEITEN; i++) {
     const seite: { results: ManatalMatch[]; next: string | null } = await manatal(url);
     matches.push(...seite.results);
     url = seite.next;
   }
-  if (matches.length === 0) return ergebnis;
 
-  const zuordnung = await ladeZuordnung(svc);
-  const jobs = new Map<number, ManatalJob>();
   // Der Abruf ist „ab Stand“: Matches genau auf dem Stand kommen im nächsten Tick erneut → über ihre IDs überspringen
   const stand0 = { seit: stand.seit, erledigt: new Set(stand.erledigt ?? []) };
   let neu = { seit: stand0.seit, erledigt: new Set(stand0.erledigt) };
@@ -183,69 +359,28 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
     if (m.created_at > neu.seit) neu = { seit: m.created_at, erledigt: new Set([m.id]) };
     else if (m.created_at === neu.seit) neu.erledigt.add(m.id);
   };
+  const sichern = async () => {
+    if (klaerGeaendert) await speichereJson(svc, KLAERFAELLE_KEY, klaer);
+    klaerGeaendert = false;
+    if (neu.seit !== stand0.seit || neu.erledigt.size !== stand0.erledigt.size) await speichereJson(svc, CURSOR_KEY, { seit: neu.seit, erledigt: [...neu.erledigt] });
+  };
 
+  let verarbeitet = 0;
   for (const m of offeneMatches(matches, stand0)) {
-    const agencyId = zuordnung[String(m.organization)];
-    if (!agencyId || GESPERRTE_KUNDEN.has(agencyId)) {
+    if (Date.now() > ende) break;
+    // Nur bewusst ausgeschlossene Firmen (B&C) still überspringen – alles andere ohne Zuordnung wird ein Klärfall mit Alarm
+    if (IGNORIERTE_ORGANISATIONEN.has(m.organization) || GESPERRTE_KUNDEN.has(c.zuordnung[String(m.organization)] ?? '')) {
       ergebnis.ignoriert++;
       abhaken(m);
       continue;
     }
-    // Schon übernommen (der Stand ist „ab“, der letzte Bewerber kommt im nächsten Tick erneut)
-    const { count: schon } = await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', `manatal:${m.id}`);
-    if (schon) {
-      abhaken(m);
-      continue;
-    }
     try {
-      const k = await manatal<ManatalKandidat>(`/candidates/${m.candidate}/`);
-      if (!jobs.has(m.job)) jobs.set(m.job, await manatal<ManatalJob>(`/jobs/${m.job}/`));
-      const job = jobs.get(m.job)!;
-      const telefon = manatalTelefon(k.phone_number);
-      if (!telefon && !k.email && aufKontaktWarten(m.created_at, jetzt)) {
-        // Manatal liest Telefon/E-Mail erst 1–2 Minuten nach der Bewerbung aus dem Lebenslauf –
-        // Stand hier anhalten, der nächste Tick versucht es erneut (sonst ginge der Bewerber verloren)
-        break;
-      }
-      if (!telefon && !k.email) {
-        await alarmAnAdmins(svc, {
-          titel: '⚠️ Manatal-Bewerber ohne Kontaktdaten',
-          text: `${k.full_name ?? 'Ein Bewerber'} („${job.position_name ?? 'ohne Titel'}“) hat in Manatal auch nach ${KONTAKT_WARTEZEIT_MIN} Minuten weder Telefon noch E-Mail – bitte in Manatal prüfen und von Hand anlegen.`,
-          agencyId,
-        });
-        ergebnis.ignoriert++;
-      } else {
-        const stelle = await findeStelle(svc, agencyId, job.position_name);
-        if (!stelle) {
-          await alarmAnAdmins(svc, {
-            titel: '⚠️ Manatal-Bewerber ohne Stelle',
-            text: `Für einen Manatal-Bewerber („${job.position_name ?? 'ohne Titel'}“) gibt es beim Kunden keine aktive Stelle. Bitte eine Stelle anlegen.`,
-            agencyId,
-          });
-          ergebnis.fehler++;
-        } else {
-          const { data: ag } = await svc.from('agencies').select('settings').eq('id', agencyId).maybeSingle();
-          const hinweis = ((ag as { settings: Record<string, unknown> | null } | null)?.settings ?? {}).indeed_whatsapp_hinweis !== false;
-          const name = (k.full_name ?? '').trim();
-          const r = await ingestApplication(svc, {
-            agencyId,
-            jobId: stelle.id,
-            firstName: name.split(' ')[0] || 'Bewerber',
-            lastName: name.split(' ').slice(1).join(' ') || null,
-            phone: telefon,
-            email: k.email,
-            source: manatalQuelle(k),
-            sourceRef: `manatal:${m.id}`,
-            campaign: { stellentitel: job.position_name, manatal_job_id: m.job, manatal_kandidat_id: m.candidate },
-            consentWhatsapp: hinweis,
-            consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
-            resume: await speichereLebenslauf(svc, agencyId, k),
-          });
-          if (r.candidateCreated) {
-            await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId);
-            ergebnis.neu++;
-          }
-        }
+      const r = await verarbeiteMatch(svc, m, c, jetzt);
+      if (r.art === 'neu') ergebnis.neu++;
+      // Wartende und gesperrte Bewerber kommen auf die Liste offener Fälle – der Stand läuft für alle anderen Kunden weiter
+      if (r.art === 'warten' || r.art === 'klaerfall') {
+        if (r.art === 'klaerfall') ergebnis.fehler++;
+        merke(m, r);
       }
     } catch (err) {
       // Stand nicht über diesen Bewerber hinaus schieben → nächster Tick versucht es erneut
@@ -254,11 +389,12 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
       break;
     }
     abhaken(m);
+    // Stand laufend sichern: bricht ein langer Lauf ab, geht der Fortschritt nicht verloren
+    if (++verarbeitet % 5 === 0) await sichern();
   }
 
-  if (neu.seit !== stand0.seit || neu.erledigt.size !== stand0.erledigt.size) {
-    await speichereJson(svc, CURSOR_KEY, { seit: neu.seit, erledigt: [...neu.erledigt] });
-  }
+  await sichern();
+  await meldeKlaerfaelle(svc, neueKlaer);
   return ergebnis;
 }
 

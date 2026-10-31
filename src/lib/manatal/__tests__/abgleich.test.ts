@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches, aufKontaktWarten } from '../abgleich';
+import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches, aufKontaktWarten, pruefeZuordnung, nameStimmt } from '../abgleich';
 import { normalizePhoneE164 } from '@/lib/phone';
 
 describe('Manatal: Telefonnummern', () => {
@@ -62,5 +62,40 @@ describe('offeneMatches', () => {
     const t = '2026-10-14T10:00:00Z';
     const r = offeneMatches([m(3, '2026-10-14T10:05:00Z'), m(1, t), m(2, t)], { seit: t, erledigt: new Set([1]) });
     expect(r.map((x) => x.id)).toEqual([2, 3]);
+  });
+});
+
+describe('Zuordnungs-Prüfung (4-fach)', () => {
+  const ok = {
+    matchOrganisation: 8279338,
+    agencyId: 'kadri',
+    jobOrganisation: 8279338,
+    orgName: 'Kadri Bilge',
+    kunde: { id: 'kadri', name: 'Kadri Bilge', contact_name: 'Kadri Bilge' },
+    stelleAgencyId: 'kadri',
+  };
+  it('lässt eine stimmige Zuordnung durch', () => {
+    expect(pruefeZuordnung(ok)).toEqual([]);
+  });
+  it('sperrt bei fehlender Zuordnung, fremder Manatal-Stelle, falschem Namen oder fremder Cloud-Stelle', () => {
+    expect(pruefeZuordnung({ ...ok, agencyId: undefined })[0]).toMatch(/Zuordnung/);
+    expect(pruefeZuordnung({ ...ok, jobOrganisation: 8257136 })).toEqual(['Manatal-Stelle gehört zu einer anderen Firma']);
+    expect(pruefeZuordnung({ ...ok, jobOrganisation: undefined })).toHaveLength(1);
+    expect(pruefeZuordnung({ ...ok, orgName: 'Ömer Bilge' })).toHaveLength(1);
+    expect(pruefeZuordnung({ ...ok, orgName: 'Fadi Abbes' })).toHaveLength(1);
+    expect(pruefeZuordnung({ ...ok, stelleAgencyId: 'oemer' })).toEqual(['Cloud-Stelle gehört nicht zu diesem Kunden']);
+    expect(pruefeZuordnung({ ...ok, agencyId: 'e66b016b-7c1f-439f-990b-201ca8a61571', kunde: { ...ok.kunde, id: 'e66b016b-7c1f-439f-990b-201ca8a61571' } })[0]).toMatch(/Zuordnung/);
+  });
+  it('erkennt die echten Kunden-Namen', () => {
+    expect(nameStimmt('Rudi Muigg', { name: 'Rudolf Muigg OVB Finanz', contact_name: 'Rudolf Muigg' })).toBe(true);
+    expect(nameStimmt('Ömer Bilge', { name: 'Kadri Bilge', contact_name: 'Kadri Bilge' })).toBe(false);
+    expect(nameStimmt('Kadri Bilge', { name: 'Ömer Bilge', contact_name: 'Ömer Bilge' })).toBe(false);
+    expect(nameStimmt('SalesWinner Direktvertrieb UG', { name: 'Sales Winner UG', contact_name: null })).toBe(true);
+    expect(nameStimmt('Sedat Özdemir', { name: 'Özdemir', contact_name: 'Sedat Özdemir' })).toBe(true);
+    expect(nameStimmt('Major Vertrieb', { name: 'Karen Major', contact_name: 'Karen Major' })).toBe(true);
+    expect(nameStimmt('Hoffmann Solutions', { name: 'Hoffmann Solutions', contact_name: null })).toBe(true);
+    expect(nameStimmt('Fadi Abbes', { name: 'Fadi Abbes', contact_name: null })).toBe(true);
+    expect(nameStimmt('Fadi Abbes', { name: 'Ömer Bilge', contact_name: 'Ömer Bilge' })).toBe(false);
+    expect(nameStimmt('Hoffmann Solutions', { name: 'Sales Winner UG', contact_name: null })).toBe(false);
   });
 });
