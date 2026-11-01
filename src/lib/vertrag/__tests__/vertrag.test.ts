@@ -59,6 +59,7 @@ function bDeps(over: Partial<BestaetigenDeps> = {}) {
     },
     findContact: async () => null,
     erzeugePdf: async () => new Uint8Array([37, 80, 68, 70]),
+    mailErlaubt: async () => true,
     ...over,
   };
   return { deps, mails };
@@ -93,6 +94,13 @@ describe('Vertragsbestätigung', () => {
     expect(tables.client_steps.find((s) => s.step_key === 'z_vertrag')).toMatchObject({ status: 'erledigt' });
     expect(mails).toHaveLength(1);
     expect(mails[0]).toMatchObject({ to: 'max@solarmax.de', bcc: ['assistenz@zoeppmedia.de'], firma: 'SolarMax GmbH' });
+  });
+
+  it('ohne Freigabe finanz_vertrag_mails: Vertrag bestätigt, aber keine Mail an den Kunden', async () => {
+    const { deps, mails } = bDeps({ mailErlaubt: async () => false });
+    const r = await bestaetigeVertrag(client, TOKEN, eingabe, deps, now);
+    expect(r.status).toBe('bestaetigt');
+    expect(mails).toHaveLength(0);
   });
 
   it('Buchhaltung bekommt die Aufgabe „Setup-Rechnung stellen" – die Cloud stellt selbst keine Rechnung', async () => {

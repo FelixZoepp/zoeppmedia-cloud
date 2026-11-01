@@ -6,6 +6,7 @@ import { fetchAll, fetchAllIn } from '@/lib/supabase/fetch-all';
 import { berlinTag } from '@/lib/zeit/berlin';
 import { istFreigegeben } from '@/lib/freigaben';
 import { rueckrufFaellig } from '@/lib/dialer/rueckruf';
+import { anrufSperrgrund, ladeEndphasen } from '@/lib/recruiting/absage-stopp';
 
 // Interne Sales-Agentur (Sales-WhatsApp-Kontakte) sind keine Bewerber
 const NICHT_INTERN = `(${HIDDEN_AGENCY_IDS.join(',')})`;
@@ -21,7 +22,10 @@ import {
 export type { DialerQueueItem } from '@/lib/dialer/queue';
 
 const KANDIDAT_FELDER =
-  'id, name, phone, agency_id, created_at, cadence_attempt, cadence_next_window, blacklisted, deleted_at, do_not_contact, locked_by, locked_until';
+  'id, name, phone, agency_id, created_at, cadence_attempt, cadence_next_window, blacklisted, deleted_at, do_not_contact, locked_by, locked_until, current_stage_id';
+
+/** So viele neue Bewerber zeigt die Liste höchstens */
+const NEUE_MAX = 50;
 
 /**
  * Anruf-Modus: Call-Warteschlange.
@@ -29,6 +33,7 @@ const KANDIDAT_FELDER =
  * - interner Dialer (?modus=intern): alle bzw. zugeordnete Kunden
  * Quellen: Termin-Erinnerungen (VG/Probetag in <24h), fällige Kadenz-Anrufe,
  * Rückrufe (call_logs), neue ungewählte Bewerber.
+ * Abgesagte, eingestellte und gelöschte Bewerber erscheinen in keiner Quelle.
  */
 export async function GET(req: NextRequest) {
   const svc = createAdminClient();
@@ -64,6 +69,7 @@ export async function GET(req: NextRequest) {
     .from('candidates')
     .select(KANDIDAT_FELDER)
     .eq('cadence_active', true)
+    .is('deleted_at', null)
     .or(`cadence_next_at.is.null,cadence_next_at.lte.${nowIso}`)
     .order('created_at', { ascending: true })
     .limit(100);
@@ -89,8 +95,10 @@ export async function GET(req: NextRequest) {
     .select(KANDIDAT_FELDER)
     .is('first_dial_at', null)
     .is('deleted_at', null)
+    // Abgesagte schon in der DB raus; Phase (abgesagt/eingestellt, auch Altdaten) prüft der Code unten
+    .is('abgesagt_am', null)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .limit(NEUE_MAX * 3);
   if (ids) newQuery = newQuery.in('agency_id', ids);
   else newQuery = newQuery.not('agency_id', 'in', NICHT_INTERN);
 
@@ -136,14 +144,21 @@ export async function GET(req: NextRequest) {
     for (const c of (data ?? []) as QueueCandidate[]) kandidaten[c.id] = c;
   }
 
+  // Abschluss-Phasen (abgesagt/eingestellt) aller geladenen Bewerber – die erscheinen in keiner Quelle
+  const cadence = (cadenceResult.data ?? []) as QueueCandidate[];
+  const neueRoh = (newResult.data ?? []) as QueueCandidate[];
+  const endphasen = await ladeEndphasen(svc, [...cadence, ...neueRoh, ...Object.values(kandidaten)].map((c) => c.current_stage_id));
+  const neue = neueRoh.filter((c) => !anrufSperrgrund(c, endphasen)).slice(0, NEUE_MAX);
+
   const items = baueWarteschlange({
     reminders,
-    cadence: (cadenceResult.data ?? []) as QueueCandidate[],
+    cadence,
     callbacks: offen,
-    neue: (newResult.data ?? []) as QueueCandidate[],
+    neue,
     kandidaten,
     userId: scope.user.id,
     jetzt: now,
+    endphasen,
   });
 
   // Agentur-Infos (Name + Büro-Nummer) und Call-Skripte

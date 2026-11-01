@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { KONTAKT_KEY, ladeSchalter, setzeKunde } from '@/lib/recruiting/kontakt-schalter';
+import { auditEreignis } from '@/lib/audit/log';
 
 /** GET – Schalter „Bewerber-Kontakt“ (nur Admins) */
 export async function GET() {
@@ -37,10 +38,10 @@ export async function PUT(req: NextRequest) {
   }
   const { error } = await svc.from('system_einstellungen').upsert({ key: KONTAKT_KEY, wert: JSON.stringify(neu), updated_at: new Date().toISOString() }, { onConflict: 'key' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await svc.from('audit_log').insert(
+  await auditEreignis(
     kundeId
-      ? { actor_id: user.id, agency_id: kundeId, action: 'bewerber_kontakt.kunde_geaendert', target: KONTAKT_KEY, data: { kunde: kundeId, an: neu.kunden.includes(kundeId) } }
-      : { actor_id: user.id, agency_id: null, action: 'bewerber_kontakt.geaendert', target: KONTAKT_KEY, data: neu },
+      ? { userId: user.id, agencyId: kundeId, entityType: 'settings', action: 'update', ereignis: 'bewerber_kontakt.kunde_geaendert', ziel: KONTAKT_KEY, daten: { kunde: kundeId, an: neu.kunden.includes(kundeId) } }
+      : { userId: user.id, agencyId: null, entityType: 'settings', action: 'update', ereignis: 'bewerber_kontakt.geaendert', ziel: KONTAKT_KEY, daten: { ...neu } },
   );
   return NextResponse.json(neu);
 }

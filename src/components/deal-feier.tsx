@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * Deal-Feier in der Cloud: fragt alle 20 s nach neuen gewonnenen Deals (nur bei sichtbarem Tab)
@@ -9,11 +9,22 @@ import { useEffect, useRef, useState } from 'react';
 
 interface Feier {
   id: string;
+  created_at: string;
+  gif?: string | null;
+}
+
+interface DealFeierDaten extends Feier {
   firma: string | null;
   closer: string | null;
   volumen: number | null;
   gif: string;
-  created_at: string;
+}
+
+export interface EinstellungFeierDaten extends Feier {
+  kunde: string | null;
+  vorname: string | null;
+  stelle: string | null;
+  nr_kunde: number | null;
 }
 
 const FARBEN = ['#dc2626', '#f59e0b', '#10b981', '#3b82f6', '#a855f7', '#ec4899', '#facc15'];
@@ -27,13 +38,10 @@ const KONFETTI = Array.from({ length: 70 }, (_, i) => ({
   dreh: (i * 47) % 360,
 }));
 
-const SPEICHER = 'zm_deal_feier_seit';
-const GESEHEN = 'zm_deal_feier_gesehen';
-
 /** IDs bereits gezeigter Feiern (jede Feier nur einmal je Gerät) */
-function gesehen(): string[] {
+function gesehen(schluessel: string): string[] {
   try {
-    return JSON.parse(localStorage.getItem(GESEHEN) ?? '[]') as string[];
+    return JSON.parse(localStorage.getItem(schluessel) ?? '[]') as string[];
   } catch {
     return [];
   }
@@ -44,9 +52,15 @@ function gifPfad(url: string): string {
   return url.replace(/^https:\/\/cloud\.zoeppmedia\.de/, '');
 }
 
-export function DealFeier() {
-  const [feier, setFeier] = useState<Feier | null>(null);
-  const warteschlange = useRef<Feier[]>([]);
+/**
+ * Allgemeine Feier-Anzeige: fragt `url` alle 20 s nach neuen Feiern (Antwort { feiern, jetzt })
+ * und zeigt jede genau einmal je Gerät im Vollbild mit Konfetti.
+ */
+function FeierAnzeige<T extends Feier>({ url, name, label, inhalt }: { url: string; name: string; label: string; inhalt: (f: T) => ReactNode }) {
+  const SPEICHER = `zm_${name}_seit`;
+  const GESEHEN = `zm_${name}_gesehen`;
+  const [feier, setFeier] = useState<T | null>(null);
+  const warteschlange = useRef<T[]>([]);
   const seit = useRef<string>(new Date().toISOString());
 
   useEffect(() => {
@@ -63,9 +77,9 @@ export function DealFeier() {
       if (aus || laeuft || document.visibilityState !== 'visible') return;
       laeuft = true;
       try {
-        const r = await fetch(`/api/deal-feier?seit=${encodeURIComponent(seit.current)}`, { cache: 'no-store' });
+        const r = await fetch(`${url}?seit=${encodeURIComponent(seit.current)}`, { cache: 'no-store' });
         if (!r.ok) return;
-        const d = (await r.json()) as { feiern: Feier[]; jetzt: string };
+        const d = (await r.json()) as { feiern: T[]; jetzt: string };
         const letzte = d.feiern[d.feiern.length - 1];
         seit.current = letzte?.created_at ?? d.jetzt;
         try {
@@ -73,11 +87,11 @@ export function DealFeier() {
         } catch {
           /* egal */
         }
-        const schon = new Set([...gesehen(), ...warteschlange.current.map((f) => f.id)]);
+        const schon = new Set([...gesehen(GESEHEN), ...warteschlange.current.map((f) => f.id)]);
         const neu = d.feiern.filter((f) => !schon.has(f.id));
         if (neu.length) {
           try {
-            localStorage.setItem(GESEHEN, JSON.stringify([...gesehen(), ...neu.map((f) => f.id)].slice(-30)));
+            localStorage.setItem(GESEHEN, JSON.stringify([...gesehen(GESEHEN), ...neu.map((f) => f.id)].slice(-30)));
           } catch {
             /* egal */
           }
@@ -100,7 +114,7 @@ export function DealFeier() {
       clearInterval(takt);
       document.removeEventListener('visibilitychange', sichtbar);
     };
-  }, []);
+  }, [url, SPEICHER, GESEHEN]);
 
   useEffect(() => {
     if (!feier) return;
@@ -109,12 +123,11 @@ export function DealFeier() {
   }, [feier]);
 
   if (!feier) return null;
-  const volumen = feier.volumen ? Number(feier.volumen).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) : null;
 
   return (
     <div
       role="dialog"
-      aria-label="Deal gewonnen"
+      aria-label={label}
       onClick={() => setFeier(warteschlange.current.shift() ?? null)}
       className="fixed inset-0 z-[2147483000] flex cursor-pointer items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       style={{ animation: 'zm-feier-ein 0.35s ease both' }}
@@ -137,16 +150,64 @@ export function DealFeier() {
       </div>
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white text-center shadow-2xl" style={{ animation: 'zm-feier-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both' }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- animiertes GIF */}
-        <img src={gifPfad(feier.gif)} alt="" className="h-64 w-full object-cover" />
+        <img src={gifPfad(feier.gif ?? '/icons/deal-feier.gif')} alt="" className="h-64 w-full object-cover" />
         <div className="space-y-1 p-5">
-          <p className="text-3xl font-extrabold tracking-tight text-gray-900">🎉 DEAL! 🎉</p>
-          <p className="text-base text-gray-700">
-            <b>{feier.closer ?? 'Das Team'}</b> hat <b>{feier.firma ?? 'einen neuen Kunden'}</b> abgeschlossen
-          </p>
-          {volumen && <p className="text-2xl font-bold text-red-600">💰 {volumen}</p>}
+          {inhalt(feier)}
           <p className="pt-1 text-xs text-gray-400">Klicken zum Schließen</p>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Deal gewonnen – bei allen eingeloggten Mitarbeitern */
+export function DealFeier() {
+  return (
+    <FeierAnzeige<DealFeierDaten>
+      url="/api/deal-feier"
+      name="deal_feier"
+      label="Deal gewonnen"
+      inhalt={(f) => {
+        const volumen = f.volumen ? Number(f.volumen).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) : null;
+        return (
+          <>
+            <p className="text-3xl font-extrabold tracking-tight text-gray-900">🎉 DEAL! 🎉</p>
+            <p className="text-base text-gray-700">
+              <b>{f.closer ?? 'Das Team'}</b> hat <b>{f.firma ?? 'einen neuen Kunden'}</b> abgeschlossen
+            </p>
+            {volumen && <p className="text-2xl font-bold text-red-600">💰 {volumen}</p>}
+          </>
+        );
+      }}
+    />
+  );
+}
+
+/** Neue Einstellung – beim Kunden (eigene) und intern (alle) */
+export function EinstellungFeier({ intern = false }: { intern?: boolean }) {
+  return (
+    <FeierAnzeige<EinstellungFeierDaten>
+      url="/api/einstellung-feier"
+      name="einstellung_feier"
+      label="Neue Einstellung"
+      inhalt={(f) => (
+        <>
+          <p className="text-3xl font-extrabold tracking-tight text-gray-900">🎉 EINGESTELLT! 🎉</p>
+          <p className="text-base text-gray-700">
+            {intern ? (
+              <>
+                <b>{f.kunde ?? 'Ein Kunde'}</b> hat <b>{f.vorname ?? 'einen neuen Mitarbeiter'}</b> eingestellt
+              </>
+            ) : (
+              <>
+                Glückwunsch zu <b>{f.vorname ?? 'deinem neuen Mitarbeiter'}</b>!
+              </>
+            )}
+            {f.stelle ? <> als <b>{f.stelle}</b></> : null}
+          </p>
+          {f.nr_kunde ? <p className="text-xl font-bold text-red-600">🏆 Einstellung Nr. {f.nr_kunde}</p> : null}
+        </>
+      )}
+    />
   );
 }

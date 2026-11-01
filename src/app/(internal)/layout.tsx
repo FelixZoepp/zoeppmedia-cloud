@@ -3,7 +3,7 @@ import { getCurrentUser, isInternal } from '@/lib/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { LayoutShell } from '@/components/layout-shell';
 import { PushManager } from '@/components/push-manager';
-import { DealFeier } from '@/components/deal-feier';
+import { DealFeier, EinstellungFeier } from '@/components/deal-feier';
 import { BereichTabs } from '@/components/bereich-tabs';
 import { aktiveAnsicht, ANSICHTEN } from '@/lib/ansicht';
 import { SopAufnahmeKnopf } from '@/components/akademie/sop-aufnahme-knopf';
@@ -72,6 +72,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
       <HilfeLeiste />
       <PushManager />
       <DealFeier />
+      <EinstellungFeier intern />
     </LayoutShell>
   );
 }

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { GESPERRTE_KUNDEN, ladeManatalOrganisationen, ladeZuordnung, manatalAktiv, schlageKundenVor, speichereZuordnung } from '@/lib/manatal/abgleich';
+import { auditEreignis } from '@/lib/audit/log';
 
 /** GET – Manatal-Organisationen mit Zuordnung zu Kunden (nur Admins) */
 export async function GET() {
@@ -41,6 +42,6 @@ export async function PUT(req: NextRequest) {
   if (agencyId) zuordnung[orgId] = agencyId;
   else delete zuordnung[orgId];
   await speichereZuordnung(svc, zuordnung);
-  await svc.from('audit_log').insert({ actor_id: user.id, agency_id: agencyId, action: 'manatal.zuordnung', target: orgId, data: { agencyId } });
+  await auditEreignis({ userId: user.id, agencyId, entityType: 'settings', action: 'update', ereignis: 'manatal.zuordnung', ziel: orgId, daten: { agencyId } });
   return NextResponse.json({ ok: true });
 }

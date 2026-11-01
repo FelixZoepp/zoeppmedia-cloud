@@ -27,7 +27,7 @@ interface HealthCheck {
   agency_id: string;
   typ: string;
   gelaufen_am: string;
-  ergebnis: 'ok' | 'warnung' | 'fehler';
+  ergebnis: 'ok' | 'warnung' | 'fehler' | 'info';
   details: Record<string, unknown>;
 }
 
@@ -76,9 +76,12 @@ function formatDateTime(iso: string): string {
   );
 }
 
-function TrafficLight({ ergebnis }: { ergebnis?: 'ok' | 'warnung' | 'fehler' }) {
+function TrafficLight({ ergebnis }: { ergebnis?: 'ok' | 'warnung' | 'fehler' | 'info' }) {
   if (!ergebnis) {
     return <div className="w-3 h-3 rounded-full bg-gray-200" title="Nicht geprueft" />;
+  }
+  if (ergebnis === 'info') {
+    return <div className="w-3 h-3 rounded-full bg-gray-300" title="Nicht eingerichtet" />;
   }
   if (ergebnis === 'ok') {
     return <div className="w-3 h-3 rounded-full bg-green-500" title="OK" />;
@@ -92,19 +95,22 @@ function TrafficLight({ ergebnis }: { ergebnis?: 'ok' | 'warnung' | 'fehler' }) 
 function ErgebnisIcon({ ergebnis }: { ergebnis: string }) {
   if (ergebnis === 'ok') return <CheckCircle2 className="w-4 h-4 text-green-500" />;
   if (ergebnis === 'warnung') return <AlertTriangle className="w-4 h-4 text-amber-500" />;
+  if (ergebnis === 'info') return <AlertTriangle className="w-4 h-4 text-gray-400" />;
   return <XCircle className="w-4 h-4 text-red-500" />;
 }
 
-const ERGEBNIS_TONES: Record<string, 'success' | 'softAccent' | 'accent'> = {
+const ERGEBNIS_TONES: Record<string, 'success' | 'softAccent' | 'accent' | 'neutral'> = {
   ok: 'success',
   warnung: 'softAccent',
   fehler: 'accent',
+  info: 'neutral',
 };
 
 const ERGEBNIS_LABELS: Record<string, string> = {
   ok: 'OK',
   warnung: 'Warnung',
   fehler: 'Fehler',
+  info: 'Nicht eingerichtet',
 };
 
 /* ------------------------------------------------------------------ */

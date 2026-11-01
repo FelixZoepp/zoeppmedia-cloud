@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth';
 import { pruefeState, verbindeKalender, type OAuthProvider } from '@/lib/kalender/kunden-kalender';
+import { auditEreignis } from '@/lib/audit/log';
 
 /** Rücksprung vom Kalender-Anbieter: Code tauschen, Verbindung speichern, Onboarding-Schritt abhaken */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     await verbindeKalender(svc, provider as OAuthProvider, code, state.agencyId, state.userId);
     const { signalSafe } = await import('@/lib/fulfillment/engine');
     await signalSafe(svc, state.agencyId, 'kalender_verbunden');
-    await svc.from('audit_log').insert({ actor_id: state.userId, agency_id: state.agencyId, action: 'kalender.verbunden', target: provider, data: {} });
+    await auditEreignis({ userId: state.userId, agencyId: state.agencyId, entityType: 'agency', action: 'update', ereignis: 'kalender.verbunden', ziel: provider });
     const ok = zurueck('verbunden=1');
     ok.cookies.delete('zm_kalender_nonce');
     return ok;

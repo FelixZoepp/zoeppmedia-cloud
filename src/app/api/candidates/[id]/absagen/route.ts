@@ -4,17 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/auth';
 import { canWriteRole } from '@/lib/recruiting/scope';
 import { stageVomTyp, getStagesForAgency } from '@/lib/pipeline/get-stages';
-import { stopCadence } from '@/lib/cadence/engine';
+import { stoppeAbgesagtenBewerber } from '@/lib/recruiting/absage-stopp';
 import { fireEvent } from '@/lib/automations/fire';
 import { logActivity } from '@/lib/activity/log';
 import { absageFelder, pruefeAbsage } from '@/lib/recruiting/absagegruende';
-import {
-  SCHNELL_ABSAGE_ART,
-  baueUndo,
-  istAbgesagtStage,
-  jobFilterOr,
-  sollJobAbbrechen,
-} from '@/lib/recruiting/schnell-absage';
+import { SCHNELL_ABSAGE_ART, baueUndo, istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
 
 /**
  * Absage: Bewerber in „Abgesagt“ schieben und alles stoppen, was ihn noch kontaktieren würde
@@ -51,23 +45,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Bewerber ist bereits abgesagt.' }, { status: 409 });
   }
 
-  // Vorher-Zustand merken (für Rückgängig)
-  const [{ data: apps }, { data: convs }] = await Promise.all([
-    supabase.from('applications').select('id, stage_id, status').eq('candidate_id', id).eq('agency_id', agencyId),
-    svc.from('conversations').select('id, state').eq('candidate_id', id).eq('agency_id', agencyId),
-  ]);
+  // Vorher-Zustand der Bewerbungen merken (für Rückgängig)
+  const { data: apps } = await supabase.from('applications').select('id, stage_id, status').eq('candidate_id', id).eq('agency_id', agencyId);
   const bewerbungen = (apps ?? []) as Array<{ id: string; stage_id: string | null; status: string | null }>;
-  const gespraeche = (convs ?? []) as Array<{ id: string; state: string | null }>;
   const jetzt = new Date().toISOString();
-  const [{ data: ca }, { data: ap }] = await Promise.all([
-    svc.from('candidate_appointments').select('id, status').eq('candidate_id', id).eq('agency_id', agencyId).eq('status', 'geplant').gte('scheduled_at', jetzt),
-    bewerbungen.length
-      ? svc.from('appointments').select('id, status, starts_at').eq('agency_id', agencyId).in('application_id', bewerbungen.map((a) => a.id)).in('status', ['proposed', 'booked', 'confirmed'])
-      : Promise.resolve({ data: [] }),
-  ]);
-  const termine = (ca ?? []) as Array<{ id: string; status: string | null }>;
-  // Einladungen ohne Zeit (noch nicht gebucht) oder in der Zukunft
-  const einladungen = ((ap ?? []) as Array<{ id: string; status: string | null; starts_at: string | null }>).filter((a) => !a.starts_at || a.starts_at >= jetzt);
 
   // Grund wird immer gesetzt → beim Rückgängigmachen wieder leeren
   const grundGesetzt = true;
@@ -88,45 +69,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .eq('candidate_id', id)
     .eq('agency_id', agencyId);
 
-  // 2. Anrufversuche stoppen
-  const anrufeGestoppt = !!candidate.cadence_active;
-  if (anrufeGestoppt) await stopCadence(svc, id, 'abgesagt');
-
-  // 3. Gespräche schließen → KI-Agent antwortet nicht mehr
-  const offeneGespraeche = gespraeche.filter((g) => g.state !== 'closed').map((g) => g.id);
-  if (offeneGespraeche.length) {
-    await svc.from('conversations').update({ state: 'closed', updated_at: jetzt }).eq('agency_id', agencyId).in('id', offeneGespraeche);
-  }
-
-  // 4. Geplante Jobs (Bot-Timer, Nachfass-WhatsApp, Erinnerungen …) abbrechen
-  const bezug = {
+  // 2.–5. Anrufversuche, KI-Agent, geplante Jobs und künftige Termine stoppen (gemeinsam mit den Stufen-Routen)
+  const { gespraeche, termine, einladungen, gestoppt } = await stoppeAbgesagtenBewerber(svc, {
     candidateId: id,
-    conversationIds: gespraeche.map((g) => g.id),
+    agencyId,
     applicationIds: bewerbungen.map((a) => a.id),
-    appointmentIds: [...termine.map((t) => t.id), ...einladungen.map((e) => e.id)],
-  };
-  const { data: jobs } = await svc
-    .from('scheduled_jobs')
-    .select('id, type, payload')
-    .eq('agency_id', agencyId)
-    .eq('status', 'pending')
-    .or(jobFilterOr(bezug))
-    .limit(500);
-  const jobIds = ((jobs ?? []) as Array<{ id: string; type: string; payload: unknown }>).filter((j) => sollJobAbbrechen(j, bezug)).map((j) => j.id);
-  if (jobIds.length) {
-    await svc.from('scheduled_jobs').update({ status: 'cancelled', updated_at: jetzt }).in('id', jobIds).eq('status', 'pending');
-  }
-
-  // 5. Künftige Termine direkt absagen – bewusst NICHT über cancelAppointment / Termin-PATCH (die schicken Mail bzw. lösen Automationen aus)
-  if (termine.length) {
-    await svc.from('candidate_appointments').update({ status: 'abgesagt' }).eq('agency_id', agencyId).in('id', termine.map((t) => t.id));
-  }
-  if (einladungen.length) {
-    await svc.from('appointments').update({ status: 'cancelled', updated_at: jetzt }).eq('agency_id', agencyId).in('id', einladungen.map((e) => e.id));
-  }
+    cadenceActive: candidate.cadence_active,
+    jetzt,
+  });
 
   const rueckgaengig = baueUndo({ vorherStageId: candidate.current_stage_id, grundGesetzt, bewerbungen, gespraeche, termine, einladungen });
-  const gestoppt = { anrufe: anrufeGestoppt, gespraeche: offeneGespraeche.length, jobs: jobIds.length, termine: termine.length + einladungen.length };
 
   await logActivity(supabase, {
     agency_id: agencyId,

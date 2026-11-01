@@ -3,6 +3,7 @@ import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/create';
 import { automatikAgencyIds } from '@/lib/fulfillment/automatik';
+import { anrufSperrgrund, ladeEndphasen } from '@/lib/recruiting/absage-stopp';
 
 /**
  * Cadence cron job — laut vercel.json einmal täglich (altes Verhalten, unverändert).
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   const automatikIds = await automatikAgencyIds(supabase);
   const { data: dueCandidates, error } = await supabase
     .from('candidates')
-    .select('id, name, agency_id, cadence_attempt, cadence_next_window')
+    .select('id, name, agency_id, cadence_attempt, cadence_next_window, current_stage_id, deleted_at')
     .eq('cadence_active', true)
     .not('cadence_next_at', 'is', null)
     .lte('cadence_next_at', now)
@@ -44,9 +45,24 @@ export async function GET(request: NextRequest) {
 
   let tasksCreated = 0;
   let notificationsSent = 0;
+  let gestoppt = 0;
+
+  // Abgesagte, eingestellte und gelöschte Bewerber bekommen keine Anruf-Aufgabe mehr – Kadenz dort beenden
+  const endphasen = await ladeEndphasen(supabase, (dueCandidates ?? []).map((c) => c.current_stage_id as string | null));
 
   for (const candidate of dueCandidates ?? []) {
     try {
+      const sperre = anrufSperrgrund(candidate, endphasen);
+      if (sperre) {
+        await supabase
+          .from('candidates')
+          .update({ cadence_active: false, cadence_next_at: null, cadence_next_window: null, cadence_stopped_reason: sperre })
+          .eq('id', candidate.id)
+          .eq('agency_id', candidate.agency_id);
+        gestoppt++;
+        continue;
+      }
+
       const attemptNumber = (candidate.cadence_attempt ?? 0) + 1;
       const windowLabel =
         candidate.cadence_next_window === 'morning'
@@ -104,6 +120,7 @@ export async function GET(request: NextRequest) {
     ok: true,
     dueCandidates: dueCandidates?.length ?? 0,
     tasksCreated,
+    gestoppt,
     notificationsSent,
   });
 }

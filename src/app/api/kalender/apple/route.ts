@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verbindeApple } from '@/lib/kalender/kunden-kalender';
+import { auditEreignis } from '@/lib/audit/log';
 
 /** POST { apple_id, passwort } – Apple-Kalender (iCloud) mit app-spezifischem Passwort verbinden (Inhaber, Admins, Zoepp-Team) */
 export async function POST(req: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     const r = await verbindeApple(svc, agencyId, user.id, appleId, passwort);
     const { signalSafe } = await import('@/lib/fulfillment/engine');
     await signalSafe(svc, agencyId, 'kalender_verbunden');
-    await svc.from('audit_log').insert({ actor_id: user.id, agency_id: agencyId, action: 'kalender.verbunden', target: 'apple', data: { kalender: r.kalender } });
+    await auditEreignis({ userId: user.id, agencyId, entityType: 'agency', action: 'update', ereignis: 'kalender.verbunden', ziel: 'apple', daten: { kalender: r.kalender } });
     return NextResponse.json({ ok: true, kalender: r.kalender });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Verbindung fehlgeschlagen' }, { status: 400 });

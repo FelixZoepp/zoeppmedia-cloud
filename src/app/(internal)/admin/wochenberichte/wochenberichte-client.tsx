@@ -31,6 +31,7 @@ const ERGEBNIS: Record<string, string> = {
   schon_gesendet: 'war schon gesendet',
   kein_empfaenger: 'kein Empfänger',
   pausiert: 'pausiert',
+  nicht_freigegeben: 'nicht freigegeben',
   fehler: 'Fehler',
 };
 

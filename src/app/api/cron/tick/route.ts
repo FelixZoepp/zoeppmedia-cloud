@@ -533,6 +533,11 @@ export async function GET(request: NextRequest) {
           await sendeCapiEvent(svc, (payload as { event_id: string }).event_id);
           break;
         }
+        case 'recruiting.einstellung_feier': {
+          const { feiereEinstellung } = await import('@/lib/recruiting/einstellung-feier');
+          await feiereEinstellung(svc, (payload as { candidate_id: string }).candidate_id);
+          break;
+        }
         case 'sales.deal_feier': {
           const { feiereDeal } = await import('@/lib/sales/deal-feier');
           await feiereDeal(svc, (payload as { opp_id: string }).opp_id);

@@ -1,6 +1,7 @@
 import { bereichVon } from '@/lib/masterclass/bereich';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createNotificationForAgency } from '@/lib/notifications/create';
+import { istFreigegeben } from '@/lib/freigaben';
 
 interface Module {
   id: string;
@@ -120,6 +121,10 @@ export async function checkMasterclassNudges(supabase: SupabaseClient) {
 
       // If insert fails (e.g. unique constraint), skip silently
       if (error) return;
+
+      // Push/Glocke an den Kunden nur mit Freigabe (Prüfung direkt vor dem Senden).
+      // Aus: nur vermerkt (oben), nicht geschickt – beim Einschalten wird nichts nachgeholt.
+      if (!(await istFreigegeben(supabase, 'masterclass_nudges'))) return;
 
       await createNotificationForAgency(supabase, agencyId, {
         title,

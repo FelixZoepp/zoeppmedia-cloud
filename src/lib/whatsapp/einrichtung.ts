@@ -10,6 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getProvider } from './provider';
 import { decryptSecret, encryptSecret } from '@/lib/crypto';
 import { seedTemplatesForAccount } from './template-presets';
+import { auditEreignis } from '@/lib/audit/log';
 
 export interface EinrichtungsErgebnis {
   ok: boolean;
@@ -128,7 +129,7 @@ export async function pruefeUndAktiviere(
     const { signalSafe } = await import('@/lib/fulfillment/engine');
     await signalSafe(svc, a.agency_id, 'whatsapp_verbunden');
     if (opts.userId) {
-      await svc.from('audit_log').insert({ actor_id: opts.userId, agency_id: a.agency_id, action: 'whatsapp.connected', target: a.id, data: { waba_id: a.waba_id, phone_number_id: a.phone_number_id, method: opts.methode ?? 'pruefen' } });
+      await auditEreignis({ userId: opts.userId, agencyId: a.agency_id, entityType: 'agency', action: 'update', ereignis: 'whatsapp.connected', ziel: a.id, daten: { waba_id: a.waba_id, phone_number_id: a.phone_number_id, method: opts.methode ?? 'pruefen' } });
     }
   }
   return { ok: ok || status === 'connected', accountId: a.id, status, fehler };

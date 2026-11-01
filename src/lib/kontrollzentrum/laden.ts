@@ -26,6 +26,8 @@ import {
   type Marge,
   type TerminRoh,
 } from './bewertung';
+import { berechneHealthScore, healthKennzahlen, ladeHealthSnapshots, mitSnapshots, type HealthAnzeige } from './health-score';
+import { today } from '@/lib/fulfillment/views';
 
 /** Kontrollzentrum: alle Kunden auf einer Seite – Ergebnisse, Nutzung, Ampel, Upsell, Churn und Marge (letzte 30 Tage). */
 
@@ -55,6 +57,8 @@ export interface KontrollZeile {
   /** Indeed-Kosten 30 Tage aus dem Tagesbudget – nur Info, nicht in Marge/€ pro Einstellung */
   indeedKosten: number | null;
   marge: Marge;
+  /** Health-Score 0–100 (Snapshot von heute, sonst live); null = nicht aktiv (pausiert/Offboarding) */
+  health: HealthAnzeige | null;
 }
 
 export interface Kontrollzentrum {
@@ -78,13 +82,29 @@ export interface KundeRoh {
   bausteine: unknown;
   garantie_ist: number | null;
   garantie_ziel_starter: number | null;
+  /** Beginn der aktuellen Phase (für „Onboarding hängt“ und Laufzeit) */
+  fulfillment_phase_seit?: string | null;
+}
+
+/** Zusatzdaten nur für den Health-Score (optional, damit ältere Aufrufer/Tests ohne auskommen) */
+export interface HealthRoh {
+  /** candidate_appointments mit Status „geplant“ in der Vergangenheit */
+  offeneTermine: Array<{ agency_id: string; datum: string }>;
+  /** Bewerber aktuell in der Probetag-Stufe, seit wann */
+  probetag: Array<{ agency_id: string; seit: string }>;
+  /** Offene Prüfstand-Fälle je vorgeschlagenem Kunden */
+  pruefstand: Map<string, number>;
+  /** Nicht eingelöste Einladungen */
+  einladungen: Array<{ agency_id: string; created_at: string }>;
+  /** Stufen-IDs „eingestellt“/„abgesagt“ */
+  abgeschlossen: Set<string>;
 }
 
 export interface Rohdaten {
   kunden: KundeRoh[];
   /** Paket-Key (klein) → Retainer, falls kein MRR hinterlegt */
   retainer: Map<string, number>;
-  kandidaten: Array<KandidatRoh & { agency_id: string }>;
+  kandidaten: Array<KandidatRoh & { agency_id: string; first_dial_at?: string | null; current_stage_id?: string | null }>;
   anrufe: Array<{ agency_id: string; candidate_id: string | null; created_at: string }>;
   termine: Array<TerminRoh & { agency_id: string }>;
   einstellungen: Array<{ agency_id: string; datum: string }>;
@@ -100,6 +120,8 @@ export interface Rohdaten {
   metaAusgaben?: Map<string, number> | null;
   /** Indeed-Kosten 30 Tage je Kunde (Info) */
   indeedKosten?: Map<string, number> | null;
+  /** Zusatzdaten für den Health-Score */
+  health?: HealthRoh;
 }
 
 function gruppiere<T extends { agency_id: string }>(rows: T[]): Map<string, T[]> {
@@ -127,6 +149,10 @@ export function baueZeilen(r: Rohdaten, jetzt: Date): KontrollZeile[] {
   const ter = gruppiere(r.termine);
   const ein = gruppiere(r.einstellungen);
   const nut = gruppiere(r.nutzer);
+  const hOffeneTermine = gruppiere(r.health?.offeneTermine ?? []);
+  const hProbetag = gruppiere(r.health?.probetag ?? []);
+  const hEinladungen = gruppiere(r.health?.einladungen ?? []);
+  const abgeschlossen = r.health?.abgeschlossen ?? new Set<string>();
 
   return r.kunden
     .map((a) => {
@@ -154,6 +180,33 @@ export function baueZeilen(r: Rohdaten, jetzt: Date): KontrollZeile[] {
       const mrr = zahl(a.mrr) || (a.paket ? r.retainer.get(a.paket.trim().toLowerCase()) ?? null : null) || null;
       // Echte Meta-Ausgaben statt Werbebudget, sobald für den Kunden abgeglichen; Indeed wird nicht eingerechnet
       const metaAusgaben = r.metaAusgaben?.has(a.id) ? r.metaAusgaben.get(a.id)! : null;
+
+      // Health-Score: nur für aktive Kunden (nicht pausiert, nicht im Offboarding)
+      let health: HealthAnzeige | null = null;
+      if (!a.pausiert_grund && a.fulfillment_phase !== 'offboarding') {
+        const hk = healthKennzahlen(
+          {
+            phase: a.fulfillment_phase,
+            phaseSeit: a.fulfillment_phase_seit ?? null,
+            settings: a.settings,
+            kandidaten: daten.kandidaten,
+            angerufen: daten.angerufen,
+            abgeschlossen,
+            ttfcMedianSek: jetztK.ttfcMedianSek,
+            leads30: jetztK.leads,
+            kundenNutzer: nutzer.length,
+            letzterLogin,
+            loginPruefen,
+            offeneTermine: (hOffeneTermine.get(a.id) ?? []).map((x) => x.datum),
+            probetagSeit: (hProbetag.get(a.id) ?? []).map((x) => x.seit),
+            einstellungen30: jetztK.einstellungen,
+            pruefstandOffen: r.health?.pruefstand.get(a.id) ?? 0,
+            einladungen: (hEinladungen.get(a.id) ?? []).map((x) => x.created_at),
+          },
+          jetzt,
+        );
+        health = { ...berechneHealthScore(hk), kennzahlen: hk, vor7: null, trend: null, quelle: 'live' };
+      }
       return {
         id: a.id,
         name: a.name,
@@ -190,6 +243,7 @@ export function baueZeilen(r: Rohdaten, jetzt: Date): KontrollZeile[] {
           anrufMinuten: r.anrufMinuten.get(a.id) ?? 0,
           vorlagen: r.vorlagen.get(a.id) ?? 0,
         }),
+        health,
       };
     })
     .sort(
@@ -243,16 +297,16 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
     await Promise.all([
       svc
         .from('agencies')
-        .select('id, name, settings, fulfillment_phase, pausiert_grund, csm_user_id, mrr, werbebudget, paket, bausteine, garantie_ist, garantie_ziel_starter')
+        .select('id, name, settings, fulfillment_phase, fulfillment_phase_seit, pausiert_grund, csm_user_id, mrr, werbebudget, paket, bausteine, garantie_ist, garantie_ziel_starter')
         .not('id', 'in', `(${HIDDEN_AGENCY_IDS.join(',')})`)
         .order('name'),
       svc.from('paket_definitionen').select('key, retainer_netto'),
       svc.from('pipeline_stages').select('id, name, stage_type'),
       svc.from('system_einstellungen').select('key, wert').in('key', ['bewerber_kontakt', 'stundensatz_intern']),
-      fetchAll<KandidatRoh & { agency_id: string }>((von, bis) =>
+      fetchAll<KandidatRoh & { agency_id: string; first_dial_at: string | null; current_stage_id: string | null }>((von, bis) =>
         svc
           .from('candidates')
-          .select('id, agency_id, created_at, first_contact_at, ttfc_seconds')
+          .select('id, agency_id, created_at, first_contact_at, ttfc_seconds, first_dial_at, current_stage_id')
           .is('deleted_at', null)
           .gte('created_at', ab)
           .order('id')
@@ -267,10 +321,10 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
       fetchAll<{ agency_id: string; status: string | null; starts_at: string }>((von, bis) =>
         svc.from('appointments').select('agency_id, status, starts_at').gte('starts_at', ab).lte('starts_at', jetzt.toISOString()).order('id').range(von, bis),
       ),
-      fetchAll<{ agency_id: string; last_login: string | null }>((von, bis) =>
+      fetchAll<{ id: string; agency_id: string; last_login: string | null }>((von, bis) =>
         svc
           .from('users')
-          .select('agency_id, last_login')
+          .select('id, agency_id, last_login')
           .in('role', ['agency_owner', 'agency_member', 'agency_viewer'])
           .not('agency_id', 'is', null)
           .order('id')
@@ -327,6 +381,9 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
   const ohneDirekt = [...aktuell, ...ehemals].filter((k) => !k.eingestellt_am);
 
   const werte = new Map(((einst ?? []) as Array<{ key: string; wert: unknown }>).map((x) => [x.key, x.wert]));
+  const alleStufen = (stufen ?? []) as Array<{ id: string; name: string; stage_type: string | null }>;
+  const health = await ladeHealthRoh(svc, alleStufen, hired, alteTermine, jetzt);
+  const authLogin = await ladeAuthLogins(svc);
   const mitKunde = <T extends { agency_id: string | null }>(rows: T[]) => rows.filter((x): x is T & { agency_id: string } => !!x.agency_id);
 
   return {
@@ -346,7 +403,11 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
       ...direkt.map((k) => ({ agency_id: k.agency_id, datum: k.eingestellt_am! })),
       ...einstellungsZeitpunkte(ohneDirekt, wechsel, hired),
     ],
-    nutzer,
+    // Letzter Login: users.last_login bzw. auth.users.last_sign_in_at – der jüngere gilt
+    nutzer: nutzer.map((u) => {
+      const auth = authLogin.get(u.id) ?? null;
+      return { agency_id: u.agency_id, last_login: !auth ? u.last_login : !u.last_login || auth > u.last_login ? auth : u.last_login };
+    }),
     whatsapp: new Set(whatsapp.map((w) => w.agency_id)),
     kontaktSchalter: werte.get('bewerber_kontakt') ?? null,
     stundensatz: liesZahl(werte.get('stundensatz_intern')),
@@ -355,13 +416,107 @@ export async function ladeRohdaten(svc: SupabaseClient, jetzt: Date = new Date()
     vorlagen: summiere(mitKunde(vorlagen), () => 1),
     metaAusgaben,
     indeedKosten: indeedJeKunde,
+    health,
+  };
+}
+
+/** Optionale Health-Quelle: Fehler loggen statt die ganze Seite scheitern zu lassen */
+async function optionalLog<T>(was: string, p: Promise<T>, leer: T): Promise<T> {
+  try {
+    return await p;
+  } catch (err) {
+    console.error(`[kontrollzentrum] Health-Daten „${was}“ nicht geladen:`, err);
+    return leer;
+  }
+}
+
+/** auth.users.last_sign_in_at je User-ID (seitenweise über die Admin-API) */
+async function ladeAuthLogins(svc: SupabaseClient): Promise<Map<string, string | null>> {
+  return optionalLog(
+    'auth.users',
+    (async () => {
+      const m = new Map<string, string | null>();
+      for (let page = 1; page <= 50; page++) {
+        const { data, error } = await svc.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) throw new Error(error.message);
+        for (const u of data.users) m.set(u.id, u.last_sign_in_at ?? null);
+        if (data.users.length < 1000) break;
+      }
+      return m;
+    })(),
+    new Map(),
+  );
+}
+
+/** Zusatzdaten für den Health-Score: offene Termine, Probetag-Stau, Prüfstand, Einladungen */
+async function ladeHealthRoh(
+  svc: SupabaseClient,
+  stufen: Array<{ id: string; name: string; stage_type: string | null }>,
+  hired: Set<string>,
+  termine: Array<{ agency_id: string; status: string | null; scheduled_at: string }>,
+  jetzt: Date,
+): Promise<HealthRoh> {
+  const abgeschlossen = new Set([
+    ...hired,
+    ...stufen.filter((s) => s.stage_type === 'rejected' || /^(abgesagt|abgelehnt)/i.test(s.name)).map((s) => s.id),
+  ]);
+  const probetagIds = stufen.filter((s) => s.stage_type === 'offer' || /probetag/i.test(s.name)).map((s) => s.id);
+  const jetztIso = jetzt.toISOString();
+
+  const [imProbetag, pruefstand, einladungen] = await Promise.all([
+    optionalLog(
+      'Probetag-Stufe',
+      fetchAllIn<string, { id: string; agency_id: string; created_at: string }>(probetagIds, (chunk, von, bis) =>
+        svc.from('candidates').select('id, agency_id, created_at').is('deleted_at', null).in('current_stage_id', chunk).order('id').range(von, bis),
+      ),
+      [],
+    ),
+    optionalLog(
+      'Prüfstand',
+      fetchAll<{ agency_vorschlag: string | null }>((von, bis) =>
+        svc.from('bewerber_pruefstand').select('agency_vorschlag').in('status', ['wartet', 'offen']).not('agency_vorschlag', 'is', null).order('id').range(von, bis),
+      ),
+      [],
+    ),
+    optionalLog(
+      'Einladungen',
+      fetchAll<{ agency_id: string; created_at: string }>((von, bis) =>
+        svc.from('invite_tokens').select('agency_id, created_at').eq('redeemed', false).order('id').range(von, bis),
+      ),
+      [],
+    ),
+  ]);
+
+  // Seit wann in der Probetag-Stufe: letzter Wechsel dorthin, sonst Anlage des Bewerbers
+  const wechsel = await optionalLog(
+    'Probetag-Wechsel',
+    fetchAllIn<string, { candidate_id: string; changed_at: string }>(
+      imProbetag.map((k) => k.id),
+      (chunk, von, bis) => svc.from('candidate_stages').select('candidate_id, changed_at').in('candidate_id', chunk).in('stage_id', probetagIds).order('id').range(von, bis),
+    ),
+    [],
+  );
+  const seit = new Map<string, string>();
+  for (const w of wechsel) if (!seit.has(w.candidate_id) || w.changed_at > seit.get(w.candidate_id)!) seit.set(w.candidate_id, w.changed_at);
+
+  const proKunde = new Map<string, number>();
+  for (const p of pruefstand) if (p.agency_vorschlag) proKunde.set(p.agency_vorschlag, (proKunde.get(p.agency_vorschlag) ?? 0) + 1);
+
+  return {
+    offeneTermine: termine.filter((t) => t.status === 'geplant' && t.scheduled_at < jetztIso).map((t) => ({ agency_id: t.agency_id, datum: t.scheduled_at })),
+    probetag: imProbetag.map((k) => ({ agency_id: k.agency_id, seit: seit.get(k.id) ?? k.created_at })),
+    pruefstand: proKunde,
+    einladungen,
+    abgeschlossen,
   };
 }
 
 export async function ladeKontrollzentrum(svc: SupabaseClient, jetzt: Date = new Date()): Promise<Kontrollzentrum> {
-  const roh = await ladeRohdaten(svc, jetzt);
+  const heute = today(jetzt);
+  const [roh, snapshots] = await Promise.all([ladeRohdaten(svc, jetzt), ladeHealthSnapshots(svc, heute)]);
   return {
-    zeilen: baueZeilen(roh, jetzt),
+    // Health: Snapshot von heute, sonst live berechnet; Trend gegen vor 7 Tagen
+    zeilen: mitSnapshots(baueZeilen(roh, jetzt), snapshots, heute),
     zeiterfassung: roh.teamMinuten !== null,
     stundensatz: roh.stundensatz,
     stand: jetzt.toISOString(),

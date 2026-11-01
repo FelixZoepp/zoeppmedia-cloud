@@ -239,4 +239,45 @@ describe('sendWhatsAppMessage', () => {
     // decrypted-token darf nicht in error_code auftauchen
     expect(failedUpdate?.error_code).not.toContain('decrypted-token');
   });
+
+  it('(4) Abgesagter Bewerber → keine automatische Nachricht (Phase oder abgesagt_am), manueller Versand bleibt möglich', async () => {
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp/send');
+    const insertSpy = vi.fn(() => makeChain({ data: { id: 'msg-1' }, error: null }));
+    const svcMit = (candidate: Record<string, unknown>) =>
+      ({
+        from: (table: string) => {
+          if (table === 'whatsapp_accounts') {
+            return makeChain({ data: { id: 'wa-account-1', phone_number_id: 'pn-1', access_token_enc: 'enc', status: 'connected' }, error: null });
+          }
+          if (table === 'conversations') {
+            return makeChain({ data: { window_expires_at: new Date(Date.now() + 3600_000).toISOString(), candidate_id: 'cand-1' }, error: null });
+          }
+          if (table === 'candidates') return makeChain({ data: candidate, error: null });
+          if (table === 'agencies') return makeChain({ data: { timezone: 'Europe/Berlin' }, error: null });
+          if (table === 'messages') {
+            const chain = makeChain({ data: { id: 'msg-1' }, error: null });
+            (chain as Record<string, unknown>).insert = insertSpy;
+            return chain;
+          }
+          return makeChain({ data: null, error: null });
+        },
+      }) as unknown as Parameters<typeof sendWhatsAppMessage>[0];
+
+    await expect(
+      sendWhatsAppMessage(svcMit({ whatsapp_opt_in: true, current_stage: { stage_type: 'rejected', name: 'Abgesagt' } }), BASE_OPTS),
+    ).rejects.toThrow('abgesagt');
+    await expect(
+      sendWhatsAppMessage(svcMit({ whatsapp_opt_in: true, abgesagt_am: '2026-10-30T10:00:00Z', current_stage: null }), { ...BASE_OPTS, senderType: 'system' }),
+    ).rejects.toThrow('abgesagt');
+    // Altdaten ohne stage_type: Erkennung über den Namen
+    await expect(
+      sendWhatsAppMessage(svcMit({ whatsapp_opt_in: true, current_stage: [{ stage_type: null, name: 'Abgesagt' }] }), BASE_OPTS),
+    ).rejects.toThrow('abgesagt');
+    expect(insertSpy).not.toHaveBeenCalled();
+
+    // Manueller Versand aus der Oberfläche wird von dieser Sperre nicht blockiert (scheitert hier erst am fehlenden Consent)
+    await expect(
+      sendWhatsAppMessage(svcMit({ whatsapp_opt_in: false, current_stage: { stage_type: 'rejected', name: 'Abgesagt' } }), { ...BASE_OPTS, senderType: 'user', isHumanUiSend: true }),
+    ).rejects.not.toThrow('abgesagt');
+  });
 });

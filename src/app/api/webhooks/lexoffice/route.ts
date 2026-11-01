@@ -10,7 +10,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Log incoming webhook
+    // Der Webhook ist unsigniert/fälschbar: den rohen Body NIE speichern (sonst landen beliebige
+    // fremde Inhalte im Log). Festgehalten werden nur geprüfte Kurzfelder.
+    const eventType = typeof body?.eventType === 'string' ? (body.eventType as string).slice(0, 80) : undefined;
+    const rohId = typeof body?.resourceId === 'string' ? (body.resourceId as string) : '';
     await logApiCall(
       supabase,
       'lexoffice',
@@ -18,15 +21,13 @@ export async function POST(request: NextRequest) {
       '/webhooks/lexoffice',
       'POST',
       null,
-      body,
+      { eventType: eventType ?? null, resourceId: UUID_RE.test(rohId) ? rohId : null },
       null,
       false
     );
 
-    const eventType = body?.eventType as string | undefined;
-
     if (eventType === 'invoice.status.changed') {
-      const resourceId = body?.resourceId as string | undefined;
+      const resourceId = rohId;
 
       if (resourceId && UUID_RE.test(resourceId)) {
         // Find billing run with this Lexware invoice ID
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
         '/webhooks/lexoffice',
         'POST',
         null,
-        { info: 'Unbekannter Event-Typ', eventType, body },
+        { info: 'Unbekannter Event-Typ', eventType: eventType ?? null },
         null,
         false
       );

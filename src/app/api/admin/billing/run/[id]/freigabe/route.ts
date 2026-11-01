@@ -4,6 +4,7 @@ import { isAdmin } from '@/lib/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { createPaymentIntent, createCheckoutSession } from '@/lib/billing/stripe';
 import { logApiCall } from '@/lib/billing/lexoffice';
+import { istFreigegeben } from '@/lib/freigaben';
 
 export async function POST(
   request: NextRequest,
@@ -126,8 +127,9 @@ export async function POST(
         });
       }
 
-      // Send email with checkout link
-      if (agency?.email) {
+      // Send email with checkout link – Finanzen: nur mit Freigabe (Prüfung direkt vor dem Senden)
+      const mailFreigegeben = await istFreigegeben(admin, 'finanz_zahlungslink_mail');
+      if (agency?.email && mailFreigegeben) {
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY || '');
         await resend.emails.send({
@@ -161,7 +163,8 @@ export async function POST(
       return NextResponse.json({
         status: 'freigegeben',
         checkout_url: checkoutUrl,
-        email_gesendet: !!agency?.email,
+        email_gesendet: !!agency?.email && mailFreigegeben,
+        ...(mailFreigegeben ? {} : { hinweis: 'Zahlungslink-Mail ist nicht freigegeben (Admin → Freigaben) – bitte den Link selbst schicken.' }),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unbekannt';

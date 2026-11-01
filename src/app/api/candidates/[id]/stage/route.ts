@@ -1,7 +1,11 @@
 import { createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/auth';
+import { canWriteRole } from '@/lib/recruiting/scope';
 import { fireEvent } from '@/lib/automations/fire';
 import { absageAusBody, absageFelder, ABSAGE_LEER } from '@/lib/recruiting/absagegruende';
+import { istAbgesagtStage, istEingestelltStage, stoppeAbgesagtenBewerber } from '@/lib/recruiting/absage-stopp';
 
 export async function PATCH(
   request: NextRequest,
@@ -12,6 +16,9 @@ export async function PATCH(
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // agency_viewer = nur lesen
+  const profil = await getCurrentUser();
+  if (!profil || !canWriteRole(profil.role)) return NextResponse.json({ error: 'Nur Lesezugriff' }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
   const { stage_id } = body as { stage_id?: string };
@@ -26,7 +33,7 @@ export async function PATCH(
     supabase.from('candidates').select('current_stage_id, abgesagt_am').eq('id', id).maybeSingle(),
   ]);
   const ziel = zielStage as { stage_type: string | null; name: string | null } | null;
-  const istAbsage = ziel?.stage_type === 'rejected' || /^abgesagt/i.test(ziel?.name ?? '');
+  const istAbsage = istAbgesagtStage(ziel);
   const alt = vorher as { current_stage_id: string | null; abgesagt_am: string | null } | null;
 
   const updatePayload: Record<string, unknown> = { current_stage_id: stage_id };
@@ -67,17 +74,17 @@ export async function PATCH(
     .eq('id', id)
     .single();
 
+  let gestoppt: Awaited<ReturnType<typeof stoppeAbgesagtenBewerber>>['gestoppt'] | null = null;
+
   // Bewerbungen mitziehen, damit Kanban (applications.stage_id) und Bewerberakte nicht auseinanderlaufen
   if (candidate) {
-    const { data: stage } = await supabase.from('pipeline_stages').select('stage_type, name').eq('id', stage_id).maybeSingle();
-    const typ = (stage as { stage_type: string | null } | null)?.stage_type;
-    // Ältere Stufen ohne stage_type erkennt man am Namen „Eingestellt“
-    const eingestellt = typ === 'hired' || /^eingestellt/i.test((stage as { name?: string } | null)?.name ?? '');
+    // Ältere Stufen ohne stage_type erkennt man am Namen „Eingestellt“ bzw. „Abgesagt“
+    const eingestellt = istEingestelltStage(ziel);
     await supabase
       .from('applications')
       .update({
         stage_id,
-        status: typ === 'hired' ? 'hired' : typ === 'rejected' ? 'rejected' : 'open',
+        status: eingestellt ? 'hired' : istAbsage ? 'rejected' : 'open',
         updated_at: new Date().toISOString(),
       })
       .eq('candidate_id', id)
@@ -86,11 +93,16 @@ export async function PATCH(
     if (eingestellt) {
       await supabase.from('candidates').update({ eingestellt_am: new Date().toISOString() }).eq('id', id).is('eingestellt_am', null);
     }
+    // Absage: Anrufversuche, KI-Agent, geplante Jobs und künftige Termine stoppen – ohne Nachricht an den Bewerber
+    if (istAbsage) {
+      ({ gestoppt } = await stoppeAbgesagtenBewerber(createAdminClient(), { candidateId: id, agencyId: candidate.agency_id }));
+    }
   }
 
   if (candidate) {
+    // Die Automations-Engine verschickt bei einer Absage-Phase nichts nach außen (engine.ts, executeAction)
     fireEvent('stage_changed', candidate.agency_id, { candidate_id: id, extra: { new_stage_id: stage_id } }).catch(() => {});
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, ...(gestoppt ? { gestoppt } : {}) });
 }

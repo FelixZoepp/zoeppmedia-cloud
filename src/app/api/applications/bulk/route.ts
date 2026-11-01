@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { absageAusBody, ablehngrundText } from '@/lib/recruiting/absagegruende';
 import { absageAmBewerber } from '@/lib/recruiting/absage-speichern';
+import { istAbgesagtStage, istEingestelltStage, stoppeAbgesagtenBewerber } from '@/lib/recruiting/absage-stopp';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const BulkSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100),
@@ -46,9 +48,13 @@ export async function POST(request: NextRequest) {
       .single();
     if (!stage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
 
+    // Absage-/Einstellungs-Phase wie in /absagen erkennen: stage_type oder (Altdaten) Name
+    const istAbsage = istAbgesagtStage(stage);
+    const istEingestellt = !istAbsage && istEingestelltStage(stage);
+
     // Absagegrund prüfen (Katalog-Code oder Alt-Text)
     let absage: { code: string; notiz: string | null } | null = null;
-    if (stage.stage_type === 'rejected') {
+    if (istAbsage) {
       const a = absageAusBody(parsed.data);
       if ('fehler' in a) return NextResponse.json({ error: a.fehler }, { status: 400 });
       absage = a;
@@ -56,8 +62,11 @@ export async function POST(request: NextRequest) {
     const rejection_reason = absage ? ablehngrundText(absage.code, absage.notiz) : null;
 
     let newStatus: string = 'open';
-    if (stage.stage_type === 'hired') newStatus = 'hired';
-    if (stage.stage_type === 'rejected') newStatus = 'rejected';
+    if (istEingestellt) newStatus = 'hired';
+    if (istAbsage) newStatus = 'rejected';
+    const svc = istAbsage ? createAdminClient() : null;
+    // Ein Bewerber kann mehrere markierte Bewerbungen haben – nur einmal stoppen
+    const schonGestoppt = new Set<string>();
 
     for (const appId of ids) {
       const { data: app } = await supabase
@@ -76,6 +85,21 @@ export async function POST(request: NextRequest) {
       await supabase.from('candidate_stages').insert({ candidate_id: app.candidate_id, stage_id, changed_by: user.id });
       await absageAmBewerber(supabase, { candidateId: app.candidate_id, agencyId, absage, userId: user.id, phaseId: app.stage_id });
       await supabase.from('candidates').update({ current_stage_id: stage_id }).eq('id', app.candidate_id).eq('agency_id', agencyId);
+      // Einstellung: Datum am Bewerber merken (Basis für „Umsätze & ROI“), nur beim ersten Mal
+      if (istEingestellt) {
+        await supabase
+          .from('candidates')
+          .update({ eingestellt_am: new Date().toISOString() })
+          .eq('id', app.candidate_id)
+          .eq('agency_id', agencyId)
+          .is('eingestellt_am', null);
+      }
+      // Absage: Anrufversuche, KI-Agent, geplante Jobs und künftige Termine stoppen – ohne Nachricht an den Bewerber
+      let gestoppt: Awaited<ReturnType<typeof stoppeAbgesagtenBewerber>>['gestoppt'] | null = null;
+      if (svc && !schonGestoppt.has(app.candidate_id)) {
+        schonGestoppt.add(app.candidate_id);
+        ({ gestoppt } = await stoppeAbgesagtenBewerber(svc, { candidateId: app.candidate_id, agencyId }));
+      }
 
       const metadata: Record<string, unknown> = {
         application_id: appId,
@@ -85,6 +109,7 @@ export async function POST(request: NextRequest) {
         bulk: true,
       };
       if (absage) Object.assign(metadata, { rejection_reason, absage_code: absage.code, absage_notiz: absage.notiz });
+      if (gestoppt) metadata.gestoppt = gestoppt;
 
       await logActivity(supabase, {
         agency_id: agencyId,
@@ -94,6 +119,7 @@ export async function POST(request: NextRequest) {
         action_type: 'stage_change',
         metadata,
       });
+      // Die Automations-Engine verschickt bei einer Absage-Phase nichts nach außen (engine.ts, executeAction)
       fireEvent('stage_changed', agencyId, {
         candidate_id: app.candidate_id,
         extra: { application_id: appId, new_stage_id: stage_id, new_stage_type: stage.stage_type },

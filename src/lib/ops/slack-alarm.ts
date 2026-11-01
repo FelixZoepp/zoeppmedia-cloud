@@ -1,16 +1,16 @@
 /**
- * Betriebsalarme nach Slack: Kanal „system“ (slack_kanal_system / SLACK_SYSTEM_CHANNEL),
- * ohne Kanal als Direktnachricht an Felix. Nur intern – nie an Kunden oder Bewerber.
+ * Betriebsalarme nach Slack, in dieser Reihenfolge:
+ *  1. Kanal „system“ (slack_kanal_system / SLACK_SYSTEM_CHANNEL / Bot-Kanal mit „system“/„alarm“ im Namen)
+ *  2. Direktnachricht an Felix (ID im Workspace des Bots, siehe felixSlackId)
+ *  3. Kanal „fulfillment“
+ * Geht keiner der Wege, wird das geloggt. Nur intern – nie an Kunden oder Bewerber.
  *
  * Gedrosselt über system_alarme: ein offener Alarm wird höchstens alle 2 h (kritisch: 1 h) erneut gemeldet,
  * beim Schließen kommt einmal „wieder OK“.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { slackKanal } from '@/lib/slack/kanaele';
-
-/** Felix in Slack (wie FELIX_SLACK_ID in lib/sales/report) */
-const FELIX_SLACK_ID = 'U09EK5NAR4P';
+import { felixSlackId, slackKanal } from '@/lib/slack/kanaele';
 
 export type Schwere = 'kritisch' | 'warnung';
 
@@ -31,10 +31,10 @@ function appUrl(): string {
 }
 
 /** Slack-Nachricht für einen Alarm bauen (Block Kit) */
-export function baueAlarmNachricht(a: Alarm & { anzahl?: number }, behoben = false): { text: string; blocks: unknown[] } {
+export function baueAlarmNachricht(a: Alarm & { anzahl?: number }, behoben = false, felixId: string | null = null): { text: string; blocks: unknown[] } {
   const schwere = a.schwere ?? 'warnung';
   const emoji = behoben ? '✅' : schwere === 'kritisch' ? '🚨' : '⚠️';
-  const tag = !behoben && schwere === 'kritisch' ? `<@${FELIX_SLACK_ID}> ` : '';
+  const tag = !behoben && schwere === 'kritisch' && felixId ? `<@${felixId}> ` : '';
   const kopf = `${tag}${emoji} *${behoben ? `Wieder OK: ${a.titel}` : a.titel}*`;
   const zeilen = [kopf, a.text];
   if (!behoben && a.anzahl && a.anzahl > 1) zeilen.push(`_${a.anzahl}× seit dem ersten Auftreten_`);
@@ -45,24 +45,42 @@ export function baueAlarmNachricht(a: Alarm & { anzahl?: number }, behoben = fal
   return { text: `${emoji} ${behoben ? 'Wieder OK: ' : ''}${a.titel}: ${a.text}`.slice(0, 3000), blocks };
 }
 
-/** Rohe Slack-Nachricht in den System-Kanal (bzw. als DM an Felix). Wirft nie. */
+async function poste(token: string, channel: string, nachricht: { text: string; blocks?: unknown[] }): Promise<string | null> {
+  const res = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel, ...nachricht, unfurl_links: false }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  return data.ok ? null : (data.error ?? String(res.status));
+}
+
+/** Rohe Slack-Nachricht an den ersten funktionierenden Weg (System-Kanal → DM an Felix → Fulfillment). Wirft nie. */
 export async function sendeSystemSlack(nachricht: { text: string; blocks?: unknown[] }): Promise<boolean> {
   const token = process.env.SLACK_BOT_TOKEN;
   if (!token) return false;
+  const fehler: string[] = [];
   try {
-    const channel = (await slackKanal('system')) ?? FELIX_SLACK_ID;
-    const res = await fetch('https://slack.com/api/chat.postMessage', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel, ...nachricht, unfurl_links: false }),
-    });
-    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    if (!data.ok) console.error('[system-alarm] Slack:', data.error ?? res.status);
-    return !!data.ok;
+    const wege: Array<[string, () => Promise<string | null>]> = [
+      ['system', () => slackKanal('system')],
+      ['dm', () => felixSlackId()],
+      ['fulfillment', () => slackKanal('fulfillment')],
+    ];
+    for (const [name, ziel] of wege) {
+      const channel = await ziel();
+      if (!channel) {
+        fehler.push(`${name}: nicht eingerichtet`);
+        continue;
+      }
+      const f = await poste(token, channel, nachricht);
+      if (!f) return true;
+      fehler.push(`${name}: ${f}`);
+    }
   } catch (err) {
-    console.error('[system-alarm] Slack nicht erreichbar:', err instanceof Error ? err.message : err);
-    return false;
+    fehler.push(err instanceof Error ? err.message : String(err));
   }
+  console.error('[system-alarm] Slack nicht zugestellt –', fehler.join(' · '));
+  return false;
 }
 
 /**
@@ -93,7 +111,7 @@ export async function meldeAlarm(svc: SupabaseClient, a: Alarm, jetzt: Date = ne
     await svc.from('system_alarme').upsert(zeile, { onConflict: 'schluessel' });
 
     if (!melden) return false;
-    return await sendeSystemSlack(baueAlarmNachricht({ ...a, schwere, anzahl }));
+    return await sendeSystemSlack(baueAlarmNachricht({ ...a, schwere, anzahl }, false, await felixSlackId()));
   } catch (err) {
     console.error('[system-alarm] nicht gemeldet:', a.schluessel, err instanceof Error ? err.message : err);
     return false;

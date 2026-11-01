@@ -4,6 +4,7 @@ import { createNotificationForInternals } from '@/lib/notifications/create';
 import { ladeBerichtKunden, ladeWochenbericht } from './laden';
 import { betreffWochenbericht, wochenberichtHtml } from './email';
 import { fuerKunde } from './berechnung';
+import { istFreigegeben } from '@/lib/freigaben';
 
 /** Schalter „Wochenberichte automatisch montags senden“ (system_einstellungen) */
 export const AKTIV_KEY = 'wochenberichte_aktiv';
@@ -22,7 +23,7 @@ export interface VersandErgebnis {
   agency_id: string;
   name: string;
   status: string | null;
-  ergebnis: 'gesendet' | 'schon_gesendet' | 'kein_empfaenger' | 'pausiert' | 'fehler';
+  ergebnis: 'gesendet' | 'schon_gesendet' | 'kein_empfaenger' | 'pausiert' | 'nicht_freigegeben' | 'fehler';
   fehler?: string;
 }
 
@@ -65,6 +66,13 @@ export async function sendeWochenberichte(
         .upsert({ agency_id: k.id, jahr: bericht.jahr, kw: bericht.kw, status: bericht.status, daten: bericht, empfaenger, fehler: null }, { onConflict: 'agency_id,jahr,kw' });
       if (!empfaenger.length) {
         out.push({ ...basis, status: bericht.status, ergebnis: 'kein_empfaenger' });
+        continue;
+      }
+      // Automatischer Versand (Cron, alle Kunden) nur mit Freigabe – Prüfung direkt vor dem Senden.
+      // Einzelversand per Admin-Knopf (nurId) ist eine bewusste Handlung und bleibt möglich.
+      if (!opts.nurId && !(await istFreigegeben(svc, 'wochenberichte_auto'))) {
+        await svc.from('wochenberichte').update({ fehler: 'nicht freigegeben (Admin → Freigaben: wochenberichte_auto)' }).eq('agency_id', k.id).eq('jahr', bericht.jahr).eq('kw', bericht.kw);
+        out.push({ ...basis, status: bericht.status, ergebnis: 'nicht_freigegeben' });
         continue;
       }
       const ueberblick = fuerKunde(bericht);

@@ -14,6 +14,7 @@ import { setStepStatus } from '@/lib/fulfillment/engine';
 import { createNotification, createNotificationForInternals } from '@/lib/notifications/create';
 import { logActivity } from '@/lib/activity/log';
 import { sendVertragBestaetigt } from '@/lib/email/resend';
+import { istFreigegeben } from '@/lib/freigaben';
 
 export interface VertragRow {
   id: string;
@@ -29,6 +30,8 @@ export interface BestaetigenDeps {
   sendVertragBestaetigt: typeof sendVertragBestaetigt;
   findContact: (name: string) => Promise<{ id: string } | null>;
   erzeugePdf: typeof erzeugeBestaetigungPdf;
+  /** Freigabe „finanz_vertrag_mails“ (Standard: aus system_einstellungen) – für Tests austauschbar */
+  mailErlaubt?: (svc: SupabaseClient) => Promise<boolean>;
 }
 
 const defaultDeps: BestaetigenDeps = {
@@ -153,8 +156,17 @@ export async function bestaetigeVertrag(
     console.error('[vertrag] Schritt Vertrag nicht abgehakt:', err);
   }
 
-  // 2. Bestätigung als PDF an Kunde + intern
-  try {
+  // 2. Bestätigung als PDF an Kunde + intern – nur mit Freigabe (Finanzen/Vertrag, Prüfung direkt vor dem Senden)
+  const mailErlaubt = await (deps.mailErlaubt ?? ((c: SupabaseClient) => istFreigegeben(c, 'finanz_vertrag_mails')))(svc).catch(() => false);
+  if (!mailErlaubt) {
+    await createNotificationForInternals(svc, {
+      title: `Vertrag bestätigt: ${daten.firma} – PDF selbst schicken`,
+      body: 'Die Mail mit dem Vertrags-PDF ist nicht freigegeben (Admin → Freigaben). Bitte die Bestätigung selbst an den Kunden schicken.',
+      type: 'system',
+      entity_type: 'agency',
+      entity_id: agencyId,
+    }).catch(() => {});
+  } else try {
     const pdf = await deps.erzeugePdf(daten, { unterzeichner_name: name, bestaetigt_am: bestaetigtAm, ip: eingabe.ip, daten_hash: hash, agb_url: agbUrl });
     await deps.sendVertragBestaetigt({ to: daten.email, bcc: internMails(), name: daten.ansprechpartner, firma: daten.firma, weiterUrl: weiter, pdf });
   } catch (err) {

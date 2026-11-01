@@ -43,6 +43,8 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
   const [rescheduleAt, setRescheduleAt] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  // Wird der Bewerber automatisch per Mail informiert? Kommt vom Server (Header x-bewerber-kontakt); im Zweifel nein
+  const [bewerberKontakt, setBewerberKontakt] = useState(false);
   // Freie Zeiten aus dem verbundenen Kundenkalender (Google/Outlook)
   const [freie, setFreie] = useState<{ verbunden: boolean; zeiten: Array<{ start: string }> } | null>(null);
   useEffect(() => {
@@ -67,6 +69,7 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
     try {
       const res = await fetch(`/api/candidates/${candidateId}/appointments`);
       if (res.ok) {
+        setBewerberKontakt(res.headers.get('x-bewerber-kontakt') === 'an');
         const data = await res.json();
         if (Array.isArray(data)) setAppointments(data);
       }
@@ -98,9 +101,17 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
       if (!res.ok) throw new Error('Termin konnte nicht angelegt werden');
       const created = await res.json().catch(() => null);
       setInfo(
-        created?.confirmation_sent
-          ? 'Termin angelegt — Bestätigungs-Mail wurde an den Bewerber gesendet.'
-          : 'Termin angelegt. Keine Bestätigungs-Mail möglich (keine E-Mail-Adresse hinterlegt).'
+        `Termin angelegt — ${
+          created?.confirmation_sent
+            ? 'Bestätigungs-Mail wurde an den Bewerber gesendet.'
+            : 'der Bewerber wird NICHT automatisch informiert. Der Kunde muss ihm den Termin selbst mitteilen.'
+        }${
+          created?.im_kundenkalender
+            ? ' Der Termin steht im Kalender des Kunden.'
+            : created?.kunde_informiert
+              ? ' Der Kunde bekommt eine Kalender-Einladung per Mail.'
+              : ''
+        }`
       );
       setShowForm(false);
       setNewAt('');
@@ -125,8 +136,15 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
         body: JSON.stringify({ scheduled_at: iso }),
       });
       if (!res.ok) throw new Error('Termin konnte nicht verschoben werden');
+      const json = await res.json().catch(() => null);
       setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, scheduled_at: iso } : a)));
-      setInfo('Termin verschoben — Bewerber und Kunde wurden per Mail informiert, Kalender aktualisiert sich automatisch.');
+      setInfo(
+        `Termin verschoben — ${
+          json?.bewerber_informiert
+            ? 'der Bewerber wurde per Mail informiert.'
+            : 'der Bewerber wird NICHT automatisch informiert. Der Kunde muss ihm den neuen Termin selbst mitteilen.'
+        }${json?.kunde_informiert ? ' Der Kalender des Kunden wird aktualisiert.' : ''}`
+      );
       setRescheduling(null);
       setRescheduleAt('');
     } catch (e) {
@@ -233,9 +251,11 @@ export function AppointmentsSection({ candidateId }: { candidateId: string }) {
             </Button>
           </div>
           <p className="text-xs text-gray-500">
-            Der Bewerber erhält automatisch eine Bestätigungs-Mail.{' '}
+            {bewerberKontakt
+              ? 'Der Bewerber erhält automatisch eine Bestätigungs-Mail.'
+              : 'Der Bewerber wird NICHT automatisch informiert – der Kunde muss ihm den Termin selbst mitteilen.'}{' '}
             {freie?.verbunden ? 'Der Termin wird direkt im Kalender des Kunden eingetragen.' : 'Der Kunde bekommt eine Kalender-Einladung per Mail (Kalender unter Einstellungen → Kalender verbinden).'} Der Innendienst
-            erinnert den Bewerber in den 24h vor dem Termin.
+            erinnert den Bewerber in den 24h vor dem Termin telefonisch.
           </p>
         </div>
       )}

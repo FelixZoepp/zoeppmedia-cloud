@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { closeWebhookToken, ensureCloseWebhook, ensureFollowupField } from '@/lib/sales/close';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { secretGleich } from '@/lib/security/webhook-secret';
 
 /**
  * Richtet den Close-Webhook und das Opportunity-Feld "Follow-up-Rhythmus" für den Sales-Bot ein (idempotent).
@@ -8,11 +9,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
  */
 export async function POST(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
-  let ok = !!cronSecret && request.headers.get('authorization') === `Bearer ${cronSecret}`;
+  // Zeitkonstant vergleichen; leere/fehlende Secrets gelten nie als gültig
+  let ok = !!cronSecret && secretGleich(request.headers.get('authorization'), `Bearer ${cronSecret}`);
   const sync = request.headers.get('x-sync-token');
   if (!ok && sync) {
     const { data } = await createAdminClient().from('system_einstellungen').select('wert').eq('key', 'sync_token').maybeSingle();
-    ok = (data as { wert: string } | null)?.wert === sync;
+    const erwartet = (data as { wert: string | null } | null)?.wert ?? '';
+    ok = erwartet.length >= 16 && secretGleich(sync, erwartet);
   }
   if (!ok) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

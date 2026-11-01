@@ -34,6 +34,8 @@ export interface AbgleichErgebnis {
 }
 
 const warte = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Höchstens so oft bei HTTP 429 auf die Rechnungsliste warten und neu versuchen */
+const MAX_429_VERSUCHE = 5;
 
 async function lex(path: string, key: string): Promise<{ status: number; data: unknown }> {
   const res = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' }, cache: 'no-store' });
@@ -77,10 +79,15 @@ export async function gleicheLexwareAb(svc: SupabaseClient, opts: { maxDetails?:
   const { data: alt } = await svc.from('finanz_rechnungen').select('voucher_id, status, lex_aktualisiert, details_geladen');
   const bekannt = new Map((alt ?? []).map((r) => [r.voucher_id as string, r as { status: string | null; lex_aktualisiert: string | null; details_geladen: boolean }]));
   const zeilen: ReturnType<typeof alsZeile>[] = [];
+  let limitTreffer = 0;
   for (let page = 0; page < 20; page++) {
     const r = await lex(`/voucherlist?voucherType=invoice&voucherStatus=open,paid,paidoff,voided&size=250&page=${page}&sort=voucherDate,DESC`, key);
     if (r.status === 429) {
-      await warte(1500);
+      // Obergrenze: nicht endlos warten (Zeitbudget/Funktions-Timeout) – nächster Lauf macht weiter
+      if (++limitTreffer > MAX_429_VERSUCHE || Date.now() - start > budget) {
+        return { rechnungen: zeilen.length, details: 0, rest: 0, zugeordnet: 0, abgebrochen: 'Lexware-Limit erreicht (Rechnungsliste) – nächster Lauf macht weiter' };
+      }
+      await warte(1500 * limitTreffer);
       page--;
       continue;
     }
@@ -93,7 +100,12 @@ export async function gleicheLexwareAb(svc: SupabaseClient, opts: { maxDetails?:
   // Geänderte Rechnungen (Status/Bearbeitung) brauchen neue Details
   const neuLaden = new Set(zeilen.filter((z) => brauchtDetails(bekannt.get(z.voucher_id), z)).map((z) => z.voucher_id));
   for (let i = 0; i < zeilen.length; i += 200) {
-    const teil = zeilen.slice(i, i + 200).map((z) => (neuLaden.has(z.voucher_id) ? { ...z, details_geladen: false } : z));
+    // Alle Zeilen eines Batches brauchen dieselben Spalten – sonst setzt PostgREST fehlende auf NULL
+    // („null value in column details_geladen“). Unveränderte behalten ihren bisherigen Stand.
+    const teil = zeilen.slice(i, i + 200).map((z) => ({
+      ...z,
+      details_geladen: neuLaden.has(z.voucher_id) ? false : (bekannt.get(z.voucher_id)?.details_geladen ?? false),
+    }));
     const { error } = await svc.from('finanz_rechnungen').upsert(teil, { onConflict: 'voucher_id' });
     if (error) return { rechnungen: zeilen.length, details: 0, rest: 0, zugeordnet: 0, abgebrochen: error.message };
   }

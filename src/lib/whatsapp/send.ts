@@ -12,6 +12,16 @@ import { getProvider, type SendMessagePayload } from './provider';
 import { decryptSecret } from '@/lib/crypto';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { enqueueSalesCloseLog, outgoingText } from '@/lib/sales/close-log';
+import { istAbgesagtStage } from '@/lib/recruiting/schnell-absage';
+
+/** Bewerber steht in „Abgesagt“ (Phase oder vermerkte Absage)? */
+function istAbgesagt(candidate: unknown): boolean {
+  const c = (candidate ?? null) as { abgesagt_am?: string | null; current_stage?: unknown } | null;
+  if (!c) return false;
+  if (c.abgesagt_am) return true;
+  const phase = (Array.isArray(c.current_stage) ? c.current_stage[0] : c.current_stage) as { stage_type?: string | null; name?: string | null } | null | undefined;
+  return istAbgesagtStage(phase);
+}
 
 export interface SendOpts {
   agencyId: string;
@@ -72,10 +82,16 @@ export async function sendWhatsAppMessage(
 
   const { data: candidate } = await svc
     .from('candidates')
-    .select('whatsapp_opt_in')
+    .select('whatsapp_opt_in, abgesagt_am, current_stage:pipeline_stages!candidates_current_stage_id_fkey(stage_type, name)')
     .eq('id', conv.candidate_id)
     .eq('agency_id', opts.agencyId)
     .single();
+
+  // 2b. Abgesagte Bewerber bekommen KEINE automatische Nachricht – unabhängig vom Kontakt-Schalter und von Testnummern.
+  // Nur der manuelle Versand aus der Oberfläche und gesetzliche Pflichtantworten bleiben möglich.
+  if (opts.agencyId !== SALES_AGENCY_ID && !opts.isHumanUiSend && !opts.pflichtAntwort && istAbgesagt(candidate)) {
+    throw new Error('Bewerber ist abgesagt – keine automatische Nachricht');
+  }
 
   // 3. Agency-Timezone laden
   const { data: agency } = await svc

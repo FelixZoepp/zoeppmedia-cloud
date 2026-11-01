@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import { isUuid } from '@/lib/supabase/filters';
+import { logAudit, alsChanges } from '@/lib/audit/log';
 
 /**
  * POST /api/webhooks/indeed/apply — Indeed-Apply-Bewerbungen (Spec §5).
@@ -28,15 +29,12 @@ export async function POST(request: NextRequest) {
 
   if (!verifyIndeedSignature(rawBody, request.headers.get('x-indeed-signature'), secret)) {
     // Audit-Eintrag für abgelehnte Signatur (Spec §5)
-    await svc.from('audit_log').insert({
+    await logAudit(null, {
       entity_type: 'webhook',
       entity_id: randomUUID(),
       action: 'reject',
-      changes: { source: 'indeed', reason: 'invalid_signature' },
-    }).then(
-      () => {},
-      (e: unknown) => console.error('[indeed-apply] Audit-Insert fehlgeschlagen', e)
-    );
+      changes: alsChanges({ source: 'indeed', reason: 'invalid_signature' }),
+    });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -176,7 +176,12 @@ export async function ingestApplication(
     }
 
     if (Object.keys(updates).length > 0) {
-      await svc.from('candidates').update(updates).eq('id', candidateId);
+      const { error: updFehler } = await svc.from('candidates').update(updates).eq('id', candidateId);
+      // Nummer gehört schon einem anderen Bewerber dieses Kunden → ohne Nummer ergänzen, nicht abbrechen
+      if (updFehler?.code === '23505' && 'phone_e164' in updates) {
+        delete updates.phone_e164;
+        if (Object.keys(updates).length > 0) await svc.from('candidates').update(updates).eq('id', candidateId);
+      }
     }
   } else {
     // Neuen Kandidaten anlegen
@@ -201,11 +206,24 @@ export async function ingestApplication(
       .select('id')
       .single();
 
-    if (candError || !newCandidate) {
+    if (candError?.code === '23505' && phoneE164) {
+      // Gleichzeitig angelegt (z. B. zwei Läufe mit derselben Bewerbung) → den vorhandenen Bewerber nehmen
+      const { data: vorhanden } = await svc
+        .from('candidates')
+        .select('id')
+        .eq('agency_id', input.agencyId)
+        .eq('phone_e164', phoneE164)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle();
+      if (!vorhanden) throw new Error(`Kandidat konnte nicht angelegt werden: ${candError.message}`);
+      candidateId = (vorhanden as { id: string }).id;
+    } else if (candError || !newCandidate) {
       throw new Error(`Kandidat konnte nicht angelegt werden: ${candError?.message}`);
+    } else {
+      candidateId = newCandidate.id;
+      candidateCreated = true;
     }
-    candidateId = newCandidate.id;
-    candidateCreated = true;
   }
 
   // --- 3. 30-Tage-Regel: gleicher Kandidat + gleicher Job ---

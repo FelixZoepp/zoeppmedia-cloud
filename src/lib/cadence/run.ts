@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotification } from '@/lib/notifications/create';
 import { getWindowTime } from './engine';
 import { automatikAgencyIds } from '@/lib/fulfillment/automatik';
+import { anrufSperrgrund, ladeEndphasen } from '@/lib/recruiting/absage-stopp';
 
 type CallWindow = 'morning' | 'afternoon' | 'evening';
 
@@ -21,6 +22,8 @@ interface DueCandidate {
   cadence_attempt: number | null;
   cadence_next_window: CallWindow | null;
   cadence_next_at: string;
+  current_stage_id?: string | null;
+  deleted_at?: string | null;
 }
 
 /** Nächster Termin im selben Zeitfenster, der nach `now` liegt */
@@ -43,7 +46,7 @@ export async function runCadence(
   if (opts.agencyIds && !opts.agencyIds.length) return { dueCandidates: 0, tasksCreated: 0, verschoben: 0, notificationsSent: 0 };
   let query = supabase
     .from('candidates')
-    .select('id, name, agency_id, cadence_attempt, cadence_next_window, cadence_next_at')
+    .select('id, name, agency_id, cadence_attempt, cadence_next_window, cadence_next_at, current_stage_id, deleted_at')
     .eq('cadence_active', true)
     .not('cadence_next_at', 'is', null)
     .lte('cadence_next_at', now.toISOString());
@@ -63,8 +66,21 @@ export async function runCadence(
     ? await supabase.from('users').select('id').in('role', ['admin', 'employee']).limit(5)
     : { data: [] as Array<{ id: string }> };
 
+  // Abgesagte, eingestellte und gelöschte Bewerber bekommen keine Anruf-Aufgabe mehr – Kadenz dort beenden
+  const endphasen = await ladeEndphasen(supabase, due.map((c) => c.current_stage_id));
+
   for (const candidate of due) {
     try {
+      const sperre = anrufSperrgrund(candidate, endphasen);
+      if (sperre) {
+        await supabase
+          .from('candidates')
+          .update({ cadence_active: false, cadence_next_at: null, cadence_next_window: null, cadence_stopped_reason: sperre })
+          .eq('id', candidate.id)
+          .eq('agency_id', candidate.agency_id);
+        continue;
+      }
+
       const window: CallWindow = candidate.cadence_next_window ?? 'morning';
 
       // Fenster verpasst (z. B. Rückstau): nicht jetzt eine „Vormittag“-Aufgabe am Abend anlegen

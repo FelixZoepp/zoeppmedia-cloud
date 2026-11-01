@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowDown, ArrowUp, Phone, Rocket, Search, Smartphone, TrendingDown } from 'lucide-react';
 import { Avatar, Card, Input, PageHeader, SegmentedControl, StatCard } from '@/components/ui';
 import type { Ampel } from '@/lib/kontrollzentrum/bewertung';
+import type { HealthStufe } from '@/lib/kontrollzentrum/health-score';
 import type { Kontrollzentrum, KontrollZeile } from '@/lib/kontrollzentrum/laden';
 
 const AMPEL: Record<Ampel, { label: string; cls: string; dot: string }> = {
@@ -13,6 +14,12 @@ const AMPEL: Record<Ampel, { label: string; cls: string; dot: string }> = {
   gruen: { label: 'Grün', cls: 'bg-green-50 text-green-800', dot: 'bg-green-600' },
 };
 const RANG: Record<Ampel, number> = { rot: 0, gelb: 1, gruen: 2 };
+
+const HEALTH: Record<HealthStufe, { label: string; cls: string }> = {
+  kritisch: { label: 'Kritisch', cls: 'bg-red-50 text-red-800' },
+  beobachten: { label: 'Beobachten', cls: 'bg-amber-50 text-amber-800' },
+  gut: { label: 'Gut', cls: 'bg-green-50 text-green-800' },
+};
 
 const PHASE: Record<string, string> = {
   zahlung: 'Zahlung',
@@ -27,9 +34,10 @@ const pct = (n: number | null) => (n === null ? '–' : `${n} %`);
 const dauer = (sek: number | null) => (sek === null ? '–' : sek < 3600 ? `${Math.max(1, Math.round(sek / 60))} Min.` : `${Math.round(sek / 3600)} Std.`);
 const datum = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : 'nie');
 
-type SortKey = 'ampel' | 'name' | 'leads' | 'kontakt' | 'ttfc' | 'termine' | 'erscheinen' | 'einstellungen' | 'kpe' | 'login' | 'mrr' | 'marge';
+type SortKey = 'health' | 'ampel' | 'name' | 'leads' | 'kontakt' | 'ttfc' | 'termine' | 'erscheinen' | 'einstellungen' | 'kpe' | 'login' | 'mrr' | 'marge';
 
 const SPALTEN: Array<{ key: SortKey; label: string }> = [
+  { key: 'health', label: 'Health' },
   { key: 'ampel', label: 'Ampel' },
   { key: 'name', label: 'Kunde' },
   { key: 'leads', label: 'Leads' },
@@ -47,6 +55,7 @@ const SPALTEN: Array<{ key: SortKey; label: string }> = [
 /** Sortierwert; null landet immer hinten */
 function wert(z: KontrollZeile, key: SortKey): number | string | null {
   switch (key) {
+    case 'health': return z.health?.score ?? null;
     case 'ampel': return RANG[z.ampel] * 10 - Number(z.churn.risiko);
     case 'name': return z.name.toLowerCase();
     case 'leads': return z.jetzt.leads;
@@ -74,6 +83,48 @@ function Delta({ jetzt, vorher, einheit = '', umgekehrt = false }: { jetzt: numb
       {Math.abs(d)}
       {einheit}
     </span>
+  );
+}
+
+/** Health-Badge: Score, Stufe, Trend ggü. vor 7 Tagen; Gründe als Tooltip */
+function HealthBadge({ z }: { z: KontrollZeile }) {
+  const h = z.health;
+  if (!h) return <span className="text-[12px] text-gray-400">–</span>;
+  const titel = [
+    `Health ${h.score}/100 (${HEALTH[h.stufe].label})${h.quelle === 'live' ? ' · live berechnet' : ''}`,
+    h.vor7 !== null ? `Vor 7 Tagen: ${h.vor7}` : 'Kein Wert von vor 7 Tagen',
+    ...h.gruende.map((g) => `−${g.abzug} ${g.text}`),
+  ].join('\n');
+  return (
+    <span title={titel} className="inline-flex items-center gap-1.5">
+      <span className={`inline-flex min-w-[2.5rem] justify-center rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${HEALTH[h.stufe].cls}`}>{h.score}</span>
+      {h.trend !== null && (
+        <span className={`text-[11px] font-medium ${h.trend > 0 ? 'text-green-700' : h.trend < 0 ? 'text-red-700' : 'text-gray-400'}`}>
+          {h.trend > 0 ? `+${h.trend}` : h.trend < 0 ? `−${Math.abs(h.trend)}` : '±0'}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Health-Gründe aufklappbar (Tabelle) */
+function HealthZelle({ z }: { z: KontrollZeile }) {
+  const h = z.health;
+  if (!h || !h.gruende.length) return <HealthBadge z={z} />;
+  return (
+    <details className="group">
+      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <HealthBadge z={z} />
+        <span className="ml-1 text-[11px] text-gray-500 group-open:hidden">{h.gruende.length} Gründe</span>
+      </summary>
+      <ul className="mt-1.5 min-w-[220px] space-y-0.5">
+        {h.gruende.map((g) => (
+          <li key={g.bereich} className="text-[11.5px] text-gray-700">
+            <span className="font-semibold text-red-800">−{g.abzug}</span> {g.text}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -140,8 +191,10 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
   const [ampel, setAmpel] = useState<string>('alle');
   const [nurUpsell, setNurUpsell] = useState(false);
   const [nurChurn, setNurChurn] = useState(false);
+  const [nurHealth, setNurHealth] = useState(false);
   const [suche, setSuche] = useState('');
-  const [sort, setSort] = useState<{ key: SortKey; ab: boolean }>({ key: 'ampel', ab: false });
+  // Standard: schlechtester Health-Score zuerst
+  const [sort, setSort] = useState<{ key: SortKey; ab: boolean }>({ key: 'health', ab: false });
 
   const alle = daten.zeilen;
   const liste = useMemo(() => {
@@ -150,6 +203,7 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
         (ampel === 'alle' || z.ampel === ampel) &&
         (!nurUpsell || z.upsell.signal) &&
         (!nurChurn || z.churn.risiko) &&
+        (!nurHealth || (!!z.health && z.health.stufe !== 'gut')) &&
         (!suche || z.name.toLowerCase().includes(suche.toLowerCase())),
     );
     if (sort.key === 'ampel' && !sort.ab) return gefiltert; // Standard: Reihenfolge vom Server (rot zuerst)
@@ -162,9 +216,10 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
       if (b === null) return -1;
       return (a < b ? -1 : a > b ? 1 : 0) * r;
     });
-  }, [alle, ampel, nurUpsell, nurChurn, suche, sort]);
+  }, [alle, ampel, nurUpsell, nurChurn, nurHealth, suche, sort]);
 
   const anzahl = (a: Ampel) => alle.filter((z) => z.ampel === a).length;
+  const anzahlHealth = (s: HealthStufe) => alle.filter((z) => z.health?.stufe === s).length;
   const summe = (f: (z: KontrollZeile) => number | null) => alle.reduce((n, z) => n + (f(z) ?? 0), 0);
   const leads = summe((z) => z.jetzt.leads);
   const leadsVorher = summe((z) => z.vorher.leads);
@@ -174,19 +229,24 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
   const trend = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : undefined);
 
   const sortiere = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, ab: !s.ab } : { key, ab: !['ampel', 'name', 'ttfc', 'kpe'].includes(key) }));
+    setSort((s) => (s.key === key ? { key, ab: !s.ab } : { key, ab: !['health', 'ampel', 'name', 'ttfc', 'kpe'].includes(key) }));
 
   return (
     <div>
       <PageHeader
         label="STEUERUNG"
         title="Kontrollzentrum"
-        description="Alle Kunden auf einen Blick: Ergebnisse, Nutzung, Ampel, Upsell, Churn-Risiko und Marge – letzte 30 Tage, Veränderung ggü. den 30 Tagen davor."
+        description="Alle Kunden auf einen Blick: Health-Score, Ergebnisse, Nutzung, Ampel, Upsell, Churn-Risiko und Marge – letzte 30 Tage, Veränderung ggü. den 30 Tagen davor. Standard: schlechtester Health-Score zuerst."
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 2xl:grid-cols-6">
         <StatCard hero title="Kunden gesamt" value={alle.length} note={`${alle.filter((z) => z.churn.risiko).length} mit Churn-Risiko · ${alle.filter((z) => z.upsell.signal).length} Upsell`} />
         <StatCard title="Rot / Gelb / Grün" value={`${anzahl('rot')} / ${anzahl('gelb')} / ${anzahl('gruen')}`} note="Ampel" />
+        <StatCard
+          title="Health kritisch / beobachten"
+          value={`${anzahlHealth('kritisch')} / ${anzahlHealth('beobachten')}`}
+          note={`${anzahlHealth('gut')} gut · Score 0–100, Trend ggü. vor 7 Tagen`}
+        />
         <StatCard title="MRR gesamt" value={eur(mrr)} />
         <StatCard title="Marge gesamt" value={eur(marge)} note={daten.zeiterfassung && daten.stundensatz ? 'nach Team- und Kommunikationskosten' : 'ohne Teamkosten (Zeiterfassung fehlt)'} />
         <StatCard title="Leads (30 T.)" value={leads} trend={trend(leads, leadsVorher)} trendLabel="ggü. Vorperiode" />
@@ -212,6 +272,10 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
         </label>
         <label className="inline-flex cursor-pointer items-center gap-2 text-[14px]">
           <input type="checkbox" checked={nurChurn} onChange={(e) => setNurChurn(e.target.checked)} className="h-4 w-4 accent-red-700" /> Churn-Risiko
+        </label>
+        <label className="inline-flex cursor-pointer items-center gap-2 text-[14px]">
+          <input type="checkbox" checked={nurHealth} onChange={(e) => setNurHealth(e.target.checked)} className="h-4 w-4 accent-red-700" /> Nur kritisch/beobachten (
+          {anzahlHealth('kritisch') + anzahlHealth('beobachten')})
         </label>
         <select
           aria-label="Sortieren"
@@ -246,10 +310,20 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
                       <p className="truncate text-[16px] font-medium">{z.name}</p>
                       <p className="text-[12.5px] text-gray-600">{z.pausiert ? 'Pausiert' : (z.phase && PHASE[z.phase]) || 'Kunde'}</p>
                     </div>
+                    <HealthBadge z={z} />
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold ${AMPEL[z.ampel].cls}`}>
                       <span className={`h-2 w-2 rounded-full ${AMPEL[z.ampel].dot}`} /> {AMPEL[z.ampel].label}
                     </span>
                   </div>
+                  {!!z.health?.gruende.length && (
+                    <ul className="mt-2 space-y-0.5">
+                      {z.health.gruende.slice(0, 3).map((g) => (
+                        <li key={g.bereich} className="text-[12px] text-gray-700">
+                          <span className="font-semibold text-red-800">−{g.abzug}</span> {g.text}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <div className="mt-3 grid grid-cols-4 gap-2 rounded-[14px] bg-panel p-2.5 text-center text-[12px] text-gray-600">
                     <div><p className="text-[18px] font-semibold text-ink">{z.jetzt.leads}</p>Leads<Delta jetzt={z.jetzt.leads} vorher={z.vorher.leads} /></div>
                     <div><p className="text-[18px] font-semibold text-ink">{pct(z.jetzt.kontaktquote)}</p>Kontakt</div>
@@ -269,7 +343,7 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
 
           {/* Ab Tablet: sortierbare Tabelle */}
           <Card padding="none" className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[1100px] text-left text-[13px]">
+            <table className="w-full min-w-[1180px] text-left text-[13px]">
               <thead className="border-b border-gray-100 text-[12px] text-gray-600">
                 <tr>
                   {SPALTEN.map((s) => (
@@ -287,6 +361,7 @@ export function KontrollzentrumClient({ daten }: { daten: Kontrollzentrum }) {
               <tbody>
                 {liste.map((z) => (
                   <tr key={z.id} className={`border-b border-gray-50 align-top hover:bg-panel ${z.pausiert ? 'opacity-70' : ''}`}>
+                    <td className="px-3 py-3"><HealthZelle z={z} /></td>
                     <td className="px-3 py-3">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold ${AMPEL[z.ampel].cls}`}>
                         <span className={`h-2 w-2 rounded-full ${AMPEL[z.ampel].dot}`} /> {AMPEL[z.ampel].label}

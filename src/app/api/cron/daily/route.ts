@@ -387,6 +387,15 @@ async function runDailyJobs() {
     console.error('[cron/daily] Kontrollzentrum-Frühwarnung fehlgeschlagen:', err);
   }
 
+  // 14e. Kunden-Health-Score: Snapshot je aktivem Kunden für heute (kunden_health, Trend im Kontrollzentrum). Nur intern, keine Nachricht.
+  try {
+    const { speichereHealthSnapshots } = await import('@/lib/kontrollzentrum/health-score');
+    results.kundenHealth = await speichereHealthSnapshots(supabase, now);
+  } catch (err) {
+    console.error('[cron/daily] Kunden-Health-Snapshots fehlgeschlagen:', err);
+    results.kundenHealth = { error: String(err) };
+  }
+
   // 15. Slack-Berichte Marketing + Sales: siehe Abendbericht (20 Uhr, src/lib/berichte/abendbericht.ts) im Minuten-Tick
 
   // 16. Eingangs-Monitoring: Feed-Abrufe ohne Bewerbungen + Fehlerquote (Phase 5 Task 8)

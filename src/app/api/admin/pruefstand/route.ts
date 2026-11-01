@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { gibFrei } from '@/lib/zuordnung/entscheidung';
 import type { PruefstandEintrag } from '@/lib/zuordnung/pruefstand';
+import { auditEreignis } from '@/lib/audit/log';
 
 export const maxDuration = 120;
 
@@ -34,6 +35,6 @@ export async function POST(req: NextRequest) {
     const r = await gibFrei(svc, e, b.agency_id, user.id);
     ergebnisse.push(r.ok ? { id: e.id, ok: true } : { id: e.id, ok: false, grund: r.grund });
   }
-  await svc.from('audit_log').insert({ actor_id: user.id, agency_id: b.agency_id, action: 'pruefstand.sammelfreigabe', target: b.agency_id, data: { ergebnisse } }).then(() => {}, () => {});
+  await auditEreignis({ userId: user.id, agencyId: b.agency_id, entityType: 'candidate', action: 'update', ereignis: 'pruefstand.sammelfreigabe', ziel: b.agency_id, daten: { ergebnisse } });
   return NextResponse.json({ ergebnisse });
 }

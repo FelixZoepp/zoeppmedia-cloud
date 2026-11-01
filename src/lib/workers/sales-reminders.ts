@@ -15,6 +15,7 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
 import { isQuietHours, nextAllowedTime } from '@/lib/whatsapp/window';
 import { notifySales } from '@/lib/sales/notify';
 import { logActivity } from '@/lib/activity/log';
+import { istFreigegeben } from '@/lib/freigaben';
 import type { SalesChain } from '@/lib/sales/calendly-chain';
 
 export interface SalesJobPayload {
@@ -166,6 +167,12 @@ async function sendSalesTemplate(
   presetKey: string,
   opts: SendTemplateOpts,
 ): Promise<boolean> {
+  // Freigabe direkt vor dem Senden (zusätzlich zu SALES_REMINDERS_ENABLED beim Einplanen).
+  // Aus: Job läuft durch, nichts geht raus, nichts wird nachgeholt.
+  if (!(await istFreigegeben(svc, 'sales_termin_kette'))) {
+    console.warn('[sales-reminders] sales_termin_kette nicht freigegeben – nicht gesendet:', presetKey, ctx.event.id);
+    return false;
+  }
   let tmpl: { id: string; name: string } | null = null;
   let bodyParams = opts.bodyParams;
   if (opts.v2BodyParams) {

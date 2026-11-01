@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createNotificationForAgency } from '@/lib/notifications/create';
+import { istFreigegeben } from '@/lib/freigaben';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 import { berechneRoi } from './berechnung';
 import { ladeEinstellungen, ladeUmsaetze } from './laden';
@@ -29,6 +30,9 @@ export async function erinnereFehlendeUmsaetze(svc: SupabaseClient, jetzt: Date 
 
     const { data: schon } = await svc.from('notifications').select('id').eq('agency_id', a.id).eq('title', TITEL).gte('created_at', heuteStart).limit(1).maybeSingle();
     if (schon) continue;
+
+    // Push/Glocke an den Kunden nur mit Freigabe (Prüfung direkt vor dem Senden). Aus: nichts, nichts nachholen.
+    if (!(await istFreigegeben(svc, 'roi_umsatz_erinnerung'))) return erinnert;
 
     const monat = new Date(`${letzterMonat}T12:00:00Z`).toLocaleDateString('de-DE', { month: 'long', timeZone: 'Europe/Berlin' });
     await createNotificationForAgency(svc, a.id, {

@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { istFreigegeben } from '@/lib/freigaben';
 
 const FROM = 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>';
 
@@ -23,6 +24,12 @@ export async function sendPreDebitNotification(
   }
 ): Promise<boolean> {
   try {
+    // Finanzen sind noch nicht fertig: ohne Freigabe geht nichts raus (Prüfung direkt vor dem Senden).
+    // Der Lauf wird NICHT als benachrichtigt markiert – und nichts wird nachgeholt (nur Läufe mit Einzug morgen).
+    if (!(await istFreigegeben(supabase, 'finanz_sepa_vorab'))) {
+      console.warn('[billing] Vorabankündigung nicht freigegeben – nicht versendet:', params.billing_run_id);
+      return false;
+    }
     const resend = new Resend(process.env.RESEND_API_KEY || '');
     const datumFormatiert = new Intl.DateTimeFormat('de-DE', {
       day: '2-digit',
@@ -99,6 +106,8 @@ export async function sendPreDebitNotification(
  * Called from the daily cron.
  */
 export async function checkPreDebitNotifications(supabase: SupabaseClient): Promise<number> {
+  // Ohne Freigabe gar nicht erst suchen (sendPreDebitNotification prüft beim Senden zusätzlich)
+  if (!(await istFreigegeben(supabase, 'finanz_sepa_vorab'))) return 0;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];

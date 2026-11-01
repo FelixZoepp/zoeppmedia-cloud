@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/admin';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { istFreigegeben } from '@/lib/freigaben';
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerClient();
@@ -44,6 +45,10 @@ export async function POST(request: NextRequest) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const datumFormatiert = tomorrow.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  // Finanzen: ohne Freigabe geht keine Mail raus – auch nicht per Knopf
+  if (!(await istFreigegeben(admin, 'finanz_sepa_vorab'))) {
+    return NextResponse.json({ error: 'SEPA-Vorabankündigung ist nicht freigegeben (Admin → Freigaben). Es wurde nichts verschickt.' }, { status: 409 });
+  }
   const resend = new Resend(process.env.RESEND_API_KEY || '');
   const { error: mailError } = await resend.emails.send({
     from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',

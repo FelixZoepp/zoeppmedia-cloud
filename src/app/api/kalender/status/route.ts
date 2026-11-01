@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { providerBereit } from '@/lib/kalender/kunden-kalender';
+import { auditEreignis } from '@/lib/audit/log';
 
 async function kontext() {
   const user = await getCurrentUser();
@@ -25,6 +26,6 @@ export async function DELETE() {
   const svc = createAdminClient();
   const { error } = await svc.from('kalender_verbindungen').update({ aktiv: false, updated_at: new Date().toISOString() }).eq('agency_id', k.agencyId).eq('aktiv', true);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await svc.from('audit_log').insert({ actor_id: k.user.id, agency_id: k.agencyId, action: 'kalender.getrennt', target: k.agencyId, data: {} });
+  await auditEreignis({ userId: k.user.id, agencyId: k.agencyId, entityType: 'agency', action: 'update', ereignis: 'kalender.getrennt', ziel: k.agencyId });
   return NextResponse.json({ ok: true });
 }

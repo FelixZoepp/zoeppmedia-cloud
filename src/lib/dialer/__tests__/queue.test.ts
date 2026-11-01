@@ -75,3 +75,46 @@ describe('baueWarteschlange', () => {
     expect(items).toEqual([]);
   });
 });
+
+describe('Anrufliste: Abgesagte, Eingestellte und Gelöschte nie anzeigen', () => {
+  const ABGESAGT = 'stage-abgesagt';
+  const EINGESTELLT = 'stage-eingestellt';
+  const endphasen = new Map([
+    [ABGESAGT, 'abgesagt' as const],
+    [EINGESTELLT, 'eingestellt' as const],
+  ]);
+
+  it('anrufbar prüft die Phase', () => {
+    expect(anrufbar(k('1', { current_stage_id: ABGESAGT }), 'u1', jetzt, endphasen)).toBe(false);
+    expect(anrufbar(k('2', { current_stage_id: EINGESTELLT }), 'u1', jetzt, endphasen)).toBe(false);
+    expect(anrufbar(k('3', { current_stage_id: 'stage-neu' }), 'u1', jetzt, endphasen)).toBe(true);
+    expect(anrufbar(k('4', { current_stage_id: null }), 'u1', jetzt, endphasen)).toBe(true);
+  });
+
+  it('gilt für Erinnerung, Kadenz, Rückruf und Neu', () => {
+    const items = baueWarteschlange({
+      reminders: [
+        { id: 'ap1', candidate_id: 'r-ab', agency_id: 'a1', type: 'probetag', scheduled_at: '2026-10-06T15:00:00Z' },
+        { id: 'ap2', candidate_id: 'r-del', agency_id: 'a1', type: 'probetag', scheduled_at: '2026-10-06T15:00:00Z' },
+        { id: 'ap3', candidate_id: 'r-ok', agency_id: 'a1', type: 'probetag', scheduled_at: '2026-10-06T15:00:00Z' },
+      ],
+      cadence: [k('k-ab', { current_stage_id: ABGESAGT }), k('k-ein', { current_stage_id: EINGESTELLT }), k('k-ok')],
+      callbacks: [
+        { id: 'l1', candidate_id: 'cb-ab', agency_id: 'a1', notes: null, next_contact_date: '2026-10-06' },
+        { id: 'l2', candidate_id: 'cb-ok', agency_id: 'a1', notes: null, next_contact_date: '2026-10-06' },
+      ],
+      neue: [k('n-ab', { current_stage_id: ABGESAGT }), k('n-del', { deleted_at: '2026-10-01' }), k('n-ok')],
+      kandidaten: {
+        'r-ab': k('r-ab', { current_stage_id: ABGESAGT }),
+        'r-del': k('r-del', { deleted_at: '2026-10-01' }),
+        'r-ok': k('r-ok'),
+        'cb-ab': k('cb-ab', { current_stage_id: EINGESTELLT }),
+        'cb-ok': k('cb-ok'),
+      },
+      userId: 'u1',
+      jetzt,
+      endphasen,
+    });
+    expect(items.map((i) => i.candidate_id)).toEqual(['r-ok', 'k-ok', 'cb-ok', 'n-ok']);
+  });
+});

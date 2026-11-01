@@ -18,14 +18,13 @@ import { ensureSalesProspect, normalizeToE164, SALES_AGENCY_ID, SALES_WA_ACCOUNT
 import { addCloseTaskForLead } from './close';
 import { findeBuchung } from './eintragungen';
 import { notifySales } from './notify';
+import { felixSlackId } from '@/lib/slack/kanaele';
 import { buildClickToken } from './tracking';
 
 export const REPORT_BUCKET = 'sales-reports';
 export const REPORTS_KEY = 'sales_reports';
 export const REPORT_VORLAGE = 'report_versand';
 export const REPORT_WARTEZEIT_MIN = 10;
-/** Felix in Slack (wird bei jedem Download erwähnt) */
-export const FELIX_SLACK_ID = 'U09EK5NAR4P';
 const MIN = 60_000;
 
 /* ── Erkennen + Leadquelle (rein, testbar) ─────────────────────── */
@@ -147,7 +146,7 @@ export async function starteReport(
       body: `Eingetragen um ${uhr(jetzt)} Uhr${d.neu ? '' : ' (schon in Close)'}. Je schneller der Anruf, desto höher die Chance auf das Erstgespräch.`,
       type: 'task_due',
       phone: d.phone,
-      erwaehnen: FELIX_SLACK_ID,
+      erwaehnen: await felixSlackId(),
       closeLeadId: d.leadId,
     });
     await svc.from('sales_report_downloads').update({ slack_am: new Date().toISOString() }).eq('id', id);
@@ -273,7 +272,7 @@ export async function pruefeReport(svc: SupabaseClient, payload: { download_id: 
     body: `${d.report} um ${uhr(new Date(d.eingetragen_am))} Uhr runtergeladen${d.geoeffnet_am ? ', PDF schon geöffnet' : ''}. Aufgabe „jetzt anrufen“ ist in Close.`,
     type: 'task_due',
     phone: d.phone,
-    erwaehnen: FELIX_SLACK_ID,
+    erwaehnen: await felixSlackId(),
     closeLeadId: d.lead_id,
   });
   return 'nicht_gebucht';

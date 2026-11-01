@@ -8,6 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { STEP_BY_KEY } from './catalog';
 import { today } from './views';
 import { SALES_AGENCY_ID, SALES_WA_ACCOUNT_ID } from '@/lib/sales/calendly-chain';
+import { istFreigegeben } from '@/lib/freigaben';
 
 export const ERINNERUNG_AKTIV_KEY = 'kunden_erinnerungen_aktiv';
 export const MAX_ERINNERUNGEN = 3;
@@ -73,7 +74,7 @@ export interface ErinnerungsErgebnis {
   aufgaben: string[];
   nummer: string | null;
   text: string;
-  ergebnis: 'gesendet' | 'trocken' | 'keine_nummer' | 'vorlage_fehlt' | 'fehler';
+  ergebnis: 'gesendet' | 'trocken' | 'keine_nummer' | 'vorlage_fehlt' | 'nicht_freigegeben' | 'fehler';
   fehler?: string;
 }
 
@@ -111,6 +112,9 @@ export async function erinnereKunden(
     .maybeSingle();
   const tmpl = vorlage as { id: string; name: string } | null;
   const out: ErinnerungsErgebnis[] = [];
+  // Freigabe direkt vor dem Senden (zusätzlich zum alten Schalter kunden_erinnerungen_aktiv).
+  // Aus: weder WhatsApp noch Glocke – die Stufe wird trotzdem vermerkt (nichts wird nachgeholt).
+  const freigegeben = opts.trocken ? true : await istFreigegeben(svc, 'kunden_aufgaben_erinnerung').catch(() => false);
 
   for (const [agencyId, liste] of faellig) {
     const k = kunden.find((x) => x.id === agencyId)!;
@@ -125,6 +129,11 @@ export async function erinnereKunden(
       continue;
     }
 
+    if (!freigegeben) {
+      out.push({ ...basis, nummer, ergebnis: 'nicht_freigegeben' });
+      await vermerke(svc, liste, jetzt);
+      continue;
+    }
     if (!nummer) {
       out.push({ ...basis, nummer: null, ergebnis: 'keine_nummer' });
       continue;
@@ -180,13 +189,17 @@ export async function erinnereKunden(
 
     // Auch bei Sendefehler vermerken – sonst kommt die Glocke jeden Tag erneut
     // und der Höchstwert von MAX_ERINNERUNGEN greift nie.
-    for (const r of liste) {
-      const { error } = await svc
-        .from('client_steps')
-        .update({ kunde_erinnert_am: jetzt.toISOString(), kunde_erinnerungen: r.kunde_erinnerungen + 1 })
-        .eq('id', r.id);
-      if (error) console.error('[kunden-erinnerung] Vermerk nicht gespeichert', r.id, error.message);
-    }
+    await vermerke(svc, liste, jetzt);
   }
   return out;
+}
+
+async function vermerke(svc: SupabaseClient, liste: OffeneKundenAufgabe[], jetzt: Date): Promise<void> {
+  for (const r of liste) {
+    const { error } = await svc
+      .from('client_steps')
+      .update({ kunde_erinnert_am: jetzt.toISOString(), kunde_erinnerungen: r.kunde_erinnerungen + 1 })
+      .eq('id', r.id);
+    if (error) console.error('[kunden-erinnerung] Vermerk nicht gespeichert', r.id, error.message);
+  }
 }

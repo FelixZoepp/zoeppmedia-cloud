@@ -1,9 +1,12 @@
 /**
  * Anruf-Modus: Warteschlange aus Rohdaten bauen (rein, testbar).
  * Priorität bei Überschneidung: Erinnerung > Kadenz > Rückruf > Neu.
- * Übersprungen werden Bewerber ohne Nummer, gesperrte (Blacklist, gelöscht, „nicht kontaktieren“)
- * und solche, die gerade jemand anderes anruft.
+ * Übersprungen werden Bewerber ohne Nummer, gesperrte (Blacklist, gelöscht, „nicht kontaktieren“),
+ * abgesagte und eingestellte (Phase) und solche, die gerade jemand anderes anruft – in ALLEN Quellen
+ * (Erinnerung, Kadenz, Rückruf, Neu).
  */
+
+import { anrufSperrgrund, type Endphase } from '@/lib/recruiting/schnell-absage';
 
 export type QueueReason = 'erinnerung' | 'kadenz' | 'rueckruf' | 'neu';
 
@@ -36,6 +39,7 @@ export interface QueueCandidate {
   do_not_contact?: boolean | null;
   locked_by?: string | null;
   locked_until?: string | null;
+  current_stage_id?: string | null;
 }
 
 export interface QueueReminder {
@@ -54,10 +58,11 @@ export interface QueueCallback {
   next_contact_date: string | null;
 }
 
-/** Darf dieser Bewerber jetzt von `userId` angerufen werden? */
-export function anrufbar(c: QueueCandidate, userId: string, jetzt: Date): boolean {
+/** Darf dieser Bewerber jetzt von `userId` angerufen werden? `endphasen`: Phasen-ID → abgesagt/eingestellt */
+export function anrufbar(c: QueueCandidate, userId: string, jetzt: Date, endphasen: Map<string, Endphase> = new Map()): boolean {
   if (!c.phone || !c.phone.trim()) return false;
   if (c.blacklisted || c.deleted_at || c.do_not_contact) return false;
+  if (anrufSperrgrund(c, endphasen)) return false;
   if (c.locked_by && c.locked_by !== userId && c.locked_until && new Date(c.locked_until) > jetzt) return false;
   return true;
 }
@@ -76,8 +81,11 @@ export function baueWarteschlange(input: {
   kandidaten: Record<string, QueueCandidate>;
   userId: string;
   jetzt: Date;
+  /** Abschluss-Phasen (abgesagt/eingestellt) – Bewerber darin erscheinen nie */
+  endphasen?: Map<string, Endphase>;
 }): DialerQueueItem[] {
   const { userId, jetzt } = input;
+  const endphasen = input.endphasen ?? new Map<string, Endphase>();
   const queue = new Map<string, DialerQueueItem>();
   const leer = {
     cadence_attempt: null,
@@ -98,7 +106,7 @@ export function baueWarteschlange(input: {
 
   for (const r of input.reminders) {
     const c = input.kandidaten[r.candidate_id];
-    if (!c || queue.has(c.id) || !anrufbar(c, userId, jetzt)) continue;
+    if (!c || queue.has(c.id) || !anrufbar(c, userId, jetzt, endphasen)) continue;
     queue.set(c.id, {
       ...basis(c),
       ...leer,
@@ -111,7 +119,7 @@ export function baueWarteschlange(input: {
   }
 
   for (const c of input.cadence) {
-    if (queue.has(c.id) || !anrufbar(c, userId, jetzt)) continue;
+    if (queue.has(c.id) || !anrufbar(c, userId, jetzt, endphasen)) continue;
     queue.set(c.id, {
       ...basis(c),
       ...leer,
@@ -123,7 +131,7 @@ export function baueWarteschlange(input: {
 
   for (const cb of input.callbacks) {
     const c = input.kandidaten[cb.candidate_id];
-    if (!c || queue.has(c.id) || !anrufbar(c, userId, jetzt)) continue;
+    if (!c || queue.has(c.id) || !anrufbar(c, userId, jetzt, endphasen)) continue;
     queue.set(c.id, {
       ...basis(c),
       ...leer,
@@ -135,7 +143,7 @@ export function baueWarteschlange(input: {
   }
 
   for (const c of input.neue) {
-    if (queue.has(c.id) || !anrufbar(c, userId, jetzt)) continue;
+    if (queue.has(c.id) || !anrufbar(c, userId, jetzt, endphasen)) continue;
     queue.set(c.id, { ...basis(c), ...leer, reason: 'neu' });
   }
 

@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
-export type CheckErgebnis = 'ok' | 'warnung' | 'fehler';
+/** 'info' = nur Hinweis (z. B. Check noch nicht eingerichtet) – weder grün noch Alarm */
+export type CheckErgebnis = 'ok' | 'warnung' | 'fehler' | 'info';
 export type CheckTyp = 'canary_bewerbung' | 'pixel' | 'stille' | 'werbekonto';
 
 export interface CheckResult {
@@ -194,16 +195,18 @@ export async function checkPixel(
 }
 
 /**
- * Canary-Check: Placeholder — real canary needs external test submission.
+ * Canary-Check: noch nicht eingerichtet (echte Prüfung braucht eine externe Test-Bewerbung).
+ * Meldet bewusst NICHT „ok“ – sonst stünde ein grünes Licht für etwas, das niemand prüft.
  */
 export async function checkCanary(
   _supabase: SupabaseClient,
   _agencyId: string,
 ): Promise<CheckResult> {
   return {
-    ergebnis: 'ok',
+    ergebnis: 'info',
     details: {
-      hinweis: 'Canary-Check ist ein Platzhalter — externe Test-Bewerbung noch nicht implementiert',
+      status: 'nicht_eingerichtet',
+      hinweis: 'Canary-Check nicht eingerichtet – externe Test-Bewerbung fehlt noch, es wird nichts geprüft.',
     },
   };
 }

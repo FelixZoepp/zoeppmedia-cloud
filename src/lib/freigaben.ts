@@ -234,6 +234,69 @@ export const FREIGABEN = {
     was: 'Für Automatik-Kunden geht der Tag-7- und Tag-14-Report direkt per Mail an den Kunden. Aus: Der Report wird erstellt und wartet wie bei allen anderen Kunden auf Freigabe und Knopf.',
     wirkt: 'Mail an den Kunden',
   },
+  // --- Finanzen: noch nicht fertig – alles bleibt AUS, bis Felix es freigibt ---
+  finanz_sepa_vorab: {
+    titel: '🏦 SEPA-Vorabankündigung per Mail',
+    was:
+      'Einen Tag vor dem Einzug bekommt der Kunde die Mail „Vorabankündigung: Einzug am …“ mit Rechnungsnummer und Betrag – automatisch aus dem täglichen Cron und über den Knopf in der Abrechnung. ' +
+      'Aus: keine Mail, der Abrechnungslauf bleibt unverändert (nicht als „vorab benachrichtigt“ markiert, es wird nichts nachgeholt).',
+    wirkt: 'Mail an den Kunden (Finanzen)',
+  },
+  finanz_zahlungslink_mail: {
+    titel: '💳 Rechnung + Zahlungslink per Mail (Stripe)',
+    was:
+      'Gibt ein Admin einen Abrechnungslauf frei und der Kunde hat noch kein gültiges Mandat, bekommt er die Mail „Rechnung … – Zahlungslink“ mit dem Stripe-Link zum Einrichten des Zahlungskontos. ' +
+      'Aus: Der Link wird trotzdem erzeugt und am Mandat gespeichert, die Mail entfällt – bitte selbst schicken.',
+    wirkt: 'Mail an den Kunden (Finanzen)',
+  },
+  finanz_mahn_mail: {
+    titel: '📮 Mahnwesen-Mails aus der Buchhaltung',
+    was:
+      'In /buchhaltung verschickt der Knopf „Mail senden“ die geprüfte Zahlungserinnerung/Mahnung direkt an den Kunden. ' +
+      'Aus: Der Knopf verschickt nichts (Fehlermeldung), Anrufe/Notizen und WhatsApp-Links (die man selbst abschickt) gehen weiter. Die Cloud selbst mahnt nie automatisch.',
+    wirkt: 'Mail an den Kunden (Finanzen)',
+  },
+  finanz_vertrag_mails: {
+    titel: '📝 Vertragslink + Vertragsbestätigung per Mail',
+    was:
+      'After-Close: Willkommens-Mail mit Link zur Vertragsbestätigung an den neuen Kunden. Nach der Bestätigung: Mail mit dem Vertrags-PDF (Preise, Laufzeit) an den Kunden, intern in Kopie. ' +
+      'Aus: Vertrag und Link werden angelegt, die Mails entfallen – das Team bekommt einen Hinweis, den Link bzw. das PDF selbst zu schicken.',
+    wirkt: 'Mail an den Kunden (Finanzen/Vertrag)',
+  },
+  // --- Weitere Kunden-/Lead-Ausgänge, die bisher nur an Env-Variablen oder eigenen Schaltern hingen ---
+  sales_termin_kette: {
+    titel: '📅 Termin-Kette an Leads (Calendly → WhatsApp)',
+    was:
+      'Bucht ein Lead ein Analyse- oder Beratungsgespräch in Calendly, bekommt er per WhatsApp sofort die Buchungsbestätigung, 24 Std. (sonst 3 Std.) vorher die Bitte um Bestätigung und kurz vorher die Erinnerung (15 Min. bzw. 1 Std.). ' +
+      'Zusätzlich muss die Vercel-Variable SALES_REMINDERS_ENABLED=true gesetzt sein. Aus: Die Jobs laufen durch, schicken aber nichts (nichts wird nachgeholt); interne Hinweise (Anruf-Aufgabe, No-Show-Check) bleiben.',
+    wirkt: 'WhatsApp an Leads – je Buchung bis zu 3 Nachrichten',
+  },
+  roi_umsatz_erinnerung: {
+    titel: '💰 Umsatz-Erinnerung an Kunden (Push)',
+    was: 'Am 1.–5. jedes Monats bekommen Kunden, bei denen Umsätze ihrer neuen Vertriebler für den Vormonat fehlen, eine Benachrichtigung „Umsätze deiner neuen Vertriebler eintragen“ (Glocke + Push), höchstens einmal am Tag.',
+    wirkt: 'Push/Glocke an die Cloud-Nutzer des Kunden',
+  },
+  masterclass_nudges: {
+    titel: '🎓 Masterclass-Erinnerungen an Kunden (Push)',
+    was:
+      'Hat ein Kunde wichtige Masterclass-Module (z. B. Modul 2 nach 10 Tagen, Modul 7 nach 14 Tagen) nicht angesehen, bekommt er eine Benachrichtigung (Glocke + Push), je Modul einmal. ' +
+      'Aus: Die Erinnerung wird nur vermerkt, nicht geschickt (beim Einschalten wird nichts nachgeholt).',
+    wirkt: 'Push/Glocke an die Cloud-Nutzer des Kunden',
+  },
+  wochenberichte_auto: {
+    titel: '📈 Wochenbericht montags automatisch',
+    was:
+      'Montags geht der Wochenbericht per Mail an alle Kunden. Zusätzlich muss unter Admin → Wochenberichte die Automatik an sein. ' +
+      'Aus: Der Bericht wird erstellt und gespeichert, aber nicht verschickt. Einzelversand per Knopf unter Admin → Wochenberichte geht weiterhin.',
+    wirkt: 'Mail an Kunden – wöchentlich',
+  },
+  kunden_aufgaben_erinnerung: {
+    titel: '⏰ Kunden an offene Aufgaben erinnern',
+    was:
+      'Ist eine Kunden-Aufgabe im Onboarding/Setup überfällig, bekommt der Kunde per Sales-WhatsApp (Vorlage kunde_aufgaben_erinnerung) „Damit es weitergeht, fehlt uns noch …“ und eine Glocke – alle 2 Tage, höchstens 3-mal je Aufgabe. ' +
+      'Zusätzlich muss system_einstellungen „kunden_erinnerungen_aktiv“ an sein. Aus: nichts geht raus, die Stufe wird trotzdem vermerkt.',
+    wirkt: 'WhatsApp + Push an Kunden – täglich im Cron',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;

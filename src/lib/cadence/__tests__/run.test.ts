@@ -106,6 +106,31 @@ describe('runCadence', () => {
     const neu = new Date(String(tables.candidates[0].cadence_next_at));
     expect(neu.getTime()).toBeGreaterThan(NOW.getTime());
   });
+
+  it('legt für abgesagte, eingestellte und gelöschte Bewerber keine Aufgabe an und beendet die Kadenz', async () => {
+    tables.pipeline_stages = [
+      { id: 's-ab', stage_type: 'rejected', name: 'Abgesagt' },
+      { id: 's-ein', stage_type: null, name: 'Eingestellt' },
+      { id: 's-neu', stage_type: 'new', name: 'Neu' },
+    ];
+    tables.candidates.push(
+      cand('c-ab', '2026-10-09T07:50:00Z', { current_stage_id: 's-ab' }),
+      cand('c-ein', '2026-10-09T07:50:00Z', { current_stage_id: 's-ein' }),
+      cand('c-del', '2026-10-09T07:50:00Z', { deleted_at: '2026-10-01T00:00:00Z' }),
+      cand('c-ok', '2026-10-09T07:50:00Z', { current_stage_id: 's-neu' }),
+    );
+    const r = await runCadence(fakeDb(tables), NOW);
+    expect(r.tasksCreated).toBe(1);
+    expect(tables.internal_tasks).toHaveLength(1);
+    expect(String(tables.internal_tasks[0].title)).toContain('K c-ok');
+    const status = Object.fromEntries(tables.candidates.map((c) => [c.id, [c.cadence_active, c.cadence_stopped_reason ?? null]]));
+    expect(status).toEqual({
+      'c-ab': [false, 'abgesagt'],
+      'c-ein': [false, 'eingestellt'],
+      'c-del': [false, 'geloescht'],
+      'c-ok': [true, null],
+    });
+  });
 });
 
 describe('naechstesFenster', () => {

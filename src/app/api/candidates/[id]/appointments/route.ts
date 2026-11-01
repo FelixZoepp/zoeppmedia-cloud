@@ -26,7 +26,22 @@ export async function GET(
     .order('scheduled_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  // Header für die Oberfläche: Wird der Bewerber bei neuen/verschobenen Terminen automatisch per Mail informiert?
+  // „aus“, solange der Bewerber-Kontakt gesperrt ist oder der Bewerber abgesagt ist – dann muss der Kunde ihn selbst informieren.
+  let kontakt = 'aus';
+  try {
+    const { data: cand } = await supabase.from('candidates').select('agency_id, email, abgesagt_am').eq('id', id).maybeSingle();
+    const c = cand as { agency_id: string; email: string | null; abgesagt_am: string | null } | null;
+    if (c?.email && !c.abgesagt_am) {
+      const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
+      const { createAdminClient } = await import('@/lib/supabase/admin');
+      if (darfKontakt(await ladeSchalter(createAdminClient()), { email: c.email, agencyId: c.agency_id })) kontakt = 'an';
+    }
+  } catch {
+    // im Zweifel „aus“ – lieber ehrlich „nicht informiert“ anzeigen
+  }
+  return NextResponse.json(data, { headers: { 'x-bewerber-kontakt': kontakt } });
 }
 
 export async function POST(
@@ -50,7 +65,7 @@ export async function POST(
 
   const { data: candidate } = await supabase
     .from('candidates')
-    .select('agency_id, name, email, phone')
+    .select('agency_id, name, email, phone, abgesagt_am')
     .eq('id', id)
     .single();
 
@@ -112,7 +127,8 @@ export async function POST(
   let confirmationSent = false;
   const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
   const { createAdminClient: adminFuerSchalter } = await import('@/lib/supabase/admin');
-  if (candidate.email && darfKontakt(await ladeSchalter(adminFuerSchalter()), { email: candidate.email, agencyId: candidate.agency_id })) {
+  // Abgesagte Bewerber bekommen nie eine Nachricht
+  if (!candidate.abgesagt_am && candidate.email && darfKontakt(await ladeSchalter(adminFuerSchalter()), { email: candidate.email, agencyId: candidate.agency_id })) {
     try {
       await sendAppointmentConfirmationEmail(
         candidate.email,
@@ -161,6 +177,7 @@ export async function POST(
   }
 
   // Kalender-Einladung an den Kunden — Termin landet sofort in seinem Kalender
+  const kundeInformiert = imKalender || !!agency?.email;
   if (agency?.email && !imKalender) {
     const dateStr = scheduledAt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
     sendAgencyCalendarInvite(
@@ -171,5 +188,9 @@ export async function POST(
     ).catch(() => {});
   }
 
-  return NextResponse.json({ ...data, confirmation_sent: confirmationSent, im_kundenkalender: imKalender }, { status: 201 });
+  // confirmation_sent = Bewerber wurde informiert; false → der Kunde muss den Bewerber selbst informieren
+  return NextResponse.json(
+    { ...data, confirmation_sent: confirmationSent, bewerber_informiert: confirmationSent, kunde_informiert: kundeInformiert, im_kundenkalender: imKalender },
+    { status: 201 },
+  );
 }

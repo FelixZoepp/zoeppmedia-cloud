@@ -149,6 +149,24 @@ async function istAbsagePhase(supabase: SupabaseClient, stageId: unknown): Promi
   return s?.stage_type === 'rejected' || /^abgesagt/i.test(s?.name ?? '');
 }
 
+/**
+ * Ist der Bewerber gerade abgesagt? (aktuelle Phase „Abgesagt“ oder Absage vermerkt)
+ * Greift für JEDEN Trigger – nicht nur stage_changed –, damit z. B. ein späterer Termin-, Bot- oder Feld-Trigger
+ * einen abgesagten Bewerber nie anschreibt.
+ */
+async function istBewerberAbgesagt(supabase: SupabaseClient, ctx: AutomationContext): Promise<boolean> {
+  if (!ctx.candidate_id) return false;
+  const { data } = await supabase
+    .from('candidates')
+    .select('current_stage_id, abgesagt_am')
+    .eq('id', ctx.candidate_id)
+    .eq('agency_id', ctx.agency_id)
+    .maybeSingle();
+  const c = data as { current_stage_id?: string | null; abgesagt_am?: string | null } | null;
+  if (!c) return false;
+  return !!c.abgesagt_am || (await istAbsagePhase(supabase, c.current_stage_id));
+}
+
 interface ActionDetail {
   status?: 'success' | 'skipped';
   response_status?: number;
@@ -159,13 +177,14 @@ async function executeAction(
   action: Action,
   context: AutomationContext
 ): Promise<ActionDetail | void> {
-  // Absagen bleiben intern (Schnell-Absage, jede Verschiebung nach „Abgesagt“, abgesagte Termine): nie eine Nachricht an den
-  // Bewerber auslösen – auch nicht mit Grund, über geplante Jobs oder Webhooks (z. B. Zapier)
+  // Absagen bleiben intern (Schnell-Absage, jede Verschiebung nach „Abgesagt“, abgesagte Termine, Bewerber steht in
+  // „Abgesagt“): nie eine Nachricht an den Bewerber auslösen – auch nicht mit Grund, über geplante Jobs oder Webhooks (z. B. Zapier)
   if (
     NACH_AUSSEN.includes(action.type) &&
     (context.trigger_event === 'appointment.cancelled' ||
       context.data?.schnell_absage === true ||
-      (await istAbsagePhase(supabase, context.data?.new_stage_id)))
+      (await istAbsagePhase(supabase, context.data?.new_stage_id)) ||
+      (await istBewerberAbgesagt(supabase, context)))
   ) {
     return { status: 'skipped' };
   }

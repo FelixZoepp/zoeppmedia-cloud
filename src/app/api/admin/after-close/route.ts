@@ -247,7 +247,12 @@ export async function POST(request: Request) {
 
     // --- 4d. Willkommens-Mail mit Link zur Vertragsbestätigung (noch ohne Rechnung) ---
     let willkommenGesendet = false;
-    if (body.willkommensmail !== false && body.email) {
+    // Finanzen/Vertrag: Mail nur mit Freigabe (Prüfung direkt vor dem Senden)
+    const { istFreigegeben } = await import('@/lib/freigaben');
+    const vertragMailFrei = await istFreigegeben(admin, 'finanz_vertrag_mails').catch(() => false);
+    if (body.willkommensmail !== false && body.email && !vertragMailFrei) {
+      hinweise.push('Willkommens-Mail mit Vertragslink ist nicht freigegeben (Admin → Freigaben) – bitte den Vertragslink selbst an den Kunden schicken.');
+    } else if (body.willkommensmail !== false && body.email) {
       try {
         const { sendVertragLink } = await import('@/lib/email/resend');
         await sendVertragLink(body.email, body.ansprechpartner, body.firma, vertragUrl);

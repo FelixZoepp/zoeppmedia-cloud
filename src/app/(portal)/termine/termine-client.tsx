@@ -445,7 +445,11 @@ function NeuerTermin({ onFertig }: { onFertig: () => Promise<void> }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? 'Termin konnte nicht angelegt werden');
-      toast.success(data.confirmation_sent ? 'Termin angelegt – Bestätigung an den Bewerber verschickt' : 'Termin angelegt');
+      toast.success(
+        data.confirmation_sent
+          ? 'Termin angelegt – Bestätigung an den Bewerber verschickt'
+          : 'Termin angelegt – der Bewerber wird NICHT automatisch informiert, bitte selbst Bescheid geben',
+      );
       await onFertig();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
@@ -519,7 +523,9 @@ function NeuerTermin({ onFertig }: { onFertig: () => Promise<void> }) {
       <Button className="w-full" onClick={speichern} disabled={busy}>
         {busy ? 'Wird angelegt …' : 'Termin anlegen'}
       </Button>
-      <p className="text-[12px] text-gray-500">Der Bewerber bekommt eine Bestätigung mit Kalendereintrag per E-Mail (falls hinterlegt).</p>
+      <p className="text-[12px] text-gray-500">
+        Der Bewerber bekommt nur dann automatisch eine Bestätigung per E-Mail, wenn der Bewerber-Kontakt freigegeben ist. Sonst muss der Kunde ihm den Termin selbst mitteilen – nach dem Anlegen siehst du, ob er informiert wurde.
+      </p>
     </div>
   );
 }

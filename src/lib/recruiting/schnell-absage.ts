@@ -12,6 +12,35 @@ export function istAbgesagtStage(s: { name?: string | null; stage_type?: string 
   return s.stage_type === 'rejected' || /^abgesagt/i.test(s.name ?? '');
 }
 
+type Phase = { name?: string | null; stage_type?: string | null } | null | undefined;
+
+/** Phase „Eingestellt“: über stage_type, bei Altdaten ohne Typ über den Namen */
+export function istEingestelltStage(s: Phase): boolean {
+  if (!s) return false;
+  return s.stage_type === 'hired' || /^eingestellt/i.test(s.name ?? '');
+}
+
+export type Endphase = 'abgesagt' | 'eingestellt';
+
+/** Abschluss-Phase (abgesagt/eingestellt) – solche Bewerber werden nicht mehr angerufen */
+export function endphase(s: Phase): Endphase | null {
+  if (istAbgesagtStage(s)) return 'abgesagt';
+  if (istEingestelltStage(s)) return 'eingestellt';
+  return null;
+}
+
+export type Sperrgrund = Endphase | 'geloescht';
+
+/** Warum darf dieser Bewerber nicht mehr angerufen werden? null = darf (rein, testbar) */
+export function anrufSperrgrund(
+  c: { deleted_at?: string | null; current_stage_id?: string | null },
+  endphasen: Map<string, Endphase>,
+): Sperrgrund | null {
+  if (c.deleted_at) return 'geloescht';
+  if (c.current_stage_id) return endphasen.get(c.current_stage_id) ?? null;
+  return null;
+}
+
 /** Jobs, die den Bewerber nicht anschreiben und weiterlaufen dürfen (Medien, Zustellstatus, Eingang) */
 const NICHT_ABBRECHEN = new Set(['media.download', 'whatsapp.status', 'whatsapp.inbound']);
 

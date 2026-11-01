@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { gibFrei, verwirf } from '@/lib/zuordnung/entscheidung';
 import type { PruefstandEintrag } from '@/lib/zuordnung/pruefstand';
+import { auditEreignis } from '@/lib/audit/log';
 
 export const maxDuration = 60;
 
@@ -23,6 +24,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } else if (b.aktion === 'verwerfen') {
     r = await verwirf(svc, e, user.id);
   } else return NextResponse.json({ error: 'Ungültige Aktion' }, { status: 400 });
-  await svc.from('audit_log').insert({ actor_id: user.id, agency_id: b.agency_id ?? null, action: `pruefstand.${b.aktion}`, target: e.externe_ref, data: { ergebnis: r } }).then(() => {}, () => {});
+  await auditEreignis({ userId: user.id, agencyId: b.agency_id ?? null, entityType: 'candidate', action: 'update', ereignis: `pruefstand.${b.aktion}`, ziel: r.ok && r.candidateId ? r.candidateId : e.id, daten: { externe_ref: e.externe_ref, ergebnis: r } });
   return r.ok ? NextResponse.json({ ok: true, candidate_id: r.candidateId }) : NextResponse.json({ error: r.grund }, { status: 422 });
 }

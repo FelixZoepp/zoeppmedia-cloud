@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/lib/slack/kanaele', () => ({ slackKanal: vi.fn(async () => 'C-SYSTEM') }));
+vi.mock('@/lib/slack/kanaele', () => ({ slackKanal: vi.fn(async () => 'C-SYSTEM'), felixSlackId: vi.fn(async () => 'U-FELIX') }));
 
 import { baueAlarmNachricht, meldeAlarm } from '../slack-alarm';
 
@@ -23,7 +23,8 @@ describe('slack-alarm', () => {
 
   it('kritisch erwähnt Felix, behoben nicht', () => {
     expect(baueAlarmNachricht({ schluessel: 'x', titel: 'Inbox kaputt', text: 't', schwere: 'kritisch' }).text).toContain('🚨');
-    expect(JSON.stringify(baueAlarmNachricht({ schluessel: 'x', titel: 'Inbox kaputt', text: 't', schwere: 'kritisch' }).blocks)).toContain('<@U09EK5NAR4P>');
+    expect(JSON.stringify(baueAlarmNachricht({ schluessel: 'x', titel: 'Inbox kaputt', text: 't', schwere: 'kritisch' }, false, 'U123').blocks)).toContain('<@U123>');
+    expect(JSON.stringify(baueAlarmNachricht({ schluessel: 'x', titel: 'Inbox kaputt', text: 't', schwere: 'kritisch' }).blocks)).not.toContain('<@');
     expect(JSON.stringify(baueAlarmNachricht({ schluessel: 'x', titel: 'Inbox kaputt', text: 't', schwere: 'kritisch' }, true).blocks)).not.toContain('<@');
   });
 

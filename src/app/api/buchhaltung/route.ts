@@ -8,6 +8,7 @@ import {
 } from '@/lib/billing/mahnwesen';
 import { MAHN_SCHRITTE, fill } from '@/lib/billing/mahnwesen-vorlagen';
 import { sendMahnMail } from '@/lib/email/resend';
+import { istFreigegeben } from '@/lib/freigaben';
 import { today } from '@/lib/fulfillment/views';
 
 /** Zugriff: Admins und die Buchhaltung (Funktion backoffice). */
@@ -155,6 +156,10 @@ export async function POST(req: NextRequest) {
       const { case_id, schritt, an, betreff, text } = body as { case_id: string; schritt: number; an: string; betreff: string; text: string };
       if (!MAHN_SCHRITTE.some((s) => s.schritt === schritt)) return NextResponse.json({ error: 'Unbekannter Schritt' }, { status: 400 });
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(an ?? '') || !betreff?.trim() || !text?.trim()) return NextResponse.json({ error: 'Empfänger, Betreff und Text prüfen' }, { status: 400 });
+      // Finanzen: ohne Freigabe verschickt auch der Knopf nichts
+      if (!(await istFreigegeben(svc, 'finanz_mahn_mail'))) {
+        return NextResponse.json({ error: 'Mahn-Mails sind nicht freigegeben (Admin → Freigaben). Es wurde nichts verschickt.' }, { status: 409 });
+      }
       const { error } = await sendMahnMail(an.trim(), betreff.trim().slice(0, 200), text.slice(0, 10000));
       if (error) return NextResponse.json({ error: `Mail nicht verschickt: ${error.message}` }, { status: 502 });
       await aktionErfassen(svc, case_id, schritt, 'gesendet', { userId: user.id, kanal: 'mail', notiz: `Mail an ${an.trim()}: ${betreff.trim()}`, details: { betreff: betreff.trim(), text: text.slice(0, 10000) } });

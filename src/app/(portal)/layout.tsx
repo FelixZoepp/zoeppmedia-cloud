@@ -8,6 +8,7 @@ import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { HilfeLeiste } from '@/components/akademie/hilfe-leiste';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { aktiveAnsicht } from '@/lib/ansicht';
+import { EinstellungFeier } from '@/components/deal-feier';
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -42,6 +43,7 @@ export default async function PortalLayout({ children }: { children: React.React
       {/* Hilfe-Modus nur für das Team in einer Kunden-Cloud (z. B. Innendienst) – Kunden sehen ihn nie */}
       {inKundenCloud && ansicht !== 'kunde' && <HilfeLeiste />}
       <PushManager />
+      <EinstellungFeier intern={!isAgency(user.role)} />
     </LayoutShell>
   );
 }

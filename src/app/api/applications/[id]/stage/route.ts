@@ -7,6 +7,8 @@ import { fireEvent } from '@/lib/automations/fire';
 import { scheduleStageReminders } from '@/lib/workers/sla-reminders';
 import { absageAusBody, ablehngrundText } from '@/lib/recruiting/absagegruende';
 import { absageAmBewerber } from '@/lib/recruiting/absage-speichern';
+import { istAbgesagtStage, istEingestelltStage, stoppeAbgesagtenBewerber } from '@/lib/recruiting/absage-stopp';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PATCH(
@@ -47,9 +49,13 @@ export async function PATCH(
 
   if (!newStage) return NextResponse.json({ error: 'Stufe nicht gefunden' }, { status: 404 });
 
+  // Absage-/Einstellungs-Phase wie in /absagen erkennen: stage_type oder (Altdaten) Name
+  const istAbsage = istAbgesagtStage(newStage);
+  const istEingestellt = !istAbsage && istEingestelltStage(newStage);
+
   // Absagegrund prüfen (Katalog-Code oder Alt-Text)
   let absage: { code: string; notiz: string | null } | null = null;
-  if (newStage.stage_type === 'rejected') {
+  if (istAbsage) {
     const a = absageAusBody(body);
     if ('fehler' in a) return NextResponse.json({ error: a.fehler }, { status: 400 });
     absage = a;
@@ -58,8 +64,8 @@ export async function PATCH(
 
   // Status ableiten
   let newStatus: string = 'open';
-  if (newStage.stage_type === 'hired') newStatus = 'hired';
-  if (newStage.stage_type === 'rejected') newStatus = 'rejected';
+  if (istEingestellt) newStatus = 'hired';
+  if (istAbsage) newStatus = 'rejected';
 
   // Application aktualisieren
   const { error: updateError } = await supabase
@@ -83,9 +89,11 @@ export async function PATCH(
     }
   }
 
-  // SLA- und Dokumente-Reminder planen (best effort)
-  scheduleStageReminders(supabase, agencyId, id, stage_id, newStage.stage_type, newStage.requires_documents ?? false)
-    .catch((e) => console.error('scheduleStageReminders fehlgeschlagen', e));
+  // SLA- und Dokumente-Reminder planen (best effort) – nie für Abgesagte (Dokumente-Anforderung ginge an den Bewerber)
+  if (!istAbsage) {
+    scheduleStageReminders(supabase, agencyId, id, stage_id, newStage.stage_type, newStage.requires_documents ?? false)
+      .catch((e) => console.error('scheduleStageReminders fehlgeschlagen', e));
+  }
 
   // candidate_stages (Bestandskompatibilitaet R5)
   await supabase.from('candidate_stages').insert({
@@ -104,6 +112,11 @@ export async function PATCH(
     .eq('id', app.candidate_id)
     .eq('agency_id', agencyId);
 
+  // Absage: Anrufversuche, KI-Agent, geplante Jobs und künftige Termine stoppen – ohne Nachricht an den Bewerber
+  const gestoppt = istAbsage
+    ? (await stoppeAbgesagtenBewerber(createAdminClient(), { candidateId: app.candidate_id, agencyId })).gestoppt
+    : null;
+
   // activity_log (application-bezogen)
   const metadata: Record<string, unknown> = {
     application_id: id,
@@ -113,6 +126,7 @@ export async function PATCH(
     changed_by: user.id,
   };
   if (absage) Object.assign(metadata, { rejection_reason, absage_code: absage.code, absage_notiz: absage.notiz });
+  if (gestoppt) metadata.gestoppt = gestoppt;
 
   await logActivity(supabase, {
     agency_id: agencyId,
@@ -123,11 +137,11 @@ export async function PATCH(
     metadata,
   });
 
-  // Automation
+  // Automation – die Engine verschickt bei einer Absage-Phase nichts nach außen (engine.ts, executeAction)
   fireEvent('stage_changed', agencyId, {
     candidate_id: app.candidate_id,
     extra: { application_id: id, new_stage_id: stage_id, new_stage_type: newStage.stage_type },
   }).catch(() => {});
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, ...(gestoppt ? { gestoppt } : {}) });
 }

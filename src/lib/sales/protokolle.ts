@@ -505,7 +505,11 @@ function felderAus(a: CloseCustomActivity): Record<string, string | null> {
 
 /** Job sales.protokoll: Protokoll laden, speichern und (bei Terminierung / Follow-up) die Regeln in Close umsetzen */
 export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: string, jetzt: Date = new Date()): Promise<string> {
-  const a = await closeJson<CloseCustomActivity>(`/activity/custom/${activityId}/`);
+  // Protokoll in Close inzwischen gelöscht (z. B. vom Closer neu angelegt) → nichts mehr zu tun, kein toter Job/Alarm
+  const pruef = await fetch(`${CLOSE_BASE}/activity/custom/${activityId}/`, { headers: closeHeaders(), cache: 'no-store' });
+  if (pruef.status === 404) return 'in_close_geloescht';
+  if (!pruef.ok) throw new Error(`Close ${pruef.status} bei /activity/custom/: ${(await pruef.text()).slice(0, 200)}`);
+  const a = (await pruef.json()) as CloseCustomActivity;
   if (a.status && a.status !== 'published') return 'entwurf';
   let typ: string | undefined = TYP_NAME[a.custom_activity_type_id];
   // Upsell-Protokoll: Typ-ID kommt aus der Einrichtung (system_einstellungen)

@@ -7,46 +7,56 @@ import { logActivity } from '@/lib/activity/log';
 import { fireEvent } from '@/lib/automations/fire';
 import { sendAppointmentUpdateEmail, sendAgencyCalendarInvite } from '@/lib/email/resend';
 import { buildAppointmentInvite, APPOINTMENT_TYPE_LABELS } from '@/lib/calendar/invite';
+import { AUTO_SPERRE_PREFIX, noShowPunktWechsel } from '@/lib/appointments/noshow-wechsel';
 
 const STATUSES = ['geplant', 'erschienen', 'no_show', 'abgesagt'];
 
-/** No-Show am Termin → 1 Punkt im bestehenden No-Show-System, Blacklist ab 3 Punkten */
+/**
+ * No-Show am Termin → ±1 Punkt im bestehenden No-Show-System, Blacklist ab 3 Punkten.
+ * delta −1 (No-Show zurückgenommen) bucht einen Korrektur-Eintrag und hebt eine automatische Sperre unter 3 Punkten wieder auf.
+ */
 async function recordNoShowPoints(
   supabase: SupabaseClient,
   userId: string,
   candidateId: string,
   agencyId: string,
-  appointmentType: string
+  appointmentType: string,
+  delta: 1 | -1 = 1,
 ) {
   await supabase.from('noshow_events').insert({
     agency_id: agencyId,
     candidate_id: candidateId,
-    event_type: 'no_show',
-    points: 1.0,
+    event_type: delta > 0 ? 'no_show' : 'point_override',
+    points: delta,
     appointment_type: appointmentType,
-    reason: null,
+    reason: delta > 0 ? null : 'No-Show zurückgenommen (Terminstatus geändert)',
     created_by: userId,
   });
 
-  const { data: allEvents } = await supabase
-    .from('noshow_events')
-    .select('points')
-    .eq('candidate_id', candidateId);
-  const totalPoints = (allEvents ?? []).reduce((sum, e) => sum + Number(e.points), 0);
+  const [{ data: allEvents }, { data: cand }] = await Promise.all([
+    supabase.from('noshow_events').select('points').eq('candidate_id', candidateId),
+    supabase.from('candidates').select('blacklisted, blacklist_reason').eq('id', candidateId).maybeSingle(),
+  ]);
+  const totalPoints = Math.max(0, (allEvents ?? []).reduce((sum, e) => sum + Number(e.points), 0));
 
   const updateData: Record<string, unknown> = { noshow_points: totalPoints };
-  if (totalPoints >= 3) {
+  if (delta > 0 && totalPoints >= 3) {
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 12);
     updateData.blacklisted = true;
     updateData.blacklisted_at = new Date().toISOString();
     updateData.blacklisted_by = userId;
-    updateData.blacklist_reason = `Automatisch gesperrt: ${totalPoints} No-Show Punkte`;
+    updateData.blacklist_reason = `${AUTO_SPERRE_PREFIX} ${totalPoints} No-Show Punkte`;
     updateData.blacklist_expires_at = expiresAt.toISOString();
   }
-  await supabase.from('candidates').update(updateData).eq('id', candidateId);
+  // Zurückgenommen und wieder unter 3: nur die automatische No-Show-Sperre aufheben, manuelle Sperren bleiben
+  const c = cand as { blacklisted: boolean | null; blacklist_reason: string | null } | null;
+  if (delta < 0 && totalPoints < 3 && c?.blacklisted && (c.blacklist_reason ?? '').startsWith(AUTO_SPERRE_PREFIX)) {
+    Object.assign(updateData, { blacklisted: false, blacklisted_at: null, blacklisted_by: null, blacklist_reason: null, blacklist_expires_at: null });
+  }
+  await supabase.from('candidates').update(updateData).eq('id', candidateId).eq('agency_id', agencyId);
 
-  fireEvent('noshow_recorded', agencyId, { candidate_id: candidateId }).catch(() => {});
+  if (delta > 0) fireEvent('noshow_recorded', agencyId, { candidate_id: candidateId }).catch(() => {});
 
   return totalPoints;
 }
@@ -65,7 +75,7 @@ export async function PATCH(
 
   const { data: appointment } = await supabase
     .from('candidate_appointments')
-    .select('id, candidate_id, agency_id, type, scheduled_at, notes, ics_sequence, kalender_event_id, kalender_provider')
+    .select('id, candidate_id, agency_id, type, status, scheduled_at, notes, ics_sequence, kalender_event_id, kalender_provider')
     .eq('id', id)
     .single();
 
@@ -173,6 +183,9 @@ export async function PATCH(
   }
 
   // Verschiebung/Absage → Kalender-Update an den Kunden (Bewerber-Mail nur bei Verschiebung mit Freigabe)
+  // Für die Oberfläche: wer wurde tatsächlich informiert? (false → der Kunde muss den Bewerber selbst informieren)
+  let bewerberInformiert = false;
+  let kundeInformiert = false;
   if (rescheduled || cancelled) {
     const kind = cancelled ? 'abgesagt' as const : 'verschoben' as const;
     const method = cancelled ? 'CANCEL' as const : 'REQUEST' as const;
@@ -180,7 +193,7 @@ export async function PATCH(
     const typeLabelInvite = APPOINTMENT_TYPE_LABELS[appointment.type] ?? appointment.type;
 
     const [{ data: candidate }, { data: agency }] = await Promise.all([
-      supabase.from('candidates').select('name, email, phone').eq('id', appointment.candidate_id).single(),
+      supabase.from('candidates').select('name, email, phone, abgesagt_am').eq('id', appointment.candidate_id).single(),
       supabase.from('agencies').select('name, email').eq('id', appointment.agency_id).single(),
     ]);
 
@@ -202,8 +215,13 @@ export async function PATCH(
       // Verschiebung: nur, wenn der Bewerber-Kontakt freigegeben ist (Admin → Bewerber-Kontakt).
       const { ladeSchalter, darfKontakt } = await import('@/lib/recruiting/kontakt-schalter');
       const { createAdminClient } = await import('@/lib/supabase/admin');
+      // Abgesagte Bewerber bekommen nie eine Nachricht.
       const mailAnBewerber =
-        !cancelled && !!candidate.email && darfKontakt(await ladeSchalter(createAdminClient()), { email: candidate.email, agencyId: appointment.agency_id as string });
+        !cancelled &&
+        !candidate.abgesagt_am &&
+        !!candidate.email &&
+        darfKontakt(await ladeSchalter(createAdminClient()), { email: candidate.email, agencyId: appointment.agency_id as string });
+      bewerberInformiert = mailAnBewerber;
       if (mailAnBewerber && candidate.email) {
         sendAppointmentUpdateEmail(
           candidate.email,
@@ -216,6 +234,7 @@ export async function PATCH(
         ).catch(() => {});
       }
 
+      kundeInformiert = kalenderNachgezogen || !!agency?.email;
       if (agency?.email && !kalenderNachgezogen) {
         const dateStr = scheduledAt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'medium', timeStyle: 'short' });
         const subject = cancelled
@@ -235,17 +254,19 @@ export async function PATCH(
     }
   }
 
-  // No-Show → Punkte im bestehenden No-Show-System vergeben (Blacklist ab 3)
+  // No-Show → Punkte im bestehenden No-Show-System (Blacklist ab 3) – nur beim echten Wechsel auf/von no_show
   let noshowPoints: number | null = null;
-  if (body.status === 'no_show') {
+  const wechsel = noShowPunktWechsel(appointment.status as string | null, body.status as string | undefined);
+  if (wechsel !== 0) {
     noshowPoints = await recordNoShowPoints(
       supabase,
       user.id,
       appointment.candidate_id,
       appointment.agency_id,
-      appointment.type
+      appointment.type,
+      wechsel,
     );
   }
 
-  return NextResponse.json({ ...data, noshow_points: noshowPoints });
+  return NextResponse.json({ ...data, noshow_points: noshowPoints, bewerber_informiert: bewerberInformiert, kunde_informiert: kundeInformiert });
 }

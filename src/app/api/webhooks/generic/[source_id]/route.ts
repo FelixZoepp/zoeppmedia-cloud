@@ -2,23 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isUuid } from '@/lib/supabase/filters';
 import { randomUUID, timingSafeEqual } from 'crypto';
+import { logAudit, alsChanges } from '@/lib/audit/log';
 
 /** Best-effort Audit-Eintrag bei abgelehntem Webhook — darf den 401-Pfad nie blockieren. */
 async function auditReject(
-  svc: ReturnType<typeof createAdminClient>,
+  _svc: ReturnType<typeof createAdminClient>,
   agencyId: string,
   reason: string
 ) {
-  await svc.from('audit_log').insert({
+  await logAudit(null, {
     entity_type: 'webhook',
     entity_id: randomUUID(),
     agency_id: agencyId,
     action: 'reject',
-    changes: { source: 'generic', reason },
-  }).then(
-    () => {},
-    (e: unknown) => console.error('[generic-webhook] Audit-Insert fehlgeschlagen', e)
-  );
+    changes: alsChanges({ source: 'generic', reason }),
+  });
 }
 
 /** POST /api/webhooks/generic/{source_id} — externe Formulare/Perspective (Spec §6/§13). */

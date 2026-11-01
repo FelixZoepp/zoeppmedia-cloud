@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { auditEreignis } from '@/lib/audit/log';
 
 /**
  * Manatal-Stelle (ID) einmal für genau einen Kunden bestätigen – danach laufen ihre Bewerber automatisch durch.
@@ -27,6 +28,6 @@ export async function POST(req: NextRequest) {
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   await svc.from('bewerber_pruefstand').update({ naechster_versuch: new Date().toISOString() }).eq('quelle', 'manatal').in('status', ['wartet', 'offen']).eq('daten->>job', String(b.manatal_job_id));
-  await svc.from('audit_log').insert({ actor_id: user.id, agency_id: b.agency_id, action: 'manatal.stelle_bestaetigt', target: String(b.manatal_job_id), data: b }).then(() => {}, () => {});
+  await auditEreignis({ userId: user.id, agencyId: b.agency_id, entityType: 'job', action: 'update', ereignis: 'manatal.stelle_bestaetigt', ziel: String(b.manatal_job_id), daten: { manatal_organisation: b.manatal_organisation ?? null, stellentitel: b.stellentitel ?? null } });
   return NextResponse.json({ ok: true });
 }

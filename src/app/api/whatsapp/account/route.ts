@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getEffectiveAgencyId } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { auditEreignis } from '@/lib/audit/log';
 
 async function kontext() {
   const user = await getCurrentUser();
@@ -52,6 +53,6 @@ export async function DELETE() {
   const svc = createAdminClient();
   const { error } = await svc.from('whatsapp_accounts').update({ status: 'disconnected', updated_at: new Date().toISOString() }).eq('id', konto.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await svc.from('audit_log').insert({ actor_id: k.user.id, agency_id: k.agencyId, action: 'whatsapp.disconnected', target: konto.id, data: {} });
+  await auditEreignis({ userId: k.user.id, agencyId: k.agencyId, entityType: 'agency', action: 'update', ereignis: 'whatsapp.disconnected', ziel: konto.id });
   return NextResponse.json({ ok: true });
 }
