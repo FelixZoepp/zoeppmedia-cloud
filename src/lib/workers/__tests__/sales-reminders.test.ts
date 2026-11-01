@@ -13,13 +13,9 @@ vi.mock('@/lib/notifications/create', () => ({
 vi.mock('@/lib/activity/log', () => ({
   logActivity: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/lib/freigaben', () => ({
-  istFreigegeben: vi.fn().mockResolvedValue(true),
-}));
 
 import { processSalesReminder } from '../sales-reminders';
 import { sendWhatsAppMessage } from '@/lib/whatsapp/send';
-import { istFreigegeben } from '@/lib/freigaben';
 
 /** whatsapp_templates antwortet je nach preset_key aus approvedTemplates. */
 function makeSvc(approvedTemplates: Record<string, { id: string; name: string }>) {
@@ -79,16 +75,6 @@ describe('processSalesReminder — Utility-Neufassung (_v2)', () => {
       { calendly_event_id: 'evt-1', chain: 'setting' },
     );
     expect(sentTemplate()).toEqual({ name: 'setting_reminder_15min', params: ['Felix'] });
-  });
-
-  it('ohne Freigabe sales_termin_kette geht nichts raus', async () => {
-    vi.mocked(istFreigegeben).mockResolvedValueOnce(false);
-    await processSalesReminder(
-      makeSvc({ setting_reminder_15min: { id: 't1', name: 'setting_reminder_15min' } }),
-      'sales',
-      { calendly_event_id: 'evt-1', chain: 'setting' },
-    );
-    expect(sendWhatsAppMessage).not.toHaveBeenCalled();
   });
 });
 

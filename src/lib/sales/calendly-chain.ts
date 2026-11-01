@@ -1,8 +1,7 @@
 /**
  * Sales-Kette (Zoepp Media intern): Calendly-Buchung → WhatsApp-Reminder-Jobs.
  *
- * Versand zusätzlich nur mit Freigabe „sales_termin_kette“ (/admin/freigaben) – geprüft beim Senden
- * in workers/sales-reminders.ts. Eingeplant wird nur, wenn SALES_REMINDERS_ENABLED === 'true' und die Buchung
+ * Eingeplant wird nur, wenn SALES_REMINDERS_ENABLED === 'true' und die Buchung
  * einen der beiden Sales-Event-Types trifft (Setting 15min / Beratung 60min).
  *
  * Kette pro Buchung (dedupe über calendly_event_id):

@@ -264,13 +264,6 @@ export const FREIGABEN = {
     wirkt: 'Mail an den Kunden (Finanzen/Vertrag)',
   },
   // --- Weitere Kunden-/Lead-Ausgänge, die bisher nur an Env-Variablen oder eigenen Schaltern hingen ---
-  sales_termin_kette: {
-    titel: '📅 Termin-Kette an Leads (Calendly → WhatsApp)',
-    was:
-      'Bucht ein Lead ein Analyse- oder Beratungsgespräch in Calendly, bekommt er per WhatsApp sofort die Buchungsbestätigung, 24 Std. (sonst 3 Std.) vorher die Bitte um Bestätigung und kurz vorher die Erinnerung (15 Min. bzw. 1 Std.). ' +
-      'Zusätzlich muss die Vercel-Variable SALES_REMINDERS_ENABLED=true gesetzt sein. Aus: Die Jobs laufen durch, schicken aber nichts (nichts wird nachgeholt); interne Hinweise (Anruf-Aufgabe, No-Show-Check) bleiben.',
-    wirkt: 'WhatsApp an Leads – je Buchung bis zu 3 Nachrichten',
-  },
   roi_umsatz_erinnerung: {
     titel: '💰 Umsatz-Erinnerung an Kunden (Push)',
     was: 'Am 1.–5. jedes Monats bekommen Kunden, bei denen Umsätze ihrer neuen Vertriebler für den Vormonat fehlen, eine Benachrichtigung „Umsätze deiner neuen Vertriebler eintragen“ (Glocke + Push), höchstens einmal am Tag.',
