@@ -364,10 +364,14 @@ const dealMit = (statusIds: string[], ...weitere: Q[]): Q => ({
 export const WEITERE_VIEWS: Array<{ id?: string; name: string; s_query: Q }> = [
   {
     name: '💤 0.9 Ohne Bewegung > 7 Tage',
+    // Gesperrte Leads (nicht erreicht = 1 Tag, Follow-up mit Kalender, Verloren = 3 Monate) bleiben draußen
     s_query: sQuery(
-      dealMit(
-        [STATUS.settingNoShow, STATUS.settingFollowUp, STATUS.closingNoShow, STATUS.closingFollowUp, STATUS.angebot, STATUS.settingTerminiert, STATUS_CLOSING_TERMINIERT, STATUS_CC2],
-        feld('opportunity', 'date_updated', aelterAlsTage(7)),
+      and(
+        dealMit(
+          [STATUS.settingNoShow, STATUS.settingFollowUp, STATUS.closingNoShow, STATUS.closingFollowUp, STATUS.angebot, STATUS.settingTerminiert, STATUS_CLOSING_TERMINIERT, STATUS_CC2],
+          feld('opportunity', 'date_updated', aelterAlsTage(7)),
+        ),
+        nichtGesperrt,
       ),
       [sortierung('date_updated', 'asc')],
     ),

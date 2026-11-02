@@ -32,4 +32,8 @@ describe('Weitere Listen', () => {
     expect(upsell).toContain('"negate":true');
     expect(WEITERE_VIEWS[3].id).toBe('save_OL2kMKPFdhp1C2gffeP880RHPcHuaMYv5mrphw8WThX');
   });
+  it('0.9 zeigt keine gesperrten Leads', async () => {
+    const { WEITERE_VIEWS } = await import('../close-smartviews');
+    expect(JSON.stringify(WEITERE_VIEWS[0].s_query)).toContain('cf_ivdENLjTV0OBF9z2It0W5CikYZMBZbE54BgcbINdO9S');
+  });
 });
