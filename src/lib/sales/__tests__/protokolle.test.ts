@@ -58,6 +58,23 @@ describe('regelnFollowUp', () => {
   });
 });
 
+describe('regelnFollowUp – Verloren', () => {
+  const jetzt = new Date('2026-10-09T10:00:00Z');
+  const F = FOLLOWUP_FELDER_IDS;
+  it('→ Opportunity verloren, Lead in den Leadpool, 3 Monate gesperrt, Notiz mit Grund', () => {
+    const a = regelnFollowUp({ [F.erreicht]: 'Ja', [F.ergebnis]: 'Verloren', [F.verlorenGrund]: 'Kein Budget / nicht liquide (GS 2)' }, jetzt);
+    expect(a).toMatchObject({ leadStatus: 'leadpool', oppsVerloren: true, gesperrtBis: '2027-01-09T10:00:00.000Z' });
+    expect(a.notiz).toContain('Kein Budget');
+    expect(a.notiz).toContain('09.01.2027');
+  });
+  it('mit Kalender-Termin → bis dahin gesperrt', () => {
+    expect(regelnFollowUp({ [F.ergebnis]: 'Verloren', [F.kalender]: '2026-12-01T09:00:00Z' }, jetzt)).toMatchObject({ leadStatus: 'leadpool', gesperrtBis: '2026-12-01T09:00:00.000Z' });
+  });
+  it('Kalender in der Vergangenheit → 3 Monate', () => {
+    expect(regelnFollowUp({ [F.ergebnis]: 'Verloren', [F.kalender]: '2026-10-01T09:00:00Z' }, jetzt)).toMatchObject({ gesperrtBis: '2027-01-09T10:00:00.000Z' });
+  });
+});
+
 describe('regelnFollowUp – Erstgespräch gelegt', () => {
   it('setzt die Opportunity zurück auf Setting – Terminiert, ohne Sperre', () => {
     const F = FOLLOWUP_FELDER_IDS;
@@ -100,7 +117,7 @@ describe('Closing-Ergebnisse', () => {
     expect(r('5. CC2 vereinbart am:', '2026-10-15T08:00:00Z')).toEqual({ oppStatus: 'cc2', termin: '2026-10-15T08:00:00Z' });
     expect(r('6. No-Show')).toEqual({ oppStatus: 'closing_no_show' });
     expect(r('7. Verschoben auf:')).toEqual({ oppStatus: 'closing_terminiert', termin: null });
-    expect(r('8. Verloren')).toEqual({ oppsVerloren: true });
+    expect(r('8. Verloren')).toMatchObject({ leadStatus: 'leadpool', oppsVerloren: true, gesperrtBis: '2027-01-08T10:00:00.000Z' });
   });
 });
 

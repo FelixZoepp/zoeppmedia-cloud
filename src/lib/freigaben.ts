@@ -34,7 +34,7 @@ export const FREIGABEN = {
     titel: '🏷️ Verlustgrund aus dem Protokoll',
     was:
       'Nennt das Protokoll den Grund (Setting „Unqualifiziert/Disqualifiziert“ + Grund, Follow-up „Verloren“ + Verloren-Grund, Terminierung „Unqualifiziert“ + Einwand Budget/Bedarf/Anbieter), trägt die Cloud ihn in die verlorene Opportunity ein – statt der Aufgabe „Verlustgrund eintragen“. ' +
-      'Follow-up „Verloren“ setzt die aktive Opportunity außerdem auf „Verloren“. Ohne eindeutigen Grund (z. B. Closing) bleibt es bei der Aufgabe.',
+      'Follow-up „Verloren“ läuft immer (auch ohne diesen Schalter): Opportunity verloren mit Grund, Lead zurück in den Leadpool, 3 Monate gesperrt. Ohne eindeutigen Grund (z. B. Closing) bleibt es bei der Aufgabe.',
     wirkt: 'Nur Felder in Close – keine Nachricht an den Lead',
   },
   verlustgrund_aufgabe: {

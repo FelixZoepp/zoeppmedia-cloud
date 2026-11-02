@@ -18,6 +18,8 @@
  *   „Setting – Follow Up“ auf „Setting – Terminiert“ (ohne aktive Opportunity: neu angelegt)
  * - „Beratungsgespräch gelegt“ → Lead-Status „Closing“, Sperre aufgehoben, Opportunity aus „Closing – No Show“ /
  *   „Closing – Follow Up“ oder einer Setting-Stufe auf „Closing – Terminiert“ (ohne aktive Opportunity: neu angelegt)
+ * - „Verloren“ → Opportunity „Verloren“ mit dem Verloren-Grund, Lead zurück in den „Leadpool“, gesperrt bis zum
+ *   Kalender-Termin (sonst 3 Monate) + Notiz mit dem Grund → danach taucht er von selbst wieder in den Anruflisten auf
  *
  * - „Abgeschlossen“ → wie im Closing-Protokoll (siehe unten)
  *
@@ -26,7 +28,7 @@
  *   Ohne aktive Opportunity wird eine gewonnene angelegt. Fehlt das Auftragsvolumen, bekommt der Closer eine Close-Aufgabe.
  * - Nur mit Freigabe „closing_ergebnisse“: Angebot → „Angebot verschickt“ (+ Nachfass-Aufgaben Tag 1/3/7 mit Freigabe
  *   „angebot_nachfassen“), CC2 → „CC2 – Terminiert“, No-Show → „Closing – No Show“, Verschoben → „Closing – Terminiert“,
- *   Verloren → Opportunities verloren, Unqualifiziert → Lead „Unqualifiziert“ (3 Monate gesperrt), Disqualifiziert → Lead „Disqualifiziert“.
+ *   Verloren → wie Follow-up „Verloren“ (Leadpool, 3 Monate gesperrt), Unqualifiziert → Lead „Unqualifiziert“ (3 Monate gesperrt), Disqualifiziert → Lead „Disqualifiziert“.
  *
  * Jedes Protokoll (alle Typen) landet in close_protokolle – für Auswertungen je Person und Tag.
  * Ablauf: Close-Webhook activity.custom_activity → Job sales.protokoll (dedupe je Aktivität) → hier.
@@ -73,6 +75,9 @@ const OPP_CC2 = 'stat_TTFBUyYC71TwPVSrEmD0pa0GbqRowRt71e5xI5LFMTN';
 const OPP_CLOSING_NO_SHOW = 'stat_mOm4p6MGvO3A6dnmolp5G3l0TWM7v9fOjlJBkaNUlRG';
 const OPP_SETTING_NO_SHOW = 'stat_0NNi8KdI13PSUkUiNv46IQ4kZS68xYyS6XqpQA8Oqe7';
 const LEAD_STATUS_DISQUALIFIZIERT = 'stat_8dSmRG4WxUrYGItFQyAy0B4lksHZYeaxnkmUiqKbuCu';
+const LEAD_STATUS_LEADPOOL = 'stat_sgDNPr29uwT7tMPTxzQKW6DDCjbM2JMZzdX3UpeRGLb';
+/** Verloren → nach so vielen Monaten wieder anrufen (wenn im Protokoll kein Kalender-Termin steht) */
+export const VERLOREN_SPERRE_MONATE = 3;
 
 export const SETTING_FELDER = {
   ergebnis: 'cf_76Hh4UwJmO29mcOhNZdGglGCNpQyccCBbZSciCF3fb3',
@@ -105,7 +110,7 @@ const TYP_NAME: Record<string, string> = {
 
 export interface Aktionen {
   gesperrtBis?: string;
-  leadStatus?: 'setting' | 'unqualifiziert' | 'bad_data' | 'disqualifiziert';
+  leadStatus?: 'setting' | 'unqualifiziert' | 'bad_data' | 'disqualifiziert' | 'leadpool';
   /** Closing: aktive Opportunity auf diesen Status (Angebot, CC2, No-Show, Verschoben) */
   oppStatus?: 'angebot' | 'cc2' | 'closing_no_show' | 'closing_terminiert' | 'setting_no_show';
   /** Closing: Angebot verschickt → Nachfass-Aufgaben für den Closer */
@@ -128,6 +133,8 @@ export interface Aktionen {
   freigabe?: 'absage_nachfass';
   /** Nur interne Schritte (Aufgabe/Sperre) – läuft auch ohne Closing-Freigabe */
   nurIntern?: boolean;
+  /** Notiz am Lead (z. B. warum verloren und wann er wieder dran ist) */
+  notiz?: string;
   /** Terminierung „Bucht sich selbst ein“: Frist, zu der geprüft wird, ob er gebucht hat */
   selbstbucher?: string;
 }
@@ -180,9 +187,23 @@ export function regelnFollowUp(felder: Record<string, string | null>, jetzt: Dat
   if (ergebnis.startsWith('Beratungsgespräch gelegt')) return { closingTerminiert: true, termin: kalender };
   if (erreicht.startsWith('Nein') || ergebnis.startsWith('Nicht erreicht')) return { gesperrtBis: bisKalender ?? morgen };
   if (ergebnis.startsWith('Weiter Follow-up') && bisKalender) return { gesperrtBis: bisKalender };
-  // Verloren mit nächstem Versuch im Kalender (z. B. „3M Follow-up“) → bis dahin aus allen Anruflisten
-  if (ergebnis.startsWith('Verloren') && bisKalender) return { gesperrtBis: bisKalender };
+  if (ergebnis.startsWith('Verloren')) return verloren(bisKalender, felder[FOLLOWUP_FELDER_IDS.verlorenGrund] ?? null, jetzt);
   return {};
+}
+
+/**
+ * Verloren (Follow-up / Closing): Opportunity verloren, Lead zurück in den Leadpool und gesperrt – bis zum
+ * Kalender-Termin aus dem Protokoll, sonst 3 Monate. Solange taucht er in keiner Anrufliste auf, danach von selbst wieder.
+ */
+function verloren(bisKalender: string | null, grund: string | null, jetzt: Date): Aktionen {
+  const bis = bisKalender ?? plusMonate(jetzt, VERLOREN_SPERRE_MONATE).toISOString();
+  const datum = new Date(bis).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' });
+  return {
+    leadStatus: 'leadpool',
+    oppsVerloren: true,
+    gesperrtBis: bis,
+    notiz: `❌ Verloren${grund ? ` – Grund: ${grund}` : ''}. Zurück im Leadpool, ab ${datum} wieder anrufen.`,
+  };
 }
 
 /**
@@ -235,7 +256,7 @@ export function regelnClosing(felder: Record<string, string | null>, jetzt: Date
   if (schritt.startsWith('CC2')) return { oppStatus: 'cc2', termin: kalender };
   if (schritt.startsWith('No-Show')) return { oppStatus: 'closing_no_show' };
   if (schritt.startsWith('Verschoben')) return { oppStatus: 'closing_terminiert', termin: kalender };
-  if (schritt.startsWith('Verloren')) return { oppsVerloren: true };
+  if (schritt.startsWith('Verloren')) return verloren(kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : null, null, jetzt);
   // Abgesagt → Rückruf-Aufgabe (am Kalender-Tag, bis dahin gesperrt – sonst heute). Nur intern, keine Nachricht.
   if (schritt.startsWith('Abgesagt')) {
     const spaeter = !!kalender && new Date(kalender).getTime() > jetzt.getTime();
@@ -345,7 +366,7 @@ async function oppsVerloren(leadId: string, grund?: string | null): Promise<numb
 export async function fuehreAus(leadId: string, a: Aktionen, userId: string | null): Promise<Record<string, unknown>> {
   const erledigt: Record<string, unknown> = {};
   if (a.leadStatus) {
-    const status = { setting: LEAD_STATUS_SETTING, unqualifiziert: LEAD_STATUS_UNQUALIFIZIERT, bad_data: LEAD_STATUS_BAD_DATA, disqualifiziert: LEAD_STATUS_DISQUALIFIZIERT }[a.leadStatus];
+    const status = { setting: LEAD_STATUS_SETTING, unqualifiziert: LEAD_STATUS_UNQUALIFIZIERT, bad_data: LEAD_STATUS_BAD_DATA, disqualifiziert: LEAD_STATUS_DISQUALIFIZIERT, leadpool: LEAD_STATUS_LEADPOOL }[a.leadStatus];
     await setzeLead(leadId, {
       status_id: status,
       ...(a.leadStatus === 'setting' && userId ? { [`custom.${LEAD_FELD_OPENER}`]: userId } : {}),
@@ -361,6 +382,10 @@ export async function fuehreAus(leadId: string, a: Aktionen, userId: string | nu
   if (a.oppsVerloren) {
     erledigt.oppsVerloren = await oppsVerloren(leadId, a.verlustgrund);
     if (a.verlustgrund) erledigt.verlustgrund = a.verlustgrund;
+  }
+  if (a.notiz) {
+    await closeJson('/activity/note/', { method: 'POST', body: JSON.stringify({ lead_id: leadId, note: a.notiz }) }).catch((err) => console.error('[sales] Notiz fehlgeschlagen:', err));
+    erledigt.notiz = true;
   }
   if (a.settingTerminiert) {
     // Lead wieder im Setting und nicht mehr gesperrt (sonst bliebe er aus den Ansichten verschwunden)
@@ -559,13 +584,11 @@ export async function verarbeiteProtokoll(svc: SupabaseClient, activityId: strin
       if (!f.closing_ergebnisse) plan = {};
       else if (!f.angebot_nachfassen) plan = { ...plan, angebotNachfassen: false };
     }
-    // Verlustgrund direkt aus dem Protokoll; Follow-up „Verloren“ setzt die Opportunity auf verloren (nur mit Freigabe)
+    // Verlustgrund direkt aus dem Protokoll: Follow-up „Verloren“ immer, die übrigen Protokolle nur mit Freigabe
     const grund = verlustgrundAusProtokoll(typ, felder);
-    if (grund || (typ === 'follow_up' && (felder[FOLLOWUP_FELDER_IDS.ergebnis] ?? '').startsWith('Verloren'))) {
+    if (grund && plan.oppsVerloren) {
       const { istFreigegeben } = await import('@/lib/freigaben');
-      if (await istFreigegeben(svc, 'verlustgrund_automatisch')) {
-        plan = { ...plan, verlustgrund: grund, ...(typ === 'follow_up' && (felder[FOLLOWUP_FELDER_IDS.ergebnis] ?? '').startsWith('Verloren') ? { oppsVerloren: true } : {}) };
-      }
+      if (typ === 'follow_up' || (await istFreigegeben(svc, 'verlustgrund_automatisch'))) plan = { ...plan, verlustgrund: grund };
     }
     aktionen = { ...(await fuehreAus(a.lead_id, plan, a.user_id)), schluessel };
     if (plan.selbstbucher) {
