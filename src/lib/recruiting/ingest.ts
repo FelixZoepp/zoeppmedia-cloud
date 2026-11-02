@@ -31,6 +31,8 @@ export interface IngestInput {
   resume?: { storagePath: string; mime: string; size: number } | null;
   /** Nachholen alter Bewerbungen: keine Automationen, kein Bot – nur Anruf-Auftrag für den Innendienst */
   ohneAutomatik?: boolean;
+  /** Echter Bewerbungszeitpunkt (z. B. Manatal-Match), damit Nachgeholte nicht als „heute“ erscheinen */
+  eingegangenAm?: string | null;
   /** Woraus die Zuordnung zum Kunden belegt ist (Quellen, Prüfungen, Freigabe) – wird an der Bewerbung gespeichert */
   nachweis?: Record<string, unknown> | null;
 }
@@ -283,7 +285,7 @@ export async function ingestApplication(
       campaign: input.campaign || null,
       zuordnung_nachweis: input.nachweis ?? null,
       status: 'open',
-      applied_at: new Date().toISOString(),
+      applied_at: input.eingegangenAm ?? new Date().toISOString(),
     })
     .select('id')
     .single();

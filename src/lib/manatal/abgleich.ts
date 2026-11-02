@@ -310,8 +310,9 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
     consentWhatsapp: hinweis,
     consentSource: hinweis ? 'indeed_anzeige_hinweis' : null,
     resume: await speichereLebenslauf(svc, agencyId, k),
-    // Freigabe vom Prüfstand kommt oft Stunden/Tage später → nichts automatisch verschicken
-    ohneAutomatik: !!freigabe,
+    // Freigabe vom Prüfstand oder spätes Nachholen (Bewerbung älter als 2 Std.) → nichts automatisch verschicken
+    ohneAutomatik: !!freigabe || jetzt.getTime() - Date.parse(m.created_at) > 2 * 3600_000,
+    eingegangenAm: m.created_at,
     nachweis: { quelle: 'manatal', match: m.id, pruefungen, freigabe_von: freigabe?.von ?? null, zeit: jetzt.toISOString() },
   });
   if (r.candidateCreated) await svc.from('candidates').update({ indeed_job_title: job.position_name }).eq('id', r.candidateId).eq('agency_id', agencyId);
