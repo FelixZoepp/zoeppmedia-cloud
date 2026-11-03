@@ -341,8 +341,12 @@ export async function reicheSalesVorlageEin(
 
 /** Beispielbild per Resumable Upload an Meta → header_handle fürs Einreichen */
 async function ladeBeispielBildHoch(token: string, bild: { bytes: ArrayBuffer; typ: string }): Promise<string> {
-  const appId = process.env.META_APP_ID;
-  if (!appId) throw new Error('META_APP_ID fehlt – Bild kann nicht bei Meta hochgeladen werden');
+  // Upload-Sitzung muss bei der App laufen, zu der der WhatsApp-Token gehört (≠ META_APP_ID der Ads/Login-App)
+  const dbg = (await fetch(`${GRAPH}/debug_token?input_token=${encodeURIComponent(token)}`, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => r.json())
+    .catch(() => null)) as { data?: { app_id?: string } } | null;
+  const appId = dbg?.data?.app_id || process.env.META_APP_ID;
+  if (!appId) throw new Error('App des WhatsApp-Tokens unbekannt – Bild kann nicht bei Meta hochgeladen werden');
   const endung = bild.typ === 'image/png' ? 'png' : 'jpg';
   const start = await fetch(`${GRAPH}/${appId}/uploads?file_name=beispiel.${endung}&file_length=${bild.bytes.byteLength}&file_type=${encodeURIComponent(bild.typ)}`, {
     method: 'POST',

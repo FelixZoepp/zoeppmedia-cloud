@@ -87,18 +87,21 @@ export async function PUT(req: NextRequest) {
   const weg = [pfad && alt?.pfad !== pfad ? alt?.pfad : null, bild && alt?.bild !== bild ? alt?.bild : null].filter((x): x is string => !!x);
   if (weg.length) await svc.storage.from(REPORT_BUCKET).remove(weg).catch(() => null);
 
-  // Neues Bild → Bild-Vorlage bei Meta einreichen, solange sie noch nicht freigegeben/eingereicht ist (Meta braucht ein Beispielbild)
+  // Bild hinterlegt → Bild-Vorlage bei Meta einreichen, solange sie noch nicht freigegeben/eingereicht ist (Meta braucht ein Beispielbild).
+  // Auch beim erneuten Speichern ohne neues Bild, damit eine gescheiterte Einreichung nachgeholt werden kann.
   let vorlageBild: { status: string; fehler?: string } | null = null;
-  if (bild) {
+  const bildAktuell = reports[key].bild;
+  if (bildAktuell) {
     const { data: t } = await svc.from('whatsapp_templates').select('status').eq('wa_account_id', SALES_WA_ACCOUNT_ID).eq('preset_key', REPORT_VORLAGE_BILD).maybeSingle();
     const st = (t as { status: string } | null)?.status;
     if (st === 'approved' || st === 'pending') vorlageBild = { status: st };
     else {
-      const { data: datei } = await svc.storage.from(REPORT_BUCKET).download(bild);
+      const { data: datei } = await svc.storage.from(REPORT_BUCKET).download(bildAktuell);
       if (!datei) vorlageBild = { status: 'fehler', fehler: 'Bild nicht lesbar' };
       else {
         const { reicheSalesVorlageEin } = await import('@/lib/sales/vorlagen');
-        vorlageBild = await reicheSalesVorlageEin(svc, REPORT_VORLAGE_BILD, { bild: { bytes: await datei.arrayBuffer(), typ: bild.endsWith('.png') ? 'image/png' : 'image/jpeg' } });
+        vorlageBild = await reicheSalesVorlageEin(svc, REPORT_VORLAGE_BILD, { bild: { bytes: await datei.arrayBuffer(), typ: bildAktuell.endsWith('.png') ? 'image/png' : 'image/jpeg' } });
+        if (vorlageBild.status === 'fehler') console.error('[reports] Bild-Vorlage nicht eingereicht:', vorlageBild.fehler);
       }
     }
   }
