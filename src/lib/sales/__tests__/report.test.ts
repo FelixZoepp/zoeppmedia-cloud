@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSalesSlackMessage } from '../notify';
-import { istReportFunnel, istReportQuelle, leseReportToken, reportErgebnis, reportQuelle, reportSchluessel, reportToken, reportZahlen, waehleReport } from '../report';
+import { istReportFunnel, istReportQuelle, leseReportToken, reportErgebnis, reportQuelle, reportSchluessel, reportToken, reportZahlen, waehleReport, waehleReportVorlage } from '../report';
 
 describe('Report-Funnel erkennen', () => {
   it('Funnel-Name mit „Report“', () => {
@@ -74,5 +74,17 @@ describe('Slack mit Erwähnung', () => {
     const m = buildSalesSlackMessage({ emoji: '📄', title: 'Max hat den Report runtergeladen', body: 'jetzt anrufen', type: 'task_due', erwaehnen: 'U09EK5NAR4P', closeLeadId: 'lead_1' });
     expect(m.text.startsWith('<@U09EK5NAR4P>')).toBe(true);
     expect(JSON.stringify(m.blocks)).toContain('https://app.close.com/lead/lead_1/');
+  });
+});
+
+describe('Report-Vorlage mit Bild', () => {
+  const ohne = { preset_key: 'report_versand', name: 'report_versand' };
+  const mit = { preset_key: 'report_versand_bild', name: 'report_versand_bild' };
+  it('nimmt die Bild-Vorlage nur mit Bild und Freigabe', () => {
+    expect(waehleReportVorlage([ohne, mit], true)).toBe(mit);
+    expect(waehleReportVorlage([ohne, mit], false)).toBe(ohne);
+    expect(waehleReportVorlage([ohne], true)).toBe(ohne);
+    expect(waehleReportVorlage([mit], false)).toBeNull();
+    expect(waehleReportVorlage([], true)).toBeNull();
   });
 });

@@ -24,6 +24,8 @@ import { buildClickToken } from './tracking';
 export const REPORT_BUCKET = 'sales-reports';
 export const REPORTS_KEY = 'sales_reports';
 export const REPORT_VORLAGE = 'report_versand';
+/** Gleiche Vorlage mit Report-Cover als Bild – hat Vorrang, sobald freigegeben und ein Bild hinterlegt ist */
+export const REPORT_VORLAGE_BILD = 'report_versand_bild';
 export const REPORT_WARTEZEIT_MIN = 10;
 const MIN = 60_000;
 
@@ -56,6 +58,14 @@ export function reportSchluessel(name: string | null | undefined): string {
 export interface ReportPdf {
   titel: string;
   pfad: string | null;
+  /** Cover-Bild (JPG/PNG) für die WhatsApp, im selben Bucket */
+  bild?: string | null;
+}
+
+/** Vorlage wählen: mit Bild nur, wenn Bild hinterlegt und die Bild-Vorlage freigegeben ist (rein, testbar) */
+export function waehleReportVorlage<T extends { preset_key: string }>(vorlagen: T[], hatBild: boolean): T | null {
+  const mitBild = hatBild ? vorlagen.find((v) => v.preset_key === REPORT_VORLAGE_BILD) : undefined;
+  return mitBild ?? vorlagen.find((v) => v.preset_key === REPORT_VORLAGE) ?? null;
 }
 
 export async function ladeReports(svc: SupabaseClient): Promise<Record<string, ReportPdf>> {
@@ -190,13 +200,18 @@ export async function sendeReportWhatsApp(svc: SupabaseClient, payload: { downlo
   if (!pdf?.pfad) return status('kein_pdf');
   const { data: v } = await svc
     .from('whatsapp_templates')
-    .select('id, name')
+    .select('id, name, preset_key')
     .eq('wa_account_id', SALES_WA_ACCOUNT_ID)
-    .eq('preset_key', REPORT_VORLAGE)
-    .eq('status', 'approved')
-    .maybeSingle();
-  const tmpl = v as { id: string; name: string } | null;
+    .in('preset_key', [REPORT_VORLAGE, REPORT_VORLAGE_BILD])
+    .eq('status', 'approved');
+  const tmpl = waehleReportVorlage((v ?? []) as Array<{ id: string; name: string; preset_key: string }>, !!pdf.bild);
   if (!tmpl) return status('vorlage_fehlt');
+  let bildLink: string | null = null;
+  if (tmpl.preset_key === REPORT_VORLAGE_BILD && pdf.bild) {
+    const { data: link } = await svc.storage.from(REPORT_BUCKET).createSignedUrl(pdf.bild, 7 * 86400);
+    bildLink = link?.signedUrl ?? null;
+    if (!bildLink) return status('bild_fehlt');
+  }
 
   // STOP respektieren
   const { data: vorhanden } = await svc.from('candidates').select('id, whatsapp_opt_in').eq('agency_id', SALES_AGENCY_ID).eq('phone_e164', nummer).is('deleted_at', null).limit(1).maybeSingle();
@@ -225,6 +240,7 @@ export async function sendeReportWhatsApp(svc: SupabaseClient, payload: { downlo
         name: tmpl.name,
         language: { code: 'de' },
         components: [
+          ...(bildLink ? [{ type: 'header', parameters: [{ type: 'image', image: { link: bildLink } }] }] : []),
           { type: 'body', parameters: [{ type: 'text', text: vorname }, { type: 'text', text: pdf.titel }] },
           { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: reportToken(d.id) }] },
           { type: 'button', sub_type: 'url', index: '1', parameters: [{ type: 'text', text: buildClickToken(prospectId, 'setting', 'report') }] },

@@ -18,14 +18,15 @@ interface Daten {
     erster_anruf_am: string | null;
     gebucht_am: string | null;
   }>;
-  reports: Array<{ key: string; titel: string; pdf: boolean }>;
-  stand: { intern: boolean; whatsapp: boolean; vorlage: string };
+  reports: Array<{ key: string; titel: string; pdf: boolean; bild: boolean }>;
+  stand: { intern: boolean; whatsapp: boolean; vorlage: string; vorlageBild: string };
 }
 
 const WA_STATUS: Record<string, string> = {
   gesendet: 'WhatsApp ✓',
   aus: 'WhatsApp aus',
   kein_pdf: 'kein PDF',
+  bild_fehlt: 'Bild fehlt',
   vorlage_fehlt: 'Vorlage fehlt',
   keine_nummer: 'keine Nummer',
   abgemeldet: 'STOP',
@@ -40,6 +41,7 @@ export function ReportBereich({ zeitraum }: { zeitraum: string }) {
   const [funnel, setFunnel] = useState('Report');
   const [titel, setTitel] = useState('');
   const [datei, setDatei] = useState<File | null>(null);
+  const [bildDatei, setBildDatei] = useState<File | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<string | null>(null);
 
@@ -67,11 +69,32 @@ export function ReportBereich({ zeitraum }: { zeitraum: string }) {
         if (error) throw new Error('Upload fehlgeschlagen');
         pfad = link.pfad;
       }
-      const s = await fetch('/api/admin/vertrieb/reports', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ funnel, titel, pfad }) });
+      let bild: string | undefined;
+      if (bildDatei) {
+        if (!['image/jpeg', 'image/png'].includes(bildDatei.type)) throw new Error('Bild bitte als JPG oder PNG');
+        if (bildDatei.size > 5 * 1024 * 1024) throw new Error('Bild bitte unter 5 MB (WhatsApp-Grenze)');
+        const r = await fetch('/api/admin/vertrieb/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ funnel, art: 'bild', typ: bildDatei.type }) });
+        const link = await r.json();
+        if (!r.ok) throw new Error(link.error ?? 'Upload nicht möglich');
+        const { error } = await createClient().storage.from(link.bucket).uploadToSignedUrl(link.pfad, link.token, bildDatei, { contentType: bildDatei.type });
+        if (error) throw new Error('Bild-Upload fehlgeschlagen');
+        bild = link.pfad;
+      }
+      const s = await fetch('/api/admin/vertrieb/reports', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ funnel, titel, pfad, bild }) });
       const x = await s.json();
       if (!s.ok) throw new Error(x.error ?? 'Speichern fehlgeschlagen');
-      setMeldung('Gespeichert.');
+      const vb = x.vorlageBild as { status: string; fehler?: string } | null;
+      setMeldung(
+        !vb
+          ? 'Gespeichert.'
+          : vb.status === 'fehler'
+            ? `Gespeichert – Bild-Vorlage aber nicht eingereicht: ${vb.fehler ?? 'Fehler'}`
+            : vb.status === 'approved'
+              ? 'Gespeichert – die WhatsApp kommt ab jetzt mit Bild.'
+              : 'Gespeichert – Bild-Vorlage ist bei Meta zur Prüfung. Bis zur Freigabe geht die WhatsApp ohne Bild raus.',
+      );
       setDatei(null);
+      setBildDatei(null);
       await laden();
     } catch (e) {
       setMeldung(e instanceof Error ? e.message : 'Fehler');
@@ -101,6 +124,7 @@ export function ReportBereich({ zeitraum }: { zeitraum: string }) {
         <span>Slack + Aufgabe: {d.stand.intern ? '✅ an' : '⏸️ aus'}</span>
         <span>WhatsApp an Leads: {d.stand.whatsapp ? '✅ an' : '⏸️ aus (nur Testnummern)'}</span>
         <span>Vorlage report_versand: {d.stand.vorlage}</span>
+        <span>Mit Bild: {d.stand.vorlageBild}</span>
         <a href="/admin/freigaben" className="text-red-800 hover:underline">
           Freigaben
         </a>
@@ -156,7 +180,7 @@ export function ReportBereich({ zeitraum }: { zeitraum: string }) {
           <ul className="mt-1 space-y-0.5 text-[13.5px] text-gray-700">
             {d.reports.map((r) => (
               <li key={r.key}>
-                <span className="font-medium">{r.titel}</span> <span className="text-gray-500">(Funnel „{r.key}“{r.pdf ? ', PDF ✓' : ', kein PDF'})</span>
+                <span className="font-medium">{r.titel}</span> <span className="text-gray-500">(Funnel „{r.key}“{r.pdf ? ', PDF ✓' : ', kein PDF'}{r.bild ? ', Bild ✓' : ', kein Bild'})</span>
               </li>
             ))}
           </ul>
@@ -164,10 +188,17 @@ export function ReportBereich({ zeitraum }: { zeitraum: string }) {
         <p className="mt-1 text-[12.5px] text-gray-500">
           Funnel = der Name hinter <code>&amp;funnel=</code> in der Webhook-URL. Titel steht so in der WhatsApp („hier ist dein Report „…““).
         </p>
-        <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1.5fr_1.5fr_auto]">
+        <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1.5fr_1.2fr_1.2fr_auto]">
           <input value={funnel} onChange={(e) => setFunnel(e.target.value)} placeholder="Funnel, z. B. Report-300k" className="h-10 rounded-lg border border-gray-200 px-3 text-[14px]" />
           <input value={titel} onChange={(e) => setTitel(e.target.value)} placeholder="Titel des Reports" className="h-10 rounded-lg border border-gray-200 px-3 text-[14px]" />
-          <input type="file" accept="application/pdf" onChange={(e) => setDatei(e.target.files?.[0] ?? null)} className="text-[13px]" />
+          <label className="text-[12.5px] text-gray-500">
+            PDF
+            <input type="file" accept="application/pdf" onChange={(e) => setDatei(e.target.files?.[0] ?? null)} className="block text-[13px] text-gray-700" />
+          </label>
+          <label className="text-[12.5px] text-gray-500">
+            Bild für WhatsApp (JPG/PNG)
+            <input type="file" accept="image/jpeg,image/png" onChange={(e) => setBildDatei(e.target.files?.[0] ?? null)} className="block text-[13px] text-gray-700" />
+          </label>
           <Button variant="secondary" onClick={speichern} disabled={laeuft || !titel.trim()}>
             {laeuft ? 'Speichere …' : 'Speichern'}
           </Button>

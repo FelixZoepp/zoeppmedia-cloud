@@ -17,22 +17,37 @@ export interface SalesVorlage {
   variables: string[];
   beispiel: string[];
   buttons: Array<{ type: 'URL'; text: string; url: string; example?: string[] } | { type: 'QUICK_REPLY'; text: string }>;
+  /** Bild über dem Text – beim Einreichen braucht Meta ein Beispielbild (reicheSalesVorlageEin(…, { bild })) */
+  header?: { format: 'IMAGE' };
 }
+
+const REPORT_TEXT =
+  'Hallo {{1}}, hier ist dein Report „{{2}}“. Über den Button unten öffnest du ihn direkt als PDF.\n\n' +
+  'Wenn du wissen willst, wie du das in deinem Vertrieb konkret umsetzt: Im Erstgespräch gehen wir es in 15 Minuten am Telefon gemeinsam für dich durch.';
+const REPORT_BUTTONS: SalesVorlage['buttons'] = [
+  { type: 'URL', text: 'Report öffnen', url: 'https://cloud.zoeppmedia.de/api/report/{{1}}', example: ['https://cloud.zoeppmedia.de/api/report/abc123'] },
+  { type: 'URL', text: 'Erstgespräch buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] },
+];
 
 export const SALES_VORLAGEN: SalesVorlage[] = [
   {
     // Report-Funnel (sales/report.ts): direkt nach dem Download – {{2}} = Titel des Reports
     name: 'report_versand',
     category: 'MARKETING',
-    body:
-      'Hallo {{1}}, hier ist dein Report „{{2}}“. Über den Button unten öffnest du ihn direkt als PDF.\n\n' +
-      'Wenn du wissen willst, wie du das in deinem Vertrieb konkret umsetzt: Im Erstgespräch gehen wir es in 15 Minuten am Telefon gemeinsam für dich durch.',
+    body: REPORT_TEXT,
     variables: ['vorname', 'titel'],
     beispiel: ['Mehmet', 'Vertriebsaufbau 2026'],
-    buttons: [
-      { type: 'URL', text: 'Report öffnen', url: 'https://cloud.zoeppmedia.de/api/report/{{1}}', example: ['https://cloud.zoeppmedia.de/api/report/abc123'] },
-      { type: 'URL', text: 'Erstgespräch buchen', url: 'https://cloud.zoeppmedia.de/api/go/{{1}}', example: ['https://cloud.zoeppmedia.de/api/go/abc123'] },
-    ],
+    buttons: REPORT_BUTTONS,
+  },
+  {
+    // Wie report_versand, mit Report-Cover über dem Text (Bild aus „PDF hinterlegen“). Wird genommen, sobald freigegeben + Bild hinterlegt.
+    name: 'report_versand_bild',
+    category: 'MARKETING',
+    header: { format: 'IMAGE' },
+    body: REPORT_TEXT,
+    variables: ['vorname', 'titel'],
+    beispiel: ['Mehmet', 'Vertriebsaufbau 2026'],
+    buttons: REPORT_BUTTONS,
   },
   {
     name: 'setting_buchung_v2',
@@ -280,16 +295,31 @@ async function zugang(svc: SupabaseClient): Promise<{ wabaId: string; token: str
 }
 
 /** Vorlage bei Meta einreichen und in der Cloud als „pending“ anlegen */
-export async function reicheSalesVorlageEin(svc: SupabaseClient, name: string): Promise<{ status: string; metaId: string | null; fehler?: string }> {
+export async function reicheSalesVorlageEin(
+  svc: SupabaseClient,
+  name: string,
+  opts: { bild?: { bytes: ArrayBuffer; typ: string } } = {},
+): Promise<{ status: string; metaId: string | null; fehler?: string }> {
   const v = SALES_VORLAGEN.find((x) => x.name === name);
   if (!v) throw new Error(`Unbekannte Vorlage ${name}`);
   const { wabaId, token } = await zugang(svc);
+
+  let header: Record<string, unknown> | null = null;
+  if (v.header?.format === 'IMAGE') {
+    if (!opts.bild) return { status: 'fehler', metaId: null, fehler: 'Beispielbild fehlt' };
+    try {
+      header = { type: 'HEADER', format: 'IMAGE', example: { header_handle: [await ladeBeispielBildHoch(token, opts.bild)] } };
+    } catch (e) {
+      return { status: 'fehler', metaId: null, fehler: e instanceof Error ? e.message : 'Bild-Upload bei Meta fehlgeschlagen' };
+    }
+  }
 
   const definition = {
     name: v.name,
     language: 'de',
     category: v.category,
     components: [
+      ...(header ? [header] : []),
       { type: 'BODY', text: v.body, example: { body_text: [v.beispiel] } },
       ...(v.buttons.length ? [{ type: 'BUTTONS', buttons: v.buttons }] : []),
     ],
@@ -307,6 +337,27 @@ export async function reicheSalesVorlageEin(svc: SupabaseClient, name: string): 
   const status = (data.status ?? 'PENDING').toLowerCase();
   await speichereVorlage(svc, v, status, data.id);
   return { status, metaId: data.id };
+}
+
+/** Beispielbild per Resumable Upload an Meta → header_handle fürs Einreichen */
+async function ladeBeispielBildHoch(token: string, bild: { bytes: ArrayBuffer; typ: string }): Promise<string> {
+  const appId = process.env.META_APP_ID;
+  if (!appId) throw new Error('META_APP_ID fehlt – Bild kann nicht bei Meta hochgeladen werden');
+  const endung = bild.typ === 'image/png' ? 'png' : 'jpg';
+  const start = await fetch(`${GRAPH}/${appId}/uploads?file_name=beispiel.${endung}&file_length=${bild.bytes.byteLength}&file_type=${encodeURIComponent(bild.typ)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const s = (await start.json().catch(() => ({}))) as { id?: string; error?: { message?: string } };
+  if (!start.ok || !s.id) throw new Error(`Bild-Upload bei Meta nicht gestartet: ${s.error?.message ?? `HTTP ${start.status}`}`);
+  const hoch = await fetch(`${GRAPH}/${s.id}`, {
+    method: 'POST',
+    headers: { Authorization: `OAuth ${token}`, file_offset: '0' },
+    body: Buffer.from(bild.bytes),
+  });
+  const h = (await hoch.json().catch(() => ({}))) as { h?: string; error?: { message?: string } };
+  if (!hoch.ok || !h.h) throw new Error(`Bild-Upload bei Meta fehlgeschlagen: ${h.error?.message ?? `HTTP ${hoch.status}`}`);
+  return h.h;
 }
 
 /** Vorlage in der Cloud anlegen bzw. aktualisieren (eindeutig je Konto + preset_key) */
