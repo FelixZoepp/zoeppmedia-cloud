@@ -89,6 +89,20 @@ export function AnbindungClient() {
               <Copy className="h-4 w-4" /> Kopieren
             </button>
           </div>
+          <p className="mt-4 text-[13.5px] font-medium text-gray-900">Nur für den Report-Funnel</p>
+          <p className="mt-0.5 text-[13px] text-gray-600">
+            Dieser Link startet die Report-Strecke (WhatsApp mit PDF, Slack, Anruf-Aufgabe). Nur im Report-Funnel eintragen, nie in einem anderen Funnel.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-50 px-3 py-2 text-[12.5px] text-gray-700">{`${d.salesFunnelWebhook}&funnel=Report-300k`}</code>
+            <button
+              type="button"
+              onClick={() => kopieren(`${d.salesFunnelWebhook}&funnel=Report-300k`, 'Report-Webhook')}
+              className="inline-flex flex-none items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Copy className="h-4 w-4" /> Kopieren
+            </button>
+          </div>
         </Card>
       )}
 
