@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leseFunnelLead, zielFeld } from '../funnel-lead';
+import { leseFunnelLead, ohneFirmenname, zielFeld } from '../funnel-lead';
 
 describe('leseFunnelLead', () => {
   it('liest das Perspective-Format inkl. UTM aus meta und Antworten mit Titel', () => {
@@ -29,6 +29,31 @@ describe('leseFunnelLead', () => {
     expect(l.utm.source).toBe('fb');
     expect(l.utm.medium).toBe('paid');
     expect(l.antworten).toEqual([]);
+  });
+});
+
+describe('Firmenname (Report-Funnel „Name des Vertriebs“)', () => {
+  it('liest company_name als Firma, Person bleibt Name', () => {
+    const l = leseFunnelLead({
+      funnelName: 'Vertriebs Report - Leadmagnet - 300k',
+      profile: {
+        name: { title: 'Name', value: 'Felix Zoepp' },
+        email: { title: 'E-Mail', value: 'felix@example.de' },
+        phone: { title: 'WhatsApp-Nummer', value: '015202159031' },
+        company_name: { title: 'Name des Vertriebs', value: 'Zoepp Consulting GmbH' },
+      },
+    });
+    expect(l.name).toBe('Felix Zoepp');
+    expect(l.firma).toBe('Zoepp Consulting GmbH');
+    expect(l.phone).toBe('015202159031');
+  });
+
+  it('erkennt Leads ohne Firmennamen', () => {
+    expect(ohneFirmenname('Felix Zoepp', ['Felix Zoepp'])).toBe(true);
+    expect(ohneFirmenname('felix@example.de', [])).toBe(true);
+    expect(ohneFirmenname('+49 152 02159031', [])).toBe(true);
+    expect(ohneFirmenname('', [])).toBe(true);
+    expect(ohneFirmenname('Zoepp Consulting GmbH', ['Felix Zoepp'])).toBe(false);
   });
 });
 

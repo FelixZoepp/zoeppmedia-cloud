@@ -39,6 +39,8 @@ export interface FunnelLead {
   name: string | null;
   email: string | null;
   phone: string | null;
+  /** Firmenname (z. B. „Name des Vertriebs“) → Lead-Name in Close; die Person bleibt der Kontakt */
+  firma?: string | null;
   funnelName: string | null;
   utm: { source: string | null; medium: string | null; campaign: string | null; content: string | null; term?: string | null };
   /** Weitere Antworten aus dem Funnel (Frage → Antwort) */
@@ -114,6 +116,7 @@ export function leseFunnelLead(body: Record<string, unknown>, query?: URLSearchP
     name,
     email: feld('email', 'e-mail', 'mail'),
     phone: feld('phone', 'telefon', 'telefonnummer', 'phoneNumber'),
+    firma: feld('company_name', 'companyName', 'company', 'firma', 'firmenname', 'unternehmen'),
     funnelName: wert(body.funnelName) ?? wert(body.funnel_name) ?? query?.get('funnel') ?? null,
     utm: { source: utm('source'), medium: utm('medium'), campaign: utm('campaign'), content: utm('content'), term: utm('term') },
     antworten,
@@ -140,6 +143,7 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
   const vorhanden = await findCloseLeadId({ email: l.email, phone: l.phone });
   if (vorhanden) {
     await addCloseNote(vorhanden, notizText(l, true));
+    await setzeFirmaAlsLeadName(apiKey, vorhanden, l).catch((e) => console.error('[funnel-lead] Firmenname (bestehender Lead):', e));
     // Neueste Antworten auch in die Felder (z. B. neue Funnel-Fragen)
     await schreibeAntworten(apiKey, vorhanden, l.antworten).catch((e) => console.error('[funnel-lead] Felder (bestehender Lead):', e));
     return { leadId: vorhanden, neu: false };
@@ -160,7 +164,7 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
     method: 'POST',
     headers: closeHeaders(apiKey),
     body: JSON.stringify({
-      name: l.name ?? l.email ?? l.phone,
+      name: l.firma ?? l.name ?? l.email ?? l.phone,
       contacts: [
         {
           name: l.name ?? undefined,
@@ -191,6 +195,23 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
 
   await addCloseNote(leadId, notizText(l, false)).catch((e) => console.error('[funnel-lead] Notiz fehlgeschlagen:', e));
   return { leadId, neu: true };
+}
+
+/** Bestehender Lead ohne Firmennamen (heißt wie die Person, E-Mail oder Telefon) → Firmenname aus dem Funnel übernehmen */
+async function setzeFirmaAlsLeadName(apiKey: string, leadId: string, l: FunnelLead): Promise<void> {
+  if (!l.firma) return;
+  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=name,contacts`, { headers: closeHeaders(apiKey) });
+  if (!res.ok) return;
+  const lead = (await res.json()) as { name: string | null; contacts?: Array<{ name: string | null }> };
+  if (!ohneFirmenname(lead.name, [l.name, l.email, l.phone, ...(lead.contacts ?? []).map((c) => c.name)])) return;
+  await fetch(`${CLOSE_BASE}/lead/${leadId}/`, { method: 'PUT', headers: closeHeaders(apiKey), body: JSON.stringify({ name: l.firma }) });
+}
+
+/** Trägt der Lead noch keinen Firmennamen? (leer, E-Mail oder gleich einem Personen-/Kontaktwert) – rein, testbar */
+export function ohneFirmenname(leadName: string | null | undefined, personWerte: Array<string | null | undefined>): boolean {
+  const n = (leadName ?? '').trim().toLowerCase();
+  if (!n || n.includes('@') || /^\+?[\d\s/()-]{6,}$/.test(n)) return true;
+  return personWerte.some((w) => (w ?? '').trim().toLowerCase() === n);
 }
 
 const normFeld = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
