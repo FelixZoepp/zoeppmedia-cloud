@@ -36,6 +36,11 @@ describe('berechneTagesbericht', () => {
       { eingetragen_am: '2026-10-08T08:00:00Z', ergebnis: 'nicht_gebucht' },
       { eingetragen_am: '2026-10-08T08:30:00Z', ergebnis: 'manuell' },
     ],
+    reportDownloads: [
+      { eingetragen_am: '2026-10-08T09:00:00Z', ergebnis: 'direkt_gebucht' },
+      { eingetragen_am: '2026-10-08T10:00:00Z', ergebnis: 'nicht_gebucht' },
+      { eingetragen_am: '2026-10-08T11:00:00Z', ergebnis: 'offen' },
+    ],
     users: new Map([['u1', 'Max Setter']]),
   });
   const tag = (t: string) => e.tage.find((z) => z.tag === t)!;
@@ -54,5 +59,11 @@ describe('berechneTagesbericht', () => {
     expect(tag('2026-10-08')).toMatchObject({ eintragungen: 2, direktGebucht: 1 });
     expect(e.summe).toMatchObject({ anwahlen: 3, abschluesse: 1, eintragungen: 2 });
     expect(e.summe.quoten.showUpSetting).toBe(50);
+  });
+
+  it('zählt Report-Leads getrennt von den Funnel-Eintragungen', () => {
+    expect(tag('2026-10-08')).toMatchObject({ eintragungen: 2, reportLeads: 3, reportDirekt: 1 });
+    expect(tag('2026-10-08').quoten.reportDirektQuote).toBe(33.3);
+    expect(e.summe).toMatchObject({ eintragungen: 2, reportLeads: 3 });
   });
 });

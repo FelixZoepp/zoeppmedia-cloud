@@ -48,11 +48,12 @@ export async function ladeTagesbericht(tage: string[]) {
   const ab = mitternacht(ältester).toISOString();
   // Statuswechsel weiter zurück, damit der Ausgangsstatus jedes Deals bekannt ist
   const historieAb = mitternacht(ältester, -200).toISOString();
-  const [close, anrufe, protokolle, eintragungen] = await Promise.all([
+  const [close, anrufe, protokolle, eintragungen, reports] = await Promise.all([
     ladeClose(historieAb, () => []),
     ladeAnrufe(ab),
     ladeProtokolleAusCloud(svc, ab),
     svc.from('sales_eintragungen').select('eingetragen_am, ergebnis').gte('eingetragen_am', ab),
+    svc.from('sales_report_downloads').select('eingetragen_am, ergebnis').gte('eingetragen_am', ab),
   ]);
   return {
     ...berechneTagesbericht({
@@ -63,6 +64,7 @@ export async function ladeTagesbericht(tage: string[]) {
       anrufe,
       protokolle: protokolle ?? [],
       eintragungen: (eintragungen.data ?? []) as Array<{ eingetragen_am: string; ergebnis: string }>,
+      reportDownloads: (reports.data ?? []) as Array<{ eingetragen_am: string; ergebnis: string }>,
       users: close.users,
     }),
     protokolleVerbunden: protokolle !== null,

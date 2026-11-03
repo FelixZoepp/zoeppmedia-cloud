@@ -15,7 +15,7 @@ import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 import { berlinMitternacht, berlinTag } from '@/lib/zeit/berlin';
 import { HIDDEN_AGENCY_IDS } from '@/lib/fulfillment/views';
 import { ZIEL } from '@/lib/sales-controlling/laden';
-import { erfasseKennzahlen, eur, istWerktag, LEER_MARKETING, LEER_SALES, monatsStart, plusTage, summiere, type MarketingTag } from './abendbericht';
+import { erfasseKennzahlen, eur, istWerktag, leadsGesamt, LEER_MARKETING, LEER_SALES, monatsStart, plusTage, summiere, type MarketingTag } from './abendbericht';
 import { istFreigegeben } from '@/lib/freigaben';
 
 export const BRIEFING_STUNDE = 7;
@@ -119,7 +119,7 @@ export function geschaeftsAlarme(e: {
   const termineClosing = e.sales.closingsGehalten + e.sales.closingsNoShow;
   if (termineClosing >= 3 && q.showUpClosing !== null && q.showUpClosing < 60) a.push({ stufe: 'gelb', text: `Show-up Closings nur ${q.showUpClosing.toLocaleString('de-DE')} % (${e.sales.closingsNoShow} No-Shows)`, link: '/admin/vertrieb' });
   if (e.marketing) {
-    const leads = e.marketing.eintragungen || e.marketing.metaLeads;
+    const leads = leadsGesamt(e.marketing);
     const cpl = leads > 0 ? e.marketing.ausgaben / leads : null;
     if (cpl !== null && e.cplSchnitt14 !== null && leads >= 3 && cpl > e.cplSchnitt14 * 1.5)
       a.push({ stufe: 'gelb', text: `Kosten pro Lead ${eur(cpl)} – ${Math.round((cpl / e.cplSchnitt14 - 1) * 100)} % über dem 14-Tage-Schnitt (${eur(e.cplSchnitt14)})`, link: '/admin/marketing' });
@@ -150,7 +150,7 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
   const h = (hist ?? []) as Array<{ tag: string; bereich: string; werte: Record<string, number> }>;
   const vor = h.filter((x) => x.bereich === 'marketing' && x.tag < zeitraum.von).map((x) => x.werte as unknown as MarketingTag);
   const m14 = summiere(vor, LEER_MARKETING);
-  const leads14 = m14.eintragungen || m14.metaLeads;
+  const leads14 = leadsGesamt(m14);
   const cplSchnitt14 = leads14 >= 5 ? m14.ausgaben / leads14 : null;
   const von7 = plusTage(zeitraum.bis, -6);
   const sales7 = summiere(
@@ -204,7 +204,7 @@ export async function erstelleBriefing(svc: SupabaseClient, jetzt: Date = new Da
     : [];
 
   const q = quoten(sales);
-  const leads = marketing ? marketing.eintragungen || marketing.metaLeads : 0;
+  const leads = marketing ? leadsGesamt(marketing) : 0;
   const offen = (p: { status: string }) => p.status === 'offen';
   const punkt = (p: { titel: string; owner_name: string | null; faellig_am: string | null }) => ({ titel: p.titel, owner: p.owner_name, faellig: p.faellig_am });
 

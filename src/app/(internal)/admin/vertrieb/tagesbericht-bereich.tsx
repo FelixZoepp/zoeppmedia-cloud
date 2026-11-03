@@ -31,8 +31,11 @@ const SPALTEN: Array<{ gruppe: string; label: string; wert: (z: Zeile) => string
   { gruppe: 'Abschluss', label: 'Abschlüsse', wert: (z) => zahl(z.abschluesse) },
   { gruppe: 'Abschluss', label: 'Closing-Rate', wert: (z) => pct(z.quoten.closingRate) },
   { gruppe: 'Abschluss', label: 'Volumen', wert: (z) => (z.volumen ? eur(z.volumen) : '–') },
-  { gruppe: 'Marketing', label: 'Eintragungen', wert: (z) => zahl(z.eintragungen) },
+  { gruppe: 'Marketing', label: 'Leads gesamt', wert: (z) => zahl(z.eintragungen + (z.reportLeads ?? 0)) },
+  { gruppe: 'Marketing', label: 'Funnel-Leads', wert: (z) => zahl(z.eintragungen) },
   { gruppe: 'Marketing', label: 'Direkt gebucht', wert: (z) => pct(z.quoten.direktQuote) },
+  { gruppe: 'Marketing', label: 'Report-Leads', wert: (z) => zahl(z.reportLeads ?? 0) },
+  { gruppe: 'Marketing', label: 'Report gebucht', wert: (z) => pct(z.quoten.reportDirektQuote) },
 ];
 
 const GRUPPEN = [...new Set(SPALTEN.map((s) => s.gruppe))];

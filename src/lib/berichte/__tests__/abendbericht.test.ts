@@ -38,17 +38,17 @@ describe('Wochenende', () => {
 
 describe('Berichtstexte', () => {
   it('Marketing: Ausgaben, Leads, Kosten pro Lead, Klicks', () => {
-    const t = marketingFelder({ ausgaben: 200, impressionen: 10000, klicks: 300, linkKlicks: 150, metaLeads: 5, eintragungen: 4, direktGebucht: 2 }).join('\n');
-    expect(t).toContain('*🧲 Leads*\n4 (Meta: 5)');
+    const t = marketingFelder({ ausgaben: 200, impressionen: 10000, klicks: 300, linkKlicks: 150, metaLeads: 5, eintragungen: 3, direktGebucht: 2, reportLeads: 1 }).join('\n');
+    expect(t).toContain('*🧲 Leads*\n4 gesamt · 3 Funnel · 1 Report (Meta: 5)');
     expect(t).toContain('50,00');
     expect(t).toContain('CTR 1,5 %');
-    expect(t).toContain('*⚡ Direkt gebucht*\n50 %');
+    expect(t).toContain('*⚡ Direkt gebucht*\n66,7 %');
   });
 
   it('Sales: Abschlüsse zuerst, geführte Settings/Closings, No-Shows und Quoten', () => {
     const werte = {
       anwahlen: 40, gespraeche: 12, entscheider: 8, protokolleFehlen: 1, settingsGebucht: 5, settingsGehalten: 6, settingsNoShow: 2,
-      settingsUnqualifiziert: 1, closingsGebucht: 3, closingsGehalten: 2, closingsNoShow: 1, abschluesse: 1, volumen: 6000, eintragungen: 0, direktGebucht: 0,
+      settingsUnqualifiziert: 1, closingsGebucht: 3, closingsGehalten: 2, closingsNoShow: 1, abschluesse: 1, volumen: 6000, eintragungen: 0, direktGebucht: 0, reportLeads: 0, reportDirekt: 0,
     };
     const f = salesFelder(werte);
     expect(f[0]).toContain('🏆 Abschlüsse');

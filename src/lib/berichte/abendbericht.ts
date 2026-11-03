@@ -27,13 +27,21 @@ export interface MarketingTag {
   klicks: number;
   linkKlicks: number;
   metaLeads: number;
+  /** Leads aus den normalen Funnels */
   eintragungen: number;
   direktGebucht: number;
+  /** Leads aus dem Report-Funnel (fehlt in älteren kennzahlen_tage-Zeilen) */
+  reportLeads?: number;
+}
+
+/** Alle Funnel-Leads (normal + Report); ohne Funnel-Daten die Meta-Leads */
+export function leadsGesamt(m: Pick<MarketingTag, 'eintragungen' | 'metaLeads' | 'reportLeads'>): number {
+  return m.eintragungen + (m.reportLeads ?? 0) || m.metaLeads;
 }
 
 type SalesTag = Omit<Tageszeile, 'tag'>;
 
-const LEER_MARKETING: MarketingTag = { ausgaben: 0, impressionen: 0, klicks: 0, linkKlicks: 0, metaLeads: 0, eintragungen: 0, direktGebucht: 0 };
+const LEER_MARKETING: MarketingTag = { ausgaben: 0, impressionen: 0, klicks: 0, linkKlicks: 0, metaLeads: 0, eintragungen: 0, direktGebucht: 0, reportLeads: 0 };
 
 function berlinStunde(jetzt: Date): number {
   const teil = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', hour: '2-digit', hourCycle: 'h23' }).formatToParts(jetzt).find((x) => x.type === 'hour');
@@ -130,7 +138,7 @@ export async function erfasseKennzahlen(svc: SupabaseClient, tag: string) {
     const { tag: t, quoten: _q, ...werte } = z;
     void _q;
     salesTage.set(t, werte);
-    marketing.set(t, { ...LEER_MARKETING, ...(meta?.get(t) ?? {}), eintragungen: z.eintragungen, direktGebucht: z.direktGebucht });
+    marketing.set(t, { ...LEER_MARKETING, ...(meta?.get(t) ?? {}), eintragungen: z.eintragungen, direktGebucht: z.direktGebucht, reportLeads: z.reportLeads });
   }
 
   const jetzt = new Date().toISOString();
@@ -160,13 +168,13 @@ const teilen = (a: number, b: number) => (b > 0 ? a / b : null);
 
 /** Marketing als Slack-Felder (je Feld: fette Überschrift mit Emoji, darunter die Werte) */
 export function marketingFelder(m: MarketingTag): string[] {
-  const cpl = teilen(m.ausgaben, m.eintragungen || m.metaLeads);
+  const cpl = teilen(m.ausgaben, leadsGesamt(m));
   const ctr = teilen(m.linkKlicks, m.impressionen);
   const cpc = teilen(m.ausgaben, m.linkKlicks);
   const cpm = teilen(m.ausgaben * 1000, m.impressionen);
   return [
     `*💸 Ausgaben*\n${eur(m.ausgaben)}`,
-    `*🧲 Leads*\n${z(m.eintragungen)} (Meta: ${z(m.metaLeads)})`,
+    `*🧲 Leads*\n${z(m.eintragungen + (m.reportLeads ?? 0))} gesamt · ${z(m.eintragungen)} Funnel · ${z(m.reportLeads ?? 0)} Report (Meta: ${z(m.metaLeads)})`,
     `*🎯 Kosten pro Lead*\n${cpl === null ? '–' : eur(cpl)}`,
     `*⚡ Direkt gebucht*\n${p(quoten({ ...LEER_SALES, eintragungen: m.eintragungen, direktGebucht: m.direktGebucht }).direktQuote)}`,
     `*👀 Reichweite*\n${z(m.impressionen)} Impressionen · CPM ${cpm === null ? '–' : eur(cpm)}`,
@@ -190,6 +198,8 @@ const LEER_SALES: SalesTag = {
   volumen: 0,
   eintragungen: 0,
   direktGebucht: 0,
+  reportLeads: 0,
+  reportDirekt: 0,
 };
 export { LEER_SALES, LEER_MARKETING };
 

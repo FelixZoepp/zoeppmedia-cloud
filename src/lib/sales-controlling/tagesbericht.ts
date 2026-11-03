@@ -56,6 +56,8 @@ export interface TagesberichtEingaben {
   anrufe: Anruf[];
   protokolle: Protokoll[];
   eintragungen: Eintragung[];
+  /** Report-Funnel-Downloads (sales_report_downloads) – getrennt von den normalen Funnel-Eintragungen */
+  reportDownloads?: Eintragung[];
   users: Map<string, string>;
 }
 
@@ -74,8 +76,12 @@ export interface Tageszeile {
   closingsNoShow: number;
   abschluesse: number;
   volumen: number;
+  /** Leads aus den normalen Funnels (ohne Report) */
   eintragungen: number;
   direktGebucht: number;
+  /** Leads aus dem Report-Funnel (Downloads) */
+  reportLeads: number;
+  reportDirekt: number;
 }
 
 const LEER = (tag: string): Tageszeile => ({
@@ -95,6 +101,8 @@ const LEER = (tag: string): Tageszeile => ({
   volumen: 0,
   eintragungen: 0,
   direktGebucht: 0,
+  reportLeads: 0,
+  reportDirekt: 0,
 });
 
 const tagVon = (iso: string) => berlinTag(new Date(iso));
@@ -126,6 +134,7 @@ export function quoten(z: Omit<Tageszeile, 'tag'>) {
     showUpClosing: quote(z.closingsGehalten, z.closingsGehalten + z.closingsNoShow),
     closingRate: quote(z.abschluesse, z.closingsGehalten),
     direktQuote: quote(z.direktGebucht, z.eintragungen),
+    reportDirektQuote: quote(z.reportDirekt ?? 0, z.reportLeads ?? 0),
   };
 }
 
@@ -200,6 +209,12 @@ export function berechneTagesbericht(e: TagesberichtEingaben) {
     if (!z) continue;
     z.eintragungen++;
     if (r.ergebnis === 'direkt_gebucht') z.direktGebucht++;
+  }
+  for (const r of e.reportDownloads ?? []) {
+    const z = zeile(r.eingetragen_am);
+    if (!z) continue;
+    z.reportLeads++;
+    if (r.ergebnis === 'direkt_gebucht') z.reportDirekt++;
   }
 
   const liste = [...zeilen.values()].sort((a, b) => b.tag.localeCompare(a.tag));
