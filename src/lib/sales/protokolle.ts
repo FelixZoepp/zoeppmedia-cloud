@@ -207,9 +207,9 @@ function verloren(bisKalender: string | null, grund: string | null, jetzt: Date)
 }
 
 /**
- * Regeln für das Setting-Protokoll (rein, testbar). Nur ein Fall: Unqualifiziert mit Rückruf-Datum im Kalender
- * → Lead bis dahin gesperrt (statt pauschal 3 Monate) und eine Rückruf-Aufgabe an dem Tag. Status und
- * Opportunity setzt der Setter selbst. Keine Nachricht an den Lead.
+ * Regeln für das Setting-Protokoll (rein, testbar). Unqualifiziert → Lead „Unqualifiziert“ + Deal verloren; mit Rückruf-Datum im Kalender
+ * → Lead bis dahin gesperrt (statt pauschal 3 Monate) und eine Rückruf-Aufgabe an dem Tag. Disqualifiziert / Bad Data
+ * → entsprechender Lead-Status + Deal verloren. Keine Nachricht an den Lead.
  */
 export function regelnSetting(felder: Record<string, string | null>, jetzt: Date): Aktionen {
   const ergebnis = felder[SETTING_FELDER.ergebnis] ?? '';
@@ -233,10 +233,16 @@ export function regelnSetting(felder: Record<string, string | null>, jetzt: Date
     const bis = kalender && new Date(kalender).getTime() > jetzt.getTime() ? new Date(kalender).toISOString() : new Date(jetzt.getTime() + 864e5).toISOString();
     return { oppStatus: 'setting_no_show', gesperrtBis: bis };
   }
-  if (!ergebnis.startsWith('Unqualifiziert') || !kalender || new Date(kalender).getTime() <= jetzt.getTime()) return {};
+  if (ergebnis.startsWith('Disqualifiziert')) return { leadStatus: 'disqualifiziert', oppsVerloren: true };
+  if (ergebnis.startsWith('Bad Data')) return { leadStatus: 'bad_data', oppsVerloren: true };
+  if (!ergebnis.startsWith('Unqualifiziert')) return {};
+  // Unqualifiziert → Lead „Unqualifiziert“, Setting-Deal verloren; ohne Rückruf-Datum 3 Monate gesperrt (dann Reaktivierung)
+  const unqualifiziert: Aktionen = { leadStatus: 'unqualifiziert', oppsVerloren: true };
+  if (!kalender || new Date(kalender).getTime() <= jetzt.getTime()) return { ...unqualifiziert, gesperrtBis: plusMonate(jetzt, 3).toISOString() };
   const grund = felder[SETTING_FELDER.grund];
   const uhr = new Date(kalender).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
   return {
+    ...unqualifiziert,
     gesperrtBis: new Date(kalender).toISOString(),
     rueckruf: {
       datum: new Date(kalender).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }),

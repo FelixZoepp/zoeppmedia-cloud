@@ -126,16 +126,20 @@ describe('regelnSetting – Unqualifiziert mit Rückruf', () => {
     const { regelnSetting, SETTING_FELDER: S } = await import('../protokolle');
     const a = regelnSetting({ [S.ergebnis]: 'Unqualifiziert', [S.kalender]: '2027-01-13T09:30:00Z', [S.grund]: 'Kein Budget / nicht liquide (GS 2)' }, new Date('2026-10-15T09:12:00Z'));
     expect(a.gesperrtBis).toBe('2027-01-13T09:30:00.000Z');
+    expect(a.leadStatus).toBe('unqualifiziert');
+    expect(a.oppsVerloren).toBe(true);
     expect(a.rueckruf?.datum).toBe('2027-01-13');
     expect(a.rueckruf?.text).toContain('10:30 Uhr');
     expect(a.rueckruf?.text).toContain('Kein Budget');
-    expect(a.leadStatus).toBeUndefined();
   });
-  it('ohne Kalender, mit vergangenem Datum oder anderem Ergebnis: nichts', async () => {
+  it('ohne Rückruf-Datum: 3 Monate gesperrt; Disqualifiziert/Bad Data; anderes Ergebnis: nichts', async () => {
     const { regelnSetting, SETTING_FELDER: S } = await import('../protokolle');
     const jetzt = new Date('2026-10-15T09:12:00Z');
-    expect(regelnSetting({ [S.ergebnis]: 'Unqualifiziert' }, jetzt)).toEqual({});
-    expect(regelnSetting({ [S.ergebnis]: 'Unqualifiziert', [S.kalender]: '2026-10-01T09:00:00Z' }, jetzt)).toEqual({});
+    const dreiMonate = { leadStatus: 'unqualifiziert', oppsVerloren: true, gesperrtBis: '2027-01-15T09:12:00.000Z' };
+    expect(regelnSetting({ [S.ergebnis]: 'Unqualifiziert' }, jetzt)).toEqual(dreiMonate);
+    expect(regelnSetting({ [S.ergebnis]: 'Unqualifiziert', [S.kalender]: '2026-10-01T09:00:00Z' }, jetzt)).toEqual(dreiMonate);
+    expect(regelnSetting({ [S.ergebnis]: 'Disqualifiziert' }, jetzt)).toEqual({ leadStatus: 'disqualifiziert', oppsVerloren: true });
+    expect(regelnSetting({ [S.ergebnis]: 'Bad Data / Falsche Nummer' }, jetzt)).toEqual({ leadStatus: 'bad_data', oppsVerloren: true });
     expect(regelnSetting({ [S.ergebnis]: 'Beratungsgespräch gelegt', [S.kalender]: '2026-10-20T09:00:00Z' }, jetzt)).toEqual({});
   });
 });
