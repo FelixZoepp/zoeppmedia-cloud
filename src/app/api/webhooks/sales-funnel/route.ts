@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { secretGleich } from '@/lib/security/webhook-secret';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { istReportFunnel, reportQuelle, starteReport } from '@/lib/sales/report';
+import { erfasseReportBadData, istReportFunnel, reportQuelle, starteReport } from '@/lib/sales/report';
+import { pruefeKontakt } from '@/lib/sales/bad-data';
 import { leseFunnelLead, salesFunnelWebhookToken, uebernehmeFunnelLead } from '@/lib/sales/funnel-lead';
 
 /**
@@ -53,8 +54,12 @@ export async function POST(request: NextRequest) {
   const protokoll = (status: string, error: string | null) =>
     svc.from('events_inbox').insert({ source: 'sales_funnel', external_id: null, payload: body, status, error, processed_at: new Date().toISOString() });
 
+  // Offensichtlich erfundene Kontaktdaten (z. B. 123456789) → Bad Data: Lead nur erfassen und zählen,
+  // keine WhatsApp, keine Anruf-Aufgabe, kein Lead-Event an Meta
+  const befund = pruefeKontakt({ phone: lead.phone, email: lead.email });
+
   try {
-    const ergebnis = await uebernehmeFunnelLead(lead);
+    const ergebnis = await uebernehmeFunnelLead(lead, befund.badData ? befund.gruende : undefined);
     // Herkunft je Anzeige merken (Auswertung Marketing → Anzeigen)
     if (ergebnis.neu) {
       await svc
@@ -67,13 +72,13 @@ export async function POST(request: NextRequest) {
     }
     // Report-Funnel: Slack an Felix, WhatsApp mit PDF, 10-Min-Check (sales/report.ts) – scheitert nie den Webhook
     if (istReportFunnel(lead.funnelName)) {
-      await starteReport(svc, { leadId: ergebnis.leadId, neu: ergebnis.neu, report: reportQuelle(lead.funnelName), name: lead.name, email: lead.email, phone: lead.phone }).catch((e) =>
-        console.error('[sales-funnel] Report-Strecke:', e),
-      );
+      const download = { leadId: ergebnis.leadId, neu: ergebnis.neu, report: reportQuelle(lead.funnelName), name: lead.name, email: lead.email, phone: lead.phone };
+      await (befund.badData ? erfasseReportBadData(svc, download) : starteReport(svc, download)).catch((e) => console.error('[sales-funnel] Report-Strecke:', e));
     }
     if (externalId) await svc.from('sales_funnel_eingaenge').update({ status: 'fertig', erledigt_am: new Date().toISOString(), lead_id: ergebnis.leadId }).eq('external_id', externalId);
-    // Meta Conversions API: jede Eintragung als „Lead“ (nur mit Freigabe/Testmodus, scheitert nie den Webhook)
-    {
+    // Meta Conversions API: jede echte Eintragung als „Lead“ (nur mit Freigabe/Testmodus, scheitert nie den Webhook).
+    // Bad Data wird nicht gemeldet, damit Meta nicht auf solche Leads optimiert.
+    if (!befund.badData) {
       const { klickAusPayload, planeCapiEvent } = await import('@/lib/meta/capi');
       const klick = klickAusPayload(body);
       await planeCapiEvent(svc, {
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
       });
     }
     await protokoll('done', null);
-    return NextResponse.json({ ok: true, lead_id: ergebnis.leadId, neu: ergebnis.neu });
+    return NextResponse.json({ ok: true, lead_id: ergebnis.leadId, neu: ergebnis.neu, ...(befund.badData ? { bad_data: befund.gruende } : {}) });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Fehler';
     console.error('[sales-funnel]', msg);

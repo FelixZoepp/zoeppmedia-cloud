@@ -32,6 +32,8 @@ export interface MarketingTag {
   direktGebucht: number;
   /** Leads aus dem Report-Funnel (fehlt in älteren kennzahlen_tage-Zeilen) */
   reportLeads?: number;
+  /** davon Bad Data (Funnel + Report) */
+  badData?: number;
 }
 
 /** Alle Funnel-Leads (normal + Report); ohne Funnel-Daten die Meta-Leads */
@@ -138,7 +140,7 @@ export async function erfasseKennzahlen(svc: SupabaseClient, tag: string) {
     const { tag: t, quoten: _q, ...werte } = z;
     void _q;
     salesTage.set(t, werte);
-    marketing.set(t, { ...LEER_MARKETING, ...(meta?.get(t) ?? {}), eintragungen: z.eintragungen, direktGebucht: z.direktGebucht, reportLeads: z.reportLeads });
+    marketing.set(t, { ...LEER_MARKETING, ...(meta?.get(t) ?? {}), eintragungen: z.eintragungen, direktGebucht: z.direktGebucht, reportLeads: z.reportLeads, badData: (z.funnelBadData ?? 0) + (z.reportBadData ?? 0) });
   }
 
   const jetzt = new Date().toISOString();
@@ -174,7 +176,7 @@ export function marketingFelder(m: MarketingTag): string[] {
   const cpm = teilen(m.ausgaben * 1000, m.impressionen);
   return [
     `*💸 Ausgaben*\n${eur(m.ausgaben)}`,
-    `*🧲 Leads*\n${z(m.eintragungen + (m.reportLeads ?? 0))} gesamt · ${z(m.eintragungen)} Funnel · ${z(m.reportLeads ?? 0)} Report (Meta: ${z(m.metaLeads)})`,
+    `*🧲 Leads*\n${z(m.eintragungen + (m.reportLeads ?? 0))} gesamt · ${z(m.eintragungen)} Funnel · ${z(m.reportLeads ?? 0)} Report (Meta: ${z(m.metaLeads)})${m.badData ? ` · 🗑 ${m.badData} Bad Data` : ''}`,
     `*🎯 Kosten pro Lead*\n${cpl === null ? '–' : eur(cpl)}`,
     `*⚡ Direkt gebucht*\n${p(quoten({ ...LEER_SALES, eintragungen: m.eintragungen, direktGebucht: m.direktGebucht }).direktQuote)}`,
     `*👀 Reichweite*\n${z(m.impressionen)} Impressionen · CPM ${cpm === null ? '–' : eur(cpm)}`,
@@ -200,6 +202,8 @@ const LEER_SALES: SalesTag = {
   direktGebucht: 0,
   reportLeads: 0,
   reportDirekt: 0,
+  funnelBadData: 0,
+  reportBadData: 0,
 };
 export { LEER_SALES, LEER_MARKETING };
 

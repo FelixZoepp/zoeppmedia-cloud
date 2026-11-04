@@ -219,11 +219,11 @@ export async function addCloseTaskForLead(leadId: string, text: string, date: st
 /** Lead mit Kontakten, Leadquelle und Funnel-Feldern laden (für Eintragungen) */
 export async function ladeCloseLead(
   leadId: string,
-): Promise<{ id: string; name: string; email: string | null; phone: string | null; quelle: string | null; erstellt: string; felder: LeadFelder } | null> {
+): Promise<{ id: string; name: string; email: string | null; phone: string | null; quelle: string | null; erstellt: string; felder: LeadFelder; statusId: string | null } | null> {
   const apiKey = process.env.CLOSE_API_KEY;
   if (!apiKey) return null;
   const felder = QUELLEN_FELDER.map((f) => `custom.${f}`).join(',');
-  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=id,display_name,contacts,date_created,${felder}`, {
+  const res = await fetch(`${CLOSE_BASE}/lead/${leadId}/?_fields=id,display_name,status_id,contacts,date_created,${felder}`, {
     headers: closeHeaders(apiKey),
   });
   if (!res.ok) return null;
@@ -244,6 +244,7 @@ export async function ladeCloseLead(
     quelle: f.leadquelle,
     erstellt: l.date_created,
     felder: f,
+    statusId: typeof l.status_id === 'string' ? l.status_id : null,
   };
 }
 

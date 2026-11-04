@@ -164,6 +164,29 @@ export async function starteReport(
   return id;
 }
 
+/**
+ * Report-Download mit offensichtlich falschen Kontaktdaten (Bad Data): nur zählen –
+ * keine WhatsApp, kein Slack-Alarm, keine 10-Min-Prüfung.
+ */
+export async function erfasseReportBadData(
+  svc: SupabaseClient,
+  d: { leadId: string; neu: boolean; report: string; name: string | null; email: string | null; phone: string | null },
+  jetzt: Date = new Date(),
+): Promise<void> {
+  const { error } = await svc.from('sales_report_downloads').insert({
+    lead_id: d.leadId,
+    report: d.report,
+    name: d.name,
+    email: d.email,
+    phone: d.phone,
+    neuer_lead: d.neu,
+    eingetragen_am: jetzt.toISOString(),
+    whatsapp_status: 'bad_data',
+    ergebnis: 'nicht_gebucht',
+  });
+  if (error) throw new Error(`Report-Download nicht gespeichert: ${error.message}`);
+}
+
 async function ladeDownload(svc: SupabaseClient, id: string): Promise<Download | null> {
   const { data } = await svc
     .from('sales_report_downloads')

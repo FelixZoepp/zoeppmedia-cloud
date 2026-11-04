@@ -11,6 +11,7 @@ type Zeile = Daten['summe'];
 const eur = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const pct = (n: number | null) => (n === null ? '–' : `${n.toLocaleString('de-DE')} %`);
 const zahl = (n: number) => (n ? String(n) : '–');
+const badData = (n: number, q: number | null) => (n ? `${n} (${pct(q)})` : '–');
 
 /** Spalten wie in den bisherigen Monday-Dashboards (Kaltakquise, Sales-Pipeline, Marketing) */
 const SPALTEN: Array<{ gruppe: string; label: string; wert: (z: Zeile) => string; warn?: (z: Zeile) => boolean }> = [
@@ -36,6 +37,8 @@ const SPALTEN: Array<{ gruppe: string; label: string; wert: (z: Zeile) => string
   { gruppe: 'Marketing', label: 'Direkt gebucht', wert: (z) => pct(z.quoten.direktQuote) },
   { gruppe: 'Marketing', label: 'Report-Leads', wert: (z) => zahl(z.reportLeads ?? 0) },
   { gruppe: 'Marketing', label: 'Report gebucht', wert: (z) => pct(z.quoten.reportDirektQuote) },
+  { gruppe: 'Marketing', label: 'Bad Data Funnel', wert: (z) => badData(z.funnelBadData ?? 0, z.quoten.funnelBadDataQuote), warn: (z) => (z.funnelBadData ?? 0) > 0 },
+  { gruppe: 'Marketing', label: 'Bad Data Report', wert: (z) => badData(z.reportBadData ?? 0, z.quoten.reportBadDataQuote), warn: (z) => (z.reportBadData ?? 0) > 0 },
 ];
 
 const GRUPPEN = [...new Set(SPALTEN.map((s) => s.gruppe))];

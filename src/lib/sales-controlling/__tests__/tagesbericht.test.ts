@@ -33,14 +33,15 @@ describe('berechneTagesbericht', () => {
     ],
     eintragungen: [
       { eingetragen_am: '2026-10-08T07:00:00Z', ergebnis: 'direkt_gebucht' },
-      { eingetragen_am: '2026-10-08T08:00:00Z', ergebnis: 'nicht_gebucht' },
+      { lead_id: 'l_fake1', eingetragen_am: '2026-10-08T08:00:00Z', ergebnis: 'nicht_gebucht' },
       { eingetragen_am: '2026-10-08T08:30:00Z', ergebnis: 'manuell' },
     ],
     reportDownloads: [
       { eingetragen_am: '2026-10-08T09:00:00Z', ergebnis: 'direkt_gebucht' },
-      { eingetragen_am: '2026-10-08T10:00:00Z', ergebnis: 'nicht_gebucht' },
+      { lead_id: 'l_fake2', eingetragen_am: '2026-10-08T10:00:00Z', ergebnis: 'nicht_gebucht' },
       { eingetragen_am: '2026-10-08T11:00:00Z', ergebnis: 'offen' },
     ],
+    badDataLeads: new Set(['l_fake1', 'l_fake2', 'l_anderer']),
     users: new Map([['u1', 'Max Setter']]),
   });
   const tag = (t: string) => e.tage.find((z) => z.tag === t)!;
@@ -65,5 +66,12 @@ describe('berechneTagesbericht', () => {
     expect(tag('2026-10-08')).toMatchObject({ eintragungen: 2, reportLeads: 3, reportDirekt: 1 });
     expect(tag('2026-10-08').quoten.reportDirektQuote).toBe(33.3);
     expect(e.summe).toMatchObject({ eintragungen: 2, reportLeads: 3 });
+  });
+
+  it('zählt Bad Data je Funnel und Report (Close-Status „Bad Data“)', () => {
+    expect(tag('2026-10-08')).toMatchObject({ funnelBadData: 1, reportBadData: 1 });
+    expect(tag('2026-10-08').quoten.funnelBadDataQuote).toBe(50);
+    expect(tag('2026-10-08').quoten.reportBadDataQuote).toBe(33.3);
+    expect(tag('2026-10-07')).toMatchObject({ funnelBadData: 0, reportBadData: 0 });
   });
 });

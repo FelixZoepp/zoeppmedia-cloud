@@ -11,6 +11,7 @@ import { addCloseTaskForLead, ladeCloseLead, setzeCloseLeadquelle } from './clos
 import { automatischeLeadquelle, istAusgeschlosseneQuelle, istFunnelLead } from './leadquelle';
 import { notifySales } from './notify';
 import { istReportQuelle, markiereReportBuchung } from './report';
+import { LEAD_STATUS_BAD_DATA } from './bad-data';
 
 export const WARTEZEIT_MIN = 10;
 const MIN = 60_000;
@@ -123,6 +124,8 @@ export async function pruefeEintragung(svc: SupabaseClient, payload: { lead_id: 
   const ergebnis = ergebnisFuer(new Date(e.eingetragen_am), gebucht, jetzt);
   await svc.from('sales_eintragungen').update({ ergebnis, gebucht_am: gebucht?.toISOString() ?? null }).eq('lead_id', e.lead_id);
   if (ergebnis !== 'nicht_gebucht') return ergebnis;
+  // Bad Data (automatisch erkannt oder von Hand gesetzt) → kein Anruf, keine WhatsApp-Kette
+  if (lead?.statusId === LEAD_STATUS_BAD_DATA) return ergebnis;
 
   // Kein Termin nach 10 Minuten → sofort anrufen
   const text = `Jetzt anrufen: ${e.name ?? 'Lead'} hat sich eingetragen, aber nach ${WARTEZEIT_MIN} Min. keinen Termin gebucht${e.phone ? ` – ${e.phone}` : ''}`;

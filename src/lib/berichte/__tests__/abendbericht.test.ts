@@ -43,12 +43,14 @@ describe('Berichtstexte', () => {
     expect(t).toContain('50,00');
     expect(t).toContain('CTR 1,5 %');
     expect(t).toContain('*⚡ Direkt gebucht*\n66,7 %');
+    expect(t).not.toContain('Bad Data');
+    expect(marketingFelder({ ausgaben: 0, impressionen: 0, klicks: 0, linkKlicks: 0, metaLeads: 0, eintragungen: 3, direktGebucht: 0, reportLeads: 1, badData: 2 }).join('\n')).toContain('· 🗑 2 Bad Data');
   });
 
   it('Sales: Abschlüsse zuerst, geführte Settings/Closings, No-Shows und Quoten', () => {
     const werte = {
       anwahlen: 40, gespraeche: 12, entscheider: 8, protokolleFehlen: 1, settingsGebucht: 5, settingsGehalten: 6, settingsNoShow: 2,
-      settingsUnqualifiziert: 1, closingsGebucht: 3, closingsGehalten: 2, closingsNoShow: 1, abschluesse: 1, volumen: 6000, eintragungen: 0, direktGebucht: 0, reportLeads: 0, reportDirekt: 0,
+      settingsUnqualifiziert: 1, closingsGebucht: 3, closingsGehalten: 2, closingsNoShow: 1, abschluesse: 1, volumen: 6000, eintragungen: 0, direktGebucht: 0, reportLeads: 0, reportDirekt: 0, funnelBadData: 0, reportBadData: 0,
     };
     const f = salesFelder(werte);
     expect(f[0]).toContain('🏆 Abschlüsse');

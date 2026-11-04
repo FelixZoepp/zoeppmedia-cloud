@@ -11,6 +11,7 @@ import { DATUM_EINTRAGUNG_CF, LEADQUELLE_CF, UTM_CF, leadquelleAusUtm } from './
 import { istReportFunnel, reportQuelle } from './report';
 import { BRIEF_FUNNEL } from './brief';
 import { istBestandskunde, UPSELL_FILTER, UPSELL_PIPELINE_ID, UPSELL_STATUS } from './pipelines';
+import { LEAD_STATUS_BAD_DATA } from './bad-data';
 
 const CLOSE_BASE = 'https://api.close.com/api/v1';
 const PIPELINE_ID = 'pipe_5E14qCHzi8u3cHk0bB44ky'; // D2D Sales
@@ -127,22 +128,26 @@ function closeHeaders(apiKey: string): HeadersInit {
   return { Authorization: `Basic ${Buffer.from(apiKey + ':').toString('base64')}`, 'Content-Type': 'application/json' };
 }
 
-function notizText(l: FunnelLead, bestehend: boolean): string {
+function notizText(l: FunnelLead, bestehend: boolean, badData?: string[]): string {
   const zeilen = [`${bestehend ? 'Erneute Eintragung' : 'Eintragung'} über Funnel${l.funnelName ? ` „${l.funnelName}“` : ''}`];
+  if (badData?.length) zeilen.push(`🗑 Automatisch Bad Data: ${badData.join(', ')} – keine WhatsApp, keine Anruf-Aufgabe, nicht an Meta gemeldet.`);
   const utm = Object.entries(l.utm).filter(([, v]) => v);
   if (utm.length) zeilen.push(utm.map(([k, v]) => `utm_${k}: ${v}`).join(' · '));
   if (l.antworten.length) zeilen.push('', ...l.antworten.map((a) => `${a.frage}: ${a.antwort}`));
   return zeilen.join('\n');
 }
 
-/** Lead in Close anlegen bzw. vorhandenen Lead ergänzen. */
-export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: string; neu: boolean }> {
+/**
+ * Lead in Close anlegen bzw. vorhandenen Lead ergänzen.
+ * badData (Gründe): neuer Lead bekommt den Status „Bad Data“ statt Leadpool; ein vorhandener Lead behält seinen Status.
+ */
+export async function uebernehmeFunnelLead(l: FunnelLead, badData?: string[]): Promise<{ leadId: string; neu: boolean }> {
   const apiKey = process.env.CLOSE_API_KEY;
   if (!apiKey) throw new Error('CLOSE_API_KEY fehlt');
 
   const vorhanden = await findCloseLeadId({ email: l.email, phone: l.phone });
   if (vorhanden) {
-    await addCloseNote(vorhanden, notizText(l, true));
+    await addCloseNote(vorhanden, notizText(l, true, badData));
     await setzeFirmaAlsLeadName(apiKey, vorhanden, l).catch((e) => console.error('[funnel-lead] Firmenname (bestehender Lead):', e));
     // Neueste Antworten auch in die Felder (z. B. neue Funnel-Fragen)
     await schreibeAntworten(apiKey, vorhanden, l.antworten).catch((e) => console.error('[funnel-lead] Felder (bestehender Lead):', e));
@@ -172,7 +177,7 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
           phones: l.phone ? [{ phone: l.phone, type: 'mobile' }] : [],
         },
       ],
-      status_id: LEAD_STATUS_LEADPOOL,
+      status_id: badData?.length ? LEAD_STATUS_BAD_DATA : LEAD_STATUS_LEADPOOL,
       ...custom,
     }),
   });
@@ -193,7 +198,7 @@ export async function uebernehmeFunnelLead(l: FunnelLead): Promise<{ leadId: str
   // Funnel-Antworten in die Close-Felder (wie bisher über Zapier)
   await schreibeAntworten(apiKey, leadId, l.antworten).catch((e) => console.error('[funnel-lead] Felder:', e));
 
-  await addCloseNote(leadId, notizText(l, false)).catch((e) => console.error('[funnel-lead] Notiz fehlgeschlagen:', e));
+  await addCloseNote(leadId, notizText(l, false, badData)).catch((e) => console.error('[funnel-lead] Notiz fehlgeschlagen:', e));
   return { leadId, neu: true };
 }
 

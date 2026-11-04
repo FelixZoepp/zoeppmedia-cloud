@@ -46,6 +46,7 @@ export interface Protokoll {
 export interface Eintragung {
   eingetragen_am: string;
   ergebnis: string;
+  lead_id?: string | null;
 }
 
 export interface TagesberichtEingaben {
@@ -58,6 +59,8 @@ export interface TagesberichtEingaben {
   eintragungen: Eintragung[];
   /** Report-Funnel-Downloads (sales_report_downloads) – getrennt von den normalen Funnel-Eintragungen */
   reportDownloads?: Eintragung[];
+  /** Close-Leads im Status „Bad Data“ (automatisch erkannt oder von Hand gesetzt) */
+  badDataLeads?: Set<string>;
   users: Map<string, string>;
 }
 
@@ -82,6 +85,9 @@ export interface Tageszeile {
   /** Leads aus dem Report-Funnel (Downloads) */
   reportLeads: number;
   reportDirekt: number;
+  /** davon Bad Data (falsche/erfundene Kontaktdaten) */
+  funnelBadData: number;
+  reportBadData: number;
 }
 
 const LEER = (tag: string): Tageszeile => ({
@@ -103,6 +109,8 @@ const LEER = (tag: string): Tageszeile => ({
   direktGebucht: 0,
   reportLeads: 0,
   reportDirekt: 0,
+  funnelBadData: 0,
+  reportBadData: 0,
 });
 
 const tagVon = (iso: string) => berlinTag(new Date(iso));
@@ -135,6 +143,8 @@ export function quoten(z: Omit<Tageszeile, 'tag'>) {
     closingRate: quote(z.abschluesse, z.closingsGehalten),
     direktQuote: quote(z.direktGebucht, z.eintragungen),
     reportDirektQuote: quote(z.reportDirekt ?? 0, z.reportLeads ?? 0),
+    funnelBadDataQuote: quote(z.funnelBadData ?? 0, z.eintragungen),
+    reportBadDataQuote: quote(z.reportBadData ?? 0, z.reportLeads ?? 0),
   };
 }
 
@@ -209,12 +219,14 @@ export function berechneTagesbericht(e: TagesberichtEingaben) {
     if (!z) continue;
     z.eintragungen++;
     if (r.ergebnis === 'direkt_gebucht') z.direktGebucht++;
+    if (r.lead_id && e.badDataLeads?.has(r.lead_id)) z.funnelBadData++;
   }
   for (const r of e.reportDownloads ?? []) {
     const z = zeile(r.eingetragen_am);
     if (!z) continue;
     z.reportLeads++;
     if (r.ergebnis === 'direkt_gebucht') z.reportDirekt++;
+    if (r.lead_id && e.badDataLeads?.has(r.lead_id)) z.reportBadData++;
   }
 
   const liste = [...zeilen.values()].sort((a, b) => b.tag.localeCompare(a.tag));
