@@ -548,6 +548,12 @@ export async function GET(request: NextRequest) {
           await sendeCeoBriefing(svc, (payload as { tag: string }).tag);
           break;
         }
+        case 'berichte.kennzahlen_nachtragen': {
+          // Nur kennzahlen_tage (Meta-Ausgaben + Sales) für Monat/Woche bis `tag` neu speichern – keine Slack-Nachricht
+          const { erfasseKennzahlen } = await import('@/lib/berichte/abendbericht');
+          await erfasseKennzahlen(svc, (payload as { tag: string }).tag);
+          break;
+        }
         case 'berichte.abend': {
           const { sendeAbendbericht } = await import('@/lib/berichte/abendbericht');
           await sendeAbendbericht(svc, (payload as { tag: string }).tag);
