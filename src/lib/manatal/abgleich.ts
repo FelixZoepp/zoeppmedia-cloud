@@ -11,7 +11,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ingestApplication } from '@/lib/recruiting/ingest';
 import { findeStelle } from '@/lib/indeed/mail-eingang';
-import { faelligeEintraege, legeAufPruefstand, meldeNeueOffene, schliessePruefstand } from '@/lib/zuordnung/pruefstand';
+import { faelligeEintraege, legeAufPruefstand, meldeNeueOffene, schliessePruefstand, verwerfePruefstand } from '@/lib/zuordnung/pruefstand';
 
 const BASE = 'https://api.manatal.com/open/v3';
 const CURSOR_KEY = 'manatal_cursor';
@@ -219,6 +219,7 @@ const ZEITBUDGET_MS = 25_000;
 
 type MatchErgebnis =
   | { art: 'neu' | 'schon'; agencyId: string; candidateId: string | null }
+  | { art: 'systemmail'; name: string | null }
   | { art: 'pruefstand'; status: 'wartet' | 'offen'; gruende: string[]; agencyId: string | null; name: string | null; naechsterMin: number };
 
 interface Caches {
@@ -226,6 +227,16 @@ interface Caches {
   jobs: Map<number, ManatalJob>;
   orgs: Map<number, string | null>;
   kunden: Map<string, { id: string; name: string | null; contact_name: string | null; settings: Record<string, unknown> | null } | null>;
+}
+
+/**
+ * Kein Bewerber, sondern eine Systemmail, die Manatal als Kandidat angelegt hat (Absender „Indeed“, „Indeed für Arbeitgeber“ …):
+ * Name ist ein Absender und es gibt weder Telefon noch E-Mail (rein, testbar)
+ */
+export function istSystemmail(name: string | null | undefined, kontakt: { telefon: string | null; email: string | null }): boolean {
+  if (kontakt.telefon || kontakt.email) return false;
+  const n = (name ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return /^(indeed|indeed (für|fuer|for) (arbeitgeber|employers)|indeed apply|indeed[- ]?jobs?|stepstone|linkedin|xing|no-?reply|noreply|mailer-daemon)$/.test(n);
 }
 
 /** Bewerbung jünger als die Wartezeit? (rein, testbar) */
@@ -250,6 +261,7 @@ async function verarbeiteMatch(svc: SupabaseClient, m: ManatalMatch, c: Caches, 
   const ps = (status: 'wartet' | 'offen', grund: string, naechsterMin: number): MatchErgebnis => ({ art: 'pruefstand', status, gruende: [grund], agencyId, name, naechsterMin });
 
   const telefon = manatalTelefon(k.phone_number);
+  if (istSystemmail(name, { telefon, email: k.email ?? null })) return { art: 'systemmail', name };
   // Manatal liest Telefon/E-Mail erst 1–2 Minuten nach der Bewerbung aus dem Lebenslauf → warten statt überspringen
   if (!telefon && !k.email) {
     return aufKontaktWarten(m.created_at, jetzt) ? ps('wartet', 'Wartet auf Telefon/E-Mail aus Manatal', 1) : ps('offen', 'Weder Telefon noch E-Mail – in Indeed nachsehen', 60);
@@ -342,6 +354,7 @@ export async function uebernehmeManatalMatch(svc: SupabaseClient, matchId: numbe
   const m = await manatal<ManatalMatch>(`/matches/${matchId}/`);
   const r = await verarbeiteMatch(svc, m, c, new Date(), { agencyId, von });
   if (r.art === 'pruefstand') return { ok: false, grund: r.gruende.join('; ') };
+  if (r.art === 'systemmail') return { ok: false, grund: `Kein Bewerber: Systemmail „${r.name ?? '?'}“ ohne Kontaktdaten` };
   await schliessePruefstand(svc, `manatal:${matchId}`, { agencyId, candidateId: r.candidateId, von });
   return { ok: true, candidateId: r.candidateId };
 }
@@ -377,7 +390,10 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
       const m = await manatal<ManatalMatch>(`/matches/${matchId}/`);
       const r = await verarbeiteMatch(svc, m, c, jetzt);
       if (r.art === 'pruefstand') await aufPruefstand(svc, m, r);
-      else {
+      else if (r.art === 'systemmail') {
+        await verwerfePruefstand(svc, f.externe_ref, `Systemmail „${r.name ?? '?'}“ ohne Kontaktdaten – kein Bewerber`);
+        ergebnis.ignoriert++;
+      } else {
         await schliessePruefstand(svc, f.externe_ref, { agencyId: r.agencyId, candidateId: r.candidateId });
         if (r.art === 'neu') ergebnis.neu++;
       }
@@ -431,6 +447,7 @@ export async function holeManatalBewerber(svc: SupabaseClient, jetzt: Date = new
     try {
       const r = await verarbeiteMatch(svc, m, c, jetzt);
       if (r.art === 'neu') ergebnis.neu++;
+      if (r.art === 'systemmail') ergebnis.ignoriert++;
       // Nicht doppelt belegt → Prüfstand; der Stand läuft für alle anderen Kunden weiter
       if (r.art === 'pruefstand') {
         if (r.status === 'offen') ergebnis.fehler++;

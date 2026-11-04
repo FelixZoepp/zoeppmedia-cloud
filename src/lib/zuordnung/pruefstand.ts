@@ -80,6 +80,15 @@ export async function schliessePruefstand(
     .in('status', ['wartet', 'offen']);
 }
 
+/** Kein Bewerber (z. B. Indeed-Systemmail in Manatal) → Eintrag automatisch verwerfen */
+export async function verwerfePruefstand(svc: SupabaseClient, externeRef: string, grund: string): Promise<void> {
+  await svc
+    .from('bewerber_pruefstand')
+    .update({ status: 'verworfen', gruende: [grund], entschieden_am: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('externe_ref', externeRef)
+    .in('status', ['wartet', 'offen']);
+}
+
 /** Einträge, die jetzt automatisch erneut geprüft werden sollen */
 export async function faelligeEintraege(svc: SupabaseClient, quelle: PruefstandQuelle, limit = 15): Promise<PruefstandEintrag[]> {
   const { data, error } = await svc

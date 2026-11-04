@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches, aufKontaktWarten, pruefeZuordnung, nameStimmt } from '../abgleich';
+import { manatalTelefon, manatalQuelle, schlageKundenVor, offeneMatches, aufKontaktWarten, pruefeZuordnung, nameStimmt, istSystemmail } from '../abgleich';
 import { normalizePhoneE164 } from '@/lib/phone';
 
 describe('Manatal: Telefonnummern', () => {
@@ -97,5 +97,21 @@ describe('Zuordnungs-Prüfung (4-fach)', () => {
     expect(nameStimmt('Fadi Abbes', { name: 'Fadi Abbes', contact_name: null })).toBe(true);
     expect(nameStimmt('Fadi Abbes', { name: 'Ömer Bilge', contact_name: 'Ömer Bilge' })).toBe(false);
     expect(nameStimmt('Hoffmann Solutions', { name: 'Sales Winner UG', contact_name: null })).toBe(false);
+  });
+});
+
+describe('Manatal: Systemmails', () => {
+  const leer = { telefon: null, email: null };
+  it('erkennt Indeed-Absender ohne Kontaktdaten', () => {
+    expect(istSystemmail('Indeed', leer)).toBe(true);
+    expect(istSystemmail('Indeed für Arbeitgeber', leer)).toBe(true);
+    expect(istSystemmail('  indeed  ', leer)).toBe(true);
+  });
+  it('lässt echte Bewerber und alles mit Kontaktdaten durch', () => {
+    expect(istSystemmail('Sven Voigt', leer)).toBe(false);
+    expect(istSystemmail('Indeed', { telefon: '+4915112345678', email: null })).toBe(false);
+    expect(istSystemmail('Indeed', { telefon: null, email: 'a@b.de' })).toBe(false);
+    expect(istSystemmail('Indeedia Müller', leer)).toBe(false);
+    expect(istSystemmail(null, leer)).toBe(false);
   });
 });
