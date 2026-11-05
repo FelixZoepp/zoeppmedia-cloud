@@ -6,6 +6,7 @@ import { DashboardView } from '@/components/dashboard/dashboard-view';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ladeRoiUebersicht } from '@/lib/roi/laden';
 import { ladeStartklar } from '@/lib/startklar/laden';
+import { LisaAnfrageKarte } from '@/components/lisa/lisa-anfrage-karte';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,28 +42,32 @@ export default async function DashboardPage() {
   const gz = g as { garantie_ampel: string | null; garantie_ist: number | null; garantie_ziel_starter: number | null } | null;
 
   return (
-    <DashboardView
-      data={data}
-      agencyId={agencyId}
-      agencyName={user.name}
-      pendingSurveys={pendingSurveys ?? 0}
-      startklar={startklar}
-      werbekosten={roi?.werbekosten30 ?? null}
-      garantie={gz?.garantie_ziel_starter && gz.garantie_ampel ? { ampel: gz.garantie_ampel, ist: gz.garantie_ist ?? 0, ziel: gz.garantie_ziel_starter } : null}
-      kennzahlen={
-        roi && {
-          ...roi.termine,
-          einstellungen30: roi.einstellungen30,
-          einstellungenGesamt: roi.einstellungenGesamt,
-          letzterMonat: roi.roi.letzterMonat,
-          umsatzLetzterMonat: roi.roi.umsatzLetzterMonat,
-          wachstumProzent: roi.roi.wachstumProzent,
-          roiLetzterMonat: roi.roi.roiLetzterMonat,
-          roiKumuliert: roi.roi.roiKumuliert,
-          umsatzVerlauf: roi.roi.monate.slice(0, -1).map((m) => m.umsatz),
-          fehlend: roi.roi.fehlend,
+    <>
+      <DashboardView
+        data={data}
+        agencyId={agencyId}
+        agencyName={user.name}
+        pendingSurveys={pendingSurveys ?? 0}
+        startklar={startklar}
+        werbekosten={roi?.werbekosten30 ?? null}
+        garantie={gz?.garantie_ziel_starter && gz.garantie_ampel ? { ampel: gz.garantie_ampel, ist: gz.garantie_ist ?? 0, ziel: gz.garantie_ziel_starter } : null}
+        kennzahlen={
+          roi && {
+            ...roi.termine,
+            einstellungen30: roi.einstellungen30,
+            einstellungenGesamt: roi.einstellungenGesamt,
+            letzterMonat: roi.roi.letzterMonat,
+            umsatzLetzterMonat: roi.roi.umsatzLetzterMonat,
+            wachstumProzent: roi.roi.wachstumProzent,
+            roiLetzterMonat: roi.roi.roiLetzterMonat,
+            roiKumuliert: roi.roi.roiKumuliert,
+            umsatzVerlauf: roi.roi.monate.slice(0, -1).map((m) => m.umsatz),
+            fehlend: roi.roi.fehlend,
+          }
         }
-      }
-    />
+      />
+      {/* Upsell: Hiring Lisa anfragen – ohne Preise, nur für Kunden-Logins */}
+      {!isInternal(user.role) && <LisaAnfrageKarte />}
+    </>
   );
 }

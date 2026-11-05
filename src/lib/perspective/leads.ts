@@ -113,8 +113,9 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
   }
   const ref = lead.externeId ? `perspective:${lead.externeId}` : null;
   const { count: schonDa } = ref ? await svc.from('applications').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId).eq('source_ref', ref) : { count: 0 };
+  let neueBewerbungId: string | null = null;
   if (stelle && !schonDa) {
-    const { error: appErr } = await svc.from('applications').insert({
+    const { data: neueApp, error: appErr } = await svc.from('applications').insert({
       agency_id: agencyId,
       candidate_id: c.id,
       job_id: (stelle as { id: string }).id,
@@ -124,8 +125,9 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       campaign: lead.funnelName || lead.utm ? { ...(lead.funnelName ? { funnel: lead.funnelName } : {}), ...(lead.utm ? { utm: lead.utm } : {}) } : null,
       zuordnung_nachweis: lead.nachweis ?? null,
       ...(lead.eingegangenAm ? { applied_at: lead.eingegangenAm } : {}),
-    });
+    }).select('id').single();
     if (appErr) console.error('[perspective] Bewerbung nicht angelegt:', appErr.message);
+    neueBewerbungId = (neueApp as { id: string } | null)?.id ?? null;
   }
 
   // Bild-/Datei-Uploads aus dem Funnel übernehmen (Job, damit der Webhook schnell bleibt)
@@ -148,6 +150,11 @@ export async function legeFunnelLeadAn(svc: SupabaseClient, agencyId: string, le
       action_type: 'other',
       metadata: { source: 'perspective', blacklist_match: blacklist.matching_candidate },
     });
+  }
+  // Hiring Lisa (falls für den Kunden aktiv): KI-Anruf in ≤ 60 s – nicht bei nachgeholten Leads oder Blacklist-Treffern
+  if (neueBewerbungId && lead.automationen && !blacklist.is_blacklisted && lead.phone) {
+    const { uebergebeAnLisa } = await import('@/lib/lisa/senden');
+    await uebergebeAnLisa(svc, neueBewerbungId, agencyId).catch((err) => console.error('[perspective] Lisa-Übergabe fehlgeschlagen:', err));
   }
   return { status: 'angelegt', candidateId: c.id };
 }

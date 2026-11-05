@@ -36,8 +36,8 @@ export async function GET(request: Request) {
   let termine: Array<{ status: string | null; scheduled_at: string }>;
   try {
     [anrufe, cands, termine] = await Promise.all([
-      fetchAll<{ user_id: string | null; result: string | null }>((rFrom, rTo) =>
-        svc.from('call_logs').select('user_id, result').eq('agency_id', agencyId).gte('created_at', ab).lte('created_at', bis).order('id').range(rFrom, rTo),
+      fetchAll<{ user_id: string | null; result: string | null; quelle?: string | null }>((rFrom, rTo) =>
+        svc.from('call_logs').select('user_id, result, quelle').eq('agency_id', agencyId).gte('created_at', ab).lte('created_at', bis).order('id').range(rFrom, rTo),
       ),
       fetchAll<{ ttfc_seconds: number | null }>((rFrom, rTo) =>
         svc
@@ -58,13 +58,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Anrufe konnten nicht geladen werden' }, { status: 500 });
   }
 
-  const userIds = [...new Set(anrufe.map((a) => a.user_id).filter((x): x is string => !!x))];
+  // KI-Anrufe von Hiring Lisa als eigene „Person“ zählen
+  const LISA = 'hiring-lisa';
+  anrufe = anrufe.map((a) => ((a as { quelle?: string | null }).quelle === 'lisa' ? { user_id: LISA, result: a.result } : { user_id: a.user_id, result: a.result }));
+  const userIds = [...new Set(anrufe.map((a) => a.user_id).filter((x): x is string => !!x && x !== LISA))];
   const { data: users } = userIds.length ? await svc.from('users').select('id, name').in('id', userIds) : { data: [] };
 
   return NextResponse.json(
     berechneAnrufStats(
       anrufe,
-      new Map(((users ?? []) as Array<{ id: string; name: string }>).map((u) => [u.id, u.name])),
+      new Map([...((users ?? []) as Array<{ id: string; name: string }>).map((u) => [u.id, u.name] as [string, string]), [LISA, '🤖 Hiring Lisa (KI)']]),
       cands.map((c) => c.ttfc_seconds),
       termine,
       new Date(),

@@ -290,6 +290,13 @@ export const FREIGABEN = {
       'Zusätzlich muss system_einstellungen „kunden_erinnerungen_aktiv“ an sein. Aus: nichts geht raus, die Stufe wird trotzdem vermerkt.',
     wirkt: 'WhatsApp + Push an Kunden – täglich im Cron',
   },
+  lisa_whatsapp: {
+    titel: '🤖 Hiring Lisa: WhatsApp an Bewerber',
+    was:
+      'Bei Kunden mit Hiring Lisa meldet Lisa WhatsApp-Anlässe (z. B. „nicht erreicht“) an die Cloud. An: „nicht erreicht“ läuft über den bestehenden Weg „Bewerber nicht erreicht“ (eigene Freigabe, Sperren, Ruhezeiten, höchstens alle 3 Tage). ' +
+      'Andere Anlässe (Termin gebucht, Erinnerungen) werden nur vermerkt, bis eine Vorlage angebunden ist. Aus: nichts geht raus, der Anlass wird nur beim Bewerber vermerkt. Die KI-Anrufe selbst hängen nicht an diesem Schalter.',
+    wirkt: 'WhatsApp an Bewerber (Kunden mit Hiring Lisa)',
+  },
 } as const;
 
 export type FreigabeKey = keyof typeof FREIGABEN;

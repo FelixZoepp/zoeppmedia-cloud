@@ -133,6 +133,11 @@ export async function GET(request: NextRequest) {
         case 'ingest.generic':
           await processIngestGeneric(svc, event.agency_id, payload as unknown as Parameters<typeof processIngestGeneric>[2]);
           break;
+        case 'lisa.ereignis': {
+          const { verarbeiteLisaEreignis } = await import('@/lib/lisa/ereignisse');
+          await verarbeiteLisaEreignis(svc, event.agency_id, (payload as unknown as { event: Parameters<typeof verarbeiteLisaEreignis>[2] }).event);
+          break;
+        }
         default:
           // Unbekannter Typ — als done markieren
           break;
@@ -486,6 +491,11 @@ export async function GET(request: NextRequest) {
         case 'bewerber.funnel_dateien': {
           const { uebernehmeFunnelDateien } = await import('@/lib/perspective/dateien');
           console.log('[funnel-dateien]', await uebernehmeFunnelDateien(svc, payload as { candidate_id: string; versuch?: number }));
+          break;
+        }
+        case 'lisa.bewerbung': {
+          const { jobLisaBewerbung } = await import('@/lib/lisa/senden');
+          console.log('[lisa-bewerbung]', await jobLisaBewerbung(svc, payload as { application_id: string }, job.agency_id, job.attempts));
           break;
         }
         case 'bewerber.nicht_erreicht': {

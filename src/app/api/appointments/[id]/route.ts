@@ -159,6 +159,14 @@ export async function PATCH(
     });
   }
 
+  // Von Hiring Lisa gebuchter Termin: Erschienen / No-Show an Lisa melden (best effort, nichts an den Bewerber)
+  const lisaTerminId = (data as { lisa_appointment_id?: string | null } | null)?.lisa_appointment_id;
+  if (lisaTerminId && (body.status === 'erschienen' || body.status === 'no_show')) {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { meldeAnwesenheitAnLisa } = await import('@/lib/lisa/senden');
+    await meldeAnwesenheitAnLisa(createAdminClient(), appointment.agency_id, lisaTerminId, body.status === 'erschienen').catch(() => false);
+  }
+
   // Verbundener Kundenkalender: Termin dort verschieben bzw. löschen
   let kalenderNachgezogen = false;
   if ((rescheduled || cancelled) && appointment.kalender_event_id && appointment.kalender_provider) {

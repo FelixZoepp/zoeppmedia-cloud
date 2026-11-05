@@ -352,9 +352,20 @@ export async function ingestApplication(
     candidate_id: candidateId, extra: { application_id: newApp.id, source: input.source },
   }, { application_id: newApp.id }).catch(() => {});
 
+  // --- Hiring Lisa (falls für den Kunden aktiv): Lisa ruft in ≤ 60 s an, eigener Erstkontakt (Bot/Anruf-Auftrag) entfällt ---
+  const beiLisa =
+    !!newApp?.id && !!phoneE164 && !input.ohneAutomatik
+      ? await import('@/lib/lisa/senden').then((m) => m.uebergebeAnLisa(svc, newApp.id, input.agencyId)).catch((err) => {
+          console.error('[ingest] Lisa-Übergabe fehlgeschlagen', newApp.id, err);
+          return false;
+        })
+      : false;
+
   // --- Phase 3: Bot-Eröffnung einreihen (Spec §8 Schritt 1). Worker prüft Config/Consent erneut. ---
   // Hier ist immer applicationCreated=true (wir sind im Happy-Path hinter der 30-Tage-Prüfung)
-  if (newApp?.id && input.consentWhatsapp && phoneE164 && !input.ohneAutomatik) {
+  if (beiLisa) {
+    // nichts – Lisa übernimmt die Erstansprache
+  } else if (newApp?.id && input.consentWhatsapp && phoneE164 && !input.ohneAutomatik) {
     try {
       await insertDeduped(svc, 'scheduled_jobs', {
         agency_id: input.agencyId,

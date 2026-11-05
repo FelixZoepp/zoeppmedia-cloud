@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { toast } from 'sonner';
 import { PersonaKarte } from './persona-karte';
+import { LisaKarte } from './lisa-karte';
 import { IndeedBudgetKarte } from './indeed-budget-karte';
 import { WerbekontoPruefen } from './werbekonto-pruefen';
 import {
@@ -346,6 +347,7 @@ export function IntegrationenClient({ agencyId }: { agencyId: string }) {
       </div>
 
       <PersonaKarte agencyId={agencyId} origin={origin} />
+      <LisaKarte agencyId={agencyId} origin={origin} />
     </div>
   );
 }
