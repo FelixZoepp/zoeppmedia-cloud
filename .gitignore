@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 .env*.local
 .claude/
+
+# Lokale Arbeitsbereiche (Agenten)
+.worktrees/
+.superpowers/
