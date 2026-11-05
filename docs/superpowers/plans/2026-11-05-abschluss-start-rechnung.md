@@ -20,6 +20,7 @@
 - MRR = Monatsgebühr **ohne** durchlaufendes Werbebudget.
 - Kunde wird nach Vertrag angelegt, **zur Cloud eingeladen erst nach dem Onboarding-Call** (nur per Knopf).
 - Setup-Zahlung: Ziel vor dem Onboarding-Call, **Pflicht vor dem Kick-off**; bei „Setup verteilt auf die Raten“ keine Sperre.
+- **Transkripte und Gesprächsauswertungen sind nur intern** (Kundenakte bei Zoepp): nie im Kundenportal, nie per Mail/WhatsApp an Kunden; Routen nur für `admin`/`employee`; Empfehlungen im Portal (Task 11) zeigen keine Zitate oder Inhalte aus Gesprächen.
 - Fireflies muss in allen Kunden-Calls sein (Zoom); fehlt das Transkript, entsteht eine Aufgabe – nie still übergehen.
 - Firmenname überall „Zoepp Consulting GmbH“ (bzw. „Zoepp Consulting“ im Fließtext), Produkt „Zoepp Cloud“ (umgestellt in Commit 292e0cc).
 - Calendly-Namen: „30 Minuten Onboarding“ (`onboarding`), „30 Minuten Kick-Off“ (`kick-off`/`kickoff`), „30 Minuten Skalierungs-Call“ (`skalierung`, Event-Type `9832cc01-3837-46b3-b075-ecd117d99dc3`), „30 Minuten Monatsauswertung“ (`monatsauswertung`, `a05cfa11-8ea1-4fa6-a7dc-2f73946290ef`), „30min Kunden-Testimonial“ (`testimonial`, `e269ec1f-fba9-4784-8d26-b13bfbae7456`).
