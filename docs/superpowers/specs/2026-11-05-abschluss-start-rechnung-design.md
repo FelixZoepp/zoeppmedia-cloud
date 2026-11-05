@@ -63,6 +63,7 @@ Ziel: **eine Quelle**, aus dem unterschriebenen Angebot befüllt. Daraus folgen 
 | 0 | **Unterschriebenes Angebot hochgeladen** → Vertrag geprüft | Backoffice/Felix | Upload + Bestätigung |
 | 0b | Setup-Rechnung geschrieben → bezahlt (**Ziel:** vor dem Onboarding, **Pflicht:** vor dem Kick-off) | Backoffice | Lexware-Abgleich (automatisch) |
 | 1 | **Onboarding-Call** (Calendly „30 Minuten Onboarding“): alle Infos sammeln (Funnel, Branding, Provisionsstruktur usw.), **Transkript hochladen** → daraus wird alles automatisch erstellt | Zoepp (CSM) | Calendly-Termin + Transkript-Upload |
+| 1b | **Kunde zur Cloud einladen**: erst **nach dem Onboarding-Call**, weil dann die Arbeit beginnt. Angelegt wird er in der Cloud schon nach der Vertragsunterschrift (After-Close), aber ohne Einladung | Zoepp (CSM) | Einladung verschickt bzw. erster Login |
 | 2 | **Kunde gibt in der Cloud die Zugänge** (Meta, Indeed, WhatsApp, Kalender …) | Kunde | bestehende Auto-Signale |
 | 3 | **Kampagnen bauen, alles reinladen** (Generator: Ads, Video-Skripte, Funnel-Texte, Indeed) | Zoepp (Media Buyer) | bestehende Setup-Schritte |
 | 4 | **Kick-off zum Start** (Calendly „30 Minuten Kick-Off“): **Kunde gibt dort frei**, Kampagne geht live | Kunde + Zoepp | Calendly-Termin + Freigabe-Signal + `launch_datum` |
@@ -118,7 +119,7 @@ Wie der Cash-Plan die Felder heute nutzt (`start` = erster abgerechneter Monat, 
 | Zusagen, Sonderfälle, gesuchte Rolle, Anzahl Starter | KI aus dem Fireflies-Transkript des Closings |
 | Onboarding- und Kick-off-Termin | Calendly über die E-Mail |
 
-- Beim Absenden geschieht dasselbe wie heute (Kunde, Fulfillment, Vertragslink). Zusätzlich wird der Vertrag aus 6.1 mit der Agentur verknüpft (`finanz_vertraege.agency_id`, neu).
+- Beim Absenden wird der Kunde **angelegt** (Agentur, Fulfillment, Vertragslink), aber **nicht zur Cloud eingeladen**: weder Einladungs-Token noch Mail. Die Einladung ist der eigene Schritt 1b nach dem Onboarding-Call (Felix, 05.11.). Sie entsteht als Aufgabe „Kunde zur Cloud einladen“, sobald der Onboarding-Call durchgeführt ist, und geht nur per Knopf raus, mit dem bestehenden Einladungsweg und dessen Freigabe. Zusätzlich wird der Vertrag aus 6.1 mit der Agentur verknüpft (`finanz_vertraege.agency_id`, neu).
 - Die Willkommens-Mail bleibt an die Freigabe `finanz_vertrag_mails` gebunden.
 
 ### 6.3 Rechnungs- und Mahnaufgaben (nur Aufgaben)
@@ -202,6 +203,8 @@ Die Cloud erkennt die Art des Termins am **Namen der Calendly-Terminart**. Sie s
 | Tag 28 | **30 Minuten Monatsauswertung** | `monatsauswertung` | auswertung (neu) |
 
 Die Fireflies-Transkripte landen schon heute pro Kunde in `kunden_gespraeche` (`src/lib/gespraeche/kunde.ts`, Zuordnung über die Teilnehmer-E-Mail bzw. den Namen im Titel). Neu: Die Art wird **zuerst am Titel** (Schlüsselwort) bestimmt und erst dann von der KI. Die Arten „skalierung“ und „auswertung“ kommen dazu. Sie haken die Schritte „Call nach 14/28 Tagen durchgeführt“ ab. Der Calendly-Webhook unterscheidet künftig zwischen Onboarding und Kick-off. Heute setzen beide dasselbe Signal `kickoff_gebucht`.
+
+Ergänzungen von Felix (05.11.): **Fireflies muss in jedem Kunden-Call dabei sein.** Fehlt das Transkript, entsteht eine Aufgabe. **Kunden-Testimonial** („30min Kunden-Testimonial“) wird bei guten Ergebnissen in der Cloud vorgeschlagen: als Empfehlung im Portal mit Buchungslink und als interne Aufgabe, ohne Nachricht. **Firmenname überall Zoepp Consulting GmbH.**
 
 ### 8.2 Lexware-Konto (Felix)
 Die UG wurde **in die GmbH umgewandelt**, und es gibt **ein einziges Lexware-Konto**. Der bestehende Abgleich (ein `LEXOFFICE_API_KEY`) sieht also alle Rechnungen. Ein zweiter Zugang ist nicht nötig. Ein Vertrag braucht keine Kennung, zu welcher Firma er gehört. Die Firmierung ist nur ein Hinweis auf dem Angebot.
