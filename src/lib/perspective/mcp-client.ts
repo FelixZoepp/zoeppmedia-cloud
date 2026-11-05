@@ -120,7 +120,7 @@ export class PerspectiveMcp {
     await this.senden('initialize', {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: {},
-      clientInfo: { name: 'zoepp-media-cloud', version: '1.0.0' },
+      clientInfo: { name: 'zoepp-cloud', version: '1.0.0' },
     });
     await this.senden('notifications/initialized', undefined, true);
     this.initialisiert = true;
