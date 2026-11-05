@@ -1,5 +1,5 @@
 /**
- * Sales-Kette (Zoepp Media intern): Calendly-Buchung → WhatsApp-Reminder-Jobs.
+ * Sales-Kette (Zoepp Consulting intern): Calendly-Buchung → WhatsApp-Reminder-Jobs.
  *
  * Eingeplant wird nur, wenn SALES_REMINDERS_ENABLED === 'true' und die Buchung
  * einen der beiden Sales-Event-Types trifft (Setting 15min / Beratung 60min).
@@ -23,7 +23,7 @@ export const SALES_WA_ACCOUNT_ID = 'cbec5ce7-e282-4de1-a10f-01085fe3d120';
 
 /** Calendly Event-Type-UUIDs → Kette */
 export const SALES_EVENT_TYPES: Record<string, SalesChain> = {
-  // "Analysegespräch mit Zoepp Media" (15 min)
+  // "Analysegespräch mit Zoepp Consulting" (15 min)
   'da8d1726-8fa6-467e-88d0-51f1cf0fd67c': 'setting',
   // "60min Beratungsgespräch mit Felix Zoepp"
   'bd63a241-57da-425c-a4c0-f4d43a1010f4': 'beratung',

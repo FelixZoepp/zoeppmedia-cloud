@@ -11,7 +11,7 @@ async function ziel(userId: string, agencyId: string, ich: string, intern: boole
   const { data } = await createAdminClient().from('users').select('id, role').eq('id', userId).eq('agency_id', agencyId).maybeSingle();
   const u = data as { id: string; role: string } | null;
   if (!u) return { fehler: 'Nutzer nicht gefunden' };
-  if (u.role === 'agency_owner' && !intern) return { fehler: 'Inhaber-Zugänge kann nur Zoepp Media ändern.' };
+  if (u.role === 'agency_owner' && !intern) return { fehler: 'Inhaber-Zugänge kann nur Zoepp Consulting ändern.' };
   return { u };
 }
 

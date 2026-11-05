@@ -39,7 +39,7 @@ export const VIDEOS_A_Z: VideoDef[] = [
 
 const KULTUR: ArtikelDef[] = [
   {
-    slug: 'willkommen', typ: 'wissen', titel: 'Willkommen bei Zoepp Media: Wer wir sind', modul: 'Willkommen & Kultur', positionen: ['grundlagen'], status: 'entwurf', video_key: 'mindset_warum', prioritaet: 1, reihenfolge: 1,
+    slug: 'willkommen', typ: 'wissen', titel: 'Willkommen bei Zoepp Consulting: Wer wir sind', modul: 'Willkommen & Kultur', positionen: ['grundlagen'], status: 'entwurf', video_key: 'mindset_warum', prioritaet: 1, reihenfolge: 1,
     zusammenfassung: 'Was wir verkaufen, für wen, und was die Garantie für deine Arbeit bedeutet.',
     inhalt: md(
       '## Was wir machen',
@@ -329,7 +329,7 @@ const INNENDIENST: ArtikelDef[] = [
     zusammenfassung: 'Leitfaden für den Anruf bei Bewerbern unserer Kunden.',
     inhalt: md(
       '## 1. Begrüßung und Erlaubnis',
-      E('Genauer Wortlaut: Wie stellst du dich vor (eigener Name, „im Auftrag von [Kunde]“ oder „Zoepp Media“)?'),
+      E('Genauer Wortlaut: Wie stellst du dich vor (eigener Name, „im Auftrag von [Kunde]“ oder „Zoepp Consulting“)?'),
       '## 2. Bezug zur Bewerbung',
       E('Wie greifst du die Bewerbung auf (Stelle, Quelle)?'),
       '## 3. Qualifizierung',

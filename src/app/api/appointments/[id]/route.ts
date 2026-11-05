@@ -206,7 +206,7 @@ export async function PATCH(
     ]);
 
     if (candidate) {
-      const agencyName = agency?.name ?? 'Zoepp Media Cloud';
+      const agencyName = agency?.name ?? 'Zoepp Cloud';
       const inviteBase = {
         appointmentId: appointment.id as string,
         type: appointment.type as string,

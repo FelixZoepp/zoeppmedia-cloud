@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { istFreigegeben } from '@/lib/freigaben';
 
-const FROM = 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>';
+const FROM = 'Zoepp Cloud <noreply@zoepp-gruppe.de>';
 
 /**
  * Sends a pre-debit notification email to the customer.
@@ -44,7 +44,7 @@ export async function sendPreDebitNotification(
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: #DC2626; padding: 20px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 20px;">Zoepp Media Cloud</h1>
+            <h1 style="color: white; margin: 0; font-size: 20px;">Zoepp Cloud</h1>
           </div>
           <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
             <p style="color: #111827; font-size: 16px;">Hallo ${params.agency_contact_name},</p>
@@ -67,7 +67,7 @@ export async function sendPreDebitNotification(
                 </tr>
                 <tr>
                   <td style="color: #6b7280; padding: 4px 0; font-size: 14px;">Gläubiger</td>
-                  <td style="color: #111827; text-align: right; font-size: 14px;">Zoepp Media UG</td>
+                  <td style="color: #111827; text-align: right; font-size: 14px;">Zoepp Consulting GmbH</td>
                 </tr>
               </table>
             </div>

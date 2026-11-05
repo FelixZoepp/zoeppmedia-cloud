@@ -4,7 +4,7 @@ import { baueNeuLegenAufgabe, gespraechAusTermin } from '../verschiebung';
 describe('gespraechAusTermin', () => {
   it('Beratungsgespräch → closing, Analysegespräch → setting', () => {
     expect(gespraechAusTermin('60min Beratungsgespräch mit Felix Zoepp')).toBe('closing');
-    expect(gespraechAusTermin('Analysegespräch mit Zoepp Media')).toBe('setting');
+    expect(gespraechAusTermin('Analysegespräch mit Zoepp Consulting')).toBe('setting');
     expect(gespraechAusTermin(null)).toBe('setting');
   });
 });

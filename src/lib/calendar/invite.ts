@@ -48,13 +48,13 @@ export function buildAppointmentInvite(opts: {
   const descriptionParts = [
     opts.candidatePhone ? `Telefon: ${opts.candidatePhone}` : null,
     opts.notes ? `Notiz: ${opts.notes}` : null,
-    `Termin von ${opts.agencyName} (Zoepp Media Cloud)`,
+    `Termin von ${opts.agencyName} (Zoepp Cloud)`,
   ].filter(Boolean);
 
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Zoepp Media Cloud//Bewerber-Termine//DE',
+    'PRODID:-//Zoepp Cloud//Bewerber-Termine//DE',
     'CALSCALE:GREGORIAN',
     `METHOD:${opts.method}`,
     'BEGIN:VEVENT',

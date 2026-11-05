@@ -147,7 +147,7 @@ export function KalenderVerbinden({ zurueck = 'settings', onVerbunden }: { zurue
                       ))}
                     </ol>
                     {!bereit[a] ? (
-                      <p className="text-[13px] text-amber-700">Diese Anbindung richtet Zoepp Media gerade ein – bitte vorerst einen anderen Kalender wählen oder später verbinden.</p>
+                      <p className="text-[13px] text-amber-700">Diese Anbindung richtet Zoepp Consulting gerade ein – bitte vorerst einen anderen Kalender wählen oder später verbinden.</p>
                     ) : s.darfVerbinden === false ? null : a === 'apple' ? (
                       <div className="space-y-2">
                         <a href="https://appleid.apple.com/account/manage" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[14px] font-medium text-red-800 hover:underline">

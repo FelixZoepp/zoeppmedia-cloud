@@ -88,7 +88,7 @@ export async function clientIdHolen(svc: SupabaseClient, fetchFn: typeof fetch =
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      client_name: 'Zoepp Media Cloud',
+      client_name: 'Zoepp Cloud',
       redirect_uris: [cloudRedirectUri(), MANUELL_REDIRECT],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],

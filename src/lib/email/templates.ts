@@ -30,13 +30,13 @@ export function inviteTemplate(agencyName: string, registerUrl: string, expiresA
 <body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="padding:32px 40px 24px;text-align:center;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
       <p style="margin:0;font-size:13px;color:#888;">Bewerber-Management für D2D-Agenturen</p>
     </div>
     <div style="padding:0 40px 32px;">
       <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Du wurdest eingeladen!</h1>
       <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 24px;">
-        <strong>${esc(agencyName)}</strong> wurde für Zoepp Media Cloud freigeschaltet. Erstelle jetzt deinen Account und starte mit dem Bewerber-Management.
+        <strong>${esc(agencyName)}</strong> wurde für Zoepp Cloud freigeschaltet. Erstelle jetzt deinen Account und starte mit dem Bewerber-Management.
       </p>
       <a href="${registerUrl}" style="display:inline-block;padding:14px 32px;background:#E0354B;color:#fff;text-decoration:none;border-radius:12px;font-size:15px;font-weight:600;">
         Account erstellen
@@ -56,7 +56,7 @@ export function welcomeTemplate(name: string, loginUrl: string): string {
 <body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="padding:32px 40px 24px;text-align:center;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
     </div>
     <div style="padding:0 40px 32px;">
       <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Willkommen, ${esc(name)}!</h1>
@@ -83,7 +83,7 @@ export function onboardingReminderTemplate(name: string, onboardingUrl: string):
 <body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="padding:32px 40px 24px;text-align:center;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
     </div>
     <div style="padding:0 40px 32px;">
       <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Onboarding nicht vergessen!</h1>
@@ -174,7 +174,7 @@ export function surveyNotificationTemplate(name: string, surveyTitle: string, po
 <body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="padding:32px 40px 24px;text-align:center;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
     </div>
     <div style="padding:0 40px 32px;">
       <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Wir brauchen dein Feedback!</h1>
@@ -199,7 +199,7 @@ function rahmen(inhalt: string): string {
 <body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="padding:32px 40px 24px;text-align:center;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
     </div>
     <div style="padding:0 40px 32px;">${inhalt}
     </div>
@@ -216,7 +216,7 @@ export function vertragLinkTemplate(p: { name: string; firma: string; vertragUrl
       <h1 style="font-size:22px;font-weight:700;color:#111;margin:0 0 12px;">Willkommen, ${esc(p.name)}!</h1>
       <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 16px;">
         Schön, dass ${esc(p.firma)} mit uns startet. Als Erstes bestätigst du bitte kurz die Eckdaten unserer Zusammenarbeit –
-        das dauert eine Minute. Danach legst du deinen Zugang zur Zoepp Media Cloud an.
+        das dauert eine Minute. Danach legst du deinen Zugang zur Zoepp Cloud an.
       </p>
       ${button(p.vertragUrl, 'Vertrag ansehen & bestätigen')}`);
 }

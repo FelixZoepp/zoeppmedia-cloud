@@ -121,7 +121,7 @@ export async function erinnereKunden(
     const keys = liste.map((r) => r.step_key);
     const vorname = (k.contact_name ?? '').split(' ')[0] || 'zusammen';
     const satz = aufgabenImSatz(keys);
-    const text = `Hallo ${vorname}, kurzes Update zu deinem Projekt mit Zoepp Media: Damit es weitergeht, fehlt uns noch ${satz}.`;
+    const text = `Hallo ${vorname}, kurzes Update zu deinem Projekt mit Zoepp Consulting: Damit es weitergeht, fehlt uns noch ${satz}.`;
     const basis = { agency_id: agencyId, name: k.name, aufgaben: keys.map((x) => STEP_BY_KEY.get(x)?.titel ?? x), text };
     const nummer = await kundenNummer(svc, k, !opts.trocken).catch(() => null);
     if (opts.trocken) {

@@ -62,7 +62,7 @@ function buildTag7Html(data: Tag7Data, agencyName: string, dashboardUrl: string)
 
     <!-- Header -->
     <div style="padding:32px 40px 24px;text-align:center;border-bottom:1px solid #f3f4f6;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
       <p style="margin:0;font-size:13px;color:#888;">Kampagnen-Report</p>
     </div>
 
@@ -112,7 +112,7 @@ function buildTag7Html(data: Tag7Data, agencyName: string, dashboardUrl: string)
 
     <!-- Footer -->
     <div style="padding:16px 40px;background:#f9fafb;text-align:center;">
-      <p style="font-size:12px;color:#999;margin:0;">Dieser Report wurde automatisch von Zoepp Media Cloud generiert.</p>
+      <p style="font-size:12px;color:#999;margin:0;">Dieser Report wurde automatisch von Zoepp Cloud generiert.</p>
     </div>
   </div>
 </body></html>`;
@@ -127,7 +127,7 @@ function buildTag14Html(data: Tag14Data, agencyName: string, dashboardUrl: strin
 
     <!-- Header -->
     <div style="padding:32px 40px 24px;text-align:center;border-bottom:1px solid #f3f4f6;">
-      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Media Cloud</h2>
+      <h2 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#111;">Zoepp Cloud</h2>
       <p style="margin:0;font-size:13px;color:#888;">Kampagnen-Report</p>
     </div>
 
@@ -197,7 +197,7 @@ function buildTag14Html(data: Tag14Data, agencyName: string, dashboardUrl: strin
 
     <!-- Footer -->
     <div style="padding:16px 40px;background:#f9fafb;text-align:center;">
-      <p style="font-size:12px;color:#999;margin:0;">Dieser Report wurde automatisch von Zoepp Media Cloud generiert.</p>
+      <p style="font-size:12px;color:#999;margin:0;">Dieser Report wurde automatisch von Zoepp Cloud generiert.</p>
     </div>
   </div>
 </body></html>`;

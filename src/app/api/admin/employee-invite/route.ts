@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   const expiresAt = new Date(Date.now() + 7 * 86400000).toLocaleDateString('de-DE');
 
   try {
-    await sendInviteEmail(email, 'Zoepp Media Team', registerUrl, expiresAt);
+    await sendInviteEmail(email, 'Zoepp Consulting Team', registerUrl, expiresAt);
   } catch {
     // Email failed but invite was created — don't fail the request
   }

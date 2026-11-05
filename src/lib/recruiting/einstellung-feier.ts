@@ -31,7 +31,7 @@ export function baueEinstellungNachricht(f: { kunde: string; vorname: string | n
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `🏆 *${f.kunde}* hat ${wer}${als} eingestellt!\n📈 Einstellung Nr. *${f.nrKunde}* für ${f.kunde} über Zoepp Media\n🔥 Einstellung Nr. *${f.nrMonat}* über alle Kunden im ${f.monat}`,
+          text: `🏆 *${f.kunde}* hat ${wer}${als} eingestellt!\n📈 Einstellung Nr. *${f.nrKunde}* für ${f.kunde} über Zoepp Consulting\n🔥 Einstellung Nr. *${f.nrMonat}* über alle Kunden im ${f.monat}`,
         },
       },
       { type: 'image', image_url: FEIER_GIF, alt_text: 'Einstellung' },

@@ -10,7 +10,7 @@ export default async function HilfePage() {
   if (!user) redirect('/login');
   const audience = audienceFor(user.role);
 
-  // Kunden: ihren Ansprechpartner bei Zoepp Media zeigen (agencies.csm_user_id), falls hinterlegt
+  // Kunden: ihren Ansprechpartner bei Zoepp Consulting zeigen (agencies.csm_user_id), falls hinterlegt
   let kontakt: Ansprechpartner | null = null;
   if (!isInternal(user.role)) {
     const agencyId = await getEffectiveAgencyId(user);

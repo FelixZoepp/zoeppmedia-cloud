@@ -65,7 +65,7 @@ export async function GET(
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Zoepp Media Cloud//Bewerber-Termine//DE',
+    'PRODID:-//Zoepp Cloud//Bewerber-Termine//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${icsEscape(`Bewerber-Termine — ${agency.name}`)}`,
@@ -84,7 +84,7 @@ export async function GET(
     const descriptionParts = [
       candidate?.phone ? `Telefon: ${candidate.phone}` : null,
       appt.notes ? `Notiz: ${appt.notes}` : null,
-      'Termin aus Zoepp Media Cloud',
+      'Termin aus Zoepp Cloud',
     ].filter(Boolean);
 
     lines.push(

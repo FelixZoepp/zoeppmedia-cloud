@@ -38,7 +38,7 @@ export interface KundeKurz {
 function system(team: TeamMitglied[], kunden: KundeKurz[], absender: string, heute: string): string {
   const liste = team.map((t) => `- ${t.name} (id: ${t.id}${t.funktion ? `, Bereich: ${t.funktion}` : ''})`).join('\n');
   const kundenListe = kunden.map((k) => `- ${k.name} (id: ${k.id})`).join('\n');
-  return `Du bist die Aufgabenverwaltung von Zoepp Media. ${absender} diktiert Aufgaben für sich oder das Team.
+  return `Du bist die Aufgabenverwaltung von Zoepp Consulting. ${absender} diktiert Aufgaben für sich oder das Team.
 Heute ist ${heute} (${new Date(`${heute}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'long' })}).
 
 Team (nur diese IDs verwenden):

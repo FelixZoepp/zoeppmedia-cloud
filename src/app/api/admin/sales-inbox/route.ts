@@ -8,7 +8,7 @@ import { IMPERSONATION_COOKIE } from '@/lib/recruiting/scope';
 import { SALES_AGENCY_ID } from '@/lib/sales/calendly-chain';
 
 /**
- * Öffnet die WhatsApp-Inbox der internen Sales-Agency (Zoepp Media Intern).
+ * Öffnet die WhatsApp-Inbox der internen Sales-Agency (Zoepp Consulting Intern).
  * Setzt dafür das Impersonation-Cookie und leitet auf /inbox weiter —
  * Ziel der Sidebar und der Push-Links bei Prospect-Antworten.
  */

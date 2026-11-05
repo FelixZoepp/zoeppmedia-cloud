@@ -5,7 +5,7 @@ export function normalisiereAdAccount(wert: string | undefined | null): string |
   return v.startsWith('act_') ? v : `act_${v.replace(/\D/g, '')}`;
 }
 
-/** Werbekonto von Zoepp Media – kein Geheimnis, gilt, solange META_AD_ACCOUNT_ID in Vercel fehlt */
+/** Werbekonto von Zoepp Consulting – kein Geheimnis, gilt, solange META_AD_ACCOUNT_ID in Vercel fehlt */
 const ZOEPP_AD_ACCOUNT = 'act_773153438539782';
 
 export function metaAdAccountId(): string | undefined {

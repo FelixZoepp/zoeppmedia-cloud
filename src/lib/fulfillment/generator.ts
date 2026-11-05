@@ -104,7 +104,7 @@ export type FunnelTexte = z.infer<typeof FunnelSchema>;
 
 /* ── Aufträge ────────────────────────────────────────────────────────────── */
 
-const SYSTEM = `Du bist Senior-Texter bei Zoepp Media, einer Recruiting-Agentur für Vertriebs- und D2D-Unternehmen (Glasfaser, Solar, Energie, Telko, Versicherung).
+const SYSTEM = `Du bist Senior-Texter bei Zoepp Consulting, einer Recruiting-Agentur für Vertriebs- und D2D-Unternehmen (Glasfaser, Solar, Energie, Telko, Versicherung).
 Du schreibst Recruiting-Anzeigen und Skripte, die Menschen zum Bewerben bringen – auch Quereinsteiger.
 
 Regeln:

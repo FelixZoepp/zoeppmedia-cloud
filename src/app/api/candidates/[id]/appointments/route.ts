@@ -108,7 +108,7 @@ export async function POST(
     extra: { appointment_id: data.id, type: body.type },
   }).catch(() => {});
 
-  const agencyName = agency?.name ?? 'Zoepp Media Cloud';
+  const agencyName = agency?.name ?? 'Zoepp Cloud';
   const scheduledAt = new Date(body.scheduled_at);
   const inviteBase = {
     appointmentId: data.id as string,

@@ -167,7 +167,7 @@ export function baueIcs(uid: string, t: { start: Date; ende: Date; titel: string
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Zoepp Media//Cloud//DE',
+    'PRODID:-//Zoepp Consulting//Cloud//DE',
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${icsUtc(jetzt)}`,

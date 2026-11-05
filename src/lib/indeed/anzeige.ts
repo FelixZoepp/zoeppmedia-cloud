@@ -109,7 +109,7 @@ export const IndeedAnzeigeSchema = z.object({
 });
 export type IndeedAnzeige = z.infer<typeof IndeedAnzeigeSchema>;
 
-const SYSTEM = `Du schreibst Stellenanzeigen für Indeed im Auftrag von Zoepp Media, einer Recruiting-Agentur für Vertriebs- und Direktvertriebsunternehmen (D2D, Glasfaser, Solar, Energie, Telko).
+const SYSTEM = `Du schreibst Stellenanzeigen für Indeed im Auftrag von Zoepp Consulting, einer Recruiting-Agentur für Vertriebs- und Direktvertriebsunternehmen (D2D, Glasfaser, Solar, Energie, Telko).
 
 Ziel: viele passende Bewerbungen von Menschen, die im Vertrieb Geld verdienen wollen – auch Quereinsteiger.
 

@@ -29,7 +29,7 @@ export const FeedbackSchema = z.object({
 });
 export type MarketingFeedback = z.infer<typeof FeedbackSchema>;
 
-const SYSTEM = `Du bist Marketing-Stratege bei Zoepp Media (Recruiting-Agentur für Vertriebs-/D2D-Unternehmen; Kunden sind Geschäftsführer von Vertrieben).
+const SYSTEM = `Du bist Marketing-Stratege bei Zoepp Consulting (Recruiting-Agentur für Vertriebs-/D2D-Unternehmen; Kunden sind Geschäftsführer von Vertrieben).
 Du bekommst Einwände und Fragen aus den Verkaufsgesprächen der letzten Woche. Fasse ähnliche zusammen (Themen), zähle sie,
 und leite konkrete, sofort umsetzbare Ideen für Anzeigen, Funnel-FAQ und Content ab. Keine Floskeln, keine erfundenen Zahlen oder Kundennamen.
 Ideen müssen zur Vertriebsphilosophie passen: Einwände werden durch Marketing vor dem Gespräch gelöst, nie durch Angebote, PDFs, Material zum Weiterleiten oder Folgegespräche.

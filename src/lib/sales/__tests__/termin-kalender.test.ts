@@ -6,7 +6,7 @@ const t = { id: 'ABC123def', art: 'setting' as const, start: '2026-10-07T12:00:0
 describe('Termin in den Kalender', () => {
   it('erkennt die Art', () => {
     expect(terminArt('60min Beratungsgespräch mit Felix Zoepp', null)).toBe('beratung');
-    expect(terminArt('Analysegespräch mit Zoepp Media', null)).toBe('setting');
+    expect(terminArt('Analysegespräch mit Zoepp Consulting', null)).toBe('setting');
   });
   it('baut Google- und Outlook-Links', () => {
     expect(googleLink(t)).toContain('dates=20261007T120000Z%2F20261007T121500Z');

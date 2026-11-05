@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileText, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
-/** Handelsregisterauszug hochladen – privat gespeichert, nur für Zoepp Media sichtbar */
+/** Handelsregisterauszug hochladen – privat gespeichert, nur für Zoepp Consulting sichtbar */
 export function HandelsregisterUpload() {
   const [datei, setDatei] = useState<{ dateiname: string; url: string | null } | null>(null);
   const [laedt, setLaedt] = useState(false);

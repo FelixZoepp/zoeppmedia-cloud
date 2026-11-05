@@ -30,7 +30,7 @@ export const KundenAnalyseSchema = z.object({
   zitate: z.array(z.object({ zitat: z.string(), sekunden: z.number() })).describe('1–3 wörtliche, aussagekräftige Kundenzitate'),
   kundeninfos: z.array(z.object({ thema: z.string(), info: z.string() }))
     .describe('Neue Fakten über den Kunden fürs Recruiting (z. B. Stelle, Region, Verdienst, Zielgruppe, Ansprechpartner, Erreichbarkeit, Besonderheiten) – nur was gesagt wurde'),
-  zusagen_zoepp: z.array(z.string()).describe('Was Zoepp Media zugesagt hat'),
+  zusagen_zoepp: z.array(z.string()).describe('Was Zoepp Consulting zugesagt hat'),
   zusagen_kunde: z.array(z.string()).describe('Was der Kunde zugesagt hat (Material, Zugänge, Termine)'),
   risiken: z.array(z.string()).describe('Kündigungs-/Unzufriedenheitssignale, offene Erwartungen, Probleme'),
   upsell_signal: z.string().describe('Erkennbarer Bedarf für mehr Leistung, sonst leerer String'),
@@ -44,7 +44,7 @@ export const KundenAnalyseSchema = z.object({
 });
 export type KundenAnalyse = z.infer<typeof KundenAnalyseSchema>;
 
-const SYSTEM = `Du wertest aufgezeichnete Gespräche zwischen Zoepp Media (Recruiting-Agentur für Vertriebs-/D2D-Unternehmen) und einem bestehenden Kunden aus.
+const SYSTEM = `Du wertest aufgezeichnete Gespräche zwischen Zoepp Consulting (Recruiting-Agentur für Vertriebs-/D2D-Unternehmen) und einem bestehenden Kunden aus.
 Ziel: Der zuständige Kundenbetreuer weiß ohne das Gespräch anzuhören, wie es dem Kunden geht, was vereinbart wurde und was das Team jetzt tun muss.
 Regeln: Nur auf das Transkript stützen, nichts erfinden. Zitate wörtlich und kurz, Sekunden aus den Zeitmarken.
 Stimmung ehrlich bewerten: „kritisch“, wenn Unzufriedenheit, Zweifel am Ergebnis oder Kündigungsgedanken erkennbar sind.

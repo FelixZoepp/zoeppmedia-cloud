@@ -19,7 +19,7 @@ describe('Einladungs-Mail', () => {
   });
 
   it('ohne Anleitung (interne Mitarbeiter) bleibt die Mail wie bisher', () => {
-    const html = inviteTemplate('Zoepp Media Team', 'https://x/register/abc', '01.01.2027');
+    const html = inviteTemplate('Zoepp Consulting Team', 'https://x/register/abc', '01.01.2027');
     expect(html).not.toContain('So startest du');
     expect(html).toContain('https://x/register/abc');
   });

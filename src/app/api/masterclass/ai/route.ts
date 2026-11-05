@@ -15,7 +15,7 @@ const Vorschlag = z.object({
   kapitel: z.array(z.object({ sekunden: z.number(), titel: z.string() })),
 });
 
-const SYSTEM = `Du schreibst Lektionen für die Vertriebs- und Recruiting-Masterclass von Zoepp Media (Kunden sind Vertriebs- und D2D-Agenturen).
+const SYSTEM = `Du schreibst Lektionen für die Vertriebs- und Recruiting-Masterclass von Zoepp Consulting (Kunden sind Vertriebs- und D2D-Agenturen).
 Schreibe auf Deutsch, per Du, klar und praxisnah.
 - kurzbeschreibung: 1–2 Sätze, höchstens 250 Zeichen, was man in der Lektion lernt.
 - inhalt_html: Begleittext zur Lektion mit den wichtigsten Punkten. Erlaubt sind nur <p>, <strong>, <em>, <ul>, <ol>, <li>, <h3>. 120–350 Wörter. Keine Erfindungen über Inhalte, die nicht aus Titel oder Notizen hervorgehen – bleib dann allgemein.

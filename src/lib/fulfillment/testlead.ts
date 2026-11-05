@@ -60,7 +60,7 @@ export async function spieleTestleadDurch(
       headers,
       body: JSON.stringify({
         id: testId,
-        funnelName: 'Test-Lead (Zoepp Media)',
+        funnelName: 'Test-Lead (Zoepp Consulting)',
         profile: {
           name: { value: `Test-Lead – ${opts.tester.name}` },
           email: { value: `${testId}@zoepp-gruppe.de` },

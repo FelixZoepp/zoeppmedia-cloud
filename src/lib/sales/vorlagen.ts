@@ -53,7 +53,7 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     name: 'setting_buchung_v2',
     category: 'UTILITY',
     body:
-      'Hallo {{1}}, dein Erstgespräch mit Zoepp Media ist eingetragen: {{2}} um {{3}} Uhr, ca. 15 Minuten am Telefon.\n\n' +
+      'Hallo {{1}}, dein Erstgespräch mit Zoepp Consulting ist eingetragen: {{2}} um {{3}} Uhr, ca. 15 Minuten am Telefon.\n\n' +
       'Wir rufen dich an, und zwar von 030 82684175. Am besten suchst du dir vorher einen ruhigen Ort.\n\n' +
       'Über den Button unten trägst du den Termin direkt in deinen Kalender ein. Wie das Gespräch abläuft, siehst du vorab im kurzen Video.',
     variables: ['vorname', 'datum', 'uhrzeit'],
@@ -82,7 +82,7 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     name: 'kunde_aufgaben_erinnerung',
     category: 'UTILITY',
     body:
-      'Hallo {{1}}, kurzes Update zu deinem Projekt mit Zoepp Media: Damit es weitergeht, fehlt uns noch {{2}}.\n\n' +
+      'Hallo {{1}}, kurzes Update zu deinem Projekt mit Zoepp Consulting: Damit es weitergeht, fehlt uns noch {{2}}.\n\n' +
       'Zu jedem Punkt findest du in der Zoepp Cloud eine kurze Anleitung, meist dauert es nur ein paar Minuten. Bei Fragen antworte einfach hier.',
     variables: ['vorname', 'aufgaben'],
     beispiel: ['Mehmet', 'der Indeed-Zugang und deine Bilder fürs Branding'],
@@ -93,7 +93,7 @@ export const SALES_VORLAGEN: SalesVorlage[] = [
     name: 'kunde_zufriedenheit',
     category: 'UTILITY',
     body:
-      'Hallo {{1}}, dein 2-Wochen-Check von Zoepp Media ist da 🙌\n\n' +
+      'Hallo {{1}}, dein 2-Wochen-Check von Zoepp Consulting ist da 🙌\n\n' +
       'Wie läuft dein Recruiting gerade? Tipp einfach unten auf eine Antwort – oder nimm dir 2 Minuten für den kompletten Check, ' +
       'damit wir genau dort nachschärfen, wo es dir am meisten bringt.',
     variables: ['vorname'],

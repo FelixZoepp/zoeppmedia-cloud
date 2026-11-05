@@ -127,7 +127,7 @@ export function KundenFreigabe({ start }: { start: FreigabeDaten }) {
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Zoepp Media · Video-Freigabe</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Zoepp Consulting · Video-Freigabe</p>
             <h1 className="truncate text-[19px] font-semibold text-gray-900">{d.video.titel}</h1>
             <p className="text-[13px] text-gray-500">
               {d.video.kunde ? `${d.video.kunde} · ` : ''}Version {d.video.version}

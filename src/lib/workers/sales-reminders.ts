@@ -1,5 +1,5 @@
 /**
- * Worker für die Sales-Kette (Zoepp Media intern):
+ * Worker für die Sales-Kette (Zoepp Consulting intern):
  * Verarbeitet die von der Calendly-Buchung geplanten Jobs
  * sales.booking / sales.confirmation / sales.reminder / sales.noshow_check.
  *

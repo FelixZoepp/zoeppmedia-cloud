@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 export type ClientPhase = 'onboarding_termin' | 'fulfillment' | 'warten_zugaenge' | 'warten_starttermin' | 'kampagne_starten' | 'kampagne_live' | 'kickoff_14d' | 'bestandskunde';
 
-// Zoepp Media (Intern) — trägt den Sales-WhatsApp-Kanal, ist kein Kunde.
+// Zoepp Consulting (Intern) — trägt den Sales-WhatsApp-Kanal, ist kein Kunde.
 // Wird aus der Kunden-Pipeline ausgeblendet (nicht löschen: FK-Ziel für
 // wa_account, Prospects und Reminder-Jobs der Sales-Kette).
 const HIDDEN_AGENCY_IDS = ['2e4140ec-efc5-46db-9746-0ce3c32dc558'];

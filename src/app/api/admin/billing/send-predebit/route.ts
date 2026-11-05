@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
   }
   const resend = new Resend(process.env.RESEND_API_KEY || '');
   const { error: mailError } = await resend.emails.send({
-    from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',
+    from: 'Zoepp Cloud <noreply@zoepp-gruppe.de>',
     to: agency.email,
     subject: `Vorabankündigung: SEPA-Einzug am ${datumFormatiert} — ${run.lex_invoice_number || run.periode}`,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: #DC2626; padding: 20px; border-radius: 12px 12px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 20px;">Zoepp Media Cloud</h1>
+          <h1 style="color: white; margin: 0; font-size: 20px;">Zoepp Cloud</h1>
         </div>
         <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
           <p style="color: #111827; font-size: 16px;">Hallo ${agency.contact_name || agency.name},</p>
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
               <tr><td style="color: #6b7280; padding: 6px 0;">Rechnungsnummer</td><td style="color: #111827; font-weight: 600; text-align: right;">${run.lex_invoice_number || run.periode}</td></tr>
               <tr><td style="color: #6b7280; padding: 6px 0;">Betrag (brutto)</td><td style="color: #111827; font-weight: 600; text-align: right;">${Number(run.betrag_brutto).toFixed(2)} €</td></tr>
               <tr><td style="color: #6b7280; padding: 6px 0;">Einzugsdatum</td><td style="color: #111827; font-weight: 600; text-align: right;">${datumFormatiert}</td></tr>
-              <tr><td style="color: #6b7280; padding: 6px 0;">Gläubiger</td><td style="color: #111827; text-align: right;">Zoepp Media UG</td></tr>
+              <tr><td style="color: #6b7280; padding: 6px 0;">Gläubiger</td><td style="color: #111827; text-align: right;">Zoepp Consulting GmbH</td></tr>
             </table>
           </div>
           <p style="color: #4b5563; font-size: 14px;">Bitte stelle sicher, dass dein Konto zum Einzugsdatum ausreichend gedeckt ist.</p>

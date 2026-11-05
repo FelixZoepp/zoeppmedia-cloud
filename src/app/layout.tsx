@@ -13,7 +13,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Zoepp Media Cloud',
+  title: 'Zoepp Cloud',
   description: 'Bewerber-Management für D2D-Agenturen',
   manifest: '/manifest.json',
   appleWebApp: {

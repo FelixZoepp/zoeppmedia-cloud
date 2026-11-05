@@ -133,13 +133,13 @@ export async function POST(
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY || '');
         await resend.emails.send({
-          from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',
+          from: 'Zoepp Cloud <noreply@zoepp-gruppe.de>',
           to: agency.email,
           subject: `Rechnung ${run.lex_invoice_number || run.periode} — Zahlungslink`,
           html: `
             <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="background: #DC2626; padding: 20px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: white; margin: 0; font-size: 20px;">Zoepp Media Cloud</h1>
+                <h1 style="color: white; margin: 0; font-size: 20px;">Zoepp Cloud</h1>
               </div>
               <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
                 <p style="color: #111827; font-size: 16px;">Hallo ${agency.contact_name || 'Team'},</p>

@@ -79,7 +79,7 @@ export function indeedZugangSchritte(email: string = INDEED_ZUGANG_EMAIL): strin
   return [
     'employers.indeed.com öffnen und mit deinem Arbeitgeber-Konto einloggen – noch keins? Dort kostenlos mit deiner Firmen-E-Mail anlegen.',
     'Oben rechts auf dein Profil → „Benutzer verwalten“ (je nach Ansicht: Konto → Benutzer).',
-    `„Benutzer hinzufügen“ → ${email ? email : 'die E-Mail deines Ansprechpartners bei Zoepp Media'} eintragen → Rolle „Administrator“ → einladen.`,
+    `„Benutzer hinzufügen“ → ${email ? email : 'die E-Mail deines Ansprechpartners bei Zoepp Consulting'} eintragen → Rolle „Administrator“ → einladen.`,
     'Unter Abrechnung eine Zahlungsmethode für dein Indeed-Budget hinterlegen.',
     'Fertig – Anzeige, Schaltung und die Weiterleitung aller Bewerbungen in deine Cloud übernehmen wir.',
   ];

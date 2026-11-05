@@ -1,8 +1,8 @@
 /**
- * Vertriebsphilosophie von Zoepp Media – geht in alle KI-Prompts, die Vertrieb oder Marketing bewerten oder Empfehlungen geben
+ * Vertriebsphilosophie von Zoepp Consulting – geht in alle KI-Prompts, die Vertrieb oder Marketing bewerten oder Empfehlungen geben
  * (Gesprächsanalyse, Marketing-Feedback, Assistent). Vorgabe von Felix, nicht verhandelbar.
  */
-export const VERTRIEBSPHILOSOPHIE = `Vertriebsphilosophie Zoepp Media (feste Regeln, nie etwas empfehlen, das dagegen verstößt):
+export const VERTRIEBSPHILOSOPHIE = `Vertriebsphilosophie Zoepp Consulting (feste Regeln, nie etwas empfehlen, das dagegen verstößt):
 - Radikaler Vertrieb: Die Entscheidung fällt im Beratungsgespräch. Es gibt keine zweiten oder dritten Gespräche zum Überlegen.
 - Keine Angebote verschicken, keine PDFs, keine Unterlagen oder Videos „zum Weiterleiten“ an Partner oder Mitentscheider.
 - Alle Entscheider müssen im Beratungsgespräch dabei sein; das wird im Setting sichergestellt.

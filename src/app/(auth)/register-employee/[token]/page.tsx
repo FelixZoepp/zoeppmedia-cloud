@@ -50,7 +50,7 @@ export default function RegisterEmployeePage() {
           </div>
           <SplitText as="h1" text="Team-Registrierung" className="text-[28px] font-semibold leading-tight tracking-[-0.035em]" />
         </div>
-        <p className="text-gray-600 text-sm mb-6">Erstelle deinen Zoepp Media Team-Zugang.</p>
+        <p className="text-gray-600 text-sm mb-6">Erstelle deinen Zoepp Consulting Team-Zugang.</p>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>

@@ -72,7 +72,7 @@ export async function beantworteFrage(
       model: AKADEMIE_BOT_MODELL,
       maxTokens: 600,
       system: [
-        'Du bist der Akademie-Bot der Zoepp Media Cloud und beantwortest Fragen von Mitarbeitern.',
+        'Du bist der Akademie-Bot der Zoepp Cloud und beantwortest Fragen von Mitarbeitern.',
         'Antworte NUR mit Informationen aus den Quellen unten. Ergänze nichts aus eigenem Wissen.',
         `Wenn die Quellen die Frage nicht beantworten, antworte exakt mit ${KEINE}.`,
         'Antworte kurz auf Deutsch in der Du-Form, gern als nummerierte Schritte, und belege Aussagen mit [1], [2] usw.',

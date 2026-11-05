@@ -20,7 +20,7 @@ function getResend(): Resend {
   }
   return _resend;
 }
-const FROM = 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>';
+const FROM = 'Zoepp Cloud <noreply@zoepp-gruppe.de>';
 
 export async function sendInviteEmail(
   to: string,
@@ -33,7 +33,7 @@ export async function sendInviteEmail(
   return getResend().emails.send({
     from: FROM,
     to,
-    subject: `Einladung: ${agencyName} — Zoepp Media Cloud`,
+    subject: `Einladung: ${agencyName} — Zoepp Cloud`,
     html: inviteTemplate(agencyName, registerUrl, expiresAt, anleitung),
   });
 }
@@ -42,7 +42,7 @@ export async function sendWelcomeEmail(to: string, name: string, loginUrl: strin
   return getResend().emails.send({
     from: FROM,
     to,
-    subject: 'Willkommen bei Zoepp Media Cloud!',
+    subject: 'Willkommen bei Zoepp Cloud!',
     html: welcomeTemplate(name, loginUrl),
   });
 }
@@ -108,7 +108,7 @@ export async function sendAppointmentConfirmationEmail(
 ) {
   const { dateStr, timeStr } = formatBerlin(scheduledAt);
   return getResend().emails.send({
-    from: `${agencyName} via Zoepp Media Cloud <noreply@zoepp-gruppe.de>`,
+    from: `${agencyName} via Zoepp Cloud <noreply@zoepp-gruppe.de>`,
     to,
     subject: `Terminbestätigung: ${typeLabel} am ${dateStr}`,
     html: appointmentConfirmationTemplate(candidateName, typeLabel, dateStr, timeStr, agencyName, notes),
@@ -128,7 +128,7 @@ export async function sendAppointmentUpdateEmail(
 ) {
   const { dateStr, timeStr } = formatBerlin(scheduledAt);
   return getResend().emails.send({
-    from: `${agencyName} via Zoepp Media Cloud <noreply@zoepp-gruppe.de>`,
+    from: `${agencyName} via Zoepp Cloud <noreply@zoepp-gruppe.de>`,
     to,
     subject: `Terminänderung: ${typeLabel} jetzt am ${dateStr}`,
     html: appointmentUpdateTemplate(candidateName, typeLabel, dateStr, timeStr, agencyName, notes),
@@ -145,7 +145,7 @@ export async function sendAgencyCalendarInvite(
   method: 'REQUEST' | 'CANCEL' = 'REQUEST',
 ) {
   return getResend().emails.send({
-    from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',
+    from: 'Zoepp Cloud <noreply@zoepp-gruppe.de>',
     to,
     subject,
     html: bodyHtml,
@@ -194,7 +194,7 @@ export async function sendOptInFallbackEmail(to: string, firstName: string, appl
 export async function sendMahnMail(to: string, betreff: string, text: string, replyTo = 'assistenz@zoeppmedia.de') {
   const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return getResend().emails.send({
-    from: 'Zoepp Media <noreply@zoepp-gruppe.de>',
+    from: 'Zoepp Consulting <noreply@zoepp-gruppe.de>',
     to,
     replyTo,
     subject: betreff,
@@ -209,7 +209,7 @@ export async function sendVertragLink(to: string, name: string, firma: string, v
     from: FROM,
     to,
     replyTo: 'assistenz@zoeppmedia.de',
-    subject: `Willkommen bei Zoepp Media – bitte Vertrag bestätigen`,
+    subject: `Willkommen bei Zoepp Consulting – bitte Vertrag bestätigen`,
     html: vertragLinkTemplate({ name, firma, vertragUrl }),
   });
   if (error) throw new Error(error.message);

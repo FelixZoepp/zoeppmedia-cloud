@@ -2,7 +2,7 @@
  * Empfehlungen für Kunden („Upsell-Booster“): aus den echten Zahlen der Kunden-Cloud abgeleitet.
  * Zwei Arten:
  *  - tipp:    kostenlos, macht den Kunden effizienter (bessere Ergebnisse = zufriedener Kunde)
- *  - leistung: Zusatzleistung/Paket von Zoepp Media – Interesse geht an den Ansprechpartner
+ *  - leistung: Zusatzleistung/Paket von Zoepp Consulting – Interesse geht an den Ansprechpartner
  * Rein (keine I/O) – genutzt von der Empfehlungen-Seite, dem KI-Assistenten und den Kundenberatern.
  * Keine Preise: die klärt der Ansprechpartner.
  */

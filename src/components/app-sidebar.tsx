@@ -297,7 +297,7 @@ export function AppSidebar({ role, userName, funktion, logoUrl, onClose }: AppSi
     <Sidebar
       brand={isInternal ? 'Z' : initial}
       brandImage={isInternal ? null : logoUrl ?? null}
-      brandLabel={isInternal ? 'Zoepp Media' : userName}
+      brandLabel={isInternal ? 'Zoepp Consulting' : userName}
       brandSub={role === 'admin' ? 'Admin' : role === 'employee' ? 'Mitarbeiter' : 'Recruiting Cloud'}
       groups={groups}
       bottomItems={bottomItems}

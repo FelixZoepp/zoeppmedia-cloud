@@ -69,7 +69,7 @@ export function VertragFormular({ token, agbUrl, bestaetigt }: Props) {
             .
           </>
         ) : (
-          'Es gelten die Allgemeinen Geschäftsbedingungen von Zoepp Media – wir schicken sie dir gern zu.'
+          'Es gelten die Allgemeinen Geschäftsbedingungen der Zoepp Consulting GmbH – wir schicken sie dir gern zu.'
         )}
       </p>
 

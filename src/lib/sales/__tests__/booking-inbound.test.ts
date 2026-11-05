@@ -67,8 +67,8 @@ function makeSvc(responses: Record<string, unknown> = {}) {
 const booking = {
   chain: 'setting' as const,
   calendlyEventId: 'evt-1',
-  eventTypeName: 'Analysegespräch mit Zoepp Media',
-  eventName: 'Analysegespräch mit Zoepp Media',
+  eventTypeName: 'Analysegespräch mit Zoepp Consulting',
+  eventName: 'Analysegespräch mit Zoepp Consulting',
   startTime: '2026-10-05T16:00:00Z',
   endTime: '2026-10-05T16:15:00Z',
   location: '+49 177 1908503',

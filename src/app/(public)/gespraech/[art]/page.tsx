@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { VIDEO_BASIS } from '@/lib/sales/ablauf-videos';
 import { BOOKING_URLS } from '@/lib/sales/tracking';
 
-export const metadata: Metadata = { title: 'Zoepp Media', robots: { index: false } };
+export const metadata: Metadata = { title: 'Zoepp Consulting', robots: { index: false } };
 
 /** Videos „So läuft das Gespräch ab“ – Ziel der Short-Links aus den WhatsApp-Terminbestätigungen */
 const GESPRAECHE: Record<string, { titel: string; text: string; datei?: string; youtube?: string }> = {
@@ -43,7 +43,7 @@ export default async function GespraechSeite({ params }: { params: Promise<{ art
       <div className="w-full max-w-2xl rounded-2xl bg-card p-5 shadow-[0_30px_80px_-40px_#1a151466] sm:p-8">
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-gradient-to-b from-red-700 to-red-950 text-lg font-bold text-white">Z</span>
-          <p className="text-[15px] font-semibold tracking-[-0.02em]">Zoepp Media</p>
+          <p className="text-[15px] font-semibold tracking-[-0.02em]">Zoepp Consulting</p>
         </div>
         <h1 className="mt-6 text-[clamp(22px,4vw,28px)] font-semibold leading-tight tracking-[-0.03em]">{g.titel}</h1>
         <p className="mt-2 text-[15px] text-gray-600">{g.text}</p>

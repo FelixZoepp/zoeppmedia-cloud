@@ -225,7 +225,7 @@ export function HilfeClient({ audience, kontakt }: { audience: Audience; kontakt
                     <Avatar name={kontakt.name} src={kontakt.avatar_url} size={48} />
                     <div className="min-w-0">
                       <p className="truncate text-[16px] font-medium">{kontakt.name}</p>
-                      <p className="truncate text-[13px] text-red-200">{kontakt.position ?? 'Zoepp Media'}</p>
+                      <p className="truncate text-[13px] text-red-200">{kontakt.position ?? 'Zoepp Consulting'}</p>
                     </div>
                   </div>
                   <div className="mt-5 grid gap-2.5">

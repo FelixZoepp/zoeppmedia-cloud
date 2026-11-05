@@ -76,7 +76,7 @@ export function AnbindungClient() {
         <Card className="mb-4">
           <p className="text-[15px] font-semibold text-gray-900">Eigene Funnels → Close</p>
           <p className="mt-1 text-[13.5px] text-gray-600">
-            Diese URL im Perspective-Funnel von Zoepp Media als Webhook eintragen: Jeder Eintrag wird als Lead in Close angelegt (Leadquelle aus UTM,
+            Diese URL im Perspective-Funnel von Zoepp Consulting als Webhook eintragen: Jeder Eintrag wird als Lead in Close angelegt (Leadquelle aus UTM,
             Antworten in die Close-Felder). Nach 10 Minuten ohne Termin entsteht die Aufgabe „Jetzt anrufen“, mit Termin die Opportunity „Setting – Terminiert“.
           </p>
           <div className="mt-3 flex items-center gap-2">

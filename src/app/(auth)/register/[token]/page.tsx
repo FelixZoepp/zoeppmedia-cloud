@@ -64,7 +64,7 @@ export default function RegisterPage() {
           </div>
           <SplitText as="h1" text="Registrierung" className="text-[28px] font-semibold leading-tight tracking-[-0.035em]" />
         </div>
-        <p className="text-gray-600 text-sm mb-6">Erstelle deinen Zugang zur Zoepp Media Cloud.</p>
+        <p className="text-gray-600 text-sm mb-6">Erstelle deinen Zugang zur Zoepp Cloud.</p>
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>

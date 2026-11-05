@@ -70,7 +70,7 @@ export function wochenberichtHtml(b: KundenUeberblick, cloudUrl: string): string
 
   <tr><td style="padding:28px 32px 32px;" align="left">
     <a href="${esc(cloudUrl)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#a3201a;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">Zur Cloud</a>
-    <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#6b7280;">Fragen? Antworte einfach in der Cloud unter „FAQ &amp; Support“ – dein Team von Zoepp Media.</p>
+    <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#6b7280;">Fragen? Antworte einfach in der Cloud unter „FAQ &amp; Support“ – dein Team von Zoepp Consulting.</p>
   </td></tr>
 </table>
 </td></tr>

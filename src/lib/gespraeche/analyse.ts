@@ -49,7 +49,7 @@ export const AnalyseSchema = z.object({
 });
 export type GespraechAnalyse = z.infer<typeof AnalyseSchema>;
 
-const SYSTEM = `Du bist Vertriebstrainer bei Zoepp Media (Recruiting für Vertriebs-/D2D-Unternehmen) und wertest aufgezeichnete Gespräche aus.
+const SYSTEM = `Du bist Vertriebstrainer bei Zoepp Consulting (Recruiting für Vertriebs-/D2D-Unternehmen) und wertest aufgezeichnete Gespräche aus.
 Ziel: ein ehrliches, konkretes Coaching, damit Setter und Closer ohne den Geschäftsführer gute Abschlüsse machen.
 
 Maßstab für Verkaufsgespräche (Closing/Beratungsgespräch):

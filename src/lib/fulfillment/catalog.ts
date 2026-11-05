@@ -63,7 +63,7 @@ export const PHASES: Array<{ key: Phase; label: string; farbe: string; beschreib
   { key: 'offboarding', label: 'Offboarding', farbe: 'bg-teal-700', beschreibung: 'Sauber beenden, Testimonial sichern' },
 ];
 
-/** Meta-Partner-ID von Zoepp Media — alle Einladungen als Partner an diese ID */
+/** Meta-Partner-ID von Zoepp Consulting — alle Einladungen als Partner an diese ID */
 export const META_PARTNER_ID = '175192705159272';
 export const META_CHECKLISTE_PDF = '/downloads/checkliste-meta-business-manager.pdf';
 

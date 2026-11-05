@@ -26,7 +26,7 @@ const Schema = z.object({
   ),
 });
 
-const SYSTEM = `Du prüfst Videos (Recruiting-Ads, Website-Videos, Reels) von Zoepp Media vor der Freigabe auf Texte im Bild.
+const SYSTEM = `Du prüfst Videos (Recruiting-Ads, Website-Videos, Reels) von Zoepp Consulting vor der Freigabe auf Texte im Bild.
 Du bekommst Standbilder mit Zeitstempel. Lies alle eingeblendeten Texte (Untertitel, Titel, Bauchbinden, Call-to-Action, Preise, Telefonnummern, URLs).
 
 Melde als Fund:

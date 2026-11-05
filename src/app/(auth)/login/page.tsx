@@ -207,7 +207,7 @@ export default function LoginPage() {
             <SplitText
               key={kunde?.name ?? 'zoepp'}
               as="h1"
-              text={kunde ? kunde.name : 'Zoepp Media Cloud'}
+              text={kunde ? kunde.name : 'Zoepp Cloud'}
               className="text-[24px] font-semibold leading-tight tracking-[-0.035em]"
             />
             <p className="text-sm text-gray-600">{kunde ? 'Recruiting Cloud · Willkommen zurück' : 'Willkommen zurück'}</p>

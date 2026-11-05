@@ -24,12 +24,12 @@ export function terminText(art: SalesTermin['art']) {
         titel: 'Beratungsgespräch mit Felix Zoepp',
         ort: 'Zoom (den Link bekommst du 1 Stunde vorher per WhatsApp)',
         beschreibung:
-          'Beratungsgespräch mit Felix Zoepp (Zoepp Media), 60 Minuten per Zoom. Bitte nimm am Laptop oder PC teil, an einem ruhigen Ort mit Kamera. Den Zoom-Link bekommst du eine Stunde vor dem Termin per WhatsApp.',
+          'Beratungsgespräch mit Felix Zoepp (Zoepp Consulting), 60 Minuten per Zoom. Bitte nimm am Laptop oder PC teil, an einem ruhigen Ort mit Kamera. Den Zoom-Link bekommst du eine Stunde vor dem Termin per WhatsApp.',
       }
     : {
-        titel: 'Erstgespräch mit Zoepp Media',
+        titel: 'Erstgespräch mit Zoepp Consulting',
         ort: `Telefon – wir rufen dich an von ${SALES_TELEFON_ANZEIGE}`,
-        beschreibung: `Erstgespräch mit Felix von Zoepp Media. Wir rufen dich zum Termin an, und zwar von ${SALES_TELEFON_ANZEIGE}. Am besten suchst du dir vorher einen ruhigen Ort.`,
+        beschreibung: `Erstgespräch mit Felix von Zoepp Consulting. Wir rufen dich zum Termin an, und zwar von ${SALES_TELEFON_ANZEIGE}. Am besten suchst du dir vorher einen ruhigen Ort.`,
       };
 }
 
@@ -64,7 +64,7 @@ export function icsDatei(t: SalesTermin, jetzt: Date = new Date()): string {
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Zoepp Media//Termin//DE',
+    'PRODID:-//Zoepp Consulting//Termin//DE',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

@@ -584,7 +584,7 @@ async function executeSendEmail(
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY ?? '');
   await resend.emails.send({
-    from: 'Zoepp Media Cloud <noreply@zoepp-gruppe.de>',
+    from: 'Zoepp Cloud <noreply@zoepp-gruppe.de>',
     to,
     subject,
     html: body,

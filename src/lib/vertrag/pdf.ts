@@ -37,7 +37,7 @@ const zeitDe = (iso: string) =>
 export async function erzeugeBestaetigungPdf(daten: VertragDaten, b: Bestaetigung): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Vertragsbestätigung ${daten.firma}`);
-  pdf.setAuthor('Zoepp Media');
+  pdf.setAuthor('Zoepp Consulting GmbH');
   const page = pdf.addPage([595.28, 841.89]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const fett = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -59,7 +59,7 @@ export async function erzeugeBestaetigungPdf(daten: VertragDaten, b: Bestaetigun
   y -= 4;
   text('Vertragsbestätigung', { size: 20, f: fett });
   y -= 6;
-  text('Die folgenden Eckdaten der Zusammenarbeit wurden in der Zoepp Media Cloud elektronisch bestätigt.', { color: grau });
+  text('Die folgenden Eckdaten der Zusammenarbeit wurden in der Zoepp Cloud elektronisch bestätigt.', { color: grau });
   y -= 10;
 
   for (const [label, wert] of vertragZeilen(daten)) {
@@ -71,8 +71,8 @@ export async function erzeugeBestaetigungPdf(daten: VertragDaten, b: Bestaetigun
   y -= 10;
   text(
     b.agb_url
-      ? `Es gelten die Vertragsbedingungen/AGB von Zoepp Media: ${b.agb_url}`
-      : 'Es gelten die Allgemeinen Geschäftsbedingungen von Zoepp Media.',
+      ? `Es gelten die Vertragsbedingungen/AGB der Zoepp Consulting GmbH: ${b.agb_url}`
+      : 'Es gelten die Allgemeinen Geschäftsbedingungen der Zoepp Consulting GmbH.',
   );
   y -= 14;
   text('Bestätigung', { size: 12, f: fett });

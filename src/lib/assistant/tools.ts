@@ -269,7 +269,7 @@ const empfehlungen: ToolDef = {
   tool: {
     name: 'empfehlungen',
     description:
-      'Empfehlungen für die eigene Agentur aus den aktuellen Zahlen: „tipp“ = sofort umsetzbar in der Cloud (mit Link), „leistung“ = Zusatzleistung/Paket von Zoepp Media. Liefert Titel, Begründung mit Zahlen und Nutzen.',
+      'Empfehlungen für die eigene Agentur aus den aktuellen Zahlen: „tipp“ = sofort umsetzbar in der Cloud (mit Link), „leistung“ = Zusatzleistung/Paket von Zoepp Consulting. Liefert Titel, Begründung mit Zahlen und Nutzen.',
     input_schema: { type: 'object', properties: {} },
   },
   run: async (_input, ctx) => {
@@ -284,7 +284,7 @@ const interesseMelden: ToolDef = {
   tool: {
     name: 'interesse_melden',
     description:
-      'Meldet das Interesse des Kunden an einer Zusatzleistung oder einen Rückrufwunsch an seinen Ansprechpartner bei Zoepp Media. NUR aufrufen, nachdem der Kunde ausdrücklich zugestimmt hat („Ja, gib Bescheid“).',
+      'Meldet das Interesse des Kunden an einer Zusatzleistung oder einen Rückrufwunsch an seinen Ansprechpartner bei Zoepp Consulting. NUR aufrufen, nachdem der Kunde ausdrücklich zugestimmt hat („Ja, gib Bescheid“).',
     input_schema: {
       type: 'object',
       properties: {

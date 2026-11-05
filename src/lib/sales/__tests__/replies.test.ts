@@ -127,7 +127,7 @@ describe('handleSalesReply', () => {
   it('Bestätigung Erstgespräch → keine Videos', async () => {
     vi.stubEnv('SALES_KUNDENVIDEOS', 'Kunde A | https://youtu.be/a');
     await handleSalesReply(
-      makeSvc({ calendly_events: { ...beratungEvent, event_type: 'Analysegespräch mit Zoepp Media' } }),
+      makeSvc({ calendly_events: { ...beratungEvent, event_type: 'Analysegespräch mit Zoepp Consulting' } }),
       input,
     );
     expect(addCloseNoteByEmail).toHaveBeenCalledOnce();
